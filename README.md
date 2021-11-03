@@ -4,7 +4,7 @@
 <p>Provide powerful tool to make learning languages effective, automated and smooth.</p>
 
 <h1>Functionality</h1>
-    <p>1. Application allows user to load {datasets} from csv or xlsx files. The set is then displayed word-by-word in </p><p>random order.  </p>
+    <p>1. Application allows user to load {datasets} from csv or xlsx files. The set is then displayed word-by-word in random order.  </p>
     <p>2. User can navigate between words as well as change the side of the cards (question -> answer).  </p>
     <p>3. EFC tells user which sets they should repeat today (by filename)  </p>
     <p>4. User can see information about currently loaded file (from db, by filename)  </p>

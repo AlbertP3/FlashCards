@@ -1,0 +1,2 @@
+1. Finish naming buttons
+2. Try make it qt (pun intended) else apply style
