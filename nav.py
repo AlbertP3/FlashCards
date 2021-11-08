@@ -15,6 +15,10 @@ def click_reverse():
     pass
 
 
+def click_load():
+    print('hello world')
+    pass
+
 def change_revision():
     # handles going back and forth between sheets in DB
     pass
@@ -36,6 +40,5 @@ def click_delete():
 
 def show_settings():
     pass
-
 
 

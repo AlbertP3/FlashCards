@@ -16,7 +16,7 @@ def get_filename_from_path(path, include_extension=False):
     else:
         filename = basename(path)[:-4]
 
-    return filename
+    return filename 
 
 
 def text_insert(text_box, msg, left_newline=False, right_newline=False):
