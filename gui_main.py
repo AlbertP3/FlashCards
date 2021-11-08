@@ -4,10 +4,9 @@ from PyQt5 import QtCore
 from utils import *
 import logic
 import PyQt5.QtWidgets as widget
-from PyQt5.QtCore import pyqtSlot
+
 from PyQt5 import QtGui
 import pandas as pd
-from random import randint
 
 
 def __launch_main_window():
@@ -50,8 +49,8 @@ class main_window(widget.QWidget):
         # Layout & Style
         self.layout = widget.QGridLayout()
         self.setLayout(self.layout)
-        self.font = 'Poppins'
-        self.font_button_size = 12
+        self.font = 'Helvetica'
+        self.font_button_size = 14
         self.font_textbox_size = 32
         self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
@@ -60,18 +59,26 @@ class main_window(widget.QWidget):
         # print(PyQt5.QtWidgets.QStyleFactory.keys())
         # self.setStyle(widget.QStyleFactory.create('WindowsXP'))
 
-        self.button_style_sheet = ('''
-        background-color: rgb(120,120,120);
-        ''')
-
         self.setStyleSheet("""
-        background-color: rgb(60,60,60); 
-        color: rgb(211,211,211);
+        background-color: #979dac; 
         margin:0px; 
-        border:1px solid rgb(211, 211, 211);
+        border:1px solid #202020;
         padding:0px;
         """)
         
+        self.textbox_stylesheet = ('''
+            color: #3a3a3a; 
+            background-color: #cfdbd5;
+            border-radius: 5px;
+            line-height: 12%;
+            ''')
+
+        self.button_style_sheet = ('''
+        background-color: #7d8597;
+        color: #e8e8e8;
+        border-radius: 5px;
+        ''')
+
         self.layout_first_row = widget.QGridLayout()
         self.layout_second_row = widget.QGridLayout()
         self.layout_third_row = widget.QGridLayout()
@@ -115,11 +122,8 @@ class main_window(widget.QWidget):
         self.textbox = widget.QTextEdit(self)
         self.textbox.setFixedHeight(self.textbox_height)
         self.textbox.setFont(self.textbox_font)
-        self.textbox.setStyleSheet('''
-            color: rgb(11,11,11); 
-            background-color: rgb(155,255,160); 
-            ''')
-        self.textbox.setAlignment(QtCore.Qt.AlignCenter)
+        self.textbox.setStyleSheet(self.textbox_stylesheet)
+        self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
         return self.textbox
 
 
@@ -169,12 +173,12 @@ class main_window(widget.QWidget):
         return self.negative_button
 
     def positive_click(self):
-        if self.current_index + 1< self.total_words and self.words_back == 0:
+        if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.positives+=1
         self.click_next()
     
     def negative_click(self):
-        if self.current_index + 1 < self.total_words and self.words_back == 0:
+        if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.negatives+=1
         self.click_next()
 
@@ -190,6 +194,7 @@ class main_window(widget.QWidget):
     def create_score_button(self):
         self.score_button = widget.QPushButton(self)
         self.score_button.setFixedHeight(self.buttons_height)
+        self.score_button.setFont(self.button_font)
         self.score_button.setText('<>')
         self.score_button.setStyleSheet(self.button_style_sheet)
         return self.score_button
@@ -197,6 +202,7 @@ class main_window(widget.QWidget):
     def create_settings_button(self):
         self.settings_button = widget.QPushButton(self)
         self.settings_button.setFixedHeight(self.buttons_height)
+        self.settings_button.setFont(self.button_font)
         self.settings_button.setText('⚙')
         self.settings_button.setStyleSheet(self.button_style_sheet)
         return self.settings_button
@@ -204,6 +210,7 @@ class main_window(widget.QWidget):
     def create_save_button(self):
         self.save_button = widget.QPushButton(self)
         self.save_button.setFixedHeight(self.buttons_height)
+        self.save_button.setFont(self.button_font)
         self.save_button.setText('Save')
         self.save_button.setStyleSheet(self.button_style_sheet)
         return self.save_button
@@ -211,6 +218,7 @@ class main_window(widget.QWidget):
     def create_del_button(self):
         self.del_button = widget.QPushButton(self)
         self.del_button.setFixedHeight(self.buttons_height)
+        self.del_button.setFont(self.button_font)
         self.del_button.setText('🗑')
         self.del_button.setStyleSheet(self.button_style_sheet)
         return self.del_button
@@ -218,6 +226,7 @@ class main_window(widget.QWidget):
     def create_load_again_button(self):
         self.load_again_button = widget.QPushButton(self)
         self.load_again_button.setFixedHeight(self.buttons_height)
+        self.load_again_button.setFont(self.button_font)
         self.load_again_button.setText('⟳')
         self.load_again_button.setStyleSheet(self.button_style_sheet)
         return self.load_again_button
@@ -225,6 +234,7 @@ class main_window(widget.QWidget):
     def create_revmode_button(self):
         self.revmode_button = widget.QPushButton(self)
         self.revmode_button.setFixedHeight(self.buttons_height)
+        self.revmode_button.setFont(self.button_font)
         self.revmode_button.setText('RM:{}'.format(self.revmode))
         self.revmode_button.clicked.connect(self.change_revmode)
         self.revmode_button.setStyleSheet(self.button_style_sheet)
@@ -233,6 +243,7 @@ class main_window(widget.QWidget):
     def create_efc_button(self):
         self.efc_button = widget.QPushButton(self)
         self.efc_button.setFixedHeight(self.buttons_height)
+        self.efc_button.setFont(self.button_font)
         self.efc_button.setText('📜')
         self.efc_button.setStyleSheet(self.button_style_sheet)
         return self.efc_button
@@ -240,8 +251,9 @@ class main_window(widget.QWidget):
     def create_words_button(self):
         self.words_button = widget.QPushButton(self)
         self.words_button.setFixedHeight(self.buttons_height)
+        self.words_button.setFont(self.button_font)
         self.words_button.setStyleSheet(self.button_style_sheet)
-        self.set_words_button_text()
+        self.words_button.setText('-')
         return self.words_button
 
 
@@ -288,12 +300,16 @@ class main_window(widget.QWidget):
         self.move(frame_geo.topLeft())
 
 
-    def insert_text(self, text, default_font=14):
-        dynamic_font_size = 32 - int(len(text)/10)
-        self.font_textbox_size = dynamic_font_size if dynamic_font_size > 0 else default_font
+    def insert_text(self, text, default_font=16):
+        dynamic_font_size = 32 - int(len(text)/12)
+        self.font_textbox_size = dynamic_font_size if dynamic_font_size >= 8 else default_font
         self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
         self.textbox.setFont(self.textbox_font)
         self.textbox.setText(text)
+        padding = 90 - len(text)*0.6
+        padding = max(0, padding)
+        self.textbox.setStyleSheet('''{} 
+                                    padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
 
 
@@ -301,7 +317,7 @@ class main_window(widget.QWidget):
         if self.revmode == 'ON':
             score = self.positives / (self.positives + self.negatives)
             score = round(score*100,0)
-            self.score_button.setText('{}%'.format(score))
+            self.score_button.setText('{}%'.format(int(score)))
         else:
             self.score_button.setText('<>')
 
@@ -331,7 +347,6 @@ class main_window(widget.QWidget):
     def get_current_card(self):
         return self.dataset.iloc[self.current_index, self.side]
                 
-
 
 def launch():
     # [] or sys.argv represent cmd lines passed to the application
