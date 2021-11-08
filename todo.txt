@@ -1,3 +1,5 @@
-1. Finish naming buttons
-2. Try make it qt (pun intended) else apply style
-3. Check basic git functionality
+--Finish naming buttons
+Try make it qt (pun intended) else apply style
+Add revision buttons and functionality
+Check basic git functionality
+remove uneccessary scripts

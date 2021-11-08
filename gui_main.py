@@ -31,6 +31,9 @@ class main_window(widget.QWidget):
         self.current_index = 0
         self.dataset = None
         self.side = 0
+        self.positives = 0
+        self.negatives = 0
+        self.words_back = 0
 
         # Window Parameters
         self.left = 10
@@ -57,8 +60,12 @@ class main_window(widget.QWidget):
         # print(PyQt5.QtWidgets.QStyleFactory.keys())
         # self.setStyle(widget.QStyleFactory.create('WindowsXP'))
 
+        self.button_style_sheet = ('''
+        background-color: rgb(120,120,120);
+        ''')
+
         self.setStyleSheet("""
-        background-color: rgb(31,31,31); 
+        background-color: rgb(60,60,60); 
         color: rgb(211,211,211);
         margin:0px; 
         border:1px solid rgb(211, 211, 211);
@@ -69,6 +76,7 @@ class main_window(widget.QWidget):
         self.layout_second_row = widget.QGridLayout()
         self.layout_third_row = widget.QGridLayout()
         self.layout_fourth_row = widget.QGridLayout()
+        self.layout_next_navigation = widget.QGridLayout()
 
         self.layout.addLayout(self.layout_first_row, 0, 0)
         self.layout.addLayout(self.layout_second_row, 1, 0)
@@ -78,20 +86,24 @@ class main_window(widget.QWidget):
         # Widgets
         self.layout_first_row.addWidget(self.textbox(), 0, 0)
 
-        self.layout_second_row.addWidget(self.prev_button(), 0, 0)
-        self.layout_second_row.addWidget(self.reverse_button(), 0, 1)
-        self.layout_second_row.addWidget(self.next_button(), 0, 2)
+        self.layout_second_row.addWidget(self.create_prev_button(), 0, 0)
+        self.layout_second_row.addWidget(self.create_reverse_button(), 0, 1)
+        self.layout_second_row.addLayout(self.layout_next_navigation, 0, 2)
+        
+        self.layout_next_navigation.addWidget(self.create_next_button(), 0, 0)
+        self.create_positive_button().setParent(None)
+        self.create_negative_button().setParent(None)
 
-        self.layout_third_row.addWidget(self.load_button(), 2, 0)
-        self.layout_third_row.addWidget(self.del_button(), 2, 1)
-        self.layout_third_row.addWidget(self.efc_button(), 2, 2)
-        self.layout_third_row.addWidget(self.save_button(), 2, 3)
+        self.layout_third_row.addWidget(self.create_load_button(), 2, 0)
+        self.layout_third_row.addWidget(self.create_del_button(), 2, 1)
+        self.layout_third_row.addWidget(self.create_efc_button(), 2, 2)
+        self.layout_third_row.addWidget(self.create_save_button(), 2, 3)
 
-        self.layout_fourth_row.addWidget(self.score_button(), 3, 0)
-        self.layout_fourth_row.addWidget(self.settings_button(), 3, 1)
-        self.layout_fourth_row.addWidget(self.load_again_button(), 3, 2)
-        self.layout_fourth_row.addWidget(self.words_button(), 3, 3)
-        self.layout_fourth_row.addWidget(self.revmode_button(), 3, 4)
+        self.layout_fourth_row.addWidget(self.create_score_button(), 3, 0)
+        self.layout_fourth_row.addWidget(self.create_settings_button(), 3, 1)
+        self.layout_fourth_row.addWidget(self.create_load_again_button(), 3, 2)
+        self.layout_fourth_row.addWidget(self.create_words_button(), 3, 3)
+        self.layout_fourth_row.addWidget(self.create_revmode_button(), 3, 4)
         
 
         # Execute
@@ -111,88 +123,124 @@ class main_window(widget.QWidget):
         return self.textbox
 
 
-    def load_button(self):
+    def create_load_button(self):
         self.load_button = widget.QPushButton('Load', self)
         self.load_button.setFixedHeight(self.buttons_height)
         self.load_button.setFont(self.button_font)
         self.load_button.setText('Load')
         self.load_button.clicked.connect(self.load_button_click)
+        self.load_button.setStyleSheet(self.button_style_sheet)
         return self.load_button
 
-    def prev_button(self):
+    def create_prev_button(self):
         self.prev_button = widget.QPushButton(self)
         self.prev_button.setFixedHeight(self.buttons_height)
         self.prev_button.setFont(self.button_font)
         self.prev_button.setText('Prev')
         self.prev_button.clicked.connect(self.click_prev)
+        self.prev_button.setStyleSheet(self.button_style_sheet)
         return self.prev_button
 
-    def next_button(self):
+    def create_next_button(self):
         self.next_button = widget.QPushButton(self)
         self.next_button.setFixedHeight(self.buttons_height)
         self.next_button.setFont(self.button_font)
         self.next_button.setText('Next')
         self.next_button.clicked.connect(self.click_next)
+        self.next_button.setStyleSheet(self.button_style_sheet)
         return self.next_button
+    
+    def create_positive_button(self):
+        self.positive_button = widget.QPushButton(self)
+        self.positive_button.setFixedHeight(self.buttons_height)
+        self.positive_button.setFont(self.button_font)
+        self.positive_button.setText('✔️')
+        self.positive_button.clicked.connect(self.positive_click)
+        self.positive_button.setStyleSheet(self.button_style_sheet)
+        return self.positive_button
 
-    def reverse_button(self):
+    def create_negative_button(self):
+        self.negative_button = widget.QPushButton(self)
+        self.negative_button.setFixedHeight(self.buttons_height)
+        self.negative_button.setFont(self.button_font)
+        self.negative_button.setText('❌')
+        self.negative_button.clicked.connect(self.negative_click)
+        self.negative_button.setStyleSheet(self.button_style_sheet)
+        return self.negative_button
+
+    def positive_click(self):
+        if self.current_index + 1< self.total_words and self.words_back == 0:
+            self.positives+=1
+        self.click_next()
+    
+    def negative_click(self):
+        if self.current_index + 1 < self.total_words and self.words_back == 0:
+            self.negatives+=1
+        self.click_next()
+
+    def create_reverse_button(self):
         self.reverse_button = widget.QPushButton(self)
         self.reverse_button.setFixedHeight(self.buttons_height)
         self.reverse_button.setFont(self.button_font)
         self.reverse_button.setText('Reverse')
         self.reverse_button.clicked.connect(self.reverse_side)
+        self.reverse_button.setStyleSheet(self.button_style_sheet)
         return self.reverse_button
 
-    def score_button(self):
+    def create_score_button(self):
         self.score_button = widget.QPushButton(self)
         self.score_button.setFixedHeight(self.buttons_height)
         self.score_button.setText('<>')
+        self.score_button.setStyleSheet(self.button_style_sheet)
         return self.score_button
 
-    def settings_button(self):
-        settings_button = widget.QPushButton(self)
-        settings_button.setFixedHeight(self.buttons_height)
-        settings_button.setText('⚙')
-        # settings_button.clicked.connect()
-        return settings_button
+    def create_settings_button(self):
+        self.settings_button = widget.QPushButton(self)
+        self.settings_button.setFixedHeight(self.buttons_height)
+        self.settings_button.setText('⚙')
+        self.settings_button.setStyleSheet(self.button_style_sheet)
+        return self.settings_button
 
-    def save_button(self):
-        save_button = widget.QPushButton(self)
-        save_button.setFixedHeight(self.buttons_height)
-        save_button.setText('Save')
-        # save_button.clicked.connect()
-        return save_button
+    def create_save_button(self):
+        self.save_button = widget.QPushButton(self)
+        self.save_button.setFixedHeight(self.buttons_height)
+        self.save_button.setText('Save')
+        self.save_button.setStyleSheet(self.button_style_sheet)
+        return self.save_button
 
-    def del_button(self):
-        del_button = widget.QPushButton(self)
-        del_button.setFixedHeight(self.buttons_height)
-        del_button.setText('🗑')
-        # del_button.clicked.connect()
-        return del_button
+    def create_del_button(self):
+        self.del_button = widget.QPushButton(self)
+        self.del_button.setFixedHeight(self.buttons_height)
+        self.del_button.setText('🗑')
+        self.del_button.setStyleSheet(self.button_style_sheet)
+        return self.del_button
 
-    def load_again_button(self):
-        load_again_button = widget.QPushButton(self)
-        load_again_button.setFixedHeight(self.buttons_height)
-        load_again_button.setText('⟳')
-        # load_again_button.clicked.connect()
-        return load_again_button
+    def create_load_again_button(self):
+        self.load_again_button = widget.QPushButton(self)
+        self.load_again_button.setFixedHeight(self.buttons_height)
+        self.load_again_button.setText('⟳')
+        self.load_again_button.setStyleSheet(self.button_style_sheet)
+        return self.load_again_button
 
-    def revmode_button(self):
+    def create_revmode_button(self):
         self.revmode_button = widget.QPushButton(self)
         self.revmode_button.setFixedHeight(self.buttons_height)
         self.revmode_button.setText('RM:{}'.format(self.revmode))
         self.revmode_button.clicked.connect(self.change_revmode)
+        self.revmode_button.setStyleSheet(self.button_style_sheet)
         return self.revmode_button
 
-    def efc_button(self):
-        efc_button = widget.QPushButton(self)
-        efc_button.setFixedHeight(self.buttons_height)
-        efc_button.setText('📜')
-        return efc_button
+    def create_efc_button(self):
+        self.efc_button = widget.QPushButton(self)
+        self.efc_button.setFixedHeight(self.buttons_height)
+        self.efc_button.setText('📜')
+        self.efc_button.setStyleSheet(self.button_style_sheet)
+        return self.efc_button
 
-    def words_button(self):
+    def create_words_button(self):
         self.words_button = widget.QPushButton(self)
         self.words_button.setFixedHeight(self.buttons_height)
+        self.words_button.setStyleSheet(self.button_style_sheet)
         self.set_words_button_text()
         return self.words_button
 
@@ -219,12 +267,17 @@ class main_window(widget.QWidget):
 
 
     def click_next(self):
-        self.append_current_index()
-        self.insert_text(self.get_current_card())
+        if self.current_index < self.total_words:
+            self.update_score()
+            self.append_current_index()
+            if self.words_back > 0:
+                self.words_back-=1
+            self.insert_text(self.get_current_card())
 
 
     def click_prev(self):
         self.decrease_current_index()
+        self.words_back+=1
         self.insert_text(self.get_current_card())
 
 
@@ -236,7 +289,7 @@ class main_window(widget.QWidget):
 
 
     def insert_text(self, text, default_font=14):
-        dynamic_font_size = 32 - int(len(text)/4)
+        dynamic_font_size = 32 - int(len(text)/10)
         self.font_textbox_size = dynamic_font_size if dynamic_font_size > 0 else default_font
         self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
         self.textbox.setFont(self.textbox_font)
@@ -244,21 +297,35 @@ class main_window(widget.QWidget):
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
 
 
-    def set_score(self, pos, total):
-        score = pos/total if total != 0 else '<>'
-        self.score_button.setText('{}'.format(score))
-
+    def update_score(self):
+        if self.revmode == 'ON':
+            score = self.positives / (self.positives + self.negatives)
+            score = round(score*100,0)
+            self.score_button.setText('{}%'.format(score))
+        else:
+            self.score_button.setText('<>')
 
     def change_revmode(self):
         self.revmode = 'ON' if self.revmode == 'OFF' else 'OFF'
         self.revmode_button.setText('RM:{}'.format(self.revmode))
-
+        
+        # show/hide buttons
+        if self.revmode == 'ON':
+            self.next_button.setParent(None)
+            self.layout_next_navigation.addWidget(self.negative_button, 0, 0)
+            self.layout_next_navigation.addWidget(self.positive_button, 0, 1)
+        else:
+            self.positive_button.setParent(None)
+            self.negative_button.setParent(None)
+            self.layout_next_navigation.addWidget(self.next_button, 0, 0)
+            
 
     def load_button_click(self):
-        self.dataset = logic.load_dataset()
-        self.total_words = self.dataset.shape[0]
-        self.set_words_button_text()
-        self.insert_text(self.get_current_card())
+        self.dataset, succcess = logic.load_dataset()
+        if succcess:
+            self.total_words = self.dataset.shape[0]
+            self.set_words_button_text()
+            self.insert_text(self.get_current_card())
 
 
     def get_current_card(self):
@@ -276,4 +343,3 @@ def launch():
 
 if __name__ == '__main__':
     window = launch()
-    window.insert_text('Hello World')

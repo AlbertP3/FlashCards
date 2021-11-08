@@ -8,9 +8,12 @@ def load_dataset():
     root = tk.Tk()
     root.withdraw()
     dataset_path = askopenfile()
-    dataset = pd.read_csv(dataset_path.name, encoding='utf-8')
-    dataset = dataset.sample(frac=1).reset_index(drop=True)
-    return dataset
+    if dataset_path != None:
+        dataset = pd.read_csv(dataset_path.name, encoding='utf-8')
+        dataset = dataset.sample(frac=1).reset_index(drop=True)
+        return dataset, True
+    else:
+        return None, False
 
 
 def save():
