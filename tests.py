@@ -3,7 +3,7 @@ import gui_main as gui_main
 from utils import *
 import tkinter as tk
 import PyQt5.QtWidgets
-import threading
+
 
 class functional_tests(unittest.TestCase):
     

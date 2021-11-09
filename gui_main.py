@@ -33,6 +33,7 @@ class main_window(widget.QWidget):
         self.positives = 0
         self.negatives = 0
         self.words_back = 0
+        self.file_path = None
 
         # Window Parameters
         self.left = 10
@@ -43,7 +44,8 @@ class main_window(widget.QWidget):
         self.buttons_height = 45
 
         # Set Parameters
-        self.setWindowTitle('LlamaLearning')
+        self.setWindowTitle('Lama Learning')
+        self.setWindowIcon(QtGui.QIcon('icon.png'))
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         # Layout & Style
@@ -204,6 +206,7 @@ class main_window(widget.QWidget):
         self.settings_button.setFixedHeight(self.buttons_height)
         self.settings_button.setFont(self.button_font)
         self.settings_button.setText('⚙')
+        self.settings_button.clicked.connect(self.show_settings)
         self.settings_button.setStyleSheet(self.button_style_sheet)
         return self.settings_button
 
@@ -212,6 +215,7 @@ class main_window(widget.QWidget):
         self.save_button.setFixedHeight(self.buttons_height)
         self.save_button.setFont(self.button_font)
         self.save_button.setText('Save')
+        self.save_button.clicked.connect(self.save_revision)
         self.save_button.setStyleSheet(self.button_style_sheet)
         return self.save_button
 
@@ -221,6 +225,7 @@ class main_window(widget.QWidget):
         self.del_button.setFont(self.button_font)
         self.del_button.setText('🗑')
         self.del_button.setStyleSheet(self.button_style_sheet)
+        self.del_button.clicked.connect(self.delete_card)
         return self.del_button
 
     def create_load_again_button(self):
@@ -228,6 +233,7 @@ class main_window(widget.QWidget):
         self.load_again_button.setFixedHeight(self.buttons_height)
         self.load_again_button.setFont(self.button_font)
         self.load_again_button.setText('⟳')
+        self.load_again_button.clicked.connect(self.load_again_click)
         self.load_again_button.setStyleSheet(self.button_style_sheet)
         return self.load_again_button
 
@@ -245,6 +251,7 @@ class main_window(widget.QWidget):
         self.efc_button.setFixedHeight(self.buttons_height)
         self.efc_button.setFont(self.button_font)
         self.efc_button.setText('📜')
+        self.efc_button.clicked.connect(self.show_efc)
         self.efc_button.setStyleSheet(self.button_style_sheet)
         return self.efc_button
 
@@ -255,6 +262,26 @@ class main_window(widget.QWidget):
         self.words_button.setStyleSheet(self.button_style_sheet)
         self.words_button.setText('-')
         return self.words_button
+
+    def show_efc(self):
+        print('Nothing here so far')
+
+    def show_settings(self):
+        print('Nothing here so far')
+
+    def click_next(self):
+        if self.current_index < self.total_words:
+            self.update_score()
+            self.append_current_index()
+            if self.words_back > 0:
+                self.words_back-=1
+            self.insert_text(self.get_current_card())
+
+
+    def click_prev(self):
+        self.decrease_current_index()
+        self.words_back+=1
+        self.insert_text(self.get_current_card())
 
 
     def reverse_side(self):
@@ -278,20 +305,16 @@ class main_window(widget.QWidget):
         self.words_button.setText('{}/{}'.format(self.current_index+1, self.total_words))
 
 
-    def click_next(self):
-        if self.current_index < self.total_words:
-            self.update_score()
-            self.append_current_index()
-            if self.words_back > 0:
-                self.words_back-=1
-            self.insert_text(self.get_current_card())
+    def delete_card(self):
+        self.dataset.drop([self.current_index], inplace=True, axis=0)
+        self.total_words = self.dataset.shape[0]
+        self.current_index-=1
+        self.click_next()
 
 
-    def click_prev(self):
-        self.decrease_current_index()
-        self.words_back+=1
-        self.insert_text(self.get_current_card())
-
+    def save_revision(self):
+        logic.save(self.dataset.iloc[:self.current_index, :])
+        
 
     def center(self):
         frame_geo = self.frameGeometry()
@@ -314,8 +337,9 @@ class main_window(widget.QWidget):
 
 
     def update_score(self):
-        if self.revmode == 'ON':
-            score = self.positives / (self.positives + self.negatives)
+        total = self.positives + self.negatives
+        if self.revmode == 'ON' and total != 0:
+            score = self.positives / (total)
             score = round(score*100,0)
             self.score_button.setText('{}%'.format(int(score)))
         else:
@@ -337,15 +361,26 @@ class main_window(widget.QWidget):
             
 
     def load_button_click(self):
-        self.dataset, succcess = logic.load_dataset()
-        if succcess:
-            self.total_words = self.dataset.shape[0]
-            self.set_words_button_text()
-            self.insert_text(self.get_current_card())
+        self.dataset, self.file_path = logic.load_dataset()
+        if self.file_path is not None:
+            self.reset_flashcard_parameters()
 
 
+    def load_again_click(self):
+        self.dataset, self.file_path = logic.load_dataset(self.file_path)
+        self.reset_flashcard_parameters()
+        
+    
     def get_current_card(self):
         return self.dataset.iloc[self.current_index, self.side]
+
+    def reset_flashcard_parameters(self):
+        self.current_index = 0
+        self.positives = 0
+        self.negatives = 0
+        self.total_words = self.dataset.shape[0]
+        self.set_words_button_text()
+        self.insert_text(self.get_current_card())
                 
 
 def launch():
