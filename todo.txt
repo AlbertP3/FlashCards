@@ -1,5 +1,17 @@
+
+
+Min viable product
 --Finish naming buttons
-Try make it qt (pun intended) else apply style
-Add revision buttons and functionality
-Check basic git functionality
-remove uneccessary scripts
+--Try make it qt (pun intended) else apply style
+--Add revision buttons and functionality
+--remove uneccessary scripts
+--config file
+--revisions DB as csv with signatures
+--debugging basic functionality
+settings - get statistics for current revision
+efc - function, files recommendation
+
+
+Extensions
+load different formats - online as well
+ML reinforced efc

@@ -1,5 +1,5 @@
 import sys
-
+import db_api
 from PyQt5 import QtCore
 from utils import *
 import logic
@@ -22,6 +22,10 @@ class main_window(widget.QWidget):
     # self.load_button.clicked.connect(self.dummy_insert) <- func w/o args
 
     def __init__(self):
+
+        # Configuration
+        self.config = logic.load_config()
+
         super().__init__()
 
         # Flashcards parameters
@@ -34,6 +38,8 @@ class main_window(widget.QWidget):
         self.negatives = 0
         self.words_back = 0
         self.file_path = None
+        self.signature = None
+        self.is_saved = False
 
         # Window Parameters
         self.left = 10
@@ -51,9 +57,9 @@ class main_window(widget.QWidget):
         # Layout & Style
         self.layout = widget.QGridLayout()
         self.setLayout(self.layout)
-        self.font = 'Helvetica'
-        self.font_button_size = 14
-        self.font_textbox_size = 32
+        self.font = self.config['font']
+        self.font_button_size = self.config['font_button_size']
+        self.font_textbox_size = self.config['font_textbox_size']
         self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
         
@@ -61,25 +67,11 @@ class main_window(widget.QWidget):
         # print(PyQt5.QtWidgets.QStyleFactory.keys())
         # self.setStyle(widget.QStyleFactory.create('WindowsXP'))
 
-        self.setStyleSheet("""
-        background-color: #979dac; 
-        margin:0px; 
-        border:1px solid #202020;
-        padding:0px;
-        """)
+        self.setStyleSheet(self.config['main_style_sheet'])
         
-        self.textbox_stylesheet = ('''
-            color: #3a3a3a; 
-            background-color: #cfdbd5;
-            border-radius: 5px;
-            line-height: 12%;
-            ''')
+        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
 
-        self.button_style_sheet = ('''
-        background-color: #7d8597;
-        color: #e8e8e8;
-        border-radius: 5px;
-        ''')
+        self.button_style_sheet = (self.config['button_style_sheet'])
 
         self.layout_first_row = widget.QGridLayout()
         self.layout_second_row = widget.QGridLayout()
@@ -124,6 +116,7 @@ class main_window(widget.QWidget):
         self.textbox = widget.QTextEdit(self)
         self.textbox.setFixedHeight(self.textbox_height)
         self.textbox.setFont(self.textbox_font)
+        self.textbox.setReadOnly(True)
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
         return self.textbox
@@ -143,7 +136,6 @@ class main_window(widget.QWidget):
         self.prev_button.setFixedHeight(self.buttons_height)
         self.prev_button.setFont(self.button_font)
         self.prev_button.setText('Prev')
-        self.prev_button.clicked.connect(self.click_prev)
         self.prev_button.setStyleSheet(self.button_style_sheet)
         return self.prev_button
 
@@ -152,7 +144,6 @@ class main_window(widget.QWidget):
         self.next_button.setFixedHeight(self.buttons_height)
         self.next_button.setFont(self.button_font)
         self.next_button.setText('Next')
-        self.next_button.clicked.connect(self.click_next)
         self.next_button.setStyleSheet(self.button_style_sheet)
         return self.next_button
     
@@ -161,7 +152,6 @@ class main_window(widget.QWidget):
         self.positive_button.setFixedHeight(self.buttons_height)
         self.positive_button.setFont(self.button_font)
         self.positive_button.setText('✔️')
-        self.positive_button.clicked.connect(self.positive_click)
         self.positive_button.setStyleSheet(self.button_style_sheet)
         return self.positive_button
 
@@ -170,7 +160,6 @@ class main_window(widget.QWidget):
         self.negative_button.setFixedHeight(self.buttons_height)
         self.negative_button.setFont(self.button_font)
         self.negative_button.setText('❌')
-        self.negative_button.clicked.connect(self.negative_click)
         self.negative_button.setStyleSheet(self.button_style_sheet)
         return self.negative_button
 
@@ -189,7 +178,6 @@ class main_window(widget.QWidget):
         self.reverse_button.setFixedHeight(self.buttons_height)
         self.reverse_button.setFont(self.button_font)
         self.reverse_button.setText('Reverse')
-        self.reverse_button.clicked.connect(self.reverse_side)
         self.reverse_button.setStyleSheet(self.button_style_sheet)
         return self.reverse_button
 
@@ -206,7 +194,6 @@ class main_window(widget.QWidget):
         self.settings_button.setFixedHeight(self.buttons_height)
         self.settings_button.setFont(self.button_font)
         self.settings_button.setText('⚙')
-        self.settings_button.clicked.connect(self.show_settings)
         self.settings_button.setStyleSheet(self.button_style_sheet)
         return self.settings_button
 
@@ -225,7 +212,6 @@ class main_window(widget.QWidget):
         self.del_button.setFont(self.button_font)
         self.del_button.setText('🗑')
         self.del_button.setStyleSheet(self.button_style_sheet)
-        self.del_button.clicked.connect(self.delete_card)
         return self.del_button
 
     def create_load_again_button(self):
@@ -233,7 +219,6 @@ class main_window(widget.QWidget):
         self.load_again_button.setFixedHeight(self.buttons_height)
         self.load_again_button.setFont(self.button_font)
         self.load_again_button.setText('⟳')
-        self.load_again_button.clicked.connect(self.load_again_click)
         self.load_again_button.setStyleSheet(self.button_style_sheet)
         return self.load_again_button
 
@@ -242,7 +227,6 @@ class main_window(widget.QWidget):
         self.revmode_button.setFixedHeight(self.buttons_height)
         self.revmode_button.setFont(self.button_font)
         self.revmode_button.setText('RM:{}'.format(self.revmode))
-        self.revmode_button.clicked.connect(self.change_revmode)
         self.revmode_button.setStyleSheet(self.button_style_sheet)
         return self.revmode_button
 
@@ -251,7 +235,6 @@ class main_window(widget.QWidget):
         self.efc_button.setFixedHeight(self.buttons_height)
         self.efc_button.setFont(self.button_font)
         self.efc_button.setText('📜')
-        self.efc_button.clicked.connect(self.show_efc)
         self.efc_button.setStyleSheet(self.button_style_sheet)
         return self.efc_button
 
@@ -270,12 +253,18 @@ class main_window(widget.QWidget):
         print('Nothing here so far')
 
     def click_next(self):
-        if self.current_index < self.total_words:
+        diff_words = self.total_words - self.current_index
+        if diff_words > 0:
             self.update_score()
             self.append_current_index()
             if self.words_back > 0:
                 self.words_back-=1
             self.insert_text(self.get_current_card())
+        
+        # Conditions to save revision
+        if diff_words == 1 and self.signature[:4] == 'REV_' and self.is_saved == False:
+            db_api.create_record(self.signature, self.total_words, self.positives)
+            self.is_saved = True
 
 
     def click_prev(self):
@@ -313,7 +302,7 @@ class main_window(widget.QWidget):
 
 
     def save_revision(self):
-        logic.save(self.dataset.iloc[:self.current_index, :])
+        logic.save(self.dataset.iloc[:self.current_index, :], self.signature)
         
 
     def center(self):
@@ -364,6 +353,24 @@ class main_window(widget.QWidget):
         self.dataset, self.file_path = logic.load_dataset()
         if self.file_path is not None:
             self.reset_flashcard_parameters()
+            self.signature = get_signature(self.dataset.columns.tolist()[0], 
+                get_filename_from_path(self.file_path, include_extension=False))
+            self.add_buttons_functionality()
+
+
+    def add_buttons_functionality(self):
+        # Blocks buttons actions until a file is loaded (error prevetion)
+        self.prev_button.clicked.connect(self.click_prev)
+        self.next_button.clicked.connect(self.click_next)
+        self.positive_button.clicked.connect(self.positive_click)
+        self.negative_button.clicked.connect(self.negative_click)
+        self.reverse_button.clicked.connect(self.reverse_side)
+        self.settings_button.clicked.connect(self.show_settings)
+        self.del_button.clicked.connect(self.delete_card)
+        self.load_again_button.clicked.connect(self.load_again_click)
+        self.revmode_button.clicked.connect(self.change_revmode)
+        self.efc_button.clicked.connect(self.show_efc)
+        pass
 
 
     def load_again_click(self):
@@ -375,12 +382,14 @@ class main_window(widget.QWidget):
         return self.dataset.iloc[self.current_index, self.side]
 
     def reset_flashcard_parameters(self):
-        self.current_index = 0
+        self.current_index = -1
         self.positives = 0
         self.negatives = 0
+        self.words_back = 0
+        self.is_saved = False
         self.total_words = self.dataset.shape[0]
-        self.set_words_button_text()
-        self.insert_text(self.get_current_card())
+        self.click_next()
+
                 
 
 def launch():

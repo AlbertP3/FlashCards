@@ -1,4 +1,4 @@
-
+from datetime import datetime
 
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
@@ -27,3 +27,14 @@ def text_insert(text_box, msg, left_newline=False, right_newline=False):
 
 def iif(statement, true_part, false_part):
     return true_part if statement else false_part
+
+
+def get_signature(lng:str, filename):
+    # Create new signature or recognize the current one from pattern
+    if filename[:4] == 'REV_':
+        print('Revision recognized')
+        return filename
+    else:
+        saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
+        print('Creating new signature')
+        return 'REV_' + lng[:2] + saving_date

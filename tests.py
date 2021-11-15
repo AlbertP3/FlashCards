@@ -1,5 +1,6 @@
 import unittest
 import gui_main as gui_main
+import logic
 from utils import *
 import tkinter as tk
 import PyQt5.QtWidgets
@@ -16,4 +17,5 @@ class unit_tests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    # unittest.main()
+    print(logic.load_config()['font_button_size'])
