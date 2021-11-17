@@ -1,4 +1,7 @@
 from datetime import datetime, date
+import os
+
+
 
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
@@ -7,6 +10,10 @@ def get_abs_path_from_caller(file_name, abs_path=None):
         abs_path = path.abspath((stack()[1])[1])
         abs_path = path.join(path.dirname(abs_path), file_name)
     return abs_path
+
+
+def get_relative_path_from_abs_path(abs_path):
+    return '.\\' + os.path.relpath(abs_path)
 
 
 def get_filename_from_path(path, include_extension=False):

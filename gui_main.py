@@ -43,7 +43,6 @@ class main_window(widget.QWidget):
         self.signature = None
         self.is_saved = False
         self.is_revision = False
-        self.functionality_added = False
 
         # Window Parameters
         self.left = 10
@@ -112,9 +111,15 @@ class main_window(widget.QWidget):
         self.layout_fourth_row.addWidget(self.create_words_button(), 3, 3)
         self.layout_fourth_row.addWidget(self.create_revmode_button(), 3, 4)
         
+        # Button functionality control
+        self.add_buttons_functionality()
+
         # Execute
         self.center()
         self.show()
+
+        # Continue where you left off
+        self.load_button_click()
     
 
     def textbox(self):
@@ -262,7 +267,6 @@ class main_window(widget.QWidget):
 
 
     def click_next(self):
-        print(f'pos: {self.positives} neg: {self.negatives} cur: {self.current_index}')
         diff_words = self.total_words - self.current_index
         if diff_words > 0:
             self.update_score()
@@ -367,16 +371,21 @@ class main_window(widget.QWidget):
             
 
     def load_button_click(self):
-        self.dataset, self.file_path = logic.load_dataset()
+
+        if self.file_path is None:
+            # Onload file
+            self.dataset, self.file_path = logic.load_dataset(self.config['onload_file_path'])
+        else:
+            self.dataset, self.file_path = logic.load_dataset()
+
         if self.file_path is not None:
             self.reset_flashcard_parameters()
             self.signature = get_signature(self.dataset.columns.tolist()[0], 
                 get_filename_from_path(self.file_path, include_extension=False))
             self.is_revision = True if self.signature[:4] == 'REV_' else False
-            # Button functionality control
-            if not self.functionality_added:
-                self.add_buttons_functionality()
-                self.functionality_added = True 
+            
+            # Update config file with new onload_path
+            logic.update_config('onload_file_path', get_relative_path_from_abs_path(self.file_path))
 
 
     def add_buttons_functionality(self):
@@ -407,7 +416,7 @@ class main_window(widget.QWidget):
         self.dataset, self.file_path = logic.load_dataset(self.file_path)
         self.reset_flashcard_parameters()
         
-    
+
     def get_current_card(self, side=None):
         side = self.side if side is None else side
         return self.dataset.iloc[self.current_index, side]

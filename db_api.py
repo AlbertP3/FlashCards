@@ -51,8 +51,8 @@ class db_interface():
 
         
     def get_positives_chart(self, signature):
-        dates = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].values.tolist()
-        values = self.db[self.db['SIGNATURE'] == signature]['POSITIVES'].values.tolist()
+        dates = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
+        values = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
         sum_repeated = str(self.get_sum_repeated(signature))
         last_pos_share = str(self.get_last_positives_share(signature))
         first_date = str(self.get_first_date(signature))

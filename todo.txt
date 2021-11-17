@@ -1,20 +1,21 @@
 
-
-Min viable product
 --Finish naming buttons
 --Try make it qt (pun intended) else apply style
 --Add revision buttons and functionality
 --remove uneccessary scripts
 --config file
 --revisions DB as csv with signatures 
+
 --debugging basic functionality
 --settings - get statistics for current revision - in a form of a chart with info table on the side
 --buttons functionality control
 --mistakes dialog
 --error-proof file loading
-immediately load last file - modify config file
 --default folder for load button
-efc - function, files recommendation
+
+--immediately load last file - modify config file - continue where you left off
+--queries - add second condition [pos != 0]
+efc - function, queries, files recommendation 
 
 
 Extensions

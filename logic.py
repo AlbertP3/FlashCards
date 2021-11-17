@@ -3,6 +3,7 @@ import tkinter as tk
 from utils import *
 from tkinter.filedialog import askopenfile
 from tkinter import simpledialog
+import csv
 import os
 
 
@@ -29,7 +30,7 @@ def load_dataset(file_path=None):
         else:
             return None, None
         
-    else:
+    else: # FilePath provided
         dataset = pd.read_csv(file_path, encoding='utf-8')
         dataset = dataset.sample(frac=1).reset_index(drop=True)
         return dataset, file_path
@@ -58,5 +59,7 @@ def load_config():
     return config_dict
     
      
-
-
+def update_config(key, new_value):
+    config = pd.read_csv('config.csv', encoding='utf-8')
+    config.loc[config.key == key] = [key, new_value]
+    config.to_csv('config.csv', index=False)
