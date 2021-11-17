@@ -2,4 +2,4 @@ venv
 __pycache__
 __init__.py
 revisions
-example_lng.csv
+languages

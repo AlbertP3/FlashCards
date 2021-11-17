@@ -14,8 +14,15 @@ def load_dataset(file_path=None):
         # Get File Path
         root = tk.Tk()
         root.withdraw()
-        dataset_path = askopenfile()
+        dataset_path = askopenfile(initialdir='.')
         if dataset_path != None:
+
+            # Check if extension is supported
+            extension = get_filename_from_path(dataset_path.name,True)[-3:]
+            if extension != 'csv':
+                print(f'Chosen extension is not supported: {extension}')
+                return None, None
+
             dataset = pd.read_csv(dataset_path.name, encoding='utf-8')
             dataset = dataset.sample(frac=1).reset_index(drop=True)
             return dataset, dataset_path.name

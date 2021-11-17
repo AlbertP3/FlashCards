@@ -1,8 +1,9 @@
-import sys
 import db_api
+import efc
 from PyQt5 import QtCore
 from utils import *
 import logic
+from mistakes_dialog import Mistakes
 import PyQt5.QtWidgets as widget
 
 from PyQt5 import QtGui
@@ -33,13 +34,16 @@ class main_window(widget.QWidget):
         self.total_words = 0
         self.current_index = 0
         self.dataset = None
-        self.side = 0
+        self.side = self.config['card_default_side']
         self.positives = 0
         self.negatives = 0
+        self.mistakes_list = list()
         self.words_back = 0
         self.file_path = None
         self.signature = None
         self.is_saved = False
+        self.is_revision = False
+        self.functionality_added = False
 
         # Window Parameters
         self.left = 10
@@ -92,9 +96,11 @@ class main_window(widget.QWidget):
         self.layout_second_row.addLayout(self.layout_next_navigation, 0, 2)
         
         self.layout_next_navigation.addWidget(self.create_next_button(), 0, 0)
-        self.create_positive_button().setParent(None)
-        self.create_negative_button().setParent(None)
-
+        self.layout_next_navigation.addWidget(self.create_negative_button(), 0, 0)
+        self.layout_next_navigation.addWidget(self.create_positive_button(), 0, 1)
+        self.negative_button.hide()
+        self.positive_button.hide()
+        
         self.layout_third_row.addWidget(self.create_load_button(), 2, 0)
         self.layout_third_row.addWidget(self.create_del_button(), 2, 1)
         self.layout_third_row.addWidget(self.create_efc_button(), 2, 2)
@@ -106,7 +112,6 @@ class main_window(widget.QWidget):
         self.layout_fourth_row.addWidget(self.create_words_button(), 3, 3)
         self.layout_fourth_row.addWidget(self.create_revmode_button(), 3, 4)
         
-
         # Execute
         self.center()
         self.show()
@@ -123,7 +128,7 @@ class main_window(widget.QWidget):
 
 
     def create_load_button(self):
-        self.load_button = widget.QPushButton('Load', self)
+        self.load_button = widget.QPushButton(self)
         self.load_button.setFixedHeight(self.buttons_height)
         self.load_button.setFont(self.button_font)
         self.load_button.setText('Load')
@@ -171,6 +176,8 @@ class main_window(widget.QWidget):
     def negative_click(self):
         if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.negatives+=1
+            self.mistakes_list.append([self.get_current_card(self.config['card_default_side']), 
+                                        self.get_current_card(1-self.config['card_default_side'])])
         self.click_next()
 
     def create_reverse_button(self):
@@ -236,6 +243,7 @@ class main_window(widget.QWidget):
         self.efc_button.setFont(self.button_font)
         self.efc_button.setText('📜')
         self.efc_button.setStyleSheet(self.button_style_sheet)
+        self.efc_button.clicked.connect(self.show_efc)
         return self.efc_button
 
     def create_words_button(self):
@@ -246,25 +254,33 @@ class main_window(widget.QWidget):
         self.words_button.setText('-')
         return self.words_button
 
-    def show_efc(self):
-        print('Nothing here so far')
 
     def show_settings(self):
-        print('Nothing here so far')
+        if self.signature[:4] == 'REV_':
+            db_interface = db_api.db_interface()
+            db_interface.get_positives_chart(self.signature)
+
 
     def click_next(self):
+        print(f'pos: {self.positives} neg: {self.negatives} cur: {self.current_index}')
         diff_words = self.total_words - self.current_index
         if diff_words > 0:
             self.update_score()
+            self.side = self.config['card_default_side']
             self.append_current_index()
             if self.words_back > 0:
                 self.words_back-=1
             self.insert_text(self.get_current_card())
         
-        # Conditions to save revision
+        # Conditions to save revision - last card 
         if diff_words == 1 and self.signature[:4] == 'REV_' and self.is_saved == False:
             db_api.create_record(self.signature, self.total_words, self.positives)
             self.is_saved = True
+            if self.revmode == 'ON': self.change_revmode()
+            self.insert_text('Done!')
+
+            if self.negatives != 0:
+                self.show_mistakes()
 
 
     def click_prev(self):
@@ -302,7 +318,8 @@ class main_window(widget.QWidget):
 
 
     def save_revision(self):
-        logic.save(self.dataset.iloc[:self.current_index, :], self.signature)
+        if not self.is_revision:
+            logic.save(self.dataset.iloc[:self.current_index, :], self.signature)
         
 
     def center(self):
@@ -340,13 +357,13 @@ class main_window(widget.QWidget):
         
         # show/hide buttons
         if self.revmode == 'ON':
-            self.next_button.setParent(None)
-            self.layout_next_navigation.addWidget(self.negative_button, 0, 0)
-            self.layout_next_navigation.addWidget(self.positive_button, 0, 1)
+            self.next_button.hide()
+            self.negative_button.show()
+            self.positive_button.show()
         else:
-            self.positive_button.setParent(None)
-            self.negative_button.setParent(None)
-            self.layout_next_navigation.addWidget(self.next_button, 0, 0)
+            self.positive_button.hide()
+            self.negative_button.hide()
+            self.next_button.show()
             
 
     def load_button_click(self):
@@ -355,7 +372,11 @@ class main_window(widget.QWidget):
             self.reset_flashcard_parameters()
             self.signature = get_signature(self.dataset.columns.tolist()[0], 
                 get_filename_from_path(self.file_path, include_extension=False))
-            self.add_buttons_functionality()
+            self.is_revision = True if self.signature[:4] == 'REV_' else False
+            # Button functionality control
+            if not self.functionality_added:
+                self.add_buttons_functionality()
+                self.functionality_added = True 
 
 
     def add_buttons_functionality(self):
@@ -370,7 +391,16 @@ class main_window(widget.QWidget):
         self.load_again_button.clicked.connect(self.load_again_click)
         self.revmode_button.clicked.connect(self.change_revmode)
         self.efc_button.clicked.connect(self.show_efc)
-        pass
+
+
+    def show_efc(self):
+        self.efc_window = efc.EFC()
+        self.efc_window.show()
+        
+
+    def show_mistakes(self):
+        self.mistakes_window = Mistakes(self.mistakes_list)
+        self.mistakes_window.show()
 
 
     def load_again_click(self):
@@ -378,17 +408,19 @@ class main_window(widget.QWidget):
         self.reset_flashcard_parameters()
         
     
-    def get_current_card(self):
-        return self.dataset.iloc[self.current_index, self.side]
+    def get_current_card(self, side=None):
+        side = self.side if side is None else side
+        return self.dataset.iloc[self.current_index, side]
 
     def reset_flashcard_parameters(self):
-        self.current_index = -1
+        self.current_index = 0
         self.positives = 0
         self.negatives = 0
         self.words_back = 0
         self.is_saved = False
         self.total_words = self.dataset.shape[0]
-        self.click_next()
+        self.insert_text(self.get_current_card())
+        self.set_words_button_text()
 
                 
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
@@ -38,3 +38,21 @@ def get_signature(lng:str, filename):
         saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
         print('Creating new signature')
         return 'REV_' + lng[:2] + saving_date
+
+
+def make_datetime(d):
+    # transforms date-like string in database to datetime format
+    return datetime(int(d[6:10]), int(d[:2]), int(d[3:5]), int(d[12:14]), int(d[15:17]), int(d[18:20]))
+
+
+def make_date(d):
+    # transforms date-like string in database to datetime format
+    return date(int(d[6:10]), int(d[:2]), int(d[3:5]))
+
+
+def make_todaytime():
+    return datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
+
+
+def make_todayte():
+    return date(datetime.now().year, datetime.now().month, datetime.now().day)

@@ -6,12 +6,18 @@ Min viable product
 --Add revision buttons and functionality
 --remove uneccessary scripts
 --config file
---revisions DB as csv with signatures
+--revisions DB as csv with signatures 
 --debugging basic functionality
-settings - get statistics for current revision
+--settings - get statistics for current revision - in a form of a chart with info table on the side
+--buttons functionality control
+--mistakes dialog
+--error-proof file loading
+immediately load last file - modify config file
+--default folder for load button
 efc - function, files recommendation
 
 
 Extensions
+keyboard shortcuts
 load different formats - online as well
 ML reinforced efc

@@ -1,9 +1,12 @@
 import unittest
 import gui_main as gui_main
 import logic
+import db_api
 from utils import *
 import tkinter as tk
 import PyQt5.QtWidgets
+import efc
+import mistakes_dialog
 
 
 class functional_tests(unittest.TestCase):
@@ -18,4 +21,5 @@ class unit_tests(unittest.TestCase):
 
 if __name__ == '__main__':
     # unittest.main()
-    print(logic.load_config()['font_button_size'])
+    mst = mistakes_dialog.Mistakes()
+    efc.launch_window()
