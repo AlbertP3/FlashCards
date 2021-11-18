@@ -1,0 +1,26 @@
+<h1> README </h1>
+
+<h1>Main Goal</h1>
+<p>Provide powerful tool to make learning languages effective, automated and smooth.</p>
+
+<h1>Functionality</h1>
+    <p>1. User loads dataset from a csv file. The set is then displayed as cards in random order.  </p>
+    <p>2. It's possible to navigate between the cards as well as change the side of the cards (question -> answer).</p>
+    <p>3. Subsets of cards from bigger sets can be saved as Revisions for further spaced repetitions</p>
+    <p>4. EFC (Ebbinghaus Forgetting Curve) tells the user which sets they should repeat today</p>
+    <p>5. User can see stats for currently loaded file</p>
+    <p>6. With Score Mode, user will be presented with cards they didn't recognize</p>
+
+<h1>How to install?</h1>
+    <p>0. Verify correct instalation of python </p>
+    <p>1. Clone the repository to directory of your choosing</p>
+    <p>2. open cmd or powershell from the chosen dir (alt+d and type 'cmd' or 'powershell') and activate following 2 commands:</p>
+    <p>     a) python -m venv .\venv</p>
+    <p>     b) pip install -r .\scripts\resources\requirements.txt</p>
+    <p>3. Create 'revisions' folder in the main dir
+    <p>4. You're good!</p>
+
+<h1>What will be added in the future?</h1>
+    <p>keyboard shortcuts</p>
+    <p>load different formats - online as well</p>
+    <p>ML reinforced efc</p>

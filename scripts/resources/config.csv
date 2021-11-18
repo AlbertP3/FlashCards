@@ -1,0 +1,16 @@
+key,val
+card_default_side,1
+font,Helvetica
+font_button_size,14
+font_textbox_size,32
+font_color,#3a3a3a
+main_style_sheet,background-color: #979dac; margin:0px;  border:1px solid #202020; padding:0px;
+textbox_style_sheet,color: #3a3a3a; background-color: #cfdbd5;border-radius: 5px;line-height: 12%;
+button_style_sheet,background-color: #7d8597;color: #e8e8e8;border-radius: 5px;
+stat_bar_color,#98C1D9
+stat_background_color,#7d8597
+stat_chart_background_color,#ffffff
+efc_button_font_size,14
+onload_file_path,.\revisions\REV_RU11182021153533.csv
+revs_path,.\revisions
+resources_path,.\scripts\resources
