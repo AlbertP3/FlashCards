@@ -4,30 +4,36 @@
 
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
+from numpy import sign
 import db_api
 from logic import load_config
 from utils import *
 from math import exp, log10
-
+import gui_main
 
 
 class EFC(widget.QWidget):
 
-    def __init__(self, parent=None):
+    def __init__(self, main_window:gui_main.main_window):
 
         # Configuration
         self.config = load_config()
-        super(EFC, self).__init__(parent)
+        super(EFC, self).__init__(None)
+        self.main_window = main_window
         self.initial_repetitions = 2
 
         # Window Parameters
         self.left = 10
         self.top = 10
-        self.width = 200
+        self.width = 280
         self.height = 250
         self.buttons_height = 45
 
         self.arrange_window()
+        self.recommendations_and_remaining_list = self.get_recommendations_and_remaining()
+
+        [self.recommendation_list.addItem(str(r[0])) for r in self.recommendations_and_remaining_list]
+        [self.remaining_revs_list.addItem(str('{:.0f}'.format(r[1]))) for r in self.recommendations_and_remaining_list]
 
 
     def arrange_window(self):
@@ -84,32 +90,56 @@ class EFC(widget.QWidget):
         self.load_button.clicked.connect(self.load_selected)
         return self.load_button
 
-    
+
+    def efc_function(self, initial_date, total_words, last_positives):
+            time_delta = (make_todayte() - make_date(initial_date)).days
+            n = exp(0.007 * (total_words-30)) * 1.6
+            pos_share = last_positives/total_words
+
+            if pos_share > 0.92:
+                p = -1
+            elif pos_share < 0.7:
+                p = 1
+            else:
+                p = 0
+
+            if time_delta != 0:
+                return round(n * log10(time_delta)+1, 0) + self.initial_repetitions + p
+            else:
+                return self.initial_repetitions
+
+
     def get_recommendations_and_remaining(self):
-        recommendations, remaining = None, None
-        # ToDo - query
-        return recommendations, remaining
+        
+        # unique signatures from rev_db
+        db_interface = db_api.db_interface()
+        unique_signatures = db_interface.get_unique_signatures()
+
+        # get parameters and efc_function result for each unique signature
+        # filter on the go
+        recommendations_and_remaining = list()
+        for signature in unique_signatures:
+            sum_repeated = db_interface.get_sum_repeated(signature)
+            first_date = db_interface.get_first_date(signature)
+            total = db_interface.get_total_words(signature)
+            last_positives = db_interface.get_last_positives(signature)
+            efc_revs = self.efc_function(first_date, total, last_positives)
+            remaining = efc_revs - sum_repeated
+
+            if remaining > 0:
+                recommendations_and_remaining.append([signature, remaining])
+
+        return recommendations_and_remaining
 
 
-    def efc_function(self, date, total_words, positives):
-        time_delta = make_todayte - make_date(date)
-        n = exp(0.007 * (total_words-30)) * 1.6
-        pos_share = positives/total_words
-
-        if pos_share > 0.92:
-            p = -1
-        elif pos_share < 0.7:
-            p = 1
-        else:
-            p = 0
-
-        if time_delta != 0:
-            return round(n * log10(time_delta)+1, 0) + self.initial_repetitions + p
-        else:
-            return self.initial_repetitions
-
-    
     def load_selected(self):
-        pass
+        file_to_load = self.recommendation_list.currentItem().text()
+        try:
+            self.main_window.load_button_click('./revisions/' + str(file_to_load) + '.csv')
+            self.close()
+        except FileNotFoundError:
+            print('Requested File Not Found')
+        
+        
 
 

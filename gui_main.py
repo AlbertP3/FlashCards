@@ -39,7 +39,7 @@ class main_window(widget.QWidget):
         self.negatives = 0
         self.mistakes_list = list()
         self.words_back = 0
-        self.file_path = None
+        self.file_path = self.config['onload_file_path']
         self.signature = None
         self.is_saved = False
         self.is_revision = False
@@ -119,7 +119,7 @@ class main_window(widget.QWidget):
         self.show()
 
         # Continue where you left off
-        self.load_button_click()
+        self.load_button_click(self.file_path)
     
 
     def textbox(self):
@@ -370,13 +370,13 @@ class main_window(widget.QWidget):
             self.next_button.show()
             
 
-    def load_button_click(self):
-
-        if self.file_path is None:
-            # Onload file
-            self.dataset, self.file_path = logic.load_dataset(self.config['onload_file_path'])
-        else:
+    def load_button_click(self, file_path=None):
+        
+        # function loads argument or asks user for a path
+        if file_path is None:
             self.dataset, self.file_path = logic.load_dataset()
+        else:
+            self.dataset, self.file_path = logic.load_dataset(file_path)
 
         if self.file_path is not None:
             self.reset_flashcard_parameters()
@@ -386,6 +386,10 @@ class main_window(widget.QWidget):
             
             # Update config file with new onload_path
             logic.update_config('onload_file_path', get_relative_path_from_abs_path(self.file_path))
+
+
+    def set_file_path(self, new_file_path):
+        self.file_path = new_file_path
 
 
     def add_buttons_functionality(self):
@@ -403,7 +407,7 @@ class main_window(widget.QWidget):
 
 
     def show_efc(self):
-        self.efc_window = efc.EFC()
+        self.efc_window = efc.EFC(self)
         self.efc_window.show()
         
 

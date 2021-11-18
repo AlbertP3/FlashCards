@@ -6,7 +6,6 @@ import pandas as pd
 from utils import *
 import tkinter as tk
 import PyQt5.QtWidgets
-import efc
 import mistakes_dialog
 
 
@@ -23,4 +22,6 @@ class unit_tests(unittest.TestCase):
 if __name__ == '__main__':
     # unittest.main()
     # logic.update_config('onload_file_path', './revisions/REV_RU11172021073015.csv')
-    print(get_relative_path_from_abs_path('C:/Users/blueg/Documents/workspace_it/Flashcards/languages/ru.csv'))
+    db_query = db_api.db_interface()
+    # print(db_query.get_first_date('REV_RU11172021073015').__class__)
+    print((make_todayte() - make_date('11/07/2021, 08:48:04')).days)

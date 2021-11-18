@@ -31,13 +31,21 @@ class db_interface():
         self.db = pd.read_csv(rev_db_name, encoding='utf-8', sep=';')
        
 
+    def get_unique_signatures(self):
+        return self.db['SIGNATURE'].drop_duplicates()
+
+
     def get_sum_repeated(self, signature):
         return self.db[self.db['SIGNATURE'] == signature].count()[0]
     
 
-    def get_last_positives_share(self, signature):
+    def get_last_positives(self, signature):
         return self.db[self.db['SIGNATURE'] == signature]['POSITIVES'].iloc[-1]
     
+
+    def get_total_words(self, signature):
+        return self.db[self.db['SIGNATURE'] == signature]['TOTAL'].iloc[-1]
+
 
     def get_first_date(self, signature):
         return self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
@@ -54,7 +62,7 @@ class db_interface():
         dates = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
         values = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
         sum_repeated = str(self.get_sum_repeated(signature))
-        last_pos_share = str(self.get_last_positives_share(signature))
+        last_pos_share = str(self.get_last_positives(signature))
         first_date = str(self.get_first_date(signature))
         days_ago = str(self.get_days_ago(signature))
 

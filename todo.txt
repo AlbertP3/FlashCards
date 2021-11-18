@@ -15,8 +15,13 @@
 
 --immediately load last file - modify config file - continue where you left off
 --queries - add second condition [pos != 0]
-efc - function, queries, files recommendation 
 
+-- efc - function, queries, files recommendation 
+
+scripts organization
+setup verification - checking and creating files
+debugging
+refactoring
 
 Extensions
 keyboard shortcuts
