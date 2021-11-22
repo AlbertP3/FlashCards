@@ -17,7 +17,7 @@ class Mistakes(widget.QWidget):
         self.left = 10
         self.top = 10
         self.width = 400
-        self.height = 250
+        self.height = 44 * len(self.mistakes_list)
         self.buttons_height = 45
 
         self.arrange_window()

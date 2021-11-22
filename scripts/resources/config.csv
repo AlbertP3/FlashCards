@@ -11,6 +11,7 @@ stat_bar_color,#98C1D9
 stat_background_color,#7d8597
 stat_chart_background_color,#ffffff
 efc_button_font_size,14
-onload_file_path,.\revisions\REV_RU11182021153533.csv
+onload_file_path,.\revisions\REV_RU11212021162938.csv
 revs_path,.\revisions
 resources_path,.\scripts\resources
+keyboard_shortcuts,ON

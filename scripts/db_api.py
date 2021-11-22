@@ -11,7 +11,7 @@ rev_db_name = 'rev_db.csv'
 rev_db_path = config['resources_path'] + '\\' + rev_db_name
 if rev_db_name not in [f for f in listdir(config['resources_path'])]:
     print('Initializing new Database')
-    DataFrame().to_csv(config['resources_path'] + '\\' + rev_db_name)
+    DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['resources_path'] + '\\' + rev_db_name)
 
 
 def create_record(signature, words_total, positives):

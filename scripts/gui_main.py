@@ -29,7 +29,7 @@ class main_window(widget.QWidget):
         super().__init__()
 
         # Flashcards parameters
-        self.revmode = 'OFF'
+        self.revmode = False
         self.total_words = 0
         self.current_index = 0
         self.dataset = None
@@ -110,6 +110,8 @@ class main_window(widget.QWidget):
         
         # Button functionality control
         self.add_buttons_functionality()
+        if self.config['keyboard_shortcuts'].lower() in ['on','yes','true','1', 'y']:
+            self.add_shortcuts()
 
         # Execute
         self.center()
@@ -223,7 +225,7 @@ class main_window(widget.QWidget):
         self.revmode_button = widget.QPushButton(self)
         self.revmode_button.setFixedHeight(self.buttons_height)
         self.revmode_button.setFont(self.button_font)
-        self.revmode_button.setText('RM:{}'.format(self.revmode))
+        self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
         self.revmode_button.setStyleSheet(self.button_style_sheet)
         return self.revmode_button
 
@@ -279,15 +281,22 @@ class main_window(widget.QWidget):
             self.update_score()
             self.side = self.config['card_default_side']
             self.append_current_index()
+            self.insert_text(self.get_current_card())
+
+            # Words Back Controls
             if self.words_back > 0:
                 self.words_back-=1
-            self.insert_text(self.get_current_card())
-        
+            if self.words_back == 0:
+                if self.revmode:
+                    self.visible(True, True, False)
+                else:
+                    self.visible(False, False, True)
+
         # Conditions to record revision - last card 
         if diff_words == 1 and self.signature[:4] == 'REV_' and self.is_saved == False:
             db_api.create_record(self.signature, self.total_words, self.positives)
             self.is_saved = True
-            if self.revmode == 'ON': self.change_revmode()
+            if self.revmode: self.change_revmode()
             self.insert_text('Done!')
 
             if self.negatives != 0:
@@ -297,6 +306,7 @@ class main_window(widget.QWidget):
     def click_prev(self):
         self.decrease_current_index()
         self.words_back+=1
+        self.visible(False, False, True)
         self.insert_text(self.get_current_card())
 
 
@@ -336,6 +346,8 @@ class main_window(widget.QWidget):
     def do_save(self):
         if not self.is_revision:
             save(self.dataset.iloc[:self.current_index+1, :], self.signature)
+            # Create initial record
+            db_api.create_record(self.signature, self.total_words, self.positives)
             self.load_button_click(self.config['revs_path'] + '\\' + self.signature + '.csv')
         else:
             print('Cannot save revision')
@@ -372,7 +384,7 @@ class main_window(widget.QWidget):
 
     def update_score(self):
         total = self.positives + self.negatives
-        if self.revmode == 'ON' and total != 0:
+        if self.revmode and total != 0:
             score = self.positives / (total)
             score = round(score*100,0)
             self.score_button.setText('{}%'.format(int(score)))
@@ -386,17 +398,13 @@ class main_window(widget.QWidget):
         if not self.is_revision:
             return
 
-        self.revmode = 'ON' if self.revmode == 'OFF' else 'OFF'
-        self.revmode_button.setText('RM:{}'.format(self.revmode))
+        self.revmode = False if self.revmode else True
+        self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
         # show/hide buttons
-        if self.revmode == 'ON':
-            self.next_button.hide()
-            self.negative_button.show()
-            self.positive_button.show()
+        if self.revmode:
+            self.visible(True, True, False)
         else:
-            self.positive_button.hide()
-            self.negative_button.hide()
-            self.next_button.show()
+            self.visible(False, False, True)
             
 
     def load_button_click(self, provided_file_path=None):
@@ -437,6 +445,39 @@ class main_window(widget.QWidget):
         self.efc_button.clicked.connect(self.show_efc)
 
 
+    def add_shortcuts(self):
+        self.next_button_shortcut = widget.QShortcut(QtGui.QKeySequence('right'), self)
+        self.next_button_shortcut.activated.connect(self.ks_nav_next)
+        self.negative_button_shortcut = widget.QShortcut(QtGui.QKeySequence('down'), self)
+        self.negative_button_shortcut.activated.connect(self.ks_nav_negative)
+        self.prev_button_shortcut = widget.QShortcut(QtGui.QKeySequence('left'), self)
+        self.prev_button_shortcut.activated.connect(self.click_prev)
+        self.reverse_button_shortcut = widget.QShortcut(QtGui.QKeySequence('up'), self)
+        self.reverse_button_shortcut.activated.connect(self.reverse_side)
+        self.revmode_shortcut = widget.QShortcut(QtGui.QKeySequence('p'), self)
+        self.revmode_shortcut.activated.connect(self.change_revmode)
+        self.delete_click_shortcut = widget.QShortcut(QtGui.QKeySequence('d'), self)
+        self.delete_click_shortcut.activated.connect(self.delete_card)
+        self.efc_shortcut = widget.QShortcut(QtGui.QKeySequence('e'), self)
+        self.efc_shortcut.activated.connect(self.show_efc)
+        self.save_button_shortcut = widget.QShortcut(QtGui.QKeySequence('~'), self)
+        self.save_button_shortcut.activated.connect(self.do_save)
+
+
+    def ks_nav_next(self):
+        if self.revmode:
+            self.positive_click()
+        else:
+            self.click_next()
+
+
+    def ks_nav_negative(self):
+        if self.revmode:
+            self.negative_click()
+        else:
+            pass
+
+
     def show_efc(self):
         self.efc_window = efc.EFC(self)
         self.efc_window.show()
@@ -445,6 +486,21 @@ class main_window(widget.QWidget):
     def show_mistakes(self):
         self.mistakes_window = Mistakes(self.mistakes_list, self)
         self.mistakes_window.show()
+
+
+    def visible(self, pos_button:bool, neg_button:bool, next_button:bool):
+        if pos_button is True:
+            self.positive_button.show()
+        else:
+            self.positive_button.hide()   
+        if neg_button is True:
+            self.negative_button.show()
+        else:
+            self.negative_button.hide()     
+        if next_button is True:
+            self.next_button.show()
+        else:
+            self.next_button.hide()
 
 
     def reset_flashcard_parameters(self):

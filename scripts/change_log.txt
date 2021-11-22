@@ -1,0 +1,3 @@
+keyboard shortcuts
+refactor - is_revision to bool
+fix - initial record on save, initiate db with col names

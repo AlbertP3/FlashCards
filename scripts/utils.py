@@ -109,6 +109,7 @@ def load_dataset(file_path=None):
 
 def save(dataset:pd.DataFrame(), signature):
     config = load_config()
+
     # Check if revision folder (name only) exists else create a new one
     if config['revs_path'][2:] not in [f for f in os.listdir('.')]: 
         os.mkdir(config['revs_path'][2:])
