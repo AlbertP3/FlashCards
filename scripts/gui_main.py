@@ -5,7 +5,8 @@ from utils import *
 from mistakes_dialog import Mistakes
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
-
+from PyQt5.QtCore import Qt
+import close_dialog
 
 
 def __launch_main_window():
@@ -130,10 +131,10 @@ class main_window(widget.QWidget):
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
         return self.textbox
-
+    
     def create_load_button(self):
         self.load_button = widget.QPushButton(self)
-        self.load_button.setFixedHeight(self.buttons_height)
+        self.load_button.setMinimumHeight(self.buttons_height)
         self.load_button.setFont(self.button_font)
         self.load_button.setText('Load')
         self.load_button.clicked.connect(self.load_button_click)
@@ -142,7 +143,7 @@ class main_window(widget.QWidget):
 
     def create_prev_button(self):
         self.prev_button = widget.QPushButton(self)
-        self.prev_button.setFixedHeight(self.buttons_height)
+        self.prev_button.setMinimumHeight(self.buttons_height)
         self.prev_button.setFont(self.button_font)
         self.prev_button.setText('Prev')
         self.prev_button.setStyleSheet(self.button_style_sheet)
@@ -150,7 +151,7 @@ class main_window(widget.QWidget):
 
     def create_next_button(self):
         self.next_button = widget.QPushButton(self)
-        self.next_button.setFixedHeight(self.buttons_height)
+        self.next_button.setMinimumHeight(self.buttons_height)
         self.next_button.setFont(self.button_font)
         self.next_button.setText('Next')
         self.next_button.setStyleSheet(self.button_style_sheet)
@@ -158,7 +159,7 @@ class main_window(widget.QWidget):
     
     def create_positive_button(self):
         self.positive_button = widget.QPushButton(self)
-        self.positive_button.setFixedHeight(self.buttons_height)
+        self.positive_button.setMinimumHeight(self.buttons_height)
         self.positive_button.setFont(self.button_font)
         self.positive_button.setText('✔️')
         self.positive_button.setStyleSheet(self.button_style_sheet)
@@ -166,7 +167,7 @@ class main_window(widget.QWidget):
 
     def create_negative_button(self):
         self.negative_button = widget.QPushButton(self)
-        self.negative_button.setFixedHeight(self.buttons_height)
+        self.negative_button.setMinimumHeight(self.buttons_height)
         self.negative_button.setFont(self.button_font)
         self.negative_button.setText('❌')
         self.negative_button.setStyleSheet(self.button_style_sheet)
@@ -174,7 +175,7 @@ class main_window(widget.QWidget):
 
     def create_reverse_button(self):
         self.reverse_button = widget.QPushButton(self)
-        self.reverse_button.setFixedHeight(self.buttons_height)
+        self.reverse_button.setMinimumHeight(self.buttons_height)
         self.reverse_button.setFont(self.button_font)
         self.reverse_button.setText('Reverse')
         self.reverse_button.setStyleSheet(self.button_style_sheet)
@@ -182,7 +183,7 @@ class main_window(widget.QWidget):
 
     def create_score_button(self):
         self.score_button = widget.QPushButton(self)
-        self.score_button.setFixedHeight(self.buttons_height)
+        self.score_button.setMinimumHeight(self.buttons_height)
         self.score_button.setFont(self.button_font)
         self.score_button.setText('<>')
         self.score_button.setStyleSheet(self.button_style_sheet)
@@ -190,7 +191,7 @@ class main_window(widget.QWidget):
 
     def create_settings_button(self):
         self.settings_button = widget.QPushButton(self)
-        self.settings_button.setFixedHeight(self.buttons_height)
+        self.settings_button.setMinimumHeight(self.buttons_height)
         self.settings_button.setFont(self.button_font)
         self.settings_button.setText('🎢')
         self.settings_button.setStyleSheet(self.button_style_sheet)
@@ -198,7 +199,7 @@ class main_window(widget.QWidget):
 
     def create_save_button(self):
         self.save_button = widget.QPushButton(self)
-        self.save_button.setFixedHeight(self.buttons_height)
+        self.save_button.setMinimumHeight(self.buttons_height)
         self.save_button.setFont(self.button_font)
         self.save_button.setText('Save')
         self.save_button.clicked.connect(self.do_save)
@@ -207,7 +208,7 @@ class main_window(widget.QWidget):
 
     def create_del_button(self):
         self.del_button = widget.QPushButton(self)
-        self.del_button.setFixedHeight(self.buttons_height)
+        self.del_button.setMinimumHeight(self.buttons_height)
         self.del_button.setFont(self.button_font)
         self.del_button.setText('🗑')
         self.del_button.setStyleSheet(self.button_style_sheet)
@@ -215,7 +216,7 @@ class main_window(widget.QWidget):
 
     def create_load_again_button(self):
         self.load_again_button = widget.QPushButton(self)
-        self.load_again_button.setFixedHeight(self.buttons_height)
+        self.load_again_button.setMinimumHeight(self.buttons_height)
         self.load_again_button.setFont(self.button_font)
         self.load_again_button.setText('⟳')
         self.load_again_button.setStyleSheet(self.button_style_sheet)
@@ -223,7 +224,7 @@ class main_window(widget.QWidget):
 
     def create_revmode_button(self):
         self.revmode_button = widget.QPushButton(self)
-        self.revmode_button.setFixedHeight(self.buttons_height)
+        self.revmode_button.setMinimumHeight(self.buttons_height)
         self.revmode_button.setFont(self.button_font)
         self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
         self.revmode_button.setStyleSheet(self.button_style_sheet)
@@ -231,7 +232,7 @@ class main_window(widget.QWidget):
 
     def create_efc_button(self):
         self.efc_button = widget.QPushButton(self)
-        self.efc_button.setFixedHeight(self.buttons_height)
+        self.efc_button.setMinimumHeight(self.buttons_height)
         self.efc_button.setFont(self.button_font)
         self.efc_button.setText('📜')
         self.efc_button.setStyleSheet(self.button_style_sheet)
@@ -240,7 +241,7 @@ class main_window(widget.QWidget):
 
     def create_words_button(self):
         self.words_button = widget.QPushButton(self)
-        self.words_button.setFixedHeight(self.buttons_height)
+        self.words_button.setMinimumHeight(self.buttons_height)
         self.words_button.setFont(self.button_font)
         self.words_button.setStyleSheet(self.button_style_sheet)
         self.words_button.setText('-')
@@ -304,23 +305,17 @@ class main_window(widget.QWidget):
 
 
     def click_prev(self):
-        self.decrease_current_index()
-        self.words_back+=1
-        self.visible(False, False, True)
-        self.insert_text(self.get_current_card())
+        if self.current_index > 1:
+            self.decrease_current_index()
+            self.words_back+=1
+            self.visible(False, False, True)
+            self.side = self.config['card_default_side']
+            self.insert_text(self.get_current_card())
 
 
     def reverse_side(self):
         self.side = 1 - self.side
         self.insert_text(self.get_current_card())
-
-
-    def show_stats(self):
-        if self.is_revision:
-            db_interface = db_api.db_interface()
-            db_interface.get_positives_chart(self.signature)
-        else:
-            print('Statistics not available')
      
 
     def load_again_click(self):
@@ -337,6 +332,7 @@ class main_window(widget.QWidget):
             
             self.total_words = self.dataset.shape[0]
             self.update_words_button()
+            self.side = self.config['card_default_side']
             self.insert_text(self.get_current_card())
 
         else:
@@ -365,8 +361,8 @@ class main_window(widget.QWidget):
         self.font_textbox_size = dynamic_font_size if dynamic_font_size >= 8 else default_font
         self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
         self.textbox.setFont(self.textbox_font)
-        self.textbox.setText(text)
-        padding = 90 - len(text)*0.6
+        self.textbox.setText(str(text))
+        padding = 90 - len(str(text))*0.6
         padding = max(0, padding)
         self.textbox.setStyleSheet('''{} 
                                     padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
@@ -409,7 +405,7 @@ class main_window(widget.QWidget):
 
     def load_button_click(self, provided_file_path=None):
 
-        # function loads argument or asks user for a path
+        # function loads provided path or asks user for a path
         try:
             if provided_file_path is False or provided_file_path is None:
                 self.dataset, self.file_path = load_dataset()
@@ -481,11 +477,22 @@ class main_window(widget.QWidget):
     def show_efc(self):
         self.efc_window = efc.EFC(self)
         self.efc_window.show()
-        
+        self.efc_window.move(self.pos().x()+int(self.width/2)-int(self.efc_window.width/2), 
+                            self.pos().y() + int(self.height/5))
 
     def show_mistakes(self):
         self.mistakes_window = Mistakes(self.mistakes_list, self)
         self.mistakes_window.show()
+        self.mistakes_window.move(self.pos().x()+int(self.width/2)-int(self.mistakes_window.width/2), 
+                                self.pos().y() + int(self.height/5))
+
+
+    def show_stats(self):
+        if self.is_revision:
+            db_interface = db_api.db_interface()
+            db_interface.get_positives_chart(self.signature)
+        else:
+            print('Statistics not available')
 
 
     def visible(self, pos_button:bool, neg_button:bool, next_button:bool):
@@ -514,7 +521,15 @@ class main_window(widget.QWidget):
         self.update_words_button()
         self.update_score()
 
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close_dialog = close_dialog.Close_dialog(self)
+            self.close_dialog.show()
+
+
     
+
 def launch():
     # [] or sys.argv represent cmd lines passed to the application
     app = widget.QApplication([])

@@ -1,6 +1,7 @@
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from utils import load_config
+from PyQt5.QtCore import Qt
 
 
 
@@ -67,5 +68,6 @@ class Mistakes(widget.QWidget):
         self.move(frame_geo.topLeft())
 
 
-    # def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
-    #     self.main_window.load_button_click()
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close()

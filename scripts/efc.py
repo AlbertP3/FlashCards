@@ -1,5 +1,6 @@
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
+from PyQt5.QtCore import Qt
 import db_api
 from utils import *
 from math import exp, log10
@@ -93,12 +94,12 @@ class EFC(widget.QWidget):
             n = exp(0.007 * (total_words-30)) * 1.6
             pos_share = last_positives/total_words if last_positives is not None else 1
 
-            if pos_share > 0.92:
+            if pos_share >= 0.92:
                 p = -1
-            elif pos_share < 0.7:
-                p = 1
-            else:
+            elif pos_share >= 0.7:
                 p = 0
+            else:
+                p = 1
 
             if time_delta != 0:
                 return round(n * log10(time_delta)+1, 0) + self.initial_repetitions + p
@@ -137,6 +138,11 @@ class EFC(widget.QWidget):
             self.close()
         except FileNotFoundError:
             print('Requested File Not Found')
+    
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close()
         
         
 

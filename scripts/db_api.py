@@ -2,6 +2,7 @@ import pandas as pd
 from pandas.core.frame import DataFrame
 from os import listdir
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 from utils import *
 
 config = load_config()
@@ -75,6 +76,8 @@ class db_interface():
         if sum_repeated != 0:
             dates = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
             values = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
+            dynamic_indices = [0]
+            [dynamic_indices.append(values[x] - values[x-1]) for x in range(1, len(values))]
             last_pos_share = str(self.get_last_positives(signature))
             first_date = str(self.get_first_date(signature))
             days_ago = str(self.get_days_ago(signature))
@@ -86,13 +89,20 @@ class db_interface():
         fig.patch.set_facecolor(config['stat_background_color'])
         axs[0].set_facecolor(config['stat_chart_background_color'])
         axs[1].set_facecolor(config['stat_chart_background_color'])
+        axs[0].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         plt.rcParams['font.family'] = config['font']
         plt.setp(axs[0].xaxis.get_majorticklabels(), rotation=45)
+        
+        formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in dates]
+        axs[0].bar(formatted_dates, values, color=config['stat_bar_color'])
 
-        if sum_repeated != 0:
-            bar_color = [config['stat_bar_color'] for _ in range(len(dates))]
-            for i in range(len(dates)):
-                axs[0].bar(dates[i][:5] + '/' + dates[i][8:10], values[i], color=bar_color)
+        # Labels
+        for rect, label in zip(axs[0].patches, dynamic_indices):
+            height = rect.get_height()
+            axs[0].text(
+        rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom"
+        )
+
         
         # Table Configuration
         axs[1].axis('off')
@@ -107,4 +117,5 @@ class db_interface():
         plt.tight_layout(pad=1.0)
         plt.show()
     
-
+    
+   

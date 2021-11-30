@@ -90,12 +90,15 @@ def load_dataset(file_path=None):
         if dataset_path != None:
 
             # Check if extension is supported
-            extension = get_filename_from_path(dataset_path.name,True)[-3:]
-            if extension != 'csv':
+            extension = get_filename_from_path(dataset_path.name,True).split('.')[-1]
+            if extension == 'csv':
+                dataset = pd.read_csv(dataset_path.name, encoding='utf-8')
+            elif extension == 'xlsx':
+                dataset = pd.read_excel(dataset_path.name)
+            else:
                 print(f'Chosen extension is not supported: {extension}')
                 return None, None
 
-            dataset = pd.read_csv(dataset_path.name, encoding='utf-8')
             dataset = dataset.sample(frac=1).reset_index(drop=True)
             return dataset, dataset_path.name
         else:

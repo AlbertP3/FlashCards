@@ -3,4 +3,4 @@ __pycache__
 __init__.py
 revisions
 languages
-rev_db
+rev_db.csv
