@@ -70,6 +70,7 @@ class main_window(widget.QWidget):
         # print(PyQt5.QtWidgets.QStyleFactory.keys())
         # self.setStyle(widget.QStyleFactory.create('WindowsXP'))
 
+        # Layout
         self.setStyleSheet(self.config['main_style_sheet'])
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = (self.config['button_style_sheet'])
@@ -85,32 +86,47 @@ class main_window(widget.QWidget):
         self.layout.addLayout(self.layout_third_row, 2, 0)
         self.layout.addLayout(self.layout_fourth_row, 3, 0)
 
+        # Buttons
+        self.next_button = self.create_button('Next', self.click_next)
+        self.prev_button = self.create_button('Prev', self.click_prev)
+        self.reverse_button = self.create_button('Reverse', self.reverse_side)
+        self.load_button = self.create_button('Load', self.load_button_click)
+        self.positive_button = self.create_button('✔️', self.positive_click)
+        self.negative_button = self.create_button('❌', self.negative_click)
+        self.score_button = self.create_button('<>')
+        self.settings_button = self.create_button('🎢', self.show_stats)
+        self.save_button = self.create_button('Save', self.do_save)
+        self.del_button = self.create_button('🗑', self.delete_card)
+        self.load_again_button = self.create_button('⟳', self.load_again_click)
+        self.revmode_button = self.create_button('RM:{}'.format('ON' if self.revmode else 'OFF'), self.change_revmode)
+        self.efc_button = self.create_button('📜', self.show_efc)
+        self.words_button = self.create_button('-')
+
         # Widgets
         self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
 
-        self.layout_second_row.addWidget(self.create_prev_button(), 0, 0)
-        self.layout_second_row.addWidget(self.create_reverse_button(), 0, 1)
+        self.layout_second_row.addWidget(self.prev_button, 0, 0)
+        self.layout_second_row.addWidget(self.reverse_button, 0, 1)
         self.layout_second_row.addLayout(self.layout_next_navigation, 0, 2)
         
-        self.layout_next_navigation.addWidget(self.create_next_button(), 0, 0)
-        self.layout_next_navigation.addWidget(self.create_negative_button(), 0, 0)
-        self.layout_next_navigation.addWidget(self.create_positive_button(), 0, 1)
+        self.layout_next_navigation.addWidget(self.next_button, 0, 0)
+        self.layout_next_navigation.addWidget(self.negative_button, 0, 0)
+        self.layout_next_navigation.addWidget(self.positive_button, 0, 1)
         self.negative_button.hide()
         self.positive_button.hide()
         
-        self.layout_third_row.addWidget(self.create_load_button(), 2, 0)
-        self.layout_third_row.addWidget(self.create_del_button(), 2, 1)
-        self.layout_third_row.addWidget(self.create_efc_button(), 2, 2)
-        self.layout_third_row.addWidget(self.create_save_button(), 2, 3)
+        self.layout_third_row.addWidget(self.load_button, 2, 0)
+        self.layout_third_row.addWidget(self.del_button, 2, 1)
+        self.layout_third_row.addWidget(self.efc_button, 2, 2)
+        self.layout_third_row.addWidget(self.save_button, 2, 3)
 
-        self.layout_fourth_row.addWidget(self.create_score_button(), 3, 0)
-        self.layout_fourth_row.addWidget(self.create_settings_button(), 3, 1)
-        self.layout_fourth_row.addWidget(self.create_load_again_button(), 3, 2)
-        self.layout_fourth_row.addWidget(self.create_words_button(), 3, 3)
-        self.layout_fourth_row.addWidget(self.create_revmode_button(), 3, 4)
+        self.layout_fourth_row.addWidget(self.score_button, 3, 0)
+        self.layout_fourth_row.addWidget(self.settings_button, 3, 1)
+        self.layout_fourth_row.addWidget(self.load_again_button, 3, 2)
+        self.layout_fourth_row.addWidget(self.words_button, 3, 3)
+        self.layout_fourth_row.addWidget(self.revmode_button, 3, 4)
         
         # Button functionality control
-        self.add_buttons_functionality()
         if self.config['keyboard_shortcuts'].lower() in ['on','yes','true','1', 'y']:
             self.add_shortcuts()
 
@@ -122,7 +138,6 @@ class main_window(widget.QWidget):
         self.load_button_click(self.file_path)
     
 
-    # Button Initialization Functions
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
         self.textbox.setFixedHeight(self.textbox_height)
@@ -131,123 +146,18 @@ class main_window(widget.QWidget):
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
         return self.textbox
-    
-    def create_load_button(self):
-        self.load_button = widget.QPushButton(self)
-        self.load_button.setMinimumHeight(self.buttons_height)
-        self.load_button.setFont(self.button_font)
-        self.load_button.setText('Load')
-        self.load_button.clicked.connect(self.load_button_click)
-        self.load_button.setStyleSheet(self.button_style_sheet)
-        return self.load_button
 
-    def create_prev_button(self):
-        self.prev_button = widget.QPushButton(self)
-        self.prev_button.setMinimumHeight(self.buttons_height)
-        self.prev_button.setFont(self.button_font)
-        self.prev_button.setText('Prev')
-        self.prev_button.setStyleSheet(self.button_style_sheet)
-        return self.prev_button
 
-    def create_next_button(self):
-        self.next_button = widget.QPushButton(self)
-        self.next_button.setMinimumHeight(self.buttons_height)
-        self.next_button.setFont(self.button_font)
-        self.next_button.setText('Next')
-        self.next_button.setStyleSheet(self.button_style_sheet)
-        return self.next_button
-    
-    def create_positive_button(self):
-        self.positive_button = widget.QPushButton(self)
-        self.positive_button.setMinimumHeight(self.buttons_height)
-        self.positive_button.setFont(self.button_font)
-        self.positive_button.setText('✔️')
-        self.positive_button.setStyleSheet(self.button_style_sheet)
-        return self.positive_button
+    def create_button(self, text, function=None):
+        new_button = widget.QPushButton(self)
+        new_button.setMinimumHeight(self.buttons_height)
+        new_button.setFont(self.button_font)
+        new_button.setText(text)
+        new_button.setStyleSheet(self.button_style_sheet)
+        if function is not None:
+            new_button.clicked.connect(function)
+        return new_button
 
-    def create_negative_button(self):
-        self.negative_button = widget.QPushButton(self)
-        self.negative_button.setMinimumHeight(self.buttons_height)
-        self.negative_button.setFont(self.button_font)
-        self.negative_button.setText('❌')
-        self.negative_button.setStyleSheet(self.button_style_sheet)
-        return self.negative_button
-
-    def create_reverse_button(self):
-        self.reverse_button = widget.QPushButton(self)
-        self.reverse_button.setMinimumHeight(self.buttons_height)
-        self.reverse_button.setFont(self.button_font)
-        self.reverse_button.setText('Reverse')
-        self.reverse_button.setStyleSheet(self.button_style_sheet)
-        return self.reverse_button
-
-    def create_score_button(self):
-        self.score_button = widget.QPushButton(self)
-        self.score_button.setMinimumHeight(self.buttons_height)
-        self.score_button.setFont(self.button_font)
-        self.score_button.setText('<>')
-        self.score_button.setStyleSheet(self.button_style_sheet)
-        return self.score_button
-
-    def create_settings_button(self):
-        self.settings_button = widget.QPushButton(self)
-        self.settings_button.setMinimumHeight(self.buttons_height)
-        self.settings_button.setFont(self.button_font)
-        self.settings_button.setText('🎢')
-        self.settings_button.setStyleSheet(self.button_style_sheet)
-        return self.settings_button
-
-    def create_save_button(self):
-        self.save_button = widget.QPushButton(self)
-        self.save_button.setMinimumHeight(self.buttons_height)
-        self.save_button.setFont(self.button_font)
-        self.save_button.setText('Save')
-        self.save_button.clicked.connect(self.do_save)
-        self.save_button.setStyleSheet(self.button_style_sheet)
-        return self.save_button
-
-    def create_del_button(self):
-        self.del_button = widget.QPushButton(self)
-        self.del_button.setMinimumHeight(self.buttons_height)
-        self.del_button.setFont(self.button_font)
-        self.del_button.setText('🗑')
-        self.del_button.setStyleSheet(self.button_style_sheet)
-        return self.del_button
-
-    def create_load_again_button(self):
-        self.load_again_button = widget.QPushButton(self)
-        self.load_again_button.setMinimumHeight(self.buttons_height)
-        self.load_again_button.setFont(self.button_font)
-        self.load_again_button.setText('⟳')
-        self.load_again_button.setStyleSheet(self.button_style_sheet)
-        return self.load_again_button
-
-    def create_revmode_button(self):
-        self.revmode_button = widget.QPushButton(self)
-        self.revmode_button.setMinimumHeight(self.buttons_height)
-        self.revmode_button.setFont(self.button_font)
-        self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
-        self.revmode_button.setStyleSheet(self.button_style_sheet)
-        return self.revmode_button
-
-    def create_efc_button(self):
-        self.efc_button = widget.QPushButton(self)
-        self.efc_button.setMinimumHeight(self.buttons_height)
-        self.efc_button.setFont(self.button_font)
-        self.efc_button.setText('📜')
-        self.efc_button.setStyleSheet(self.button_style_sheet)
-        self.efc_button.clicked.connect(self.show_efc)
-        return self.efc_button
-
-    def create_words_button(self):
-        self.words_button = widget.QPushButton(self)
-        self.words_button.setMinimumHeight(self.buttons_height)
-        self.words_button.setFont(self.button_font)
-        self.words_button.setStyleSheet(self.button_style_sheet)
-        self.words_button.setText('-')
-        return self.words_button
-
-    # End of buttons initialization 
 
     # Navigation
     def append_current_index(self):
@@ -343,7 +253,7 @@ class main_window(widget.QWidget):
         if not self.is_revision:
             save(self.dataset.iloc[:self.current_index+1, :], self.signature)
             # Create initial record
-            db_api.create_record(self.signature, self.total_words, self.positives)
+            db_api.create_record(self.signature, self.current_index+1, self.positives)
             self.load_button_click(self.config['revs_path'] + '\\' + self.signature + '.csv')
         else:
             print('Cannot save revision')
@@ -427,20 +337,6 @@ class main_window(widget.QWidget):
         self.file_path = new_file_path
 
 
-    def add_buttons_functionality(self):
-        # Blocks buttons actions until a file is loaded (error prevetion)
-        self.prev_button.clicked.connect(self.click_prev)
-        self.next_button.clicked.connect(self.click_next)
-        self.positive_button.clicked.connect(self.positive_click)
-        self.negative_button.clicked.connect(self.negative_click)
-        self.reverse_button.clicked.connect(self.reverse_side)
-        self.settings_button.clicked.connect(self.show_stats)
-        self.del_button.clicked.connect(self.delete_card)
-        self.load_again_button.clicked.connect(self.load_again_click)
-        self.revmode_button.clicked.connect(self.change_revmode)
-        self.efc_button.clicked.connect(self.show_efc)
-
-
     def add_shortcuts(self):
         self.next_button_shortcut = widget.QShortcut(QtGui.QKeySequence('right'), self)
         self.next_button_shortcut.activated.connect(self.ks_nav_next)
@@ -458,6 +354,10 @@ class main_window(widget.QWidget):
         self.efc_shortcut.activated.connect(self.show_efc)
         self.save_button_shortcut = widget.QShortcut(QtGui.QKeySequence('~'), self)
         self.save_button_shortcut.activated.connect(self.do_save)
+        self.load_again_button_shortcut = widget.QShortcut(QtGui.QKeySequence('r'), self)
+        self.load_again_button_shortcut.activated.connect(self.do_save)
+        self.load_button_shortcut = widget.QShortcut(QtGui.QKeySequence('l'), self)
+        self.load_button_shortcut.activated.connect(self.load_button_click)
 
 
     def ks_nav_next(self):

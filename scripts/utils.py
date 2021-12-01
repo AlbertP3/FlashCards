@@ -51,7 +51,7 @@ def iif(statement, true_part, false_part):
 def get_signature_and_isrevision(lng:str, filename):
     # Create new signature or recognize the current one from pattern
     if filename[:4] == 'REV_':
-        print('Revision recognized')
+        print(f'Revision recognized: {filename[:-4]}')
         return filename, True
     else:
         saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
@@ -128,3 +128,12 @@ def update_config(key, new_value):
     config = pd.read_csv(old_config['resources_path'] + '\\config.csv', encoding='utf-8')
     config.loc[config.key == key] = [key, new_value]
     config.to_csv(old_config['resources_path'] + '\\config.csv', index=False)
+
+
+def get_sign(num, plus_sign='+', neg_sign='-'):
+    if num > 0:
+        return plus_sign
+    elif num < 0:
+        return neg_sign
+    else:
+        return ''

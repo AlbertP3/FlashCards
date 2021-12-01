@@ -1,6 +1,6 @@
 key,val
 card_default_side,1
-font,Helvetica
+font,Arial
 font_button_size,14
 font_textbox_size,32
 font_color,#3a3a3a
@@ -11,7 +11,9 @@ stat_bar_color,#8ecae6
 stat_background_color,#7d8597
 stat_chart_background_color,#ffffff
 efc_button_font_size,14
-onload_file_path,.\revisions\REV_RU11252021180131.csv
+onload_file_path,.\revisions\REV_EN11292021220523.csv
 revs_path,.\revisions
 resources_path,.\scripts\resources
+languages,EN|RU
+days_to_new_rev,8
 keyboard_shortcuts,ON

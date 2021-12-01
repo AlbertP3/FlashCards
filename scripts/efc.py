@@ -3,7 +3,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 import db_api
 from utils import *
-from math import exp, log10
+from math import exp
 import gui_main
 from os import listdir
 
@@ -16,22 +16,22 @@ class EFC(widget.QWidget):
         # Configuration
         self.config = load_config()
         super(EFC, self).__init__(None)
+        self.db_interface = db_api.db_interface()
         self.main_window = main_window
         self.initial_repetitions = 2
 
         # Window Parameters
         self.left = 10
         self.top = 10
-        self.width = 280
+        self.width = 260
         self.height = 250
         self.buttons_height = 45
 
         self.arrange_window()
         
         # Fill List Widgets
-        self.recommendations_and_remaining_list = self.get_recommendations_and_remaining()
-        [self.recommendation_list.addItem(str(r[0])) for r in self.recommendations_and_remaining_list]
-        [self.remaining_revs_list.addItem(str('{:.0f}'.format(r[1]))) for r in self.recommendations_and_remaining_list]
+        self.recommendations_list = self.get_recommendations()
+        [self.recommendation_list.addItem(str(r)) for r in self.recommendations_list]
 
 
     def arrange_window(self):
@@ -54,8 +54,7 @@ class EFC(widget.QWidget):
         self.layout = widget.QGridLayout()
         self.setLayout(self.layout)
         self.layout.addWidget(self.create_recommendations_list(), 0, 0)
-        self.layout.addWidget(self.create_remaining_revs_list(), 0, 1)
-        self.layout.addWidget(self.create_load_button(), 1, 0, 1, 2)
+        self.layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
 
 
     def center(self):
@@ -72,13 +71,6 @@ class EFC(widget.QWidget):
         return self.recommendation_list
 
 
-    def create_remaining_revs_list(self):
-        self.remaining_revs_list = widget.QListWidget(self)
-        self.remaining_revs_list.setFont(self.button_font)
-        self.remaining_revs_list.setStyleSheet(self.textbox_stylesheet)
-        return self.remaining_revs_list
-
-
     def create_load_button(self):
         self.load_button = widget.QPushButton(self)
         self.load_button.setFixedHeight(self.buttons_height)
@@ -89,46 +81,47 @@ class EFC(widget.QWidget):
         return self.load_button
 
 
-    def efc_function(self, initial_date, total_words, last_positives):
-            time_delta = (make_todayte() - make_date(initial_date)).days
-            n = exp(0.007 * (total_words-30)) * 1.6
+    def efc_function(self, last_date, total_words, last_positives, repeated_times):
+            # Returns True if a revision is advised to be reviewed
+            # Verdict is based on efc function - which needs to be tuned #todo
+
+            threshold = 0.8
+            time_delta = (make_todayte() - make_date(last_date)).days
             pos_share = last_positives/total_words if last_positives is not None else 1
 
-            if pos_share >= 0.92:
-                p = -1
-            elif pos_share >= 0.7:
-                p = 0
-            else:
-                p = 1
+            s = (repeated_times**2.137 + pos_share*1.618) * 43/total_words
+            efc = exp(-time_delta/s)
 
-            if time_delta != 0:
-                return round(n * log10(time_delta)+1, 0) + self.initial_repetitions + p
-            else:
-                return self.initial_repetitions
+            return efc < threshold
 
 
-    def get_recommendations_and_remaining(self):
+    def get_recommendations(self):
         
         # unique signatures from rev_db - only for existing files
-        db_interface = db_api.db_interface()
-        unique_signatures = [s for s in db_interface.get_unique_signatures() 
+        unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
                                 if s + '.csv' in listdir(self.config['revs_path'])]
     
         # get parameters and efc_function result for each unique signature
         # filter on the go
-        recommendations_and_remaining = list()
+        reccommendations = list()
+        reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
+
+        # temp solution - print whole table to terminal (2 lines of code)
+        print('REV_NAME             | DAYS AGO')
+
         for signature in unique_signatures:
-            sum_repeated = db_interface.get_sum_repeated(signature)
-            first_date = db_interface.get_first_date(signature)
-            total = db_interface.get_total_words(signature)
-            last_positives = db_interface.get_last_positives(signature)
-            efc_revs = self.efc_function(first_date, total, last_positives)
-            remaining = efc_revs - sum_repeated
+            last_date = self.db_interface.get_last_date(signature)
+            repeated_times = self.db_interface.get_sum_repeated(signature)
+            total = self.db_interface.get_total_words(signature)
+            last_positives = self.db_interface.get_last_positives(signature)
+            efc_critera_met = self.efc_function(last_date, total, last_positives, repeated_times)
+            
+            print(f'{signature} | {(make_todayte() - make_date(last_date)).days}')
 
-            if remaining > 0:
-                recommendations_and_remaining.append([signature, remaining])
+            if efc_critera_met:
+                reccommendations.append(signature)
 
-        return recommendations_and_remaining
+        return reccommendations
 
 
     def load_selected(self):
@@ -139,6 +132,23 @@ class EFC(widget.QWidget):
         except FileNotFoundError:
             print('Requested File Not Found')
     
+
+    def is_it_time_for_something_new(self, unique_signatures):
+        lngs = self.config['languages'].split('|')
+        new_reccommendations = list()
+
+        unique_signatures.sort(key=lambda e: date(int(e[10:12]), int(e[6:8]), int(e[8:10])), reverse=True)  
+
+        for lng in lngs:
+            for signature in unique_signatures:
+                if signature[4:6] == lng.upper():
+                    initial_date = self.db_interface.get_first_date(signature)
+                    time_delta = (make_todayte() - make_date(initial_date)).days
+                    if time_delta >= self.config['days_to_new_rev']:
+                        new_reccommendations.append(f"It's time for: {lng}")
+                    break
+        return new_reccommendations
+
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:

@@ -1,5 +1,4 @@
 import pandas as pd
-from pandas.core.frame import DataFrame
 from os import listdir
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
@@ -12,7 +11,7 @@ rev_db_name = 'rev_db.csv'
 rev_db_path = config['resources_path'] + '\\' + rev_db_name
 if rev_db_name not in [f for f in listdir(config['resources_path'])]:
     print('Initializing new Database')
-    DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['resources_path'] + '\\' + rev_db_name)
+    pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['resources_path'] + '\\' + rev_db_name)
 
 
 def create_record(signature, words_total, positives):
@@ -56,6 +55,12 @@ class db_interface():
         except:
             return None
 
+    def get_last_date(self, signature):
+        try:
+            return self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[-1]
+        except:
+            return None
+
     def get_days_ago(self, signature):
         try:
             d = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
@@ -65,7 +70,7 @@ class db_interface():
         except:
             return None
 
-        
+
     def get_positives_chart(self, signature):
         # Display statistics for specific file (signature)
         # checking sum_repeated value in order to avoid errors
@@ -76,9 +81,12 @@ class db_interface():
         if sum_repeated != 0:
             dates = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
             values = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
-            dynamic_indices = [0]
-            [dynamic_indices.append(values[x] - values[x-1]) for x in range(1, len(values))]
-            last_pos_share = str(self.get_last_positives(signature))
+
+            # Create labels like VAL(SIGN DYNAMIC) eg. 21(-3)
+            dynamic_indices = ['']
+            [dynamic_indices.append('{}({}{})'.format(values[x], get_sign(values[x] - values[x-1], neg_sign=''), values[x] - values[x-1])) for x in range(1, len(values))]
+
+            last_pos_share = str('{:.0f}%'.format(100*self.get_last_positives(signature) / self.get_total_words(signature)))
             first_date = str(self.get_first_date(signature))
             days_ago = str(self.get_days_ago(signature))
 
@@ -103,7 +111,6 @@ class db_interface():
         rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom"
         )
 
-        
         # Table Configuration
         axs[1].axis('off')
         table = axs[1].table(cellText=[[sum_repeated], [last_pos_share], [first_date], [days_ago]],
