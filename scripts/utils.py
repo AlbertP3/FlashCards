@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from tkinter.filedialog import askopenfile
 import tkinter as tk
+from PyQt5.QtCore import pyqtRemoveInputHook
 
 
 def load_config():
@@ -15,6 +16,8 @@ def load_config():
         config_dict[k] = int(df_dict[k][0]) if df_dict[k][0].isnumeric() else str(df_dict[k][0])
 
     return config_dict
+
+config = load_config()
 
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
@@ -50,8 +53,9 @@ def iif(statement, true_part, false_part):
 
 def get_signature_and_isrevision(lng:str, filename):
     # Create new signature or recognize the current one from pattern
-    if filename[:4] == 'REV_':
-        print(f'Revision recognized: {filename[:-4]}')
+    filename = filename.split('.')[0]
+    if filename.startswith('REV_'):
+        print(f'Revision recognized: {filename}')
         return filename, True
     else:
         saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
@@ -81,37 +85,54 @@ def make_todayte():
 def load_dataset(file_path=None):
     dataset = pd.DataFrame()
 
-    if file_path is None:
-
+    # Get Path to the File - let user choose or take the given argument
+    if file_path in [None, False]:
         # Get File Path
         root = tk.Tk()
         root.withdraw()
         dataset_path = askopenfile(initialdir='.')
-        if dataset_path != None:
 
-            # Check if extension is supported
-            extension = get_filename_from_path(dataset_path.name,True).split('.')[-1]
-            if extension == 'csv':
-                dataset = pd.read_csv(dataset_path.name, encoding='utf-8')
-            elif extension == 'xlsx':
-                dataset = pd.read_excel(dataset_path.name)
-            else:
-                print(f'Chosen extension is not supported: {extension}')
-                return None, None
-
-            dataset = dataset.sample(frac=1).reset_index(drop=True)
-            return dataset, dataset_path.name
-        else:
+        # In case user cancels the form
+        if dataset_path is None: 
             return None, None
+        else:
+            dataset_path = dataset_path.name
+
+    else: # file path provided
+        dataset_path = file_path
+
+    extension = get_filename_from_path(dataset_path, True).split('.')[-1]
+
+    # Choose File Extension Handler
+    if extension in ['csv', 'txt']:
+
+        try:
+            dataset = pd.read_csv(dataset_path, encoding='utf-8')
+        except pd.errors.ParserError:
+            print('Error while Parsing .csv file')
+
+    elif extension in ['xlsx', 'xlsm', 'xlsb']:
         
-    else: # FilePath provided
-        dataset = pd.read_csv(file_path, encoding='utf-8')
-        dataset = dataset.sample(frac=1).reset_index(drop=True)
-        return dataset, file_path
+        # input() causes infitnite loop of 'QCoreApplication already running' printouts
+        if config['experimental'].lower() in ['true', '1', 'yes']:
+            pyqtRemoveInputHook()
+            sht_input = input('Input sheet name or index: ')
+            sht_id = int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
+        else:
+            sht_id = 0
+
+        dataset = pd.read_excel(dataset_path, sheet_name=sht_id)
+
+    else:
+        
+        print(f'Chosen extension is not supported: {extension}')
+        return None, None
+
+    dataset = dataset.sample(frac=1).reset_index(drop=True)
+    return dataset, dataset_path
     
 
 def save(dataset:pd.DataFrame(), signature):
-    config = load_config()
 
     # Check if revision folder (name only) exists else create a new one
     if config['revs_path'][2:] not in [f for f in os.listdir('.')]: 

@@ -114,7 +114,7 @@ class db_interface():
         # Table Configuration
         axs[1].axis('off')
         table = axs[1].table(cellText=[[sum_repeated], [last_pos_share], [first_date], [days_ago]],
-                rowLabels=['Repeated Times', 'last_pos_share', 'first_date_mdy', 'time_ago'],
+                rowLabels=['Repeated Times', 'Last Pos Share', 'First Date (MDY)', 'Time Ago'],
                 loc='center', cellLoc='right',
                 bbox = [0.4, 0.4, 0.35, 0.8])  #  x,y,w,h
         table.scale(1, 2)

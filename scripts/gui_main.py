@@ -5,8 +5,9 @@ from utils import *
 from mistakes_dialog import Mistakes
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QCoreApplication, Qt, pyqtRemoveInputHook
 import close_dialog
+
 
 
 def __launch_main_window():
@@ -208,14 +209,15 @@ class main_window(widget.QWidget):
             db_api.create_record(self.signature, self.total_words, self.positives)
             self.is_saved = True
             if self.revmode: self.change_revmode()
-            self.insert_text('Done!')
+
+            self.insert_text(self.get_rating())
 
             if self.negatives != 0:
                 self.show_mistakes()
 
 
     def click_prev(self):
-        if self.current_index > 1:
+        if self.current_index >= 1:
             self.decrease_current_index()
             self.words_back+=1
             self.visible(False, False, True)
@@ -315,12 +317,8 @@ class main_window(widget.QWidget):
 
     def load_button_click(self, provided_file_path=None):
 
-        # function loads provided path or asks user for a path
         try:
-            if provided_file_path is False or provided_file_path is None:
-                self.dataset, self.file_path = load_dataset()
-            else:
-                self.dataset, self.file_path = load_dataset(provided_file_path)
+            self.dataset, self.file_path = load_dataset(provided_file_path)
         except FileNotFoundError:
             print('File Not Found')
             return
@@ -389,6 +387,7 @@ class main_window(widget.QWidget):
 
     def show_stats(self):
         if self.is_revision:
+            pyqtRemoveInputHook()
             db_interface = db_api.db_interface()
             db_interface.get_positives_chart(self.signature)
         else:
@@ -426,9 +425,18 @@ class main_window(widget.QWidget):
         if event.key() == Qt.Key_Escape:
             self.close_dialog = close_dialog.Close_dialog(self)
             self.close_dialog.show()
-
-
     
+    def get_rating(self):
+        pos_share = self.positives / self.total_words
+        if pos_share >= 0.92:
+            rating = 'Excellent!'
+        elif pos_share >= 0.8:
+            rating = 'Awesome'
+        elif pos_share >= 0.68:
+            rating = 'Good'
+        else:
+            rating = 'Try harder next time.'
+        return rating
 
 def launch():
     # [] or sys.argv represent cmd lines passed to the application

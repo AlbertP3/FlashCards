@@ -83,13 +83,13 @@ class EFC(widget.QWidget):
 
     def efc_function(self, last_date, total_words, last_positives, repeated_times):
             # Returns True if a revision is advised to be reviewed
-            # Verdict is based on efc function - which needs to be tuned #todo
+            # Verdict is based on efc function - which needs to be fine-tuned #todo
 
             threshold = 0.8
             time_delta = (make_todayte() - make_date(last_date)).days
             pos_share = last_positives/total_words if last_positives is not None else 1
 
-            s = (repeated_times**2.137 + pos_share*1.618) * 43/total_words
+            s = (repeated_times**2.137 + pos_share*1.618) - (1.681*exp(total_words*0.042))
             efc = exp(-time_delta/s)
 
             return efc < threshold

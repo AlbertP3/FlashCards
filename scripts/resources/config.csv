@@ -11,9 +11,10 @@ stat_bar_color,#8ecae6
 stat_background_color,#7d8597
 stat_chart_background_color,#ffffff
 efc_button_font_size,14
-onload_file_path,.\revisions\REV_EN11292021220523.csv
+onload_file_path,.\languages\en.xlsx
 revs_path,.\revisions
 resources_path,.\scripts\resources
 languages,EN|RU
 days_to_new_rev,8
+experimental,false
 keyboard_shortcuts,ON
