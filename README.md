@@ -12,7 +12,7 @@
     <p>6. With Score Mode, user will be presented with cards they didn't recognize</p>
 
 <h1>How to install?</h1>
-    <p>0. Verify correct instalation of python </p>
+    <p>0. Verify correct instalation of python >= 3.8 </p>
     <p>1. Clone the repository to directory of your choosing</p>
     <p>2. open cmd or powershell from the chosen dir (alt+d and type 'cmd' or 'powershell') and activate following 2 commands:</p>
     <p>     a) python -m venv .\venv</p>
@@ -20,7 +20,6 @@
     <p>3. Create 'revisions' folder in the main dir
     <p>4. You're good!</p>
 
-<h1>What will be added in the future?</h1>
-    <p>keyboard shortcuts</p>
-    <p>load different formats - online as well</p>
-    <p>ML reinforced efc</p>
+<h1>Experimental</h1>
+    <p>sht_pick - allows user to choose sheet while loading xlsx formats</p>
+    <p>switch_lng_rev - adds button to switch between responding revs/lngs</p>

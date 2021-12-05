@@ -1,7 +1,6 @@
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-
 from utils import *
 
 
@@ -88,7 +87,8 @@ class Close_dialog(widget.QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.close()
+            # self.close()
+            self.yes_button_click()
     
 
     def center(self):

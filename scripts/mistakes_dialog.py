@@ -6,7 +6,8 @@ from PyQt5.QtCore import Qt
 
 
 class Mistakes(widget.QWidget):
-
+    # Used for displaying cards that user guessed wrong
+    
     def __init__(self, mistakes_list, main_window):
         self.config = load_config()
         self.default_side = self.config['card_default_side']

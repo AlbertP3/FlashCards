@@ -70,11 +70,26 @@ class db_interface():
         except:
             return None
 
+    def get_newest_record(self, lng=None):
+        # returns last record from db optionally
+        # matching the lng provided
+        # if NA - returns last record
+        match = ''
+        
+        for i in range(self.db.shape[0]-1, -1, -1):
+            if self.db['SIGNATURE'].iloc[i][4:6] == lng:
+                match =  self.db['SIGNATURE'].iloc[i]
+
+        if match == '':
+            match = self.db['SIGNATURE'].iloc[-1]
+        
+        return match
+
 
     def get_positives_chart(self, signature):
         # Display statistics for specific file (signature)
         # checking sum_repeated value in order to avoid errors
-        # when rev not in DB and still show the (empty) chart
+        # when rev not in DB  stil show the (empty) chart
 
         sum_repeated = str(self.get_sum_repeated(signature))
         

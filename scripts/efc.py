@@ -19,6 +19,7 @@ class EFC(widget.QWidget):
         self.db_interface = db_api.db_interface()
         self.main_window = main_window
         self.initial_repetitions = 2
+        self.paths_to_suggested_lngs = dict()
 
         # Window Parameters
         self.left = 10
@@ -125,15 +126,27 @@ class EFC(widget.QWidget):
 
 
     def load_selected(self):
-        file_to_load = self.recommendation_list.currentItem().text()
+        selected_li = self.recommendation_list.currentItem().text()
         try:
-            self.main_window.load_button_click(f"{self.config['revs_path']}/" + str(file_to_load) + '.csv')
+
+            # loading rev file
+            if selected_li not in self.paths_to_suggested_lngs.keys():
+                self.main_window.load_button_click(f"{self.config['revs_path']}/" + str(selected_li) + '.csv')
+            else:
+            # loading lng file
+                self.main_window.load_button_click(
+                     f"{self.config['lngs_path']}\{self.paths_to_suggested_lngs[selected_li]}")
+                     
             self.close()
+
         except FileNotFoundError:
             print('Requested File Not Found')
     
 
     def is_it_time_for_something_new(self, unique_signatures):
+        # Periodically reccommend to create new revision for every
+        # lng specified in config.
+
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
 
@@ -145,9 +158,23 @@ class EFC(widget.QWidget):
                     initial_date = self.db_interface.get_first_date(signature)
                     time_delta = (make_todayte() - make_date(initial_date)).days
                     if time_delta >= self.config['days_to_new_rev']:
-                        new_reccommendations.append(f"It's time for: {lng}")
+                        new_reccommendations.append(self.get_reccommendation_text(lng))
                     break
         return new_reccommendations
+
+
+    def get_reccommendation_text(self, lng):
+        # get announcements and paths to the corresponding files
+        # adding keys to dictionary facilitates matching with text in efc list
+
+        if lng == 'EN':
+            text = 'Oi mate, take a gander'
+            self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], 'EN')
+            return text
+        elif lng == 'RU':
+            text = 'давай товарищ, двигаемся!'
+            self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], 'RU')
+            return text
 
 
     def keyPressEvent(self, event):

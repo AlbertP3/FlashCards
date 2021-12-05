@@ -4,6 +4,9 @@ import pandas as pd
 from tkinter.filedialog import askopenfile
 import tkinter as tk
 from PyQt5.QtCore import pyqtRemoveInputHook
+import re
+import csv
+
 
 
 def load_config():
@@ -41,14 +44,13 @@ def get_filename_from_path(path, include_extension=False):
     return filename 
 
 
-def text_insert(text_box, msg, left_newline=False, right_newline=False):
-    import tkinter as tk
-    output_msg = iif(left_newline, '\n', '') + msg + iif(right_newline, '\n', '')
-    text_box.insert(tk.END, output_msg)
-
-
-def iif(statement, true_part, false_part):
-    return true_part if statement else false_part
+def get_sign(num, plus_sign='+', neg_sign='-'):
+    if num > 0:
+        return plus_sign
+    elif num < 0:
+        return neg_sign
+    else:
+        return ''
 
 
 def get_signature_and_isrevision(lng:str, filename):
@@ -60,7 +62,7 @@ def get_signature_and_isrevision(lng:str, filename):
     else:
         saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
         signature = 'REV_' + lng[:2] + saving_date
-        print(f'Creating new signature: {signature}')
+        print(f'Language loaded: {filename}')
         return signature, False
 
 
@@ -75,7 +77,8 @@ def make_date(d):
 
 
 def make_todaytime():
-    return datetime(datetime.now().year, datetime.now().month, datetime.now().day, datetime.now().hour, datetime.now().minute, datetime.now().second)
+    return datetime(datetime.now().year, datetime.now().month, datetime.now().day, 
+                    datetime.now().hour, datetime.now().minute, datetime.now().second)
 
 
 def make_todayte():
@@ -107,14 +110,23 @@ def load_dataset(file_path=None):
     if extension in ['csv', 'txt']:
 
         try:
-            dataset = pd.read_csv(dataset_path, encoding='utf-8')
-        except pd.errors.ParserError:
-            print('Error while Parsing .csv file')
+            data = list()
+            with open(dataset_path, 'r', encoding='utf-8') as csvfile:
+                csvreader = csv.reader(csvfile)
+                for r in csvreader:
+                    data.append(r)
+            # Determine the delimiter
+            dialect = csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=';,').delimiter
+            dataset = pd.read_csv(dataset_path, encoding='utf-8', sep=dialect)
+            if dataset.shape[1] > 2:
+                print(f'Dataset has {dataset.shape[1]} cols. Expected 2.')
+        except:
+            print('Error while Parsing .csv file. Consider using different extension')
 
-    elif extension in ['xlsx', 'xlsm', 'xlsb']:
+    elif extension in ['xlsx', 'xlsm']:
         
-        # input() causes infitnite loop of 'QCoreApplication already running' printouts
-        if config['experimental'].lower() in ['true', '1', 'yes']:
+        if 'sht_pick' in config['experimental'].split('|'):
+            # input() causes infitnite loop of 'QCoreApplication already running' printouts
             pyqtRemoveInputHook()
             sht_input = input('Input sheet name or index: ')
             sht_id = int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
@@ -151,10 +163,11 @@ def update_config(key, new_value):
     config.to_csv(old_config['resources_path'] + '\\config.csv', index=False)
 
 
-def get_sign(num, plus_sign='+', neg_sign='-'):
-    if num > 0:
-        return plus_sign
-    elif num < 0:
-        return neg_sign
-    else:
-        return ''
+def get_most_similar_file(path, name, nothing_found=None):
+    files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+    for file in files:
+        if re.match(name.lower(), file.lower()) is not None:
+            return file
+            
+    if nothing_found == 'load_any':
+        return files[0] 
