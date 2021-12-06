@@ -330,16 +330,16 @@ class main_window(widget.QWidget):
             shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
             shortcut.activated.connect(function)
 
-        self.next_button_shortcut = add_shortcut('right', self.ks_nav_next)
-        self.negative_button_shortcut = add_shortcut('down', self.ks_nav_negative)
-        self.prev_button_shortcut = add_shortcut('left', self.click_prev)
-        self.reverse_button_shortcut = add_shortcut('up', self.reverse_side)
-        self.revmode_shortcut = add_shortcut('p', self.change_revmode)
-        self.delete_click_shortcut = add_shortcut('d', self.delete_card)
-        self.efc_shortcut = add_shortcut('e', self.show_efc)
-        self.save_button_shortcut = add_shortcut('s', self.do_save)
-        self.load_again_button_shortcut = add_shortcut('r', self.do_save)
-        self.load_button_shortcut = add_shortcut('l', self.load_button_click)
+        add_shortcut('right', self.ks_nav_next)
+        add_shortcut('down', self.ks_nav_negative)
+        add_shortcut('left', self.click_prev)
+        add_shortcut('up', self.reverse_side)
+        add_shortcut('p', self.change_revmode)
+        add_shortcut('d', self.delete_card)
+        add_shortcut('e', self.show_efc)
+        add_shortcut('s', self.show_stats)
+        add_shortcut('r', self.do_save)
+        add_shortcut('l', self.load_button_click)
 
 
     def ks_nav_next(self):

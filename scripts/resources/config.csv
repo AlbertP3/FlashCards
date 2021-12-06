@@ -16,6 +16,6 @@ revs_path,.\revisions
 resources_path,.\scripts\resources
 languages,EN|RU
 days_to_new_rev,8
-experimental,switch_lng_rev
+experimental,none
 lngs_path,.\languages
 keyboard_shortcuts,ON

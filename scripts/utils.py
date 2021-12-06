@@ -108,20 +108,21 @@ def load_dataset(file_path=None):
 
     # Choose File Extension Handler
     if extension in ['csv', 'txt']:
-
         try:
-            data = list()
-            with open(dataset_path, 'r', encoding='utf-8') as csvfile:
-                csvreader = csv.reader(csvfile)
-                for r in csvreader:
-                    data.append(r)
-            # Determine the delimiter
-            dialect = csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=';,').delimiter
-            dataset = pd.read_csv(dataset_path, encoding='utf-8', sep=dialect)
+            dataset = pd.read_csv(dataset_path, encoding='utf-8', sep=get_dialect(dataset_path))   
+            # Check & Handle Errors
             if dataset.shape[1] > 2:
-                print(f'Dataset has {dataset.shape[1]} cols. Expected 2.')
-        except:
-            print('Error while Parsing .csv file. Consider using different extension')
+                print(f'Dataset has {dataset.shape[1]} cols. Expected 2')
+            elif dataset.shape[1] < 2:
+                # some csv might look like tttttt,"ttttt"
+                data = [r[:-1].split(',"') for r in dataset.values.tolist()]
+                dataset = pd.DataFrame(data=data[1:], columns=data[0])
+                if dataset.shape[1] < 2:
+                    print("It's screwed beyond any salvation")
+                    return None, None
+        except pd.errors.ParserError:
+            print('Unable to load requested .csv file')
+            return None, None
 
     elif extension in ['xlsx', 'xlsm']:
         
@@ -132,17 +133,25 @@ def load_dataset(file_path=None):
             sht_id = int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
         else:
             sht_id = 0
-
         dataset = pd.read_excel(dataset_path, sheet_name=sht_id)
 
     else:
         
-        print(f'Chosen extension is not supported: {extension}')
+        print(f'Chosen extension is not (yet) supported: {extension}')
         return None, None
 
     dataset = dataset.sample(frac=1).reset_index(drop=True)
     return dataset, dataset_path
     
+
+def get_dialect(dataset_path):
+    data = list()
+    with open(dataset_path, 'r', encoding='utf-8') as csvfile:
+        csvreader = csv.reader(csvfile)
+        for r in csvreader:
+            data.append(r)
+    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=';,').delimiter
+
 
 def save(dataset:pd.DataFrame(), signature):
 
