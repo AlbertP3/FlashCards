@@ -40,7 +40,7 @@ def get_filename_from_path(path, include_extension=False):
     if include_extension:
         filename = basename(path)
     else:
-        filename = basename(path)[:-4]
+        filename = (basename(path)).split('.')[0]
     return filename 
 
 
@@ -180,3 +180,15 @@ def get_most_similar_file(path, name, nothing_found=None):
             
     if nothing_found == 'load_any':
         return files[0] 
+
+
+def remove_layout(layout):
+    # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
+     if layout is not None:
+         while layout.count():
+             item = layout.takeAt(0)
+             widget = item.widget()
+             if widget is not None:
+                 widget.setParent(None)
+             else:
+                 remove_layout(item.layout())

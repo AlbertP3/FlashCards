@@ -14,59 +14,50 @@ class EFC(widget.QWidget):
     def __init__(self, main_window:gui_main.main_window):
 
         # Configuration
-        self.config = load_config()
         super(EFC, self).__init__(None)
-        self.db_interface = db_api.db_interface()
         self.main_window = main_window
         self.initial_repetitions = 2
         self.paths_to_suggested_lngs = dict()
 
-        # Window Parameters
-        self.left = 10
-        self.top = 10
-        self.width = 260
-        self.height = 250
-        self.buttons_height = 45
+       
+    def get_efc_layout(self):
+        # Get newest data
+        self.config = load_config()
+        self.db_interface = db_api.db_interface()
 
         self.arrange_window()
         
+        # Window Parameters
+        self.buttons_height = 45
+
         # Fill List Widgets
         self.recommendations_list = self.get_recommendations()
         [self.recommendation_list.addItem(str(r)) for r in self.recommendations_list]
 
+        return self.efc_layout
+
 
     def arrange_window(self):
-        self.setWindowTitle('EFC')
-        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '\\icon.png'))
-        self.setGeometry(self.left, self.top, self.width, self.height)
-        self.center()
-
+   
         # Style
-        self.setStyleSheet(self.config['main_style_sheet'])
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
         self.font_button_size = self.config['efc_button_font_size']
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
-        self.textbox_width = 99
+        self.textbox_width = 250
         self.textbox_height = 200
+        self.buttons_height = 45
 
         # Elements
-        self.layout = widget.QGridLayout()
-        self.setLayout(self.layout)
-        self.layout.addWidget(self.create_recommendations_list(), 0, 0)
-        self.layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
-
-
-    def center(self):
-        frame_geo = self.frameGeometry()
-        target_pos = widget.QDesktopWidget().availableGeometry().center()
-        frame_geo.moveCenter(target_pos)
-        self.move(frame_geo.topLeft())
+        self.efc_layout = widget.QGridLayout()
+        self.efc_layout.addWidget(self.create_recommendations_list(), 0, 0)
+        self.efc_layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
 
 
     def create_recommendations_list(self):
         self.recommendation_list = widget.QListWidget(self)
+        self.recommendation_list.setFixedWidth(self.textbox_width)
         self.recommendation_list.setFont(self.button_font)
         self.recommendation_list.setStyleSheet(self.textbox_stylesheet)
         return self.recommendation_list
@@ -75,6 +66,7 @@ class EFC(widget.QWidget):
     def create_load_button(self):
         self.load_button = widget.QPushButton(self)
         self.load_button.setFixedHeight(self.buttons_height)
+        self.load_button.setFixedWidth(self.textbox_width)
         self.load_button.setFont(self.button_font)
         self.load_button.setText('Load')
         self.load_button.setStyleSheet(self.button_style_sheet)
@@ -108,7 +100,7 @@ class EFC(widget.QWidget):
         reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
 
         # temp solution - print whole table to terminal (2 lines of code)
-        print('REV_NAME             | DAYS AGO')
+        # print('REV_NAME             | DAYS AGO')
 
         for signature in unique_signatures:
             last_date = self.db_interface.get_last_date(signature)
@@ -117,7 +109,7 @@ class EFC(widget.QWidget):
             last_positives = self.db_interface.get_last_positives(signature)
             efc_critera_met = self.efc_function(last_date, total, last_positives, repeated_times)
             
-            print(f'{signature} | {(make_todayte() - make_date(last_date)).days}')
+            # print(f'{signature} | {(make_todayte() - make_date(last_date)).days}')
 
             if efc_critera_met:
                 reccommendations.append(signature)
@@ -128,6 +120,7 @@ class EFC(widget.QWidget):
     def load_selected(self):
         selected_li = self.recommendation_list.currentItem().text()
         try:
+            self.main_window.del_side_window()
 
             # loading rev file
             if selected_li not in self.paths_to_suggested_lngs.keys():
@@ -137,8 +130,6 @@ class EFC(widget.QWidget):
                 self.main_window.load_button_click(
                      f"{self.config['lngs_path']}\{self.paths_to_suggested_lngs[selected_li]}")
                      
-            self.close()
-
         except FileNotFoundError:
             print('Requested File Not Found')
     
@@ -175,11 +166,6 @@ class EFC(widget.QWidget):
             text = 'давай товарищ, двигаемся!'
             self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], 'RU')
             return text
-
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
-            self.close()
         
         
 

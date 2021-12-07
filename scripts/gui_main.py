@@ -6,7 +6,7 @@ from mistakes_dialog import Mistakes
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, pyqtRemoveInputHook
-import close_dialog
+import stats
 
 
 
@@ -42,19 +42,20 @@ class main_window(widget.QWidget):
         self.signature = ''
         self.is_saved = False
         self.is_revision = False
+        self.side_window_right = None  # 'efc', 'mistakes', 'stats', 'load'
 
         # Window Parameters
         self.left = 10
         self.top = 10
-        self.width = 475
-        self.height = 450
+        self.default_width = 475
+        self.default_height = 450
         self.textbox_height = 280
         self.buttons_height = 45
 
         # Set Parameters
         self.setWindowTitle('Lama Learning')
         self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '\\icon.png'))
-        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setGeometry(self.left, self.top, self.default_width, self.default_height)
 
         # Layout & Style
         self.layout = widget.QGridLayout()
@@ -75,6 +76,7 @@ class main_window(widget.QWidget):
         self.layout_third_row = widget.QGridLayout()
         self.layout_fourth_row = widget.QGridLayout()
         self.layout_next_navigation = widget.QGridLayout()
+        self.side_window_layout = widget.QGridLayout()
 
         self.layout.addLayout(self.layout_first_row, 0, 0)
         self.layout.addLayout(self.layout_second_row, 1, 0)
@@ -141,7 +143,6 @@ class main_window(widget.QWidget):
 
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
-        self.textbox.setFixedHeight(self.textbox_height)
         self.textbox.setFont(self.textbox_font)
         self.textbox.setReadOnly(True)
         self.textbox.setStyleSheet(self.textbox_stylesheet)
@@ -263,7 +264,7 @@ class main_window(widget.QWidget):
         frame_geo.moveCenter(target_pos)
         self.move(frame_geo.topLeft())
 
-    
+
     def insert_text(self, text, default_font=16):
         dynamic_font_size = 32 - int(len(str(text))/12)
         self.font_textbox_size = dynamic_font_size if dynamic_font_size >= 8 else default_font
@@ -319,10 +320,22 @@ class main_window(widget.QWidget):
 
         if self.file_path is not None:  # loaded successfuly
             self.reset_flashcard_parameters()
-            self.signature, self.is_revision = get_signature_and_isrevision(self.dataset.columns.tolist()[0], 
-                                            get_filename_from_path(self.file_path, include_extension=False))
+            filename = get_filename_from_path(self.file_path, include_extension=False)
+            self.signature, self.is_revision = get_signature_and_isrevision(self.dataset.columns.tolist()[0], filename)
+            title = self.signature if self.is_revision else filename
+            self.setWindowTitle(title)
             # Update config file with new onload_path
             update_config('onload_file_path', get_relative_path_from_abs_path(self.file_path))
+
+            # Update Side Window if displayed
+            if self.side_window_right is not None:
+                if self.side_window_right == 'efc':
+                    self.del_side_window()
+                    self.show_efc()
+                elif self.side_window_right == 'stats':
+                    self.del_side_window()
+                    self.show_stats()
+
 
 
     def add_shortcuts(self):
@@ -358,25 +371,18 @@ class main_window(widget.QWidget):
 
     def show_efc(self):
         self.efc_window = efc.EFC(self)
-        self.efc_window.show()
-        self.efc_window.move(self.pos().x()+int(self.width/2)-int(self.efc_window.width/2), 
-                            self.pos().y() + int(self.height/5))
-
+        self.switch_side_window(self.efc_window.get_efc_layout(), 'efc', 250 + self.left)
+            
 
     def show_mistakes(self):
         self.mistakes_window = Mistakes(self.mistakes_list, self)
-        self.mistakes_window.show()
-        self.mistakes_window.move(self.pos().x()+int(self.width/2)-int(self.mistakes_window.width/2), 
-                                self.pos().y() + int(self.height/5))
+        self.switch_side_window(self.mistakes_window.get_mistakes_layout(), 'mistakes', 510 + self.left)
 
 
     def show_stats(self):
         if self.is_revision:
-            # Avoids showing 'QCoreApplication::exec: The event loop is already running' exception
-            pyqtRemoveInputHook()
-            
-            db_interface = db_api.db_interface()
-            db_interface.get_positives_chart(self.signature)
+            self.stats_window = stats.Stats(self)
+            self.switch_side_window(self.stats_window.get_stats_layout(), 'stats', 400 + self.left)
         else:
             print('Statistics not available')
 
@@ -412,8 +418,8 @@ class main_window(widget.QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.close_dialog = close_dialog.Close_dialog(self)
-            self.close_dialog.show()
+            if self.side_window_right is not None:
+                self.del_side_window()
     
 
     def get_rating(self):
@@ -445,8 +451,31 @@ class main_window(widget.QWidget):
             file_path = '.\\revisions\\' + last_rev_signature + '.csv'
         self.load_button_click(provided_file_path=file_path)                                                                            
 
+    
+    def switch_side_window(self, layout, name, extra_width):
+ 
+        if self.side_window_right != name:
+            self.del_side_window()
+            self.add_side_window(layout, name, extra_width)
+        else:
+            self.del_side_window()
+
+        # Keeps window at the same position
+        self.move(self.pos())
         
 
+    def add_side_window(self, layout, name, extra_width):
+        self.side_window_layout = layout
+        self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
+        self.setFixedWidth(self.default_width + extra_width)
+        # Todo resizable window
+        self.side_window_right = name
+
+    def del_side_window(self):
+        remove_layout(self.side_window_layout)
+        self.setFixedWidth(self.default_width)
+        # Todo resizable window
+        self.side_window_right = None
 
 
 def launch():

@@ -86,58 +86,11 @@ class db_interface():
         return match
 
 
-    def get_positives_chart(self, signature):
-        # Display statistics for specific file (signature)
-        # checking sum_repeated value in order to avoid errors
-        # when rev not in DB  stil show the (empty) chart
+    def get_chart_values(self, signature):
+        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
+        return res
 
-        sum_repeated = str(self.get_sum_repeated(signature))
-        
-        if sum_repeated != 0:
-            dates = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
-            values = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
 
-            # Create labels like VAL(SIGN DYNAMIC) eg. 21(-3)
-            dynamic_indices = ['']
-            [dynamic_indices.append('{}({}{})'.format(values[x], get_sign(values[x] - values[x-1], neg_sign=''), values[x] - values[x-1])) for x in range(1, len(values))]
-
-            last_pos_share = str('{:.0f}%'.format(100*self.get_last_positives(signature) / self.get_total_words(signature)))
-            first_date = str(self.get_first_date(signature))
-            days_ago = str(self.get_days_ago(signature))
-
-        # Chart Configuration
-        fig, axs = plt.subplots(2,1, num=signature, gridspec_kw={'height_ratios': [2, 1]})
-        plt.rcParams.update({'text.color': config['font_color'],
-                            'axes.labelcolor':config['font_color']})
-        fig.patch.set_facecolor(config['stat_background_color'])
-        axs[0].set_facecolor(config['stat_chart_background_color'])
-        axs[1].set_facecolor(config['stat_chart_background_color'])
-        axs[0].yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-        plt.rcParams['font.family'] = config['font']
-        plt.setp(axs[0].xaxis.get_majorticklabels(), rotation=45)
-        
-        formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in dates]
-        axs[0].bar(formatted_dates, values, color=config['stat_bar_color'])
-
-        # Labels
-        for rect, label in zip(axs[0].patches, dynamic_indices):
-            height = rect.get_height()
-            axs[0].text(
-        rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom"
-        )
-
-        # Table Configuration
-        axs[1].axis('off')
-        table = axs[1].table(cellText=[[sum_repeated], [last_pos_share], [first_date], [days_ago]],
-                rowLabels=['Repeated Times', 'Last Pos Share', 'First Date (MDY)', 'Time Ago'],
-                loc='center', cellLoc='right',
-                bbox = [0.4, 0.4, 0.35, 0.8])  #  x,y,w,h
-        table.scale(1, 2)
-        table.auto_set_column_width(col=list(range(2)))
-        
-        # Execute
-        plt.tight_layout(pad=1.0)
-        plt.show()
-    
-    
-   
+    def get_chart_dates(self, signature):
+        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
+        return res

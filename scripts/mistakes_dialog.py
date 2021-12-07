@@ -9,30 +9,28 @@ class Mistakes(widget.QWidget):
     # Used for displaying cards that user guessed wrong
     
     def __init__(self, mistakes_list, main_window):
-        self.config = load_config()
-        self.default_side = self.config['card_default_side']
         self.mistakes_list = mistakes_list
         self.main_window = main_window
         super(Mistakes, self).__init__(None)
 
+    
+    def get_mistakes_layout(self):
+        self.config = load_config()
+        self.default_side = self.config['card_default_side']
+
+        self.arrange_window()
+
         # Window Parameters
-        self.left = 10
-        self.top = 10
         self.width = 400
         self.height = 44 * len(self.mistakes_list)
         self.buttons_height = 45
 
-        self.arrange_window()
-    
+        return self.mistakes_layout
+
 
     def arrange_window(self):
-        self.setWindowTitle('Mistakes')
-        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '\\icon.png'))
-        self.setGeometry(self.left, self.top, self.width, self.height)
-        self.center()
 
         # Style
-        self.setStyleSheet(self.config['main_style_sheet'])
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
@@ -40,10 +38,9 @@ class Mistakes(widget.QWidget):
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
-        self.layout = widget.QGridLayout()
-        self.setLayout(self.layout)
-        self.layout.addWidget(self.create_mistakes_list_default_side(), 0, 0)
-        self.layout.addWidget(self.create_mistakes_list_alternate_side(), 0, 1)
+        self.mistakes_layout = widget.QGridLayout()
+        self.mistakes_layout.addWidget(self.create_mistakes_list_default_side(), 0, 0)
+        self.mistakes_layout.addWidget(self.create_mistakes_list_alternate_side(), 0, 1)
         
 
     def create_mistakes_list_default_side(self):
@@ -60,15 +57,3 @@ class Mistakes(widget.QWidget):
         self.mistakes_list_alternate_side.setStyleSheet(self.textbox_stylesheet)
         [self.mistakes_list_alternate_side.addItem(m[1-self.default_side]) for m in self.mistakes_list]
         return self.mistakes_list_alternate_side
-
-
-    def center(self):
-        frame_geo = self.frameGeometry()
-        target_pos = widget.QDesktopWidget().availableGeometry().center()
-        frame_geo.moveCenter(target_pos)
-        self.move(frame_geo.topLeft())
-
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
-            self.close()
