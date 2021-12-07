@@ -1,7 +1,6 @@
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from utils import load_config
-from PyQt5.QtCore import Qt
 
 
 

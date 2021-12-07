@@ -1,6 +1,5 @@
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
 import db_api
 from utils import *
 from math import exp

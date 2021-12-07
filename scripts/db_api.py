@@ -1,7 +1,5 @@
 import pandas as pd
 from os import listdir
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FormatStrFormatter
 from utils import *
 
 config = load_config()

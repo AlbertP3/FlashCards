@@ -4,7 +4,6 @@ from utils import *
 import db_api
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.ticker import FormatStrFormatter
 
 
@@ -95,7 +94,7 @@ class Stats(widget.QWidget):
         for i in range(self.table.rowCount()):
             self.table.setRowHeight(i, 45)
 
-        self.table.setItem(0, 0, widget.QTableWidgetItem(f'Repeated {self.sum_repeated} Times'))
+        self.table.setItem(0, 0, widget.QTableWidgetItem(f'{len(str(self.sum_repeated))+2}Repeated {self.sum_repeated} Times'))
         self.table.setItem(0, 1, widget.QTableWidgetItem(f'Last Pos% was {self.last_pos_share}'))
         self.table.setItem(0, 2, widget.QTableWidgetItem(f'Created {str(self.days_ago).split(",")[0]} ago'))
         

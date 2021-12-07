@@ -5,18 +5,9 @@ from utils import *
 from mistakes_dialog import Mistakes
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, pyqtRemoveInputHook
+from PyQt5.QtCore import Qt
 import stats
-
-
-
-def __launch_main_window():
-    # keep a reference to the opened window, 
-    # otherwise it goes out of scope and is garbage collected
-    mw = main_window()
-    mw.show()
-    return mw
-
+import load
 
 
 class main_window(widget.QWidget):
@@ -133,13 +124,15 @@ class main_window(widget.QWidget):
             self.switch_lng_rev_button = self.create_button('🦙', self.switch_lng_rev)
             self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
 
+        # Continue where you left off
+        initial_load = load.Load_dialog(self)
+        initial_load.load_file(self.file_path)
+        
         # Execute
         self.center()
         self.show()
 
-        # Continue where you left off
-        self.load_button_click(self.file_path)
-    
+
 
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
@@ -229,7 +222,7 @@ class main_window(widget.QWidget):
      
 
     def load_again_click(self):
-        self.dataset, self.file_path = load_dataset(self.file_path)
+        self.dataset, self.file_path = load.load_dataset(self.file_path)
         self.reset_flashcard_parameters()
 
 
@@ -311,31 +304,19 @@ class main_window(widget.QWidget):
             self.visible(False, False, True)
             
 
-    def load_button_click(self, provided_file_path=None):
-        try:
-            self.dataset, self.file_path = load_dataset(provided_file_path)
-        except FileNotFoundError:
-            print('File Not Found')
-            return
+    def load_button_click(self):
+        self.load_layout = load.Load_dialog(self)
+        self.switch_side_window(self.load_layout.get_load_layout(), 'load', 250 + self.left)
 
-        if self.file_path is not None:  # loaded successfuly
-            self.reset_flashcard_parameters()
-            filename = get_filename_from_path(self.file_path, include_extension=False)
-            self.signature, self.is_revision = get_signature_and_isrevision(self.dataset.columns.tolist()[0], filename)
-            title = self.signature if self.is_revision else filename
-            self.setWindowTitle(title)
-            # Update config file with new onload_path
-            update_config('onload_file_path', get_relative_path_from_abs_path(self.file_path))
-
-            # Update Side Window if displayed
-            if self.side_window_right is not None:
-                if self.side_window_right == 'efc':
-                    self.del_side_window()
-                    self.show_efc()
-                elif self.side_window_right == 'stats':
-                    self.del_side_window()
-                    self.show_stats()
-
+    
+    def set_dataset(self, data):
+        self.dataset = data
+    def set_signature(self, signature):
+        self.signature = signature
+    def set_is_revision(self, is_revision):
+        self.is_revision = is_revision
+    def set_title(self, title):
+        self.setWindowTitle(title)
 
 
     def add_shortcuts(self):
@@ -468,23 +449,23 @@ class main_window(widget.QWidget):
         self.side_window_layout = layout
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
         self.setFixedWidth(self.default_width + extra_width)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         # Todo resizable window
         self.side_window_right = name
 
     def del_side_window(self):
         remove_layout(self.side_window_layout)
         self.setFixedWidth(self.default_width)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         # Todo resizable window
         self.side_window_right = None
 
 
-def launch():
-    # [] or sys.argv represent cmd lines passed to the application
-    app = widget.QApplication([])
-    window = __launch_main_window()
-    app.exec()
-    return window
-
 
 if __name__ == '__main__':
-    window = launch()
+    app = widget.QApplication([])
+    mw = main_window()
+    mw.show()
+    app.exec()
