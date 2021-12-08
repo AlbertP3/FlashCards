@@ -110,8 +110,8 @@ class Load_dialog(widget.QWidget):
         self.flashcard_files_qlist.setFont(self.button_font)
         self.flashcard_files_qlist.setStyleSheet(self.textbox_stylesheet)
         self.flashcard_files_qlist.setFixedWidth(self.textbox_width)
-        [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_lng_files()]
-        [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_rev_files()]
+        [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_lng_files() if str(file)[:2] != '~$']
+        [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_rev_files() if str(file)[:2] != '~$']
         return self.flashcard_files_qlist
 
 
@@ -162,7 +162,7 @@ class Load_dialog(widget.QWidget):
         self.main_window.del_side_window()
         self.main_window.reset_flashcard_parameters()
 
-
+    
     def get_signature(self):
         if self.is_revision:
             print(f'Revision recognized: {self.selected_file_name}')

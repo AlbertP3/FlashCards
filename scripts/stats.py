@@ -42,9 +42,9 @@ class Stats(widget.QWidget):
         self.last_positives = db_interface.get_last_positives(self.signature)
         self.total_words = db_interface.get_total_words(self.signature)
         self.first_date = db_interface.get_first_date(self.signature)
-        self.last_pos_share = str('{:.0f}%'.format(100*self.last_positives / self.total_words))
         self.sum_repeated = str(db_interface.get_sum_repeated(self.signature))
         self.days_ago = db_interface.get_days_ago(self.signature)
+        self.last_pos_share = str('{:.0f}%'.format(100*self.last_positives / self.total_words)) if self.last_positives > 0 else 'N/A'
 
         # Create Dynamic Chain Index
         self.dynamic_chain_index = ['']
@@ -94,7 +94,7 @@ class Stats(widget.QWidget):
         for i in range(self.table.rowCount()):
             self.table.setRowHeight(i, 45)
 
-        self.table.setItem(0, 0, widget.QTableWidgetItem(f'{len(str(self.sum_repeated))+2}Repeated {self.sum_repeated} Times'))
+        self.table.setItem(0, 0, widget.QTableWidgetItem(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} Times'))
         self.table.setItem(0, 1, widget.QTableWidgetItem(f'Last Pos% was {self.last_pos_share}'))
         self.table.setItem(0, 2, widget.QTableWidgetItem(f'Created {str(self.days_ago).split(",")[0]} ago'))
         

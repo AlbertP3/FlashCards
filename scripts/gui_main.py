@@ -125,13 +125,11 @@ class main_window(widget.QWidget):
             self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
 
         # Continue where you left off
-        initial_load = load.Load_dialog(self)
-        initial_load.load_file(self.file_path)
+        self.load_from_path(self.file_path)
         
         # Execute
         self.center()
         self.show()
-
 
 
     def create_textbox(self):
@@ -222,15 +220,14 @@ class main_window(widget.QWidget):
      
 
     def load_again_click(self):
-        self.dataset, self.file_path = load.load_dataset(self.file_path)
-        self.reset_flashcard_parameters()
+        self.load_from_path(self.file_path)
 
 
     def delete_card(self):
         if self.total_words > 1:
-            card_to_del = self.dataset.iloc[self.current_index].values.tolist()
             self.dataset.drop([self.current_index], inplace=True, axis=0)
-            print(f'Deleted Card: {card_to_del}')
+            # card_to_del = self.dataset.iloc[self.current_index].values.tolist()
+            # print(f'Deleted Card: {card_to_del}')
             self.dataset.reset_index(inplace=True, drop=True)
             
             self.total_words = self.dataset.shape[0]
@@ -243,10 +240,11 @@ class main_window(widget.QWidget):
 
     def do_save(self):
         if not self.is_revision:
+            self.signature = self.signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
             save(self.dataset.iloc[:self.current_index+1, :], self.signature)
             # Create initial record
             db_api.create_record(self.signature, self.current_index+1, self.positives)
-            self.load_button_click(self.config['revs_path'] + '\\' + self.signature + '.csv')
+            self.load_from_path(self.config['revs_path'] + '\\' + self.signature + '.csv')
         else:
             print('Cannot save revision')
 
@@ -259,10 +257,11 @@ class main_window(widget.QWidget):
 
 
     def insert_text(self, text, default_font=16):
-        dynamic_font_size = 32 - int(len(str(text))/12)
+        dynamic_font_size = 32 - int(len(str(text))/24)
         self.font_textbox_size = dynamic_font_size if dynamic_font_size >= 8 else default_font
+        self.textbox.setFont(QtGui.QFont(self.font, self.font_textbox_size))
         self.textbox.setText(str(text))
-        padding = max(0, 90 - len(str(text))*0.6)
+        padding = max(0, 90 - len(str(text))*0.7)
         self.textbox.setStyleSheet('''{} 
                                     padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
@@ -308,7 +307,12 @@ class main_window(widget.QWidget):
         self.load_layout = load.Load_dialog(self)
         self.switch_side_window(self.load_layout.get_load_layout(), 'load', 250 + self.left)
 
-    
+
+    def load_from_path(self, path):
+        initial_load = load.Load_dialog(self)
+        initial_load.load_file(path)
+
+
     def set_dataset(self, data):
         self.dataset = data
     def set_signature(self, signature):
@@ -317,6 +321,8 @@ class main_window(widget.QWidget):
         self.is_revision = is_revision
     def set_title(self, title):
         self.setWindowTitle(title)
+    def set_file_path(self, file_path):
+        self.file_path = file_path
 
 
     def add_shortcuts(self):
@@ -332,7 +338,7 @@ class main_window(widget.QWidget):
         add_shortcut('d', self.delete_card)
         add_shortcut('e', self.show_efc)
         add_shortcut('s', self.show_stats)
-        add_shortcut('r', self.do_save)
+        add_shortcut('r', self.load_again_click)
         add_shortcut('l', self.load_button_click)
 
 

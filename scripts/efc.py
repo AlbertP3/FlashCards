@@ -121,13 +121,12 @@ class EFC(widget.QWidget):
         try:
             self.main_window.del_side_window()
 
-            # loading rev file
             if selected_li not in self.paths_to_suggested_lngs.keys():
-                self.main_window.load_button_click(f"{self.config['revs_path']}/" + str(selected_li) + '.csv')
+                path = f"{self.config['revs_path']}/" + str(selected_li) + '.csv'
             else:
-            # loading lng file
-                self.main_window.load_button_click(
-                     f"{self.config['lngs_path']}\{self.paths_to_suggested_lngs[selected_li]}")
+                path = f"{self.config['lngs_path']}\{self.paths_to_suggested_lngs[selected_li]}"
+            
+            self.main_window.load_from_path(path)
                      
         except FileNotFoundError:
             print('Requested File Not Found')
