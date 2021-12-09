@@ -33,7 +33,7 @@ class main_window(widget.QWidget):
         self.signature = ''
         self.is_saved = False
         self.is_revision = False
-        self.side_window_right = None  # 'efc', 'mistakes', 'stats', 'load'
+        self.side_window_id = None  # 'efc', 'mistakes', 'stats', 'load'
 
         # Window Parameters
         self.left = 10
@@ -405,7 +405,7 @@ class main_window(widget.QWidget):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            if self.side_window_right is not None:
+            if self.side_window_id is not None:
                 self.del_side_window()
     
 
@@ -415,14 +415,13 @@ class main_window(widget.QWidget):
         if pos_share == 1:
             rating = 'Perfect!!!'
         elif pos_share >= 0.92:
-            rating = 'Excellent!'
+            rating = 'Excellent!!'
         elif pos_share >= 0.8:
-            rating = 'Awesome'
+            rating = 'Awesome!'
         elif pos_share >= 0.68:
             rating = 'Good'
         else:
             rating = 'Try harder next time.'
-
         return rating
 
 
@@ -441,7 +440,7 @@ class main_window(widget.QWidget):
     
     def switch_side_window(self, layout, name, extra_width):
  
-        if self.side_window_right != name:
+        if self.side_window_id != name:
             self.del_side_window()
             self.add_side_window(layout, name, extra_width)
         else:
@@ -457,16 +456,15 @@ class main_window(widget.QWidget):
         self.setFixedWidth(self.default_width + extra_width)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-        # Todo resizable window
-        self.side_window_right = name
+        self.side_window_id = name
+
 
     def del_side_window(self):
         remove_layout(self.side_window_layout)
         self.setFixedWidth(self.default_width)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-        # Todo resizable window
-        self.side_window_right = None
+        self.side_window_id = None
 
 
 

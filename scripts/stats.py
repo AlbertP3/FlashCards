@@ -39,12 +39,12 @@ class Stats(widget.QWidget):
         self.chart_values = db_interface.get_chart_values(self.signature)
         self.chart_dates = db_interface.get_chart_dates(self.signature)
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in self.chart_dates]
-        self.last_positives = db_interface.get_last_positives(self.signature)
         self.total_words = db_interface.get_total_words(self.signature)
         self.first_date = db_interface.get_first_date(self.signature)
         self.sum_repeated = str(db_interface.get_sum_repeated(self.signature))
         self.days_ago = db_interface.get_days_ago(self.signature)
-        self.last_pos_share = str('{:.0f}%'.format(100*self.last_positives / self.total_words)) if self.last_positives > 0 else 'N/A'
+        self.last_positives = db_interface.get_last_positives(self.signature)
+        self.last_pos_share = str('{:.0f}%'.format(100*self.last_positives / self.total_words)) if self.last_positives is not None else 'N/A'
 
         # Create Dynamic Chain Index
         self.dynamic_chain_index = ['']

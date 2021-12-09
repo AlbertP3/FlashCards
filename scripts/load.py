@@ -117,11 +117,13 @@ class Load_dialog(widget.QWidget):
 
     def get_lng_files(self):
         self.lng_files_list = get_files_in_dir(self.config['lngs_path'])
+        self.lng_files_list.sort(key=lambda e: e[6:14], reverse=True)  
         return self.lng_files_list
 
 
     def get_rev_files(self):
         self.rev_files_list =  get_files_in_dir(self.config['revs_path'])
+        self.rev_files_list.sort(key=lambda e: e[6:14], reverse=True    )  
         return self.rev_files_list
 
 
