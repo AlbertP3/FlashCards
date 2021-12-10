@@ -124,12 +124,13 @@ class main_window(widget.QWidget):
             self.switch_lng_rev_button = self.create_button('🦙', self.switch_lng_rev)
             self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
 
-        # Continue where you left off
-        self.load_from_path(self.file_path)
-        
         # Execute
         self.center()
         self.show()
+
+        # Continue where you left off
+        self.load_from_path(self.file_path)
+        
 
 
     def create_textbox(self):
@@ -191,9 +192,9 @@ class main_window(widget.QWidget):
                 self.words_back-=1
                 if self.words_back == 0:
                     if self.revmode:
-                        self.visible(True, True, False)
+                        self.nav_buttons_visibility_control(True, True, False)
                     else:
-                        self.visible(False, False, True)
+                        self.nav_buttons_visibility_control(False, False, True)
 
         # Check conditions to record revision
         if diff_words == 1 and self.is_revision and self.is_saved == False:
@@ -209,7 +210,7 @@ class main_window(widget.QWidget):
         if self.current_index >= 1:
             self.decrease_current_index()
             self.words_back+=1
-            self.visible(False, False, True)
+            self.nav_buttons_visibility_control(False, False, True)
             self.side = self.config['card_default_side']
             self.insert_text(self.get_current_card())
 
@@ -226,8 +227,6 @@ class main_window(widget.QWidget):
     def delete_card(self):
         if self.total_words > 1:
             self.dataset.drop([self.current_index], inplace=True, axis=0)
-            # card_to_del = self.dataset.iloc[self.current_index].values.tolist()
-            # print(f'Deleted Card: {card_to_del}')
             self.dataset.reset_index(inplace=True, drop=True)
             
             self.total_words = self.dataset.shape[0]
@@ -298,9 +297,9 @@ class main_window(widget.QWidget):
         self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
         # show/hide buttons
         if self.revmode:
-            self.visible(True, True, False)
+            self.nav_buttons_visibility_control(True, True, False)
         else:
-            self.visible(False, False, True)
+            self.nav_buttons_visibility_control(False, False, True)
             
 
     def load_button_click(self):
@@ -309,8 +308,11 @@ class main_window(widget.QWidget):
 
 
     def load_from_path(self, path):
-        initial_load = load.Load_dialog(self)
-        initial_load.load_file(path)
+        try:
+            initial_load = load.Load_dialog(self)
+            initial_load.load_file(path, self.config['revs_path'])
+        except FileNotFoundError:
+            print('File Not Found.')
 
 
     def set_dataset(self, data):
@@ -374,7 +376,7 @@ class main_window(widget.QWidget):
             print('Statistics not available')
 
 
-    def visible(self, pos_button:bool, neg_button:bool, next_button:bool):
+    def nav_buttons_visibility_control(self, pos_button:bool, neg_button:bool, next_button:bool):
         if pos_button is True:
             self.positive_button.show()
         else:

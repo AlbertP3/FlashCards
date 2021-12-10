@@ -8,7 +8,7 @@ import csv
 
 
 
-def load_dataset(file_path=None):
+def load_dataset(file_path):
     dataset = pd.DataFrame()
 
     extension = get_filename_from_path(file_path, True).split('.')[-1]
@@ -16,39 +16,18 @@ def load_dataset(file_path=None):
     # Choose File Extension Handler
     if extension in ['csv', 'txt']:
         try:
-            dataset = pd.read_csv(file_path, encoding='utf-8', sep=get_dialect(file_path))   
-            # Check & Handle Errors
-            if dataset.shape[1] > 2:
-                print(f'Dataset has {dataset.shape[1]} cols. Expected 2')
-            elif dataset.shape[1] < 2:
-                # some csv might look like tttttt,"ttttt"
-                data = [r[:-1].split(',"') for r in dataset.values.tolist()]
-                dataset = pd.DataFrame(data=data[1:], columns=data[0])
-                if dataset.shape[1] < 2:
-                    print("It's screwed beyond any salvation")
-                    return None, None
+            dataset = load_csv(file_path)
         except pd.errors.ParserError:
             print('Unable to load requested .csv file')
             return None, None
-
-    elif extension in ['xlsx', 'xlsm']:
-        
-        if 'sht_pick' in config['experimental'].split('|'):
-            # input() causes infitnite loop of 'QCoreApplication already running' printouts
-            pyqtRemoveInputHook()
-            sht_input = input('Input sheet name or index: ')
-            sht_id = int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
-        else:
-            sht_id = 0
-        dataset = pd.read_excel(file_path, sheet_name=sht_id)
-
+    elif extension in ['xlsx', 'xlsm']:  
+        dataset = read_excel(file_path)
     else:
-        
         print(f'Chosen extension is not (yet) supported: {extension}')
-        return None, None
+        return None
 
     dataset = dataset.sample(frac=1).reset_index(drop=True)
-    return dataset, file_path
+    return dataset
 
 
 def get_dialect(dataset_path):
@@ -58,6 +37,42 @@ def get_dialect(dataset_path):
         for r in csvreader:
             data.append(r)
     return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=';,').delimiter
+
+
+def load_csv(file_path):
+    dataset = pd.read_csv(file_path, encoding='utf-8', sep=get_dialect(file_path))   
+    if dataset.shape[1] < 2:  # Check & Handle Errors
+        print_debug('Resorting to backup csv loading plan. Expected sep= ttt,"tttt"')
+        data = [r[:-1].split(',"') for r in dataset.values.tolist()]
+        dataset = pd.DataFrame(data=data[1:], columns=data[0])
+    return dataset
+
+
+def read_excel(file_path):
+    if 'sht_pick' in config['experimental'].split('|'):
+        # input() causes infitnite loop of 'QCoreApplication already running' printouts
+        pyqtRemoveInputHook()
+        sht_input = input('Input sheet name or index: ')
+        sht_id = int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
+    else:
+        sht_id = 0
+    return pd.read_excel(file_path, sheet_name=sht_id)
+
+
+def dataset_is_valid(dataset):
+    if type(dataset) == pd.DataFrame:
+        cols_count = dataset.shape[1]
+        if cols_count == 2:
+            return True
+        elif cols_count > 2:
+            print(f'Selected file has {cols_count} columns. Expected 2')
+            return True  # as dataset is still viable
+        else:
+            print('Selected file is invalid - not enough columns. Min is 2.')
+            return False
+    else:
+        print('Selected file is screwed beyond salvation.')
+        return False
 
 
 
@@ -122,7 +137,7 @@ class Load_dialog(widget.QWidget):
 
 
     def get_rev_files(self):
-        self.rev_files_list =  get_files_in_dir(self.config['revs_path'])
+        self.rev_files_list = get_files_in_dir(self.config['revs_path'])
         self.rev_files_list.sort(key=lambda e: e[6:14], reverse=True    )  
         return self.rev_files_list
 
@@ -130,39 +145,48 @@ class Load_dialog(widget.QWidget):
     def load_selected(self):
 
         selected_li = self.flashcard_files_qlist.currentItem().text()
-        
-        # Load File and get filename
-        if str(selected_li).startswith('REV_'):
-            selected_rev_id = match_in_list_by_val(self.rev_files_list, selected_li, ommit_extension=True)
-            selected_rev = self.rev_files_list[selected_rev_id]
-            self.data, self.file_path = load_dataset(f"{self.config['revs_path']}/" + str(selected_rev))
-            self.selected_file_name = str(selected_rev).split('.')[0]
-            self.is_revision = True
-        else:
-            selected_lng_id = match_in_list_by_val(self.lng_files_list, selected_li, ommit_extension=True)
-            selected_lng = self.lng_files_list[selected_lng_id]
-            self.data, self.file_path = load_dataset(f"{self.config['lngs_path']}/" + str(selected_lng))
-            self.selected_file_name = str(selected_lng).split('.')[0]
+
+        # Deterime if selected file is rev or lng by its position in the list
+        concatenated_lists = self.lng_files_list + self.rev_files_list
+        sel_item_index = match_in_list_by_val(concatenated_lists, selected_li, True)
+
+        if sel_item_index < len(self.lng_files_list):
+            self.get_params(self.lng_files_list, selected_li, self.config['lngs_path'])
             self.is_revision = False
+        else:
+            self.get_params(self.rev_files_list, selected_li, self.config['revs_path'])
+            self.is_revision = True
 
-        self.update_main_window_params()
-        update_config('onload_file_path', get_relative_path_from_abs_path(self.file_path))
-
-
-    def load_file(self, file_path):
-        self.data, self.file_path = load_dataset(file_path)
-        self.selected_file_name = get_filename_from_path(file_path)
-        self.is_revision = True if self.selected_file_name.startswith('REV_') else False
-        self.update_main_window_params()
+        self.update_main_window_params(onload_file_path=self.file_path)
 
 
-    def update_main_window_params(self):
-        self.main_window.set_dataset(self.data)
-        self.main_window.set_signature(self.get_signature())
-        self.main_window.set_is_revision(self.is_revision)
-        self.main_window.set_title(self.signature if self.is_revision else self.selected_file_name)
-        self.main_window.del_side_window()
-        self.main_window.reset_flashcard_parameters()
+    def get_params(self, lookup_list, selected_li, path):
+        selected_rev_id = match_in_list_by_val(lookup_list, selected_li, ommit_extension=True)
+        selected_rev = lookup_list[selected_rev_id]
+        self.file_path = f"{path}/" + str(selected_rev)
+        self.data = load_dataset(self.file_path)
+        self.selected_file_name = str(selected_rev).split('.')[0]
+
+
+    def load_file(self, file_path, revs_path):
+        self.data = load_dataset(file_path)
+        file_path_parts = file_path.split('/')
+        self.selected_file_name = file_path_parts[-1].split('.')[0]
+        # Determine is_revision based on directory
+        self.is_revision = True if file_path_parts[-2] == revs_path[2:] else False
+        self.update_main_window_params(onload_file_path=file_path)
+
+
+    def update_main_window_params(self, onload_file_path=None):
+        if dataset_is_valid(self.data):
+            self.main_window.set_dataset(self.data)
+            self.main_window.set_signature(self.get_signature())
+            self.main_window.set_is_revision(self.is_revision)
+            self.main_window.set_title(self.signature if self.is_revision else self.selected_file_name)
+            self.main_window.del_side_window()
+            self.main_window.reset_flashcard_parameters()
+            if onload_file_path is not None:
+                update_config('onload_file_path', onload_file_path)
 
     
     def get_signature(self):

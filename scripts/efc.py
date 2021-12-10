@@ -81,6 +81,7 @@ class EFC(widget.QWidget):
             time_delta = (make_todayte() - make_date(last_date)).days
             pos_share = last_positives/total_words if last_positives is not None else 1
 
+            repeated_times -= 1  # Initial Record Correction
             s = (repeated_times**2.137 + pos_share*1.618) - (1.681*exp(total_words*0.042))
             efc = exp(-time_delta/s)
 

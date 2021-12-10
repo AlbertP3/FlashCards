@@ -123,3 +123,8 @@ def match_in_list_by_val(list_, val, ommit_extension=False):
         for i, v in enumerate(list_):
             if v == val:
                 return i
+
+
+def print_debug(msg):
+    if config['debug'] == 'True':
+        print(msg)
