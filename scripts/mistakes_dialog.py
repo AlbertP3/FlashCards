@@ -6,6 +6,7 @@ from utils import load_config
 
 class Mistakes(widget.QWidget):
     # Used for displaying cards that user guessed wrong
+    # after the revision finishes
     
     def __init__(self, mistakes_list, main_window):
         self.mistakes_list = mistakes_list
@@ -15,7 +16,7 @@ class Mistakes(widget.QWidget):
     
     def get_mistakes_layout(self):
         self.config = load_config()
-        self.default_side = self.config['card_default_side']
+        self.default_side = int(self.config['card_default_side'])
 
         self.arrange_window()
 
@@ -30,16 +31,16 @@ class Mistakes(widget.QWidget):
     def arrange_window(self):
 
         # Style
-        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
+        self.textbox_stylesheet = self.config['textbox_style_sheet']
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = self.config['efc_button_font_size']
+        self.font_button_size = int(self.config['efc_button_font_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
         self.mistakes_layout = widget.QGridLayout()
-        self.mistakes_layout.addWidget(self.create_mistakes_list_default_side(), 0, 0)
-        self.mistakes_layout.addWidget(self.create_mistakes_list_alternate_side(), 0, 1)
+        self.mistakes_layout.addWidget(self.create_mistakes_list_alternate_side(), 0, 0)
+        self.mistakes_layout.addWidget(self.create_mistakes_list_default_side(), 0, 1)
         
 
     def create_mistakes_list_default_side(self):

@@ -1,23 +1,28 @@
-from datetime import datetime, date
+from datetime import datetime, date, time
 import os
 import pandas as pd
 import re
+import configparser
 
 
 
 def load_config():
-    # Load csv as dataframe and transform it to form a dictionary
-    df_dict = pd.read_csv('.\\scripts\\resources\\config.csv', encoding='utf-8').set_index('key').T.to_dict('list')
+    config = configparser.RawConfigParser(inline_comment_prefixes=None)
+    config.read('./scripts/resources/config.ini')
+    return config['DEFAULT']
 
-    config_dict = {}
-    for k in df_dict.keys():
-        # get value from the list and assign correct type
-        config_dict[k] = int(df_dict[k][0]) if df_dict[k][0].isnumeric() else str(df_dict[k][0])
-
-    return config_dict
 
 config = load_config()
 
+
+def update_config(key, new_value):
+    old_config = configparser.RawConfigParser(inline_comment_prefixes=None)
+    old_config.read('./scripts/resources/config.ini')
+    old_config.set('DEFAULT', key, new_value)
+    with open('./scripts/resources/config.ini', 'w') as configfile:
+        old_config.write(configfile)
+
+    
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
     from inspect import stack
@@ -50,12 +55,12 @@ def get_sign(num, plus_sign='+', neg_sign='-'):
 
 
 def make_datetime(d):
-    # transforms date-like string in database to datetime format
+    # transforms date-like string from database to datetime format
     return datetime(int(d[6:10]), int(d[:2]), int(d[3:5]), int(d[12:14]), int(d[15:17]), int(d[18:20]))
 
 
 def make_date(d):
-    # transforms date-like string in database to datetime format
+    # transforms date-like string from database to datetime format
     return date(int(d[6:10]), int(d[:2]), int(d[3:5]))
 
 
@@ -69,25 +74,14 @@ def make_todayte():
 
 
 def save(dataset:pd.DataFrame(), signature):
-
-    # Check if revision folder (name only) exists else create a new one
-    if config['revs_path'][2:] not in [f for f in os.listdir('.')]: 
-        os.mkdir(config['revs_path'][2:])
-
     # file_name = simpledialog.askstring('Saving File', 'Enter name for the file: ', initialvalue=signature)
     file_name = signature
     dataset.to_csv(config['revs_path'] + '\\' + file_name + '.csv', index=False)
     print('Saved Successfully')
 
      
-def update_config(key, new_value):
-    old_config = load_config()
-    config = pd.read_csv(old_config['resources_path'] + '\\config.csv', encoding='utf-8')
-    config.loc[config.key == key] = [key, new_value]
-    config.to_csv(old_config['resources_path'] + '\\config.csv', index=False)
-
-
 def get_most_similar_file(path, name, nothing_found=None):
+    # slow, need different approach #todo if needed
     files = get_files_in_dir(path)
     for file in files:
         if re.match(name.lower(), file.lower()) is not None:
@@ -128,3 +122,18 @@ def match_in_list_by_val(list_, val, ommit_extension=False):
 def print_debug(msg):
     if config['debug'] == 'True':
         print(msg)
+
+
+def format_timedelta(timedelta):
+    # if timedelta is more than 1 day
+    if ',' in str(timedelta):
+        return f'{timedelta.days} Days' 
+    # less than 1 day
+    else:
+        timedelta = str(timedelta).split(':')
+        # less than 1 hour
+        if int(timedelta[0]) <= 0:
+            return '{m} Minutes'.format(m=timedelta[1])
+        # more than 1 hour
+        else:
+            return '{h} Hours'.format(h=timedelta[0])

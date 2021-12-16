@@ -10,7 +10,6 @@ import csv
 
 def load_dataset(file_path):
     dataset = pd.DataFrame()
-
     extension = get_filename_from_path(file_path, True).split('.')[-1]
 
     # Choose File Extension Handler
@@ -31,6 +30,7 @@ def load_dataset(file_path):
 
 
 def get_dialect(dataset_path):
+    # Detects the separator in a csv file
     data = list()
     with open(dataset_path, 'r', encoding='utf-8') as csvfile:
         csvreader = csv.reader(csvfile)
@@ -43,7 +43,7 @@ def load_csv(file_path):
     dataset = pd.read_csv(file_path, encoding='utf-8', sep=get_dialect(file_path))   
     if dataset.shape[1] < 2:  # Check & Handle Errors
         print_debug('Resorting to backup csv loading plan. Expected sep= ttt,"tttt"')
-        data = [r[:-1].split(',"') for r in dataset.values.tolist()]
+        data = [str(r[:-1]).split(',"') for r in dataset.values.tolist()]
         dataset = pd.DataFrame(data=data[1:], columns=data[0])
     return dataset
 
@@ -77,15 +77,16 @@ def dataset_is_valid(dataset):
 
 
 class Load_dialog(widget.QWidget):
+    # Displayes side window with list of available files
     
     def __init__(self, main_window):
         self.main_window = main_window
         super(Load_dialog, self).__init__(None)
         self.selected_file_name = None
+        self.config = load_config()
     
 
     def get_load_layout(self):
-        self.config = load_config()
         self.arrange_window()
         return self.load_layout
 
@@ -100,7 +101,7 @@ class Load_dialog(widget.QWidget):
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = self.config['efc_button_font_size']
+        self.font_button_size = int(self.config['efc_button_font_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
@@ -168,12 +169,13 @@ class Load_dialog(widget.QWidget):
         self.selected_file_name = str(selected_rev).split('.')[0]
 
 
-    def load_file(self, file_path, revs_path):
+    def load_file(self, file_path):
         self.data = load_dataset(file_path)
         file_path_parts = file_path.split('/')
         self.selected_file_name = file_path_parts[-1].split('.')[0]
+        
         # Determine is_revision based on directory
-        self.is_revision = True if file_path_parts[-2] == revs_path[2:] else False
+        self.is_revision = True if file_path_parts[-2] == self.config['revs_path'][2:] else False
         self.update_main_window_params(onload_file_path=file_path)
 
 
@@ -182,6 +184,8 @@ class Load_dialog(widget.QWidget):
             self.main_window.set_dataset(self.data)
             self.main_window.set_signature(self.get_signature())
             self.main_window.set_is_revision(self.is_revision)
+            if self.is_revision:
+                self.main_window.set_revmode(self.is_revision)
             self.main_window.set_title(self.signature if self.is_revision else self.selected_file_name)
             self.main_window.del_side_window()
             self.main_window.reset_flashcard_parameters()
@@ -190,6 +194,8 @@ class Load_dialog(widget.QWidget):
 
     
     def get_signature(self):
+        # return filename if lng is loaded or 
+        # create unique signature for currently loaded rev
         if self.is_revision:
             print(f'Revision recognized: {self.selected_file_name}')
             self.signature = self.selected_file_name

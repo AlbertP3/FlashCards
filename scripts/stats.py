@@ -1,5 +1,4 @@
 import PyQt5.QtWidgets as widget
-from PyQt5 import QtGui
 from utils import *
 import db_api
 from matplotlib.figure import Figure
@@ -30,7 +29,8 @@ class Stats(widget.QWidget):
     def arrange_window(self):
         self.stats_layout = widget.QGridLayout()
         self.stats_layout.addWidget(self.canvas, 0, 0)
-        self.stats_layout.addWidget(self.table, 1, 0)
+        self.stats_layout.addLayout(self.stat_table, 1, 0)
+
 
     def get_data(self):
         db_interface = db_api.db_interface()
@@ -39,12 +39,10 @@ class Stats(widget.QWidget):
         self.chart_values = db_interface.get_chart_values(self.signature)
         self.chart_dates = db_interface.get_chart_dates(self.signature)
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in self.chart_dates]
-        self.total_words = db_interface.get_total_words(self.signature)
         self.first_date = db_interface.get_first_date(self.signature)
         self.sum_repeated = str(db_interface.get_sum_repeated(self.signature)-1)   # Initial Record Correction
-        self.days_ago = db_interface.get_days_ago(self.signature)
-        self.last_positives = db_interface.get_last_positives(self.signature)
-        self.last_pos_share = str('{:.0f}%'.format(100*self.last_positives / self.total_words)) if self.last_positives is not None else 'N/A'
+        self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation(self.signature))
+        self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev(self.signature))
 
         # Create Dynamic Chain Index
         self.dynamic_chain_index = ['']
@@ -79,22 +77,13 @@ class Stats(widget.QWidget):
 
 
     def get_table(self):
-        self.table = widget.QTableWidget()
-        self.table.horizontalHeader().hide()
-        self.table.verticalHeader().hide()
-        self.table.setColumnCount(3)
-        self.table.setRowCount(1)
-        self.table.setFixedHeight(45)
-        self.table.setStyleSheet(self.config['button_style_sheet'])
-        self.table.setFont(QtGui.QFont(self.config['font'], 13))
+        self.stat_table = widget.QGridLayout()
 
-        # resize rows and columns
-        for i in range(self.table.columnCount()):
-            self.table.setColumnWidth(i, 166)
-        for i in range(self.table.rowCount()):
-            self.table.setRowHeight(i, 45)
-
-        self.table.setItem(0, 0, widget.QTableWidgetItem(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} Time{"s" if int(self.sum_repeated) > 1 else ""}'))
-        self.table.setItem(0, 1, widget.QTableWidgetItem(f'Last Pos% was {self.last_pos_share}'))
-        self.table.setItem(0, 2, widget.QTableWidgetItem(f'Created {str(self.days_ago).split(",")[0]} ago'))
+        self.repeated_times_button = self.main_window.create_button(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} Time{"s" if int(self.sum_repeated) > 1 else ""}')
+        self.days_from_last_rev = self.main_window.create_button(f'Last Rev {str(self.last_rev_days_ago).split(",")[0]} ago')
+        self.days_from_creation = self.main_window.create_button(f'Created {str(self.days_ago).split(",")[0]} ago')
         
+        self.stat_table.addWidget(self.repeated_times_button, 0, 0)
+        self.stat_table.addWidget(self.days_from_last_rev, 0, 1)
+        self.stat_table.addWidget(self.days_from_creation, 0, 2)
+

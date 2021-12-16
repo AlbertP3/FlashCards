@@ -1,3 +1,4 @@
+from datetime import time
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 import db_api
@@ -42,7 +43,7 @@ class EFC(widget.QWidget):
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = self.config['efc_button_font_size']
+        self.font_button_size = int(self.config['efc_button_font_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
         self.textbox_width = 250
         self.textbox_height = 200
@@ -73,19 +74,24 @@ class EFC(widget.QWidget):
         return self.load_button
 
 
-    def efc_function(self, last_date, total_words, last_positives, repeated_times):
+    def efc_function(self, last_date, total_words, last_positives, repeated_times, initial_date):
+            # based on Ebbinghaus Forgetting Curve
             # Returns True if a revision is advised to be reviewed
-            # Verdict is based on efc function - which needs to be fine-tuned #todo
 
-            threshold = 0.8
             time_delta = (make_todayte() - make_date(last_date)).days
-            pos_share = last_positives/total_words if last_positives is not None else 1
-
+            time_delta_from_initial = (make_todayte() - make_date(initial_date)).days
             repeated_times -= 1  # Initial Record Correction
-            s = (repeated_times**2.137 + pos_share*1.618) - (1.681*exp(total_words*0.042))
-            efc = exp(-time_delta/s)
-
-            return efc < threshold
+            
+            if time_delta_from_initial == 0: # initial day
+                return time_delta_from_initial + repeated_times == 0
+            elif time_delta_from_initial <= 2:  # day 1 and 2
+                return time_delta != 0
+            else:  # employ forgetting curve
+                threshold = 0.8
+                pos_share = last_positives/total_words if last_positives is not None else 1
+                s = (repeated_times**2.039 + pos_share*(-4.566)) - ((-12.495)*exp(total_words*(-0.001)))
+                efc = exp(-time_delta/s)
+                return efc < threshold
 
 
     def get_recommendations(self):
@@ -99,15 +105,15 @@ class EFC(widget.QWidget):
         reccommendations = list()
         reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
 
-        # temp solution - print whole table to terminal (2 lines of code)
         # print('REV_NAME             | DAYS AGO')
 
         for signature in unique_signatures:
             last_date = self.db_interface.get_last_date(signature)
+            initial_date = self.db_interface.get_first_date(signature)
             repeated_times = self.db_interface.get_sum_repeated(signature)
             total = self.db_interface.get_total_words(signature)
             last_positives = self.db_interface.get_last_positives(signature)
-            efc_critera_met = self.efc_function(last_date, total, last_positives, repeated_times)
+            efc_critera_met = self.efc_function(last_date, total, last_positives, repeated_times, initial_date)
             
             # print(f'{signature} | {(make_todayte() - make_date(last_date)).days}')
 
@@ -122,10 +128,11 @@ class EFC(widget.QWidget):
         try:
             self.main_window.del_side_window()
 
-            if selected_li not in self.paths_to_suggested_lngs.keys():
-                path = f"{self.config['revs_path']}/" + str(selected_li) + '.csv'
+            # Check if selected item is a suggestion to create a new revision
+            if selected_li in self.paths_to_suggested_lngs.keys():
+                path = f"{self.config['lngs_path']}/{self.paths_to_suggested_lngs[selected_li]}"
             else:
-                path = f"{self.config['lngs_path']}\{self.paths_to_suggested_lngs[selected_li]}"
+                path = f"{self.config['revs_path']}/" + str(selected_li) + '.csv'
             
             self.main_window.load_from_path(path)
                      
@@ -134,20 +141,23 @@ class EFC(widget.QWidget):
     
 
     def is_it_time_for_something_new(self, unique_signatures):
-        # Periodically reccommend to create new revision for every
-        # lng specified in config.
+        # Periodically reccommend to create new revision for every lng
+        # lng and period are specified in config.
 
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
 
         unique_signatures.sort(key=lambda e: date(int(e[10:12]), int(e[6:8]), int(e[8:10])), reverse=True)  
 
+        # For each lng calculate days diff from initial date of 
+        # the newest revision and check if it's greater than 
+        # parameter specified in config
         for lng in lngs:
             for signature in unique_signatures:
                 if signature[4:6] == lng.upper():
                     initial_date = self.db_interface.get_first_date(signature)
                     time_delta = (make_todayte() - make_date(initial_date)).days
-                    if time_delta >= self.config['days_to_new_rev']:
+                    if time_delta >= int(self.config['days_to_new_rev']):
                         new_reccommendations.append(self.get_reccommendation_text(lng))
                     break
         return new_reccommendations

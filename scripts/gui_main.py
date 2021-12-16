@@ -8,6 +8,8 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 import stats
 import load
+from os import listdir, mkdir
+
 
 
 class main_window(widget.QWidget):
@@ -17,6 +19,9 @@ class main_window(widget.QWidget):
         # Configuration
         self.config = load_config()
 
+        # Validation
+        self.validate_setup()
+
         super().__init__()
 
         # Flashcards parameters
@@ -24,7 +29,8 @@ class main_window(widget.QWidget):
         self.total_words = 0
         self.current_index = 0
         self.dataset = None
-        self.side = self.config['card_default_side']
+        self.default_side = int(self.config['card_default_side'])
+        self.side = self.default_side
         self.positives = 0
         self.negatives = 0
         self.mistakes_list = list()
@@ -33,6 +39,7 @@ class main_window(widget.QWidget):
         self.signature = ''
         self.is_saved = False
         self.is_revision = False
+        self.revmode = False
         self.side_window_id = None  # 'efc', 'mistakes', 'stats', 'load'
 
         # Window Parameters
@@ -45,15 +52,15 @@ class main_window(widget.QWidget):
 
         # Set Parameters
         self.setWindowTitle('Lama Learning')
-        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '\\icon.png'))
+        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '/icon.png'))
         self.setGeometry(self.left, self.top, self.default_width, self.default_height)
 
         # Layout & Style
         self.layout = widget.QGridLayout()
         self.setLayout(self.layout)
         self.font = self.config['font']
-        self.font_button_size = self.config['font_button_size']
-        self.font_textbox_size = self.config['font_textbox_size']
+        self.font_button_size = int(self.config['font_button_size'])
+        self.font_textbox_size = int(self.config['font_textbox_size'])
         self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
         
@@ -174,8 +181,8 @@ class main_window(widget.QWidget):
     def negative_click(self):
         if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.negatives+=1
-            self.mistakes_list.append([self.get_current_card(self.config['card_default_side']), 
-                                        self.get_current_card(1-self.config['card_default_side'])])
+            self.mistakes_list.append([self.get_current_card(self.default_side), 
+                                        self.get_current_card(1-self.default_side)])
         self.click_next()
 
 
@@ -183,7 +190,7 @@ class main_window(widget.QWidget):
         diff_words = self.total_words - self.current_index
         if diff_words > 0:
             self.update_score()
-            self.side = self.config['card_default_side']
+            self.side = self.default_side
             self.append_current_index()
             self.insert_text(self.get_current_card())
 
@@ -211,7 +218,7 @@ class main_window(widget.QWidget):
             self.decrease_current_index()
             self.words_back+=1
             self.nav_buttons_visibility_control(False, False, True)
-            self.side = self.config['card_default_side']
+            self.side = self.default_side
             self.insert_text(self.get_current_card())
 
 
@@ -231,7 +238,7 @@ class main_window(widget.QWidget):
             
             self.total_words = self.dataset.shape[0]
             self.update_words_button()
-            self.side = self.config['card_default_side']
+            self.side = self.default_side
             self.insert_text(self.get_current_card())
         else:
             print('Unable to delete last card')
@@ -243,7 +250,7 @@ class main_window(widget.QWidget):
             save(self.dataset.iloc[:self.current_index+1, :], self.signature)
             # Create initial record
             db_api.create_record(self.signature, self.current_index+1, self.positives)
-            self.load_from_path(self.config['revs_path'] + '\\' + self.signature + '.csv')
+            self.load_from_path(self.config['revs_path'] + '/' + self.signature + '.csv')
         else:
             print('Cannot save revision')
 
@@ -287,6 +294,7 @@ class main_window(widget.QWidget):
     def change_revmode(self, force_mode=None):
         # Disable changing to revision mode for lngs
         if not self.is_revision:
+            print_debug('Unable to turn on revision mode for a language')
             return
 
         if force_mode is None:
@@ -310,7 +318,7 @@ class main_window(widget.QWidget):
     def load_from_path(self, path):
         try:
             initial_load = load.Load_dialog(self)
-            initial_load.load_file(path, self.config['revs_path'])
+            initial_load.load_file(path)
         except FileNotFoundError:
             print('File Not Found.')
 
@@ -321,6 +329,8 @@ class main_window(widget.QWidget):
         self.signature = signature
     def set_is_revision(self, is_revision):
         self.is_revision = is_revision
+    def set_revmode(self, rev_mode):
+        self.change_revmode(force_mode=rev_mode)
     def set_title(self, title):
         self.setWindowTitle(title)
     def set_file_path(self, file_path):
@@ -398,7 +408,7 @@ class main_window(widget.QWidget):
         self.words_back = 0
         self.mistakes_list = list()
         self.is_saved = False
-        self.side = self.config['card_default_side']
+        self.side = self.default_side
         self.total_words = self.dataset.shape[0]
         self.insert_text(self.get_current_card())
         self.update_words_button()
@@ -431,23 +441,21 @@ class main_window(widget.QWidget):
         if self.is_revision:
             # filename includes the extension
             matching_filename = get_most_similar_file(self.config['lngs_path'], self.signature[4:6], 
-                                                                            nothing_found='load_any')
-            file_path = self.config['lngs_path'] + '\\' + matching_filename
+                                                                        nothing_found='load_any')
+            file_path = self.config['lngs_path'] + '/' + matching_filename
         else:
             db_interface = db_api.db_interface()
             last_rev_signature = db_interface.get_newest_record(lng=self.signature[4:6])
-            file_path = '.\\revisions\\' + last_rev_signature + '.csv'
-        self.load_button_click(provided_file_path=file_path)                                                                            
+            file_path = f"{self.config['revs_path']}/" + last_rev_signature + '.csv'
+        self.load_from_path(file_path)                                                                          
 
     
     def switch_side_window(self, layout, name, extra_width):
- 
         if self.side_window_id != name:
             self.del_side_window()
             self.add_side_window(layout, name, extra_width)
         else:
             self.del_side_window()
-
         # Keeps window at the same position
         self.move(self.pos())
         
@@ -467,6 +475,24 @@ class main_window(widget.QWidget):
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = None
+
+
+    def validate_setup(self):
+
+        # Database
+        if self.config['db_path'].split('/')[-1] not in [f for f in listdir(self.config['resources_path'])]:
+            print('Initializing new Database')
+            pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(self.config['db_path'])
+
+        # Lngs folder
+        lngs_dir_name = self.config['lngs_path'].split('/')[-1]
+        if lngs_dir_name not in [f for f in listdir('.')]:
+            mkdir('./' + lngs_dir_name)
+
+        # Revs folder
+        revs_dir_name = self.config['revs_path'].split('/')[-1]
+        if revs_dir_name not in [f for f in listdir('.')]:
+            mkdir('./' + revs_dir_name)
 
 
 
