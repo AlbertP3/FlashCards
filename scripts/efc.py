@@ -1,4 +1,3 @@
-from datetime import time
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 import db_api
@@ -53,7 +52,7 @@ class EFC(widget.QWidget):
         self.efc_layout = widget.QGridLayout()
         self.efc_layout.addWidget(self.create_recommendations_list(), 0, 0)
         self.efc_layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
-
+        
 
     def create_recommendations_list(self):
         self.recommendation_list = widget.QListWidget(self)
@@ -80,18 +79,18 @@ class EFC(widget.QWidget):
 
             time_delta = (make_todayte() - make_date(last_date)).days
             time_delta_from_initial = (make_todayte() - make_date(initial_date)).days
-            repeated_times -= 1  # Initial Record Correction
             
-            if time_delta_from_initial == 0: # initial day
-                return time_delta_from_initial + repeated_times == 0
-            elif time_delta_from_initial <= 2:  # day 1 and 2
-                return time_delta != 0
+            # returning 0 always meets efc criteria
+            if time_delta_from_initial == 0 and (time_delta_from_initial + repeated_times == 0): # initial day
+                return 0
+            elif time_delta_from_initial <= 2 and time_delta != 0:  # day 1 and 2
+                return 0
             else:  # employ forgetting curve
-                threshold = 0.8
                 pos_share = last_positives/total_words if last_positives is not None else 1
-                s = (repeated_times**2.039 + pos_share*(-4.566)) - ((-12.495)*exp(total_words*(-0.001)))
+                x1, x2, x3, x4 = 2.039, -4.566, -12.495, -0.001
+                s = (repeated_times**x1 + pos_share*x2) - (x3*exp(total_words*x4))
                 efc = exp(-time_delta/s)
-                return efc < threshold
+                return efc
 
 
     def get_recommendations(self):
@@ -99,31 +98,43 @@ class EFC(widget.QWidget):
         # unique signatures from rev_db - only for existing files
         unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
                                 if s + '.csv' in listdir(self.config['revs_path'])]
-    
+        reccommendations = list()
+
+        if 'recommend_new' in self.config['optional'].split('|'):
+            reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
+
+
         # get parameters and efc_function result for each unique signature
         # filter on the go
-        reccommendations = list()
-        reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
-
-        # print('REV_NAME             | DAYS AGO')
-
+        rev_table_data = list()
         for signature in unique_signatures:
             last_date = self.db_interface.get_last_date(signature)
             initial_date = self.db_interface.get_first_date(signature)
             repeated_times = self.db_interface.get_sum_repeated(signature)
             total = self.db_interface.get_total_words(signature)
             last_positives = self.db_interface.get_last_positives(signature)
-            efc_critera_met = self.efc_function(last_date, total, last_positives, repeated_times, initial_date)
-            
-            # print(f'{signature} | {(make_todayte() - make_date(last_date)).days}')
+            efc = self.efc_function(last_date, total, last_positives, repeated_times, initial_date)
+            efc_critera_met = efc < 0.80
+
+            days_from_last_rev = (make_todayte() - make_date(last_date)).days
+            rev_table_data.append([signature, days_from_last_rev, str(days_from_last_rev), round(efc, 2)])
 
             if efc_critera_met:
                 reccommendations.append(signature)
 
+        # Table showing revs params
+        print('REV_NAME             | DAYS AGO | EFC')
+        rev_table_data.sort(key=lambda x: x[1])
+        for rev in rev_table_data:
+            print(f'{rev[0]} | {rev[1]}{" " * (9-len(rev[2]))}| {rev[3]}')
+            
         return reccommendations
 
 
     def load_selected(self):
+        # safety-check if item is selected
+        if self.recommendation_list.currentItem() is None: return
+
         selected_li = self.recommendation_list.currentItem().text()
         try:
             self.main_window.del_side_window()
@@ -147,14 +158,14 @@ class EFC(widget.QWidget):
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
 
-        unique_signatures.sort(key=lambda e: date(int(e[10:12]), int(e[6:8]), int(e[8:10])), reverse=True)  
+        unique_signatures.sort(key=get_date_from_signature, reverse=True)  
 
         # For each lng calculate days diff from initial date of 
         # the newest revision and check if it's greater than 
         # parameter specified in config
         for lng in lngs:
             for signature in unique_signatures:
-                if signature[4:6] == lng.upper():
+                if lng.upper() in signature:
                     initial_date = self.db_interface.get_first_date(signature)
                     time_delta = (make_todayte() - make_date(initial_date)).days
                     if time_delta >= int(self.config['days_to_new_rev']):

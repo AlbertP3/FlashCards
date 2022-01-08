@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, date
 import os
 import pandas as pd
 import re
@@ -133,7 +133,26 @@ def format_timedelta(timedelta):
         timedelta = str(timedelta).split(':')
         # less than 1 hour
         if int(timedelta[0]) <= 0:
-            return '{m} Minutes'.format(m=timedelta[1])
+            timedelta = str(timedelta[1])
+            timedelta = timedelta[1:] if timedelta[0] == '0' else timedelta  # remove leading 0
+            s = 's'
+            if timedelta.startswith('1'):
+                timedelta = timedelta[0]
+                s = ''
+            return '{m} Minute{s}'.format(m=timedelta, s=s)
         # more than 1 hour
         else:
-            return '{h} Hours'.format(h=timedelta[0])
+            timedelta = str(timedelta[0])
+            s = 's'
+            # formatting for 1 hour
+            if timedelta == '1':
+                timedelta = timedelta[0]
+                s = ''
+            return '{h} Hour{s}'.format(h=timedelta[0:], s=s)
+
+
+def get_date_from_signature(signature):
+    # Provides uniform way of getting a date from the signature
+    signature = signature.split('_')[-1]
+    date_ = date(int(signature[6:10]), int(signature[2:4]), int(signature[4:6]))
+    return date_

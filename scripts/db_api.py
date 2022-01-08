@@ -25,7 +25,8 @@ class db_interface():
 
 
     def get_sum_repeated(self, signature):
-        return self.db[self.db['SIGNATURE'] == signature].count()[0]
+        # -1 = initial record correction
+        return self.db[self.db['SIGNATURE'] == signature].count()[0] - 1
     
 
     def get_last_positives(self, signature):

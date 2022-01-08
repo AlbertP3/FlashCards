@@ -40,7 +40,7 @@ def get_dialect(dataset_path):
 
 
 def load_csv(file_path):
-    dataset = pd.read_csv(file_path, encoding='utf-8', sep=get_dialect(file_path))   
+    dataset = pd.read_csv(file_path, encoding='utf-8',sep=get_dialect(file_path))   
     if dataset.shape[1] < 2:  # Check & Handle Errors
         print_debug('Resorting to backup csv loading plan. Expected sep= ttt,"tttt"')
         data = [str(r[:-1]).split(',"') for r in dataset.values.tolist()]
@@ -49,7 +49,7 @@ def load_csv(file_path):
 
 
 def read_excel(file_path):
-    if 'sht_pick' in config['experimental'].split('|'):
+    if 'sht_pick' in config['optional'].split('|'):
         # input() causes infitnite loop of 'QCoreApplication already running' printouts
         pyqtRemoveInputHook()
         sht_input = input('Input sheet name or index: ')
@@ -133,18 +133,21 @@ class Load_dialog(widget.QWidget):
 
     def get_lng_files(self):
         self.lng_files_list = get_files_in_dir(self.config['lngs_path'])
-        self.lng_files_list.sort(key=lambda e: e[6:14], reverse=True)  
+        self.lng_files_list.sort(reverse=False)  
         return self.lng_files_list
 
 
     def get_rev_files(self):
         self.rev_files_list = get_files_in_dir(self.config['revs_path'])
-        self.rev_files_list.sort(key=lambda e: e[6:14], reverse=True    )  
+        self.rev_files_list.sort(key=get_date_from_signature, reverse=True    )  
         return self.rev_files_list
 
 
     def load_selected(self):
+        # safety-check if item is selected
+        if self.flashcard_files_qlist.currentItem() is None: return
 
+        # Used while selecting items in the load list
         selected_li = self.flashcard_files_qlist.currentItem().text()
 
         # Deterime if selected file is rev or lng by its position in the list
@@ -182,10 +185,9 @@ class Load_dialog(widget.QWidget):
     def update_main_window_params(self, onload_file_path=None):
         if dataset_is_valid(self.data):
             self.main_window.set_dataset(self.data)
-            self.main_window.set_signature(self.get_signature())
             self.main_window.set_is_revision(self.is_revision)
-            if self.is_revision:
-                self.main_window.set_revmode(self.is_revision)
+            self.main_window.set_revmode(self.is_revision)
+            self.main_window.set_signature(self.get_signature())
             self.main_window.set_title(self.signature if self.is_revision else self.selected_file_name)
             self.main_window.del_side_window()
             self.main_window.reset_flashcard_parameters()
@@ -201,6 +203,7 @@ class Load_dialog(widget.QWidget):
             self.signature = self.selected_file_name
         else:
             saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
+                
             self.signature = 'REV_' + str(self.data.columns.tolist()[0])[:2] + saving_date
             print(f'Language loaded: {self.selected_file_name}')
         return self.signature

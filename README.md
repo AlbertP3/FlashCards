@@ -20,6 +20,9 @@
     <p>3. Create 'revisions' folder in the main dir
     <p>4. You're good!</p>
 
-<h1>Experimental</h1>
+<h1>Optional Features</h1>
+    <p> Add 0 or more from the following codes to config.ini in section 'optional'. Separate with '|'.</p>
     <p>sht_pick - allows user to choose sheet while loading xlsx formats</p>
     <p>switch_lng_rev - adds button to switch between responding revs/lngs</p>
+    <p>recommend_new - toogles reccomendations to create a new revision after some specified time</p>
+    <p>custom_saveprefix - allows for custom prefixes while saving new revisions</p>

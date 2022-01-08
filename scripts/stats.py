@@ -38,9 +38,10 @@ class Stats(widget.QWidget):
         # get data
         self.chart_values = db_interface.get_chart_values(self.signature)
         self.chart_dates = db_interface.get_chart_dates(self.signature)
+        self.total_words = db_interface.get_total_words(self.signature)
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in self.chart_dates]
         self.first_date = db_interface.get_first_date(self.signature)
-        self.sum_repeated = str(db_interface.get_sum_repeated(self.signature)-1)   # Initial Record Correction
+        self.sum_repeated = str(db_interface.get_sum_repeated(self.signature))
         self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation(self.signature))
         self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev(self.signature))
 
@@ -69,6 +70,7 @@ class Stats(widget.QWidget):
         self.figure.set_facecolor(self.config['stat_background_color'])
         ax.set_facecolor(self.config['stat_chart_background_color'])
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+        ax.set_ylim([0, self.total_words])
         ax.tick_params(colors=self.config['stat_chart_text_color'])
         self.figure.tight_layout(pad=0.1)
         # ax.get_yaxis().set_visible(False)

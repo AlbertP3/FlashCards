@@ -9,6 +9,7 @@ from PyQt5.QtCore import Qt
 import stats
 import load
 from os import listdir, mkdir
+from PyQt5.QtCore import pyqtRemoveInputHook
 
 
 
@@ -45,10 +46,10 @@ class main_window(widget.QWidget):
         # Window Parameters
         self.left = 10
         self.top = 10
-        self.default_width = 475
-        self.default_height = 450
-        self.textbox_height = 280
-        self.buttons_height = 45
+        self.default_width = int(self.config['default_width'])
+        self.default_height = int(self.config['default_height'])
+        self.textbox_height = int(self.config['textbox_height'])
+        self.buttons_height = int(self.config['buttons_height'])
 
         # Set Parameters
         self.setWindowTitle('Lama Learning')
@@ -88,12 +89,12 @@ class main_window(widget.QWidget):
         self.load_button = self.create_button('Load', self.load_button_click)
         self.positive_button = self.create_button('✔️', self.positive_click)
         self.negative_button = self.create_button('❌', self.negative_click)
-        self.score_button = self.create_button('<>')
+        self.score_button = self.create_button('<>', self.show_mistakes)
         self.settings_button = self.create_button('🎢', self.show_stats)
         self.save_button = self.create_button('Save', self.do_save)
         self.del_button = self.create_button('🗑', self.delete_card)
         self.load_again_button = self.create_button('⟳', self.load_again_click)
-        self.revmode_button = self.create_button('RM:{}'.format('ON' if self.revmode else 'OFF'), self.change_revmode)
+        self.revmode_button = self.create_button('RM:{}'.format('ON' if self.revmode else 'OFF'), lambda: self.change_revmode('auto'))
         self.efc_button = self.create_button('📜', self.show_efc)
         self.words_button = self.create_button('-')
 
@@ -125,8 +126,8 @@ class main_window(widget.QWidget):
         if self.config['keyboard_shortcuts'].lower() in ['on','yes','true','1', 'y']:
             self.add_shortcuts()
 
-        # Experimental
-        if 'switch_lng_rev' in self.config['experimental'].split('|'):
+        # Optional
+        if 'switch_lng_rev' in self.config['optional'].split('|'):
             # Switch between lng and rev
             self.switch_lng_rev_button = self.create_button('🦙', self.switch_lng_rev)
             self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
@@ -246,13 +247,19 @@ class main_window(widget.QWidget):
 
     def do_save(self):
         if not self.is_revision:
-            self.signature = self.signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
+            if 'custom_saveprefix' in self.config['optional']:
+                pyqtRemoveInputHook()
+                save_prefix = input('Enter save prefix: ')
+                self.signature = save_prefix + '_' + datetime.now().strftime('%m%d%Y%H%M%S')
+            else:
+                self.signature = self.signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
+
             save(self.dataset.iloc[:self.current_index+1, :], self.signature)
             # Create initial record
             db_api.create_record(self.signature, self.current_index+1, self.positives)
             self.load_from_path(self.config['revs_path'] + '/' + self.signature + '.csv')
         else:
-            print('Cannot save revision')
+            print('Cannot save a revision')
 
 
     def center(self):
@@ -291,18 +298,18 @@ class main_window(widget.QWidget):
             self.score_button.setText('<>')
 
 
-    def change_revmode(self, force_mode=None):
+    def change_revmode(self, force_mode='auto'):
         # Disable changing to revision mode for lngs
         if not self.is_revision:
-            print_debug('Unable to turn on revision mode for a language')
-            return
-
-        if force_mode is None:
-            self.revmode = False if self.revmode else True
+            self.revmode = False
         else:
-            self.revmode = force_mode
+            if force_mode == 'auto':
+                self.revmode = not self.revmode
+            else:
+                self.revmode = force_mode
 
         self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
+
         # show/hide buttons
         if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
@@ -311,8 +318,8 @@ class main_window(widget.QWidget):
             
 
     def load_button_click(self):
-        self.load_layout = load.Load_dialog(self)
-        self.switch_side_window(self.load_layout.get_load_layout(), 'load', 250 + self.left)
+        self.load_window = load.Load_dialog(self)
+        self.switch_side_window(self.load_window.get_load_layout(), 'load', 250 + self.left)
 
 
     def load_from_path(self, path):
@@ -352,6 +359,7 @@ class main_window(widget.QWidget):
         add_shortcut('s', self.show_stats)
         add_shortcut('r', self.load_again_click)
         add_shortcut('l', self.load_button_click)
+        add_shortcut('m', self.show_mistakes)
 
 
     def ks_nav_next(self):
@@ -374,6 +382,7 @@ class main_window(widget.QWidget):
             
 
     def show_mistakes(self):
+        if not self.is_revision: return
         self.mistakes_window = Mistakes(self.mistakes_list, self)
         self.switch_side_window(self.mistakes_window.get_mistakes_layout(), 'mistakes', 510 + self.left)
 
@@ -416,6 +425,7 @@ class main_window(widget.QWidget):
 
 
     def keyPressEvent(self, event):
+        # Close side window with ESC key
         if event.key() == Qt.Key_Escape:
             if self.side_window_id is not None:
                 self.del_side_window()
@@ -423,7 +433,6 @@ class main_window(widget.QWidget):
 
     def get_rating(self):
         pos_share = self.positives / self.total_words
-
         if pos_share == 1:
             rating = 'Perfect!!!'
         elif pos_share >= 0.92:
