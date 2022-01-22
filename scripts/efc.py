@@ -3,21 +3,23 @@ from PyQt5 import QtGui
 import db_api
 from utils import *
 from math import exp
-import gui_main
 from os import listdir
 
 
 
 class EFC(widget.QWidget):
 
-    def __init__(self, main_window:gui_main.main_window):
+    def __init__(self, main_window):
 
-        # Configuration
         super(EFC, self).__init__(None)
         self.main_window = main_window
-        self.initial_repetitions = 2
-        self.paths_to_suggested_lngs = dict()
 
+        self.INITIAL_REPETITIONS = 2
+        self.EFC_THRESHOLD = 0.8
+        self.paths_to_suggested_lngs = dict()
+        self.reccommendation_texts = {'EN':'Oi mate, take a gander', 
+                                        'RU':'давай товарищ, двигаемся!', 
+                                        'DE':'Es ist an der Zeit zu handeln!'}
        
     def get_efc_layout(self):
         # Get newest data
@@ -75,10 +77,9 @@ class EFC(widget.QWidget):
 
     def efc_function(self, last_date, total_words, last_positives, repeated_times, initial_date):
             # based on Ebbinghaus Forgetting Curve
-            # Returns True if a revision is advised to be reviewed
 
-            time_delta = (make_todayte() - make_date(last_date)).days
-            time_delta_from_initial = (make_todayte() - make_date(initial_date)).days
+            time_delta = (make_todayte() - last_date).days
+            time_delta_from_initial = (make_todayte() - initial_date).days
             
             # returning 0 always meets efc criteria
             if time_delta_from_initial == 0 and (time_delta_from_initial + repeated_times == 0): # initial day
@@ -103,9 +104,7 @@ class EFC(widget.QWidget):
         if 'recommend_new' in self.config['optional'].split('|'):
             reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
 
-
         # get parameters and efc_function result for each unique signature
-        # filter on the go
         rev_table_data = list()
         for signature in unique_signatures:
             last_date = self.db_interface.get_last_date(signature)
@@ -114,21 +113,25 @@ class EFC(widget.QWidget):
             total = self.db_interface.get_total_words(signature)
             last_positives = self.db_interface.get_last_positives(signature)
             efc = self.efc_function(last_date, total, last_positives, repeated_times, initial_date)
-            efc_critera_met = efc < 0.80
+            efc_critera_met = efc < self.EFC_THRESHOLD
 
-            days_from_last_rev = (make_todayte() - make_date(last_date)).days
+            days_from_last_rev = (make_todayte() - last_date).days
             rev_table_data.append([signature, days_from_last_rev, str(days_from_last_rev), round(efc, 2)])
 
             if efc_critera_met:
                 reccommendations.append(signature)
 
-        # Table showing revs params
-        print('REV_NAME             | DAYS AGO | EFC')
-        rev_table_data.sort(key=lambda x: x[1])
-        for rev in rev_table_data:
-            print(f'{rev[0]} | {rev[1]}{" " * (9-len(rev[2]))}| {rev[3]}')
+        print(self.get_efc_table_printout(rev_table_data))
             
         return reccommendations
+
+
+    def get_efc_table_printout(self, efc_table_data):
+        efc_table_data.sort(key=lambda x: x[1])
+        efc_table_printout = 'REV_NAME             | DAYS AGO | EFC\n'
+        for rev in efc_table_data:
+            efc_table_printout += (f'{rev[0]} | {rev[1]}{" " * (9-len(rev[2]))}| {rev[3]}' + '\n')
+        return efc_table_printout[:-2]
 
 
     def load_selected(self):
@@ -153,21 +156,17 @@ class EFC(widget.QWidget):
 
     def is_it_time_for_something_new(self, unique_signatures):
         # Periodically reccommend to create new revision for every lng
-        # lng and period are specified in config.
 
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
+        dbapi = db_api.db_interface()
+        unique_signatures.sort(key=dbapi.get_first_date, reverse=True)  
 
-        unique_signatures.sort(key=get_date_from_signature, reverse=True)  
-
-        # For each lng calculate days diff from initial date of 
-        # the newest revision and check if it's greater than 
-        # parameter specified in config
         for lng in lngs:
             for signature in unique_signatures:
-                if lng.upper() in signature:
+                if lng in signature:
                     initial_date = self.db_interface.get_first_date(signature)
-                    time_delta = (make_todayte() - make_date(initial_date)).days
+                    time_delta = (make_todayte() - initial_date).days
                     if time_delta >= int(self.config['days_to_new_rev']):
                         new_reccommendations.append(self.get_reccommendation_text(lng))
                     break
@@ -175,18 +174,9 @@ class EFC(widget.QWidget):
 
 
     def get_reccommendation_text(self, lng):
-        # get announcements and paths to the corresponding files
-        # adding keys to dictionary facilitates matching with text in efc list
-
-        if lng == 'EN':
-            text = 'Oi mate, take a gander'
-            self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], 'EN')
-            return text
-        elif lng == 'RU':
-            text = 'давай товарищ, двигаемся!'
-            self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], 'RU')
-            return text
-        
-        
-
-
+        # adding key to the dictionary facilitates matching 
+        # reccommendation text with the lng file
+        text = self.reccommendation_texts[lng]        
+        self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], lng)
+        return text
+    

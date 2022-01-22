@@ -3,5 +3,7 @@ __pycache__
 __init__.py
 revisions
 languages
+test_files
 rev_db.csv
 test.py
+.vscode

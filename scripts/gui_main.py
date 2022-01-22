@@ -1,71 +1,66 @@
 import db_api
 import efc
+import stats
+import load
 from PyQt5 import QtCore
 from utils import *
 from mistakes_dialog import Mistakes
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-import stats
-import load
-from os import listdir, mkdir
-from PyQt5.QtCore import pyqtRemoveInputHook
 
 
 
-class main_window(widget.QWidget):
+class main_window_logic(widget.QWidget):
 
     def __init__(self):
-
-        # Configuration
-        self.config = load_config()
-
-        # Validation
-        self.validate_setup()
-
+        self.q_app = widget.QApplication([])
         super().__init__()
+        validate_setup()
 
         # Flashcards parameters
-        self.revmode = False
-        self.total_words = 0
-        self.current_index = 0
-        self.dataset = None
+        self.config = load_config()
         self.default_side = int(self.config['card_default_side'])
-        self.side = self.default_side
-        self.positives = 0
-        self.negatives = 0
-        self.mistakes_list = list()
-        self.words_back = 0
         self.file_path = self.config['onload_file_path']
-        self.signature = ''
-        self.is_saved = False
-        self.is_revision = False
         self.revmode = False
-        self.side_window_id = None  # 'efc', 'mistakes', 'stats', 'load'
 
+    
+    def launch_app(self):   
+        self.configure_window()
+        self.build_layout()   
+        self.optional_features()
+        # Continue where you left off
+        self.load_from_path(self.file_path)
+        self.q_app.exec()
+
+    def configure_window(self):
         # Window Parameters
-        self.left = 10
-        self.top = 10
-        self.default_width = int(self.config['default_width'])
-        self.default_height = int(self.config['default_height'])
-        self.textbox_height = int(self.config['textbox_height'])
-        self.buttons_height = int(self.config['buttons_height'])
-
-        # Set Parameters
+        self.LEFT = 10
+        self.TOP = 10
+        self.DEFAULT_WIDTH = int(self.config['default_width'])
+        self.DEFAULT_HEIGHT = int(self.config['default_height'])
+        self.TEXTBOX_HEIGHT = int(self.config['textbox_height'])
+        self.BUTTONS_HEIGHT = int(self.config['buttons_height'])
+        # Set Window Parameters
         self.setWindowTitle('Lama Learning')
         self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '/icon.png'))
-        self.setGeometry(self.left, self.top, self.default_width, self.default_height)
+        self.setGeometry(self.LEFT, self.TOP, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT)
+        # Initialize
+        self.center_window()
+        self.show()
 
+
+    def build_layout(self):
         # Layout & Style
         self.layout = widget.QGridLayout()
         self.setLayout(self.layout)
-        self.font = self.config['font']
-        self.font_button_size = int(self.config['font_button_size'])
-        self.font_textbox_size = int(self.config['font_textbox_size'])
-        self.textbox_font = QtGui.QFont(self.font, self.font_textbox_size)
-        self.button_font = QtGui.QFont(self.font, self.font_button_size)
-        
-        # Layout
+        self.FONT = self.config['font']
+        self.FONT_BUTTON_SIZE = int(self.config['font_button_size'])
+        self.FONT_TEXTBOX_SIZE = int(self.config['font_textbox_size'])
+        self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
+        self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
+
+        # Organize Layout
         self.setStyleSheet(self.config['main_style_sheet'])
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = (self.config['button_style_sheet'])
@@ -87,14 +82,14 @@ class main_window(widget.QWidget):
         self.prev_button = self.create_button('Prev', self.click_prev)
         self.reverse_button = self.create_button('Reverse', self.reverse_side)
         self.load_button = self.create_button('Load', self.load_button_click)
-        self.positive_button = self.create_button('✔️', self.positive_click)
-        self.negative_button = self.create_button('❌', self.negative_click)
+        self.positive_button = self.create_button('✔️', self.click_positive)
+        self.negative_button = self.create_button('❌', self.click_negative)
         self.score_button = self.create_button('<>', self.show_mistakes)
         self.settings_button = self.create_button('🎢', self.show_stats)
-        self.save_button = self.create_button('Save', self.do_save)
+        self.save_button = self.create_button('Save', self.click_save)
         self.del_button = self.create_button('🗑', self.delete_card)
         self.load_again_button = self.create_button('⟳', self.load_again_click)
-        self.revmode_button = self.create_button('RM:{}'.format('ON' if self.revmode else 'OFF'), lambda: self.change_revmode('auto'))
+        self.revmode_button = self.create_button('RM:{}'.format('OFF'), self.change_revmode)
         self.efc_button = self.create_button('📜', self.show_efc)
         self.words_button = self.create_button('-')
 
@@ -121,29 +116,19 @@ class main_window(widget.QWidget):
         self.layout_fourth_row.addWidget(self.load_again_button, 3, 2)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
         self.layout_fourth_row.addWidget(self.revmode_button, 3, 4)
-        
-        # Button functionality control
+    
+
+    def optional_features(self):
         if self.config['keyboard_shortcuts'].lower() in ['on','yes','true','1', 'y']:
             self.add_shortcuts()
-
-        # Optional
         if 'switch_lng_rev' in self.config['optional'].split('|'):
-            # Switch between lng and rev
-            self.switch_lng_rev_button = self.create_button('🦙', self.switch_lng_rev)
+            self.switch_lng_rev_button = self.create_button('🦙', self.switch_between_lng_and_rev)
             self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
 
-        # Execute
-        self.center()
-        self.show()
-
-        # Continue where you left off
-        self.load_from_path(self.file_path)
         
-
-
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
-        self.textbox.setFont(self.textbox_font)
+        self.textbox.setFont(self.TEXTBOX_FONT)
         self.textbox.setReadOnly(True)
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
@@ -152,8 +137,8 @@ class main_window(widget.QWidget):
 
     def create_button(self, text, function=None):
         new_button = widget.QPushButton(self)
-        new_button.setMinimumHeight(self.buttons_height)
-        new_button.setFont(self.button_font)
+        new_button.setMinimumHeight(self.BUTTONS_HEIGHT)
+        new_button.setFont(self.BUTTON_FONT)
         new_button.setText(text)
         new_button.setStyleSheet(self.button_style_sheet)
         if function is not None:
@@ -161,25 +146,23 @@ class main_window(widget.QWidget):
         return new_button
 
 
-    def append_current_index(self):
-        if self.current_index < self.total_words - 1:
-            self.current_index += 1
-            self.update_words_button()
+    def insert_text(self, text, default_font=16):
+        dynamic_font_size = 32 - int(len(str(text))/24)
+        self.FONT_TEXTBOX_SIZE = dynamic_font_size if dynamic_font_size >= 8 else default_font
+        self.textbox.setFont(QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE))
+        self.textbox.setText(str(text))
+        padding = max(0, 90 - len(str(text))*0.7)
+        self.textbox.setStyleSheet('''{} padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
+        self.textbox.setAlignment(QtCore.Qt.AlignCenter)
 
 
-    def decrease_current_index(self, value=1):
-        if self.current_index >= value:
-            self.current_index -= value
-            self.update_words_button()
-
-
-    def positive_click(self):
+    def click_positive(self):
         if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.positives+=1
         self.click_next()
     
 
-    def negative_click(self):
+    def click_negative(self):
         if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.negatives+=1
             self.mistakes_list.append([self.get_current_card(self.default_side), 
@@ -188,8 +171,8 @@ class main_window(widget.QWidget):
 
 
     def click_next(self):
-        diff_words = self.total_words - self.current_index
-        if diff_words > 0:
+        diff_words = self.total_words - self.current_index - 1
+        if diff_words >= 0:
             self.update_score()
             self.side = self.default_side
             self.append_current_index()
@@ -198,17 +181,19 @@ class main_window(widget.QWidget):
             # Words Back Controls
             if self.words_back > 0:
                 self.words_back-=1
-                if self.words_back == 0:
-                    if self.revmode:
+                if self.words_back == 0 and self.revmode:
                         self.nav_buttons_visibility_control(True, True, False)
-                    else:
-                        self.nav_buttons_visibility_control(False, False, True)
 
-        # Check conditions to record revision
-        if diff_words == 1 and self.is_revision and self.is_saved == False:
+        # Revision Complete
+        if diff_words == 0 and self.is_revision and self.is_saved == False:
+            # message after revision is complete
+            dbapi = db_api.db_interface()
+            last_positives = dbapi.get_last_positives(self.signature)
+            self.insert_text(self.get_rating_message(last_positives))
+            # write record to db
             db_api.create_record(self.signature, self.total_words, self.positives)
+            # update flashcards parameters
             self.is_saved = True
-            self.insert_text(self.get_rating())
             self.change_revmode(force_mode=False)
             if self.negatives != 0:
                 self.show_mistakes()
@@ -223,6 +208,18 @@ class main_window(widget.QWidget):
             self.insert_text(self.get_current_card())
 
 
+    def append_current_index(self):
+        if self.current_index < self.total_words - 1:
+            self.current_index += 1
+            self.update_words_button()
+
+
+    def decrease_current_index(self, value=1):
+        if self.current_index >= value:
+            self.current_index -= value
+            self.update_words_button()
+
+
     def reverse_side(self):
         self.side = 1 - self.side
         self.insert_text(self.get_current_card())
@@ -232,61 +229,41 @@ class main_window(widget.QWidget):
         self.load_from_path(self.file_path)
 
 
+    def get_current_card(self, side=None):
+        side = self.side if side is None else side
+        return self.dataset.iloc[self.current_index, side]
+
+
     def delete_card(self):
-        if self.total_words > 1:
-            self.dataset.drop([self.current_index], inplace=True, axis=0)
-            self.dataset.reset_index(inplace=True, drop=True)
-            
-            self.total_words = self.dataset.shape[0]
-            self.update_words_button()
-            self.side = self.default_side
-            self.insert_text(self.get_current_card())
-        else:
-            print('Unable to delete last card')
+        self.dataset.drop([self.current_index], inplace=True, axis=0)
+        self.dataset.reset_index(inplace=True, drop=True)
+        self.total_words = self.dataset.shape[0]
+        self.update_words_button()
+        self.side = self.default_side
+        self.insert_text(self.get_current_card())
 
 
-    def do_save(self):
-        if not self.is_revision:
-            if 'custom_saveprefix' in self.config['optional']:
-                pyqtRemoveInputHook()
-                save_prefix = input('Enter save prefix: ')
-                self.signature = save_prefix + '_' + datetime.now().strftime('%m%d%Y%H%M%S')
-            else:
-                self.signature = self.signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
-
-            save(self.dataset.iloc[:self.current_index+1, :], self.signature)
-            # Create initial record
-            db_api.create_record(self.signature, self.current_index+1, self.positives)
-            self.load_from_path(self.config['revs_path'] + '/' + self.signature + '.csv')
-        else:
+    def click_save(self):
+        if self.is_revision:
             print('Cannot save a revision')
+            return
+        
+        # get new revision filename            
+        if 'custom_saveprefix' in self.config['optional']:
+            self.signature = ask_user_for_custom_signature()
+        else:
+            self.signature = update_signature_timestamp(self.signature)
 
+        save_new_revision(self.dataset.iloc[:self.current_index+1, :], self.signature)
+        print('Saved Successfully')
 
-    def center(self):
-        frame_geo = self.frameGeometry()
-        target_pos = widget.QDesktopWidget().availableGeometry().center()
-        frame_geo.moveCenter(target_pos)
-        self.move(frame_geo.topLeft())
-
-
-    def insert_text(self, text, default_font=16):
-        dynamic_font_size = 32 - int(len(str(text))/24)
-        self.font_textbox_size = dynamic_font_size if dynamic_font_size >= 8 else default_font
-        self.textbox.setFont(QtGui.QFont(self.font, self.font_textbox_size))
-        self.textbox.setText(str(text))
-        padding = max(0, 90 - len(str(text))*0.7)
-        self.textbox.setStyleSheet('''{} 
-                                    padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
-        self.textbox.setAlignment(QtCore.Qt.AlignCenter)
+        # Create initial record
+        db_api.create_record(self.signature, self.current_index+1, self.positives)
+        self.load_from_path(self.config['revs_path'] + '/' + self.signature + '.csv')
 
 
     def update_words_button(self):
         self.words_button.setText('{}/{}'.format(self.current_index+1, self.total_words))
-
-
-    def get_current_card(self, side=None):
-        side = self.side if side is None else side
-        return self.dataset.iloc[self.current_index, side]
 
 
     def update_score(self):
@@ -299,18 +276,16 @@ class main_window(widget.QWidget):
 
 
     def change_revmode(self, force_mode='auto'):
-        # Disable changing to revision mode for lngs
-        if not self.is_revision:
-            self.revmode = False
-        else:
+        if self.is_revision:
             if force_mode == 'auto':
                 self.revmode = not self.revmode
             else:
                 self.revmode = force_mode
+        else:
+            self.revmode = False
 
         self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
 
-        # show/hide buttons
         if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
         else:
@@ -319,36 +294,51 @@ class main_window(widget.QWidget):
 
     def load_button_click(self):
         self.load_window = load.Load_dialog(self)
-        self.switch_side_window(self.load_window.get_load_layout(), 'load', 250 + self.left)
+        self.switch_side_window(self.load_window.get_load_layout(), 'load', 250 + self.LEFT)
 
 
     def load_from_path(self, path):
         try:
-            initial_load = load.Load_dialog(self)
-            initial_load.load_file(path)
+            data = load_dataset(path)
+            if dataset_is_valid(data):
+                self.update_main_window_parameters(path, data)
         except FileNotFoundError:
             print('File Not Found.')
 
 
-    def set_dataset(self, data):
+    def update_main_window_parameters(self, file_path, data):
+        file_path_parts = file_path.split('/')
+        filename = file_path_parts[-1].split('.')[0]
+
         self.dataset = data
-    def set_signature(self, signature):
-        self.signature = signature
-    def set_is_revision(self, is_revision):
-        self.is_revision = is_revision
-    def set_revmode(self, rev_mode):
-        self.change_revmode(force_mode=rev_mode)
-    def set_title(self, title):
-        self.setWindowTitle(title)
-    def set_file_path(self, file_path):
-        self.file_path = file_path
+        self.is_revision = True if file_path_parts[-2] == self.config['revs_path'][2:] else False
+        self.change_revmode(self.is_revision)
+        self.signature = get_signature(filename, str(data.columns[0])[:2], self.is_revision)
+        self.setWindowTitle(self.signature if self.is_revision else filename)
+        self.del_side_window()
+        self.reset_flashcard_parameters()
+        update_config('onload_file_path', file_path)
+
+
+    def reset_flashcard_parameters(self):
+        self.current_index = 0
+        self.positives = 0
+        self.negatives = 0
+        self.words_back = 0
+        self.mistakes_list = list()
+        self.is_saved = False
+        self.side = self.default_side
+        self.total_words = self.dataset.shape[0]
+        self.insert_text(self.get_current_card())
+        self.update_words_button()
+        self.update_score()
 
 
     def add_shortcuts(self):
         def add_shortcut(key:str, function):
             shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
             shortcut.activated.connect(function)
-
+        
         add_shortcut('right', self.ks_nav_next)
         add_shortcut('down', self.ks_nav_negative)
         add_shortcut('left', self.click_prev)
@@ -364,35 +354,35 @@ class main_window(widget.QWidget):
 
     def ks_nav_next(self):
         if self.revmode:
-            self.positive_click()
+            self.click_positive()
         else:
             self.click_next()
 
 
     def ks_nav_negative(self):
         if self.revmode:
-            self.negative_click()
+            self.click_negative()
         else:
             pass
 
 
     def show_efc(self):
         self.efc_window = efc.EFC(self)
-        self.switch_side_window(self.efc_window.get_efc_layout(), 'efc', 250 + self.left)
+        self.switch_side_window(self.efc_window.get_efc_layout(), 'efc', 250 + self.LEFT)
             
 
     def show_mistakes(self):
         if not self.is_revision: return
         self.mistakes_window = Mistakes(self.mistakes_list, self)
-        self.switch_side_window(self.mistakes_window.get_mistakes_layout(), 'mistakes', 510 + self.left)
+        self.switch_side_window(self.mistakes_window.get_mistakes_layout(), 'mistakes', 510 + self.LEFT)
 
 
     def show_stats(self):
         if self.is_revision:
             self.stats_window = stats.Stats(self)
-            self.switch_side_window(self.stats_window.get_stats_layout(), 'stats', 400 + self.left)
+            self.switch_side_window(self.stats_window.get_stats_layout(), 'stats', 400 + self.LEFT)
         else:
-            print('Statistics not available')
+            print('Statistics not available for a Language')
 
 
     def nav_buttons_visibility_control(self, pos_button:bool, neg_button:bool, next_button:bool):
@@ -410,51 +400,49 @@ class main_window(widget.QWidget):
             self.next_button.hide()
 
 
-    def reset_flashcard_parameters(self):
-        self.current_index = 0
-        self.positives = 0
-        self.negatives = 0
-        self.words_back = 0
-        self.mistakes_list = list()
-        self.is_saved = False
-        self.side = self.default_side
-        self.total_words = self.dataset.shape[0]
-        self.insert_text(self.get_current_card())
-        self.update_words_button()
-        self.update_score()
+    def get_rating_message(self, last_positives):
+        rating = self.get_grade(self.positives, self.total_words)
+        progress = self.get_progress(self.positives, last_positives, self.total_words)
+        return rating + ' ' + progress
 
-
-    def keyPressEvent(self, event):
-        # Close side window with ESC key
-        if event.key() == Qt.Key_Escape:
-            if self.side_window_id is not None:
-                self.del_side_window()
     
-
-    def get_rating(self):
-        pos_share = self.positives / self.total_words
+    def get_grade(self, positives, total_words):
+        pos_share = positives / total_words
         if pos_share == 1:
-            rating = 'Perfect!!!'
+            grade = 'Perfect!!!'
         elif pos_share >= 0.92:
-            rating = 'Excellent!!'
+            grade = 'Excellent!!'
         elif pos_share >= 0.8:
-            rating = 'Awesome!'
+            grade = 'Awesome!'
         elif pos_share >= 0.68:
-            rating = 'Good'
+            grade = 'Good'
         else:
-            rating = 'Try harder next time.'
-        return rating
+            grade = 'Try harder next time.'
+        return grade
 
 
-    def switch_lng_rev(self):
+    def get_progress(self, positives, last_positives, total):
+        delta_last_rev = positives - last_positives
+        if positives == total:
+            progress = 'You guessed everything right!'
+        elif delta_last_rev > 0:
+            progress = f'You guess right {delta_last_rev} cards more than last time'
+        elif delta_last_rev == 0:
+            progress = 'You guessed the exact same number of cards as last time.'
+        else:
+            progress = f'You guess right {delta_last_rev} cards less than last time'
+        return progress
+
+
+    def switch_between_lng_and_rev(self):
         if self.is_revision:
             # filename includes the extension
-            matching_filename = get_most_similar_file(self.config['lngs_path'], self.signature[4:6], 
-                                                                        nothing_found='load_any')
+            matching_filename = get_most_similar_file(self.config['lngs_path'], 
+                                get_lng_from_signature(self.signature), if_nothing_found='load_any')
             file_path = self.config['lngs_path'] + '/' + matching_filename
         else:
             db_interface = db_api.db_interface()
-            last_rev_signature = db_interface.get_newest_record(lng=self.signature[4:6])
+            last_rev_signature = db_interface.get_latest_record_signature(lng=self.dataset.columns[0])
             file_path = f"{self.config['revs_path']}/" + last_rev_signature + '.csv'
         self.load_from_path(file_path)                                                                          
 
@@ -465,14 +453,13 @@ class main_window(widget.QWidget):
             self.add_side_window(layout, name, extra_width)
         else:
             self.del_side_window()
-        # Keeps window at the same position
-        self.move(self.pos())
+        self.move(self.pos())  # Keeps window at the same position
         
 
     def add_side_window(self, layout, name, extra_width):
         self.side_window_layout = layout
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.default_width + extra_width)
+        self.setFixedWidth(self.DEFAULT_WIDTH + extra_width)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = name
@@ -480,33 +467,30 @@ class main_window(widget.QWidget):
 
     def del_side_window(self):
         remove_layout(self.side_window_layout)
-        self.setFixedWidth(self.default_width)
+        self.setFixedWidth(self.DEFAULT_WIDTH)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = None
 
 
-    def validate_setup(self):
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            if self.side_window_id is not None:
+                self.del_side_window()
 
-        # Database
-        if self.config['db_path'].split('/')[-1] not in [f for f in listdir(self.config['resources_path'])]:
-            print('Initializing new Database')
-            pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(self.config['db_path'])
 
-        # Lngs folder
-        lngs_dir_name = self.config['lngs_path'].split('/')[-1]
-        if lngs_dir_name not in [f for f in listdir('.')]:
-            mkdir('./' + lngs_dir_name)
+    def center_window(self):
+        frame_geo = self.frameGeometry()
+        target_pos = widget.QDesktopWidget().availableGeometry().center()
+        frame_geo.moveCenter(target_pos)
+        self.move(frame_geo.topLeft())
 
-        # Revs folder
-        revs_dir_name = self.config['revs_path'].split('/')[-1]
-        if revs_dir_name not in [f for f in listdir('.')]:
-            mkdir('./' + revs_dir_name)
+
+    def get_filepath(self):
+        return self.file_path
 
 
 
 if __name__ == '__main__':
-    app = widget.QApplication([])
-    mw = main_window()
-    mw.show()
-    app.exec()
+    mw = main_window_logic()
+    mw.launch_app()

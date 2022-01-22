@@ -3,6 +3,8 @@ import os
 import pandas as pd
 import re
 import configparser
+import csv
+from PyQt5.QtCore import pyqtRemoveInputHook
 
 
 
@@ -73,21 +75,18 @@ def make_todayte():
     return date(datetime.now().year, datetime.now().month, datetime.now().day)
 
 
-def save(dataset:pd.DataFrame(), signature):
-    # file_name = simpledialog.askstring('Saving File', 'Enter name for the file: ', initialvalue=signature)
+def save_new_revision(dataset:pd.DataFrame(), signature):
     file_name = signature
     dataset.to_csv(config['revs_path'] + '\\' + file_name + '.csv', index=False)
-    print('Saved Successfully')
 
      
-def get_most_similar_file(path, name, nothing_found=None):
-    # slow, need different approach #todo if needed
+def get_most_similar_file(path, lookup_file, if_nothing_found=None):
     files = get_files_in_dir(path)
     for file in files:
-        if re.match(name.lower(), file.lower()) is not None:
+        if re.match(lookup_file.lower(), file.lower()) is not None:
             return file
             
-    if nothing_found == 'load_any':
+    if if_nothing_found == 'load_any':
         return files[0] 
 
 
@@ -103,8 +102,13 @@ def remove_layout(layout):
                  remove_layout(item.layout())
 
 
-def get_files_in_dir(path):
-    return [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+def get_files_in_dir(path, include_extension = True, exclude_open=True):
+    files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+    if not include_extension:
+        files_list = [f.split('.')[0] for f in files_list]
+    if exclude_open:
+        files_list[:] = [f for f in files_list if not f.startswith('~$')]
+    return files_list
 
 
 def match_in_list_by_val(list_, val, ommit_extension=False):
@@ -119,40 +123,138 @@ def match_in_list_by_val(list_, val, ommit_extension=False):
                 return i
 
 
-def print_debug(msg):
-    if config['debug'] == 'True':
-        print(msg)
-
-
 def format_timedelta(timedelta):
-    # if timedelta is more than 1 day
-    if ',' in str(timedelta):
-        return f'{timedelta.days} Days' 
-    # less than 1 day
+    if ',' in str(timedelta): # timedelta is more than 1 day
+        time_value = str(timedelta.days)
+        interval = 'Day'
     else:
         timedelta = str(timedelta).split(':')
-        # less than 1 hour
-        if int(timedelta[0]) <= 0:
-            timedelta = str(timedelta[1])
-            timedelta = timedelta[1:] if timedelta[0] == '0' else timedelta  # remove leading 0
-            s = 's'
-            if timedelta.startswith('1'):
-                timedelta = timedelta[0]
-                s = ''
-            return '{m} Minute{s}'.format(m=timedelta, s=s)
-        # more than 1 hour
+        if timedelta[0] != '0':
+            interval, id = 'Hour', 0
+        elif timedelta[1] != '00':
+            interval, id = 'Minute', 1
         else:
-            timedelta = str(timedelta[0])
-            s = 's'
-            # formatting for 1 hour
-            if timedelta == '1':
-                timedelta = timedelta[0]
-                s = ''
-            return '{h} Hour{s}'.format(h=timedelta[0:], s=s)
+            interval, id = 'Second', 2
+        time_value =  str(timedelta[id])
+
+    if time_value.startswith('0'): 
+        time_value = time_value[1:]
+
+    suffix = 's' if time_value != '1' else ''
+            
+    return f'{time_value} {interval}{suffix}'
 
 
-def get_date_from_signature(signature):
-    # Provides uniform way of getting a date from the signature
-    signature = signature.split('_')[-1]
-    date_ = date(int(signature[6:10]), int(signature[2:4]), int(signature[4:6]))
-    return date_
+def get_signature(selected_file_name, lng_gist, is_revision):
+        # create unique signature for currently loaded rev
+        # or return filename for lng
+        if is_revision:
+            print(f'Revision recognized: {selected_file_name}')
+            signature = selected_file_name
+        else:
+            # update_signature_timestamp() is directly dependent on this format
+            saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
+            signature = 'REV_' + lng_gist + saving_date
+            print(f'Language loaded: {selected_file_name}')
+        return signature
+
+
+def update_signature_timestamp(signature):
+    updated_signature = signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
+    return updated_signature
+
+
+def ask_user_for_custom_signature():
+    # alternative: simpledialog.askstring('Saving File', 'Enter name for the file: ', initialvalue=signature)
+    pyqtRemoveInputHook()
+    custom_signature = input('Enter save prefix: ')
+    return custom_signature
+
+
+def get_lng_from_signature(signature):
+    lngs = config['languages'].split('|')
+    for lng in lngs:
+        if lng in signature:
+            return lng
+
+
+def load_dataset(file_path):
+    extension = get_filename_from_path(file_path, True).split('.')[-1]
+
+    # Choose File Extension Handler
+    if extension in ['csv', 'txt']:
+        dataset = read_csv(file_path)
+    elif extension in ['xlsx', 'xlsm']:  
+        dataset = read_excel(file_path)
+    else:
+        print(f'Chosen extension is not (yet) supported: {extension}')
+
+    if dataset_is_valid(dataset):
+        dataset = dataset.sample(frac=1).reset_index(drop=True)
+    else:
+        dataset = False
+    return dataset
+
+
+def read_csv(file_path):
+    try:
+        dataset = pd.read_csv(file_path, encoding='utf-8',sep=get_dialect(file_path))   
+        return dataset
+    except Exception as e:
+        print('Unable to load requested .csv file due to ' + str(e)[:40])
+        return pd.DataFrame()
+
+
+def get_dialect(dataset_path):
+    data = list()
+    with open(dataset_path, 'r', encoding='utf-8') as csvfile:
+        csvreader = csv.reader(csvfile)
+        for r in csvreader:
+            data.append(r)
+    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=';,').delimiter
+
+
+def read_excel(file_path):
+    if 'sht_pick' in config['optional'].split('|'):
+       sht_id = get_sheet_id()
+    else:
+        sht_id = 0
+    return pd.read_excel(file_path, sheet_name=sht_id)
+
+
+def get_sheet_id():
+     # input() causes infitnite loop of 'QCoreApplication already running printouts
+    pyqtRemoveInputHook()
+    sht_input = input('Input sheet name or index: ')
+    return int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
+
+
+def dataset_is_valid(dataset:pd.DataFrame):
+    cols_count = dataset.shape[1]
+    if cols_count == 2:
+        is_valid = True
+    elif cols_count > 2:
+        print(f'Selected file has {cols_count} columns. Expected 2')
+        is_valid = True  # as dataset is still viable
+    elif cols_count < 2:
+        print('Selected file is invalid - not enough columns. Min is 2.')
+        is_valid = False
+    return is_valid
+
+
+def validate_setup():
+
+    # Database
+    if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
+        print('Initializing new Database')
+        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['db_path'])
+
+    # Lngs folder
+    lngs_dir_name = config['lngs_path'].split('/')[-1]
+    if lngs_dir_name not in [f for f in os.listdir('.')]:
+        os.mkdir('./' + lngs_dir_name)
+
+    # Revs folder
+    revs_dir_name = config['revs_path'].split('/')[-1]
+    if revs_dir_name not in [f for f in os.listdir('.')]:
+        os.mkdir('./' + revs_dir_name)
