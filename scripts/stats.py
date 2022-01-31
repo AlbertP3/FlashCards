@@ -40,7 +40,6 @@ class Stats(widget.QWidget):
         self.chart_dates = db_interface.get_chart_dates(self.signature)
         self.total_words = db_interface.get_total_words(self.signature)
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in self.chart_dates]
-        self.first_date = db_interface.get_first_date(self.signature)
         self.sum_repeated = str(db_interface.get_sum_repeated(self.signature))
         self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation(self.signature))
         self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev(self.signature))

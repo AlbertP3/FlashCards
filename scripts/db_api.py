@@ -1,8 +1,10 @@
+from numpy import positive
 import pandas as pd
 from utils import *
 
+
 config = load_config()
-REV_DB_PATH = config['db_path']
+REV_DB_PATH = config['db_path'] 
 
 
 def create_record(signature, words_total, positives):
@@ -14,7 +16,7 @@ def create_record(signature, words_total, positives):
 
 
 class db_interface():
-    # Used for convenient quering of DB
+
 
     def __init__(self):
         self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
@@ -29,11 +31,21 @@ class db_interface():
         return self.db[self.db['SIGNATURE'] == signature].count()[0] - 1
     
 
-    def get_last_positives(self, signature):
+    def get_last_score(self, signature):
         try:
-            return self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].iloc[-1]
+            positives = self.get_last_positives(signature)
+            total = self.get_total_words(signature)
+            return positives/total
         except:
             return None
+
+    
+    def get_last_positives(self, signature):
+        try:
+            return self.db[(self.db['SIGNATURE'] == signature)]['POSITIVES'].iloc[-1]
+        except:
+            return None
+
 
     def get_total_words(self, signature):
         try:
@@ -41,22 +53,35 @@ class db_interface():
         except:
             return None
 
-    def get_first_date(self, signature):
+
+    def get_first_datetime(self, signature):
         try:
-            return self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
+            first_date = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
+            return make_datetime(first_date)
+        except:
+            return None
+            
+
+    def get_first_date_by_filename(self, filename_with_extension):
+            first_date = self.get_first_datetime(filename_with_extension.split('.')[0])
+            if first_date is not None:
+                return first_date
+            else:
+                # avoid errors down the line as function is used for sorting
+                return datetime(1900, 1, 1)
+
+
+    def get_last_datetime(self, signature):
+        try:
+            last_date = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[-1]
+            return make_datetime(last_date)
         except:
             return None
 
-    def get_last_date(self, signature):
-        try:
-            return self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[-1]
-        except:
-            return None
 
     def get_timedelta_from_creation(self, signature):
         try:
-            d = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
-            first_date = make_datetime(d)
+            first_date = self.get_first_datetime(signature)
             today = make_todaytime()
             return today - first_date
         except:
@@ -65,22 +90,21 @@ class db_interface():
 
     def get_timedelta_from_last_rev(self, signature):
         try:
-            d = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[-1]
-            last_date = make_datetime(d)
+            last_date = self.get_last_datetime(signature)
             today = make_todaytime()
             return today - last_date
         except:
             return None
 
 
-    def get_newest_record(self, lng=None):
+    def get_latest_record_signature(self, lng):
         # returns last record from db
         # optionally matching the lng provided
         # if NA - returns last record
-        match = ''
         
+        match = ''
         for i in range(self.db.shape[0]-1, -1, -1):
-            if self.db['SIGNATURE'].iloc[i][4:6] == lng:
+            if lng in self.db['SIGNATURE'].iloc[i]:
                 match =  self.db['SIGNATURE'].iloc[i]
                 break
 
