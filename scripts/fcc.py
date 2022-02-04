@@ -1,37 +1,44 @@
-from PyQt5.QtCore import pyqtRemoveInputHook
 from utils import *
+from random import shuffle
 
 
 
 class fcc():
     # Flashcards console commands allows access to extra functionality
-    # through the console. To be used exclusively with an object of type
-    # main_window_logic. Behaviour of certain function might adjust if
+    # through the chosen console - cmd, QTextExit,...
+    # Behaviour of certain function might adjust if
     # graphical interface is available.
 
-    def __init__(self):
+    def __init__(self,  qtextedit_console=False):
+        self.config = load_config()
         self.TEMP_FILE_FLAG = False
-        self.DOCS = {'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
-                        'mcr':'Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result',
-                        'dc':'Delete Card - deletes card both in current set and in the file',
-                        'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
-                        'cfm':'Create Flashcards from Mistakes List - initiate new set from current mistakes'}
+        self.QTEXTEDIT_CONSOLE = qtextedit_console
+        self.DOCS = {'help':'Says what it does',
+                    'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
+                    'mcr':'Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result',
+                    'dc':'Delete Card - deletes card both in current set and in the file',
+                    'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
+                    'cfm':'Create Flashcards from Mistakes List - initiate new set from current mistakes',
+                    'efc':'Ebbinghaus Forgetting Curve - shows table with revs, days from last rev and efc score',
+                    'mcp':'Modify Config Parameter - allows modifications of config file',
+                    'sck':'Show Config Keys - list all available parameters in config file',
+                    'cls':'Clear Screen',
+                    }
 
 
-    def init_command_prompt(self):
-        pyqtRemoveInputHook()
-        # allows user to enter commands from the console
-        user_input = input('Enter a command: ')
-        parsed_input = user_input.split(' ')
+    def execute_command(self, parsed_input):
         if self.is_allowed_command(parsed_input[0]):
             function_to_call = getattr(self, parsed_input[0])
             function_to_call(parsed_input)
+        elif ' '.join(parsed_input[:2]).lower() == 'hello world'.lower():
+            self.post_fcc('<the world salutes back>')
         else:
-            print('Permision Denied or Unknown Command. Type help for... well - help')
+            self.post_fcc('Permision Denied or Unknown Command. Type help for... well - help')
+        self.post_fcc(self.CONSOLE_PROMPT)
 
 
     def is_allowed_command(self, command):
-        return command in ['mct', 'mcr', 'dc', 'lln', 'help', 'cfm']
+        return command in self.DOCS.keys()
     
 
     def reset_temp_file_flag(self):
@@ -46,21 +53,30 @@ class fcc():
             pass
 
 
+    def post_fcc(self, text): 
+        if self.QTEXTEDIT_CONSOLE and len(text) > 0:  
+            self.console.append(text)
+            self.CONSOLE_LOG = self.console.toPlainText()
+        else:
+            print(text)
+
+
     def help(self, parsed_cmd):
         if len(parsed_cmd) == 1:
            printout = get_pretty_print(self.DOCS, extra_indent=3)
         else:
             command = parsed_cmd[1]
             printout =  get_pretty_print([[command, self.DOCS[command]]], extra_indent=3)
-        print(printout)
+
+        self.post_fcc(printout)
 
 
     def mct(self, parsed_cmd):
-        # Modify current card text - both in app and in file
+        # Modify current card text - both in app and in the file
 
         # check preconditions
         if len(parsed_cmd) < 2:
-            print('mc function require at least 2 arguments')
+            self.post_fcc('mc function require at least 2 arguments')
             return
             
         new_text = ' '.join(parsed_cmd[1:])
@@ -73,7 +89,7 @@ class fcc():
             save_success = save_revision(self.dataset, self.signature)
 
         if save_success:
-            print('Card content successfully modified.')
+            self.post_fcc('Card content successfully modified.')
 
 
     def mcr(self, parsed_cmd):
@@ -81,7 +97,7 @@ class fcc():
 
         # check preconditions
         if len(parsed_cmd) != 2:
-            print('mcr function require 2 arguments. "+" and "-" are accepted.')
+            self.post_fcc('mcr function require 2 arguments. "+" and "-" are accepted.')
             return
 
         mistakes_one_side = [x[1-self.side] for x in self.mistakes_list]
@@ -92,15 +108,15 @@ class fcc():
             del self.mistakes_list[mistake_index]
             self.positives+=1
             self.negatives-=1
+            self.post_fcc('Score successfully modified for positive.')
         elif parsed_cmd[1] == '-' and not is_mistake:
             self.positives-=1
             self.result_negative()
+            self.post_fcc('Score successfully modified for negative.')
         else:
-            print('Wrong argument entered.')
-
+            self.post_fcc('Wrong argument entered.')
+        
         self.refresh_interface()
-
-        print('Score successfully modified.')
 
 
     def dc(self, parsed_cmd):
@@ -108,10 +124,10 @@ class fcc():
 
         # check preconditions
         if len(parsed_cmd) != 2:
-            print('Wrong number of args. Expected 2.')
+            self.post_fcc('Wrong number of args. Expected 2.')
             return
         elif parsed_cmd[1] != '-':
-            print('Wrong confirmation sign. Expected "-".')
+            self.post_fcc('Wrong confirmation sign. Expected "-".')
             return
 
         # Get parameters before deletion
@@ -129,7 +145,7 @@ class fcc():
             save_success = save_revision(dataset_ordered, self.signature)
 
         if save_success:
-            print('Card deleted successfully.')
+            self.post_fcc('Card deleted successfully.')
 
 
     def lln(self, parsed_cmd):
@@ -137,10 +153,10 @@ class fcc():
 
         # check preconditions
         if len(parsed_cmd) != 2:
-            print('Expected 2 args.')
+            self.post_fcc('Expected 2 args.')
             return
         elif not parsed_cmd[1].isnumeric():
-            print('number of cards must be a number')
+            self.post_fcc('number of cards must be a number')
             return
         
         # get last N records from the file -> shuffle only the part
@@ -157,14 +173,17 @@ class fcc():
         self.refresh_interface()
         self.TEMP_FILE_FLAG = True
 
-        print(f'Loaded last {n_cards} cards.')
+        self.post_fcc(f'Loaded last {n_cards} cards.')
 
     
     def cfm(self, parsed_cmd):
         # Create Flashcards from Mistakes list
         
-        # Create DataFrame
-        mistakes_list = pd.DataFrame(self.get_mistakes_list(), columns=self.get_headings())
+        # Create DataFrame - reverse arrays to match default_side
+        reversed_mistakes_list = [[x[1], x[0]] for x in self.get_mistakes_list()]
+        shuffle(reversed_mistakes_list)
+        reversed_headings = self.get_headings()[::-1]
+        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=reversed_headings)
                                             
         # point to a fictional LNG file as to allow save as a new revision
         fict_path = self.config['lngs_path'] + 'mistakes_list.csv'
@@ -176,5 +195,50 @@ class fcc():
         # allow instant save of a rev created from mistakes_list
         self.set_cards_seen(mistakes_list.shape[0]-1)
         
-        print('Successfully created flashcards from mistakes list.')
+        self.post_fcc('Successfully created flashcards from mistakes list.')
         
+    
+    def efc(self, parsed_cmd):
+        # show efc table
+        from efc import efc
+        efc_obj = efc()
+        reccommendtations = efc_obj.get_complete_efc_table()
+        efc_table_printout = efc_obj.get_efc_table_printout(reccommendtations)
+
+        self.post_fcc(efc_table_printout)
+        
+
+    def mcp(self, parsed_cmd):
+        # Modify Config Parameter
+         
+        # check preconditions
+        config_key = parsed_cmd[1]
+        if parsed_cmd[1] not in self.config.keys() and len(parsed_cmd) < 3:
+            self.post_fcc('Key not found in config file or not enough args given - expected at least 2')
+            return
+        
+        config_new_value = ' '.join(parsed_cmd[2:])
+        update_config(config_key, config_new_value)
+
+        # load config again if available 
+        try:
+            self.refresh_config()
+            self.post_fcc(f'Config Key {config_key} value updated to {config_new_value}')
+        except:
+            self.post_fcc('Config values set but not updated. Load config again to implement changes')
+
+    
+    def sck(self, parsed_cmd):
+        # Show Config Keys
+        keys_printout = '\n'.join(list(self.config.keys()))
+        self.post_fcc(keys_printout)
+    
+
+    def cls(self, parsed_cmd):
+        # Clear console
+        if self.QTEXTEDIT_CONSOLE:
+            self.console.setText('')
+            self.CONSOLE_LOG = ''
+        else:
+            print('\n'*100)
+

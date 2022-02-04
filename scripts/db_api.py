@@ -1,10 +1,17 @@
-from numpy import positive
 import pandas as pd
 from utils import *
 
 
 config = load_config()
 REV_DB_PATH = config['db_path'] 
+DBAPI_STATUS_DICT = dict()
+
+def post_dbapi(text):
+    caller_function = inspect.stack()[1].function
+    DBAPI_STATUS_DICT[caller_function] = text
+
+def get_dbapi_dict():
+    return DBAPI_STATUS_DICT
 
 
 def create_record(signature, words_total, positives):
@@ -12,7 +19,7 @@ def create_record(signature, words_total, positives):
     timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     with open(REV_DB_PATH,'a') as fd:
         fd.write(';'.join([timestamp, signature, str(words_total), str(positives)])+'\n')
-    print('Record created succcessfully')
+    post_dbapi('Record created succcessfully')
 
 
 class db_interface():
@@ -50,6 +57,14 @@ class db_interface():
     def get_total_words(self, signature):
         try:
             return self.db[self.db['SIGNATURE'] == signature]['TOTAL'].iloc[-1]
+        except:
+            return None
+
+
+    def get_max_positives_count(self, signature):
+        try:
+            positives_list = self.db[(self.db['SIGNATURE'] == signature)]['POSITIVES']
+            return positives_list.max()
         except:
             return None
 
@@ -109,7 +124,7 @@ class db_interface():
                 break
 
         if match == '':
-            print('File Not Found')
+            post_dbapi('File Not Found')
         
         return match
 

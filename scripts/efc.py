@@ -1,5 +1,3 @@
-import PyQt5.QtWidgets as widget
-from PyQt5 import QtGui
 import db_api
 from utils import *
 from math import exp
@@ -7,123 +5,65 @@ from os import listdir
 
 
 
-class EFC(widget.QWidget):
+class efc():
 
-    def __init__(self, main_window):
-
-        super(EFC, self).__init__(None)
-        self.main_window = main_window
-
+    def __init__(self):
         self.INITIAL_REPETITIONS = 2
         self.EFC_THRESHOLD = 0.8
         self.paths_to_suggested_lngs = dict()
         self.reccommendation_texts = {'EN':'Oi mate, take a gander', 
                                         'RU':'давай товарищ, двигаемся!', 
                                         'DE':'Es ist an der Zeit zu handeln!'}
-       
-    def get_efc_layout(self):
-        # Get newest data
         self.config = load_config()
         self.db_interface = db_api.db_interface()
+        self.unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
+                                    if s + '.csv' in listdir(self.config['revs_path'])]
 
-        self.arrange_window()
-        
-        # Window Parameters
-        self.buttons_height = 45
-
-        # Fill List Widgets
-        self.recommendations_list = self.get_recommendations()
-        [self.recommendation_list.addItem(str(r)) for r in self.recommendations_list]
-
-        return self.efc_layout
-
-
-    def arrange_window(self):
-   
-        # Style
-        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
-        self.button_style_sheet = self.config['button_style_sheet']
-        self.font = self.config['font']
-        self.font_button_size = int(self.config['efc_button_font_size'])
-        self.button_font = QtGui.QFont(self.font, self.font_button_size)
-        self.textbox_width = 250
-        self.textbox_height = 200
-        self.buttons_height = 45
-
-        # Elements
-        self.efc_layout = widget.QGridLayout()
-        self.efc_layout.addWidget(self.create_recommendations_list(), 0, 0)
-        self.efc_layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
-        
-
-    def create_recommendations_list(self):
-        self.recommendation_list = widget.QListWidget(self)
-        self.recommendation_list.setFixedWidth(self.textbox_width)
-        self.recommendation_list.setFont(self.button_font)
-        self.recommendation_list.setStyleSheet(self.textbox_stylesheet)
-        return self.recommendation_list
-
-
-    def create_load_button(self):
-        self.load_button = widget.QPushButton(self)
-        self.load_button.setFixedHeight(self.buttons_height)
-        self.load_button.setFixedWidth(self.textbox_width)
-        self.load_button.setFont(self.button_font)
-        self.load_button.setText('Load')
-        self.load_button.setStyleSheet(self.button_style_sheet)
-        self.load_button.clicked.connect(self.load_selected)
-        return self.load_button
-
-
-    def efc_function(self, last_date, total_words, last_positives, repeated_times, initial_date):
+    
+    def efc_function(self, last_datetime, total_words, last_positives, repeated_times):
             # based on Ebbinghaus Forgetting Curve
 
-            time_delta = (make_todaytime() - last_date).days
-            time_delta_from_initial = (make_todaytime() - initial_date).days
+            diff_days_from_last = (make_todaytime() - last_datetime).total_seconds()/86400
             
-            # returning 0 always meets efc criteria
-            if time_delta_from_initial == 0 and (time_delta_from_initial + repeated_times == 0): # day 0
-                efc = 0
-            elif time_delta_from_initial <= 2 and time_delta != 0:  # day 1 and 2
-                efc = 0
-            else:  # employ forgetting curve
-                pos_share = last_positives/total_words if last_positives is not None else 1
-                x1, x2, x3, x4 = 2.039, -4.566, -12.495, -0.001
-                s = (repeated_times**x1 + pos_share*x2) - (x3*exp(total_words*x4))
-                efc = exp(-time_delta/s)
+            # employ forgetting curve
+            pos_share = last_positives/total_words if last_positives is not None else 1
+            x1, x2, x3, x4 = 2.039, -4.566, -12.495, -0.001
+            s = (repeated_times**x1 + pos_share*x2) - (x3*exp(total_words*x4))
+            c = -0.2 if repeated_times < 3 else 0
+            efc = exp(-diff_days_from_last/s) + c
+
             return efc
 
 
-    def get_recommendations(self):
-        
-        # unique signatures from rev_db - only for existing files
-        unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
-                                if s + '.csv' in listdir(self.config['revs_path'])]
+    def get_recommendations(self):   
         reccommendations = list()
 
-        if 'recommend_new' in self.config['optional'].split('|'):
-            reccommendations.extend(self.is_it_time_for_something_new(unique_signatures))
+        if 'reccommend_new' in self.config['optional'].split('|'):
+            reccommendations.extend(self.is_it_time_for_something_new(self.unique_signatures))
 
         # get parameters and efc_function result for each unique signature
+            for rev in self.get_complete_efc_table():
+                efc_critera_met = rev[-1] < self.EFC_THRESHOLD
+                if efc_critera_met:
+                    reccommendations.append(rev[0])
+
+        return reccommendations
+
+
+    def get_complete_efc_table(self):
         rev_table_data = list()
-        for signature in unique_signatures:
-            last_date = self.db_interface.get_last_datetime(signature)
-            initial_date = self.db_interface.get_first_datetime(signature)
+
+        for signature in self.unique_signatures:
+            last_datetime = self.db_interface.get_last_datetime(signature)
             repeated_times = self.db_interface.get_sum_repeated(signature)
             total = self.db_interface.get_total_words(signature)
             last_positives = self.db_interface.get_last_positives(signature)
-            efc = self.efc_function(last_date, total, last_positives, repeated_times, initial_date)
-            efc_critera_met = efc < self.EFC_THRESHOLD
-
-            days_from_last_rev = (make_todaytime() - last_date).days
+            efc = self.efc_function(last_datetime, total, last_positives, repeated_times)
+            
+            days_from_last_rev = (make_todaytime() - last_datetime).days
             rev_table_data.append([signature, days_from_last_rev, round(efc, 2)])
 
-            if efc_critera_met:
-                reccommendations.append(signature)
-
-        print(self.get_efc_table_printout(rev_table_data))
-            
-        return reccommendations
+        return rev_table_data
 
 
     def get_efc_table_printout(self, efc_table_data):
@@ -136,25 +76,24 @@ class EFC(widget.QWidget):
         return printout
 
 
-    def load_selected(self):
+    def get_path_from_selected_file(self):
         # safety-check if item is selected
         if self.recommendation_list.currentItem() is None: return
 
         selected_li = self.recommendation_list.currentItem().text()
         try:
-            self.main_window.del_side_window()
-
             # Check if selected item is a suggestion to create a new revision
             if selected_li in self.paths_to_suggested_lngs.keys():
                 path = self.config['lngs_path'] + self.paths_to_suggested_lngs[selected_li]
             else:
                 path = self.config['revs_path'] + str(selected_li) + '.csv'
-            
-            self.main_window.initiate_flashcards(path)
-                     
+                                     
         except FileNotFoundError:
+            path = None
             print('Requested File Not Found')
     
+        return path
+
 
     def is_it_time_for_something_new(self, unique_signatures):
         # Periodically reccommend to create new revision for every lng

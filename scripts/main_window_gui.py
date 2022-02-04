@@ -2,33 +2,42 @@ from PyQt5 import QtCore
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from utils import * 
 from main_window_logic import main_window_logic
-import efc
-import stats
-import load
-from mistakes_dialog import Mistakes
+from side_windows_gui import *
 
 
 
-class main_window_gui(widget.QWidget, main_window_logic):
+class main_window_gui(widget.QWidget, main_window_logic, fcc_gui, 
+                        efc_gui, load_gui, mistakes_gui, stats_gui):
 
     def __init__(self):
         self.q_app = widget.QApplication([])
         widget.QWidget.__init__(self)
-        main_window_logic.__init__(self)
 
 
     def launch_app(self):
+        main_window_logic.__init__(self)
         self.build_interface()
+
+        self.set_qtextedit_console(self.get_fcc_console())
+
         self.initiate_flashcards(self.file_path)
         self.q_app.exec()
 
 
-    def build_interface(self):   
+    def build_interface(self):
         self.configure_window()
         self.build_layout()   
         self.optional_features()
+        self.build_sidewindows()
+
+
+    def build_sidewindows(self):
+        fcc_gui.__init__(self)
+        efc_gui.__init__(self)
+        load_gui.__init__(self)
+        mistakes_gui.__init__(self)
+        stats_gui.__init__(self)
 
 
     def configure_window(self):
@@ -82,16 +91,13 @@ class main_window_gui(widget.QWidget, main_window_logic):
         self.next_button = self.create_button('Next', self.click_next_button)
         self.prev_button = self.create_button('Prev', self.click_prev_button)
         self.reverse_button = self.create_button('Reverse', self.reverse_side)
-        self.load_button = self.create_button('Load', self.click_load_button)
         self.positive_button = self.create_button('✔️', self.click_positive)
         self.negative_button = self.create_button('❌', self.click_negative)
-        self.score_button = self.create_button('<>', self.show_mistakes)
-        self.settings_button = self.create_button('🎢', self.show_stats)
+        self.score_button = self.create_button('<>')
         self.save_button = self.create_button('Save', self.click_save_button)
         self.del_button = self.create_button('🗑', self.delete_current_card)
         self.load_again_button = self.create_button('⟳', self.load_again_click)
         self.revmode_button = self.create_button('RM:{}'.format('OFF'), lambda: self.change_revmode('auto'))
-        self.efc_button = self.create_button('📜', self.show_efc)
         self.words_button = self.create_button('-')
 
         # Widgets
@@ -107,13 +113,10 @@ class main_window_gui(widget.QWidget, main_window_logic):
         self.negative_button.hide()
         self.positive_button.hide()
         
-        self.layout_third_row.addWidget(self.load_button, 2, 0)
         self.layout_third_row.addWidget(self.del_button, 2, 1)
-        self.layout_third_row.addWidget(self.efc_button, 2, 2)
         self.layout_third_row.addWidget(self.save_button, 2, 3)
 
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
-        self.layout_fourth_row.addWidget(self.settings_button, 3, 1)
         self.layout_fourth_row.addWidget(self.load_again_button, 3, 2)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
         self.layout_fourth_row.addWidget(self.revmode_button, 3, 4)
@@ -147,11 +150,6 @@ class main_window_gui(widget.QWidget, main_window_logic):
         padding = max(0, 90 - len(str(text))*0.7)
         self.textbox.setStyleSheet('''{} padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
-
-
-    def click_load_button(self):
-        self.load_window = load.Load_dialog(self)
-        self.switch_side_window(self.load_window.get_load_layout(), 'load', 250 + self.LEFT)
 
 
     def click_save_button(self):
@@ -242,23 +240,23 @@ class main_window_gui(widget.QWidget, main_window_logic):
         self.is_saved = True
 
 
-    def add_shortcuts(self):
-        def add_shortcut(key:str, function):
-            shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
-            shortcut.activated.connect(function)
+    def show_mistakes(self):
+        self.get_mistakes_sidewindow()
+
+
+    def add_shortcuts(self): 
+        self.add_shortcut('right', self.ks_nav_next)
+        self.add_shortcut('down', self.ks_nav_negative)
+        self.add_shortcut('left', self.click_prev_button)
+        self.add_shortcut('up', self.reverse_side)
+        self.add_shortcut('p', self.change_revmode)
+        self.add_shortcut('d', self.delete_current_card)
+        self.add_shortcut('r', self.load_again_click)
         
-        add_shortcut('right', self.ks_nav_next)
-        add_shortcut('down', self.ks_nav_negative)
-        add_shortcut('left', self.click_prev_button)
-        add_shortcut('up', self.reverse_side)
-        add_shortcut('p', self.change_revmode)
-        add_shortcut('d', self.delete_current_card)
-        add_shortcut('e', self.show_efc)
-        add_shortcut('s', self.show_stats)
-        add_shortcut('r', self.load_again_click)
-        add_shortcut('l', self.click_load_button)
-        add_shortcut('m', self.show_mistakes)
-        add_shortcut('c', self.init_fcc)
+
+    def add_shortcut(self, key:str, function):
+        shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
+        shortcut.activated.connect(function)
 
 
     def ks_nav_next(self):
@@ -288,25 +286,6 @@ class main_window_gui(widget.QWidget, main_window_logic):
             self.next_button.show()
         else:
             self.next_button.hide()
-
-
-    def show_efc(self):
-        self.efc_window = efc.EFC(self)
-        self.switch_side_window(self.efc_window.get_efc_layout(), 'efc', 250 + self.LEFT)
-            
-
-    def show_mistakes(self):
-        if not self.is_revision: return
-        self.mistakes_window = Mistakes(self.mistakes_list, self)
-        self.switch_side_window(self.mistakes_window.get_mistakes_layout(), 'mistakes', 510 + self.LEFT)
-
-
-    def show_stats(self):
-        if self.is_revision:
-            self.stats_window = stats.Stats(self)
-            self.switch_side_window(self.stats_window.get_stats_layout(), 'stats', 400 + self.LEFT)
-        else:
-            print('Statistics not available for a Language')
 
 
     def switch_side_window(self, layout, name, extra_width):
@@ -377,9 +356,3 @@ class main_window_gui(widget.QWidget, main_window_logic):
         if 'switch_lng_rev' in self.config['optional'].split('|'):
             self.switch_lng_rev_button = self.create_button('🦙', self.switch_between_lng_and_rev)
             self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
-
-
-
-if __name__ == '__main__':
-    mw = main_window_gui()
-    mw.launch_app()

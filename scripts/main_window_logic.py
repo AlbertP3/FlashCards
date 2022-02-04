@@ -1,17 +1,18 @@
+from random import randint
 import db_api
 from utils import *
-from fcc import fcc
 
 
-class main_window_logic(fcc):
+class main_window_logic():
 
     def __init__(self):
-        validate_setup()
-        super().__init__()
+        self.QTEXTEDIT_CONSOLE = None
 
+        validate_setup()
+        
         # Flashcards parameters
         self.config = load_config()
-        self.default_side = int(self.config['card_default_side'])
+        self.default_side = self.get_default_side()
         self.side = self.default_side
         self.file_path = self.config['onload_file_path']
         self.revmode = False
@@ -22,10 +23,14 @@ class main_window_logic(fcc):
         data = self.load_flashcards(self.file_path)
         if dataset_is_valid(data):
             self.update_backend_parameters(self.file_path, data)
+            self.post_logic(self.get_status_dict('dataset_is_valid'))
 
 
-    def init_fcc(self):
-        self.init_command_prompt()
+    def post_logic(self, text):
+        if self.QTEXTEDIT_CONSOLE is not None:    
+            self.post_fcc(text)
+        else:
+            print(text)        
 
 
     def result_positive(self):
@@ -43,7 +48,7 @@ class main_window_logic(fcc):
     def goto_next_card(self):
         diff_words = self.total_words - self.current_index - 1
         if diff_words >= 0:
-            self.side = self.default_side
+            self.side = self.get_default_side()
             self.append_current_index()
 
 
@@ -76,13 +81,14 @@ class main_window_logic(fcc):
 
     def record_revision_to_db(self):
         db_api.create_record(self.signature, self.total_words, self.positives)
+        self.post_logic(self.get_dbapi_dict('create_record'))
 
 
     def goto_prev_card(self):
         if self.current_index >= 1:
             self.decrease_current_index()
             self.words_back+=1    
-            self.side = self.default_side
+            self.side = self.get_default_side()
             
 
     def reverse_side(self):
@@ -93,15 +99,17 @@ class main_window_logic(fcc):
         self.dataset.drop([self.current_index], inplace=True, axis=0)
         self.dataset.reset_index(inplace=True, drop=True)
         self.total_words = self.dataset.shape[0]
-        self.side = self.default_side
+        self.side = self.get_default_side()
         
 
     def load_flashcards(self, file_path):
         try:
             self.TEMP_FILE_FLAG = False
-            return load_dataset(file_path, do_shuffle=True)
+            dataset = load_dataset(file_path, do_shuffle=True)
+            self.post_logic(self.get_status_dict('load_dataset'))
+            return dataset
         except FileNotFoundError:
-            print('File Not Found.')
+            self.post_logic('File Not Found.')
 
 
     def is_complete_revision(self):
@@ -112,7 +120,7 @@ class main_window_logic(fcc):
     def handle_saving(self):
         # Check preconditions
         if self.is_revision:
-            print('Cannot save a revision')
+            self.post_logic('Cannot save a revision')
             return
         
         # get new revision filename            
@@ -121,9 +129,8 @@ class main_window_logic(fcc):
         else:
             self.signature = update_signature_timestamp(self.signature)
 
-        save_success = save_revision(self.dataset.iloc[:self.cards_seen+1, :], self.signature)
-        if save_success:
-            print('Saved successfully')
+        save_revision(self.dataset.iloc[:self.cards_seen+1, :], self.signature)
+        self.post_logic(self.get_status_dict('save_revision'))
 
         # Create initial record
         db_api.create_record(self.signature, self.cards_seen+1, self.positives)
@@ -144,7 +151,7 @@ class main_window_logic(fcc):
             self.revmode = False
 
     
-    def update_backend_parameters(self, file_path, data):
+    def update_backend_parameters(self, file_path, data, **kwargs):
 
         # set updated values
         file_path_parts = file_path.split('/')
@@ -156,7 +163,6 @@ class main_window_logic(fcc):
         self.is_revision = True if dir_name == self.config['revs_path'][2:-1] else False
         self.change_revmode(self.is_revision)
         self.signature = get_signature(filename, str(data.columns[0])[:2], self.is_revision)
-        print(f'{"Revision" if self.is_revision else "Language"} loaded: {filename}')
         update_config('onload_file_path', file_path)
 
         # reset flashcards parameters
@@ -167,51 +173,99 @@ class main_window_logic(fcc):
         self.words_back = 0
         self.mistakes_list = list()
         self.is_saved = False
-        self.side = self.default_side
+        self.side = self.get_default_side()
         self.total_words = self.dataset.shape[0]
+
+        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {filename}')
 
 
     def get_rating_message(self):
         dbapi = db_api.db_interface()
+ 
         last_positives = dbapi.get_last_positives(self.signature)
-        rating = self.get_grade(self.positives, self.total_words)
-        progress = self.get_progress(self.positives, last_positives, self.total_words)
-        return rating + ' ' + progress
+        max_positives = dbapi.get_max_positives_count(self.signature)
+        progress = self.get_progress(self.positives, last_positives, self.total_words, 
+                                        max_positives)
+        return progress
 
     
-    def get_grade(self, positives, total_words):
-        pos_share = positives / total_words
-        if pos_share == 1:
-            grade = 'Perfect!!!'
-        elif pos_share >= 0.92:
-            grade = 'Excellent!!'
-        elif pos_share >= 0.8:
-            grade = 'Awesome!'
-        elif pos_share >= 0.68:
-            grade = 'Good'
-        else:
-            grade = 'Try harder next time.'
-        return grade
+    def get_progress(self, positives, last_positives, total, max_positives):
+        score = round(positives/total, 2)
+        diff_to_record = max_positives - positives
 
-
-    def get_progress(self, positives, last_positives, total):
         if last_positives in [0, None]:
             # revision not in DB
-            prefix = 'Impressive' if positives/total >= 0.8 else 'Not bad'
-            progress = f'{prefix} for a first try.'
+            progress = self.get_progress_first_rev(score)
+        elif diff_to_record < 0:
+            # if a new record
+            progress = self.get_progress_new_record(score)
+        elif diff_to_record <= 2:
+            # close to record
+            progress = self.get_progress_close_to_record(diff_to_record, score)
+        elif total - positives <= 2:
+            # close to max
+            progress = self.get_progress_close_to_max(total, positives)
         else:
+            # standard cases
             delta_last_rev = positives - last_positives
-            suffix = '' if abs(delta_last_rev) == 1 else 's'
-            if positives == total:
-                progress = 'You guessed everything right!'
-            elif delta_last_rev > 0:
-                prefix = 'However, y' if positives / total < 0.68 else 'Y'
-                progress = f'{prefix}ou guessed {delta_last_rev} card{suffix} more than last time'
-            elif delta_last_rev == 0:
-                progress = 'You guessed the exact same number of cards as last time'
-            else:
-                prefix = 'However, y' if positives / total >= 0.68 else 'Y'
-                progress = f'{prefix}ou guessed {abs(delta_last_rev)} card{suffix} less than last time'
+            progress = self.get_progress_standard_case(score, delta_last_rev)
+
+        return progress
+
+
+    def get_progress_first_rev(self, score):
+        if score >= 0.8:
+            prefix = 'Impressive'
+        elif score >= 0.6:
+            prefix = 'Not bad'
+        else:
+            prefix = 'Terrible, even'
+        return f'{prefix} for a first try.'
+
+
+    def get_progress_new_record(self, score):
+        if score == 1:
+            suffix = 'You guessed everything right!'
+        elif score >= 0.8:
+            suffix = 'Congratulations!'
+        elif score >= 0.6:
+            suffix = "But there is still a lot to improve."
+        else:
+            suffix = "However there is nothing to brag about - you scored only {:.0%}.".format(score)
+        return  f"That's a new record. {suffix}"
+
+
+    def get_progress_close_to_record(self, diff_to_record, score):
+        if diff_to_record == 0:
+            incentive = "Which is still completely pathetic." if score <= 0.68 else "Way to go!"
+            progress = f'You matched all-time record for this revision! {incentive}'
+        elif diff_to_record > 0:
+            suffix = '' if diff_to_record == 1 else 's'
+            incentive = "But it's still entirely pathetic." if score <= 0.68 else "But that's still an excellent score."
+            progress = f"You missed all-time record by only {diff_to_record} card{suffix}. {incentive}"      
+        return progress
+
+
+    def get_progress_close_to_max(self, total, positives):
+        diff = total - positives
+        t = 'that' if diff == 1 else 'those'
+        suffix = '' if diff == 1 else 's'
+        progress = f"Hadn't it been for {t} {diff} card{suffix} and you would have scored the max!"
+        return progress
+
+
+    def get_progress_standard_case(self, score, delta_last_rev):
+        
+        suffix = '' if abs(delta_last_rev) == 1 else 's'
+        if delta_last_rev > 0:
+            incentive = 'Keep it up!' if score >= 0.68 else 'However, there is still a lot to improve.'
+            progress = f'You guessed {delta_last_rev} card{suffix} more than last time. {incentive}'
+        elif delta_last_rev == 0:
+            progress = 'You guessed the exact same number of cards as last time.'
+        else:
+            incentive = "However, overall it's not that bad - you scored {:.0%}.".format(score) if score >= 0.68 \
+                        else "Get your sh*t together."
+            progress = f'You guessed {abs(delta_last_rev)} card{suffix} less than last time. {incentive}'
         return progress
 
 
@@ -225,8 +279,22 @@ class main_window_logic(fcc):
         else:
             db_interface = db_api.db_interface()
             last_rev_signature = db_interface.get_latest_record_signature(lng=self.dataset.columns[0])
+            self.post_logic(self.get_dbapi_dict('get_latest_record_signature'))
             file_path = f"{self.config['revs_path']}" + last_rev_signature + '.csv'
         self.load_flashcards(file_path)                                                                          
+
+
+    def refresh_config(self):
+        self.config = load_config()
+
+
+    def get_default_side(self):
+        # if default_side key is -1 then randomize time a card is drawn
+        default_side = int(self.config['card_default_side'])
+        if default_side >= 0:
+            return default_side
+        else:
+            return randint(0,1) 
 
 
     def get_current_card(self):
@@ -253,5 +321,22 @@ class main_window_logic(fcc):
     def get_headings(self):
         return self.dataset.columns
     
+    def get_status_dict(self, key):
+        try:
+            return get_status_dict()[key]
+        except KeyError:
+            return f'Key Error on: {key}'
+
+
+    def get_dbapi_dict(self, key):
+        try:
+            return db_api.get_dbapi_dict()[key]
+        except KeyError:
+            return f'Key Error on: {key}'
+
+
     def set_cards_seen(self, cards_seen):
         self.cards_seen = cards_seen
+    
+    def set_qtextedit_console(self, console):
+        self.QTEXTEDIT_CONSOLE = console

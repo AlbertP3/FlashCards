@@ -1,13 +1,20 @@
 from datetime import datetime, date
 import os
-from zipapp import get_interpreter
-from numpy import isin
 import pandas as pd
 import re
 import configparser
 import csv
 from PyQt5.QtCore import pyqtRemoveInputHook
+import inspect
 
+UTILS_STATUS_DICT = dict()
+
+def post_utils(text):
+    caller_function = inspect.stack()[1].function
+    UTILS_STATUS_DICT[caller_function] = text
+
+def get_status_dict():
+    return UTILS_STATUS_DICT
 
 
 def load_config():
@@ -26,7 +33,9 @@ def update_config(key, new_value):
     with open('./scripts/resources/config.ini', 'w') as configfile:
         old_config.write(configfile)
 
-    
+
+
+
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
     from inspect import stack
@@ -82,8 +91,9 @@ def save_revision(dataset:pd.DataFrame(), signature):
         file_name = signature
         dataset.to_csv(config['revs_path'] + file_name + '.csv', index=False)
         save_success = True
+        post_utils(f'{signature} successfully saved')
     except PermissionError:
-        print('Permission Denied. Please close the file before modifications')
+        post_utils('Permission Denied. Please close the file before modifications')
         save_success = False
     return save_success
      
@@ -177,7 +187,8 @@ def get_lng_from_signature(signature):
 
 def load_dataset(file_path, do_shuffle=True):
     extension = get_filename_from_path(file_path, True).split('.')[-1]
-
+    operation_status = ''
+    
     # Choose File Extension Handler
     try:
         if extension in ['csv', 'txt']:
@@ -185,14 +196,15 @@ def load_dataset(file_path, do_shuffle=True):
         elif extension in ['xlsx', 'xlsm']:  
             dataset = read_excel(file_path)
         else:
-            print(f'Chosen extension is not (yet) supported: {extension}')
+            operation_status = f'Chosen extension is not (yet) supported: {extension}'
     except Exception as e:
-        print(f'Unable to load requested {extension} file due to ' + str(e))
+        operation_status = f'Unable to load requested {extension} file due to ' + str(e)
         dataset = pd.DataFrame()
 
     if do_shuffle:
         dataset = dataset.sample(frac=1).reset_index(drop=True)
 
+    post_utils(operation_status)
     return dataset
 
 
@@ -219,7 +231,7 @@ def read_excel(file_path):
 
 
 def get_sheet_id():
-     # input() causes infitnite loop of 'QCoreApplication already running printouts
+     # input() causes infitnite loop of 'QCoreApplication already running post_utilsouts
     pyqtRemoveInputHook()
     sht_input = input('Input sheet name or index: ')
     return int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
@@ -229,35 +241,43 @@ def dataset_is_valid(dataset:pd.DataFrame):
     rows_count = dataset.shape[0]
     cols_count = dataset.shape[1]
     if rows_count < 1:
+        operation_status = 'Not enough rows'
         is_valid = False
     elif cols_count == 2:
+        operation_status = 'OK'
         is_valid = True
     elif cols_count > 2:
-        print(f'Selected file has {cols_count} columns. Only first 2 will be loaded')
+        operation_status = f'Selected file has {cols_count} columns. Only first 2 will be loaded'
         is_valid = True  # as dataset is still viable
     elif cols_count < 2:
-        print('Selected file is invalid - not enough columns. Min is 2.')
+        operation_status = 'Selected file is invalid - not enough columns. Min is 2.'
         is_valid = False
+    
+    post_utils(operation_status)
     return is_valid
 
 
 def validate_setup():
+    operation_status = 'Setup Validated'
 
     # Database
     if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
-        print('Initializing new Database')
+        operation_status = 'Initializing new Database'
         pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['db_path'])
 
     # Lngs folder
     lngs_dir_name = config['lngs_path'].split('/')[-2]
     if lngs_dir_name not in [f for f in os.listdir('.')]:
+        operation_status = 'Creating Lngs dir'
         os.mkdir('./' + lngs_dir_name)
 
     # Revs folder
     revs_dir_name = config['revs_path'].split('/')[-2]
     if revs_dir_name not in [f for f in os.listdir('.')]:
+        operation_status = 'Creating revs dir'
         os.mkdir('./' + revs_dir_name)
 
+    post_utils(operation_status)
 
 def get_pretty_print(list_, extra_indent=1, separator=''):
     printout = '' 

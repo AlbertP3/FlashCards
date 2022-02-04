@@ -1,3 +1,9 @@
 @ECHO OFF
+
+CD /D %~dp0\
 SET MyPath=%~dp0\venv\Scripts\python
- "%MyPath%" scripts\gui_main.py
+
+%@Try% 
+"%MyPath%" .\scripts\launcher.pyw
+%@EndTry%
+

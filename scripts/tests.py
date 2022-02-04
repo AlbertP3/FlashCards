@@ -1,7 +1,6 @@
 import unittest
 import pandas as pd
 import os
-import load
 from utils import *
 import utils
 import db_api
@@ -10,10 +9,6 @@ import main_window_logic
 
 
 config = utils.load_config()
-
-def path_to_test(filename):
-    path_to_test_dir = './scripts/resources/test_files/'
-    return path_to_test_dir + filename
 
 
 def init_backend_and_load_test_file():
@@ -25,31 +20,13 @@ def init_backend_and_load_test_file():
 
 def create_testcards():
     data = pd.DataFrame(data={'TEST_FLNG':['grudge','compelling','ecclesiastical','to put stock in','retentive','castor','disingenuous','cantankerous','Our company is ahead of the curve when it comes to fiber optics.','not unlike','to loiter','Rube','vestigial','fraught','Seeing the writing on the wall, David abruptly announced his retirement last year.','fickle','reckoning','arcane','summa cum laude','copious','incipient','feasible','lark','scrub'],
-                        'TEST_NLNG':['?al, uraza','wazny, istotny, frapujÄ…cy','kościelny, duchowny','wierzyÄ‡ w powodzenie czegoÅ›','dobry, chÅ‚onny','olejek rycynowy','obÅ‚udny, afektowny','przykry w usposobieniu ','more advanced than the competition','nieco podobny','waÅ‚Ä™saÄ‡','prostak, kmiot','szczÄ…tkowy, Å›ladowy','napi?ty, spi?ty','clues that something (usually negative) will happen','zmienny, lekkomyÅ›lny','szacunki, rozliczenie/obrachunek','tajemny','z wyrÃ³Å¼nieniem','suty, rzÄ™sisty','poczÄ…tkowy, rodzÄ…cy siÄ™','wykonalny, ziszczalny','figiel','szorowanie, roÅ›linnoÅ›Ä‡ pustynna']})
-    data.to_csv(config['revs_path']+'TESTCARDS.csv', index=False)
+                        'TEST_NLNG':['zal, uraza','wazny, istotny, frapujÄ…cy','kościelny, duchowny','wierzyÄ‡ w powodzenie czegos','dobry, chłonny','olejek rycynowy','obłudny, afektowny','przykry w usposobieniu ','more advanced than the competition','nieco podobny','wałęsać','prostak, kmiot','szczÄ…tkowy, śladowy','napi?ty, spi?ty','clues that something (usually negative) will happen','zmienny, lekkomyślny','szacunki, rozliczenie/obrachunek','tajemny','z wyrÃ³Å¼nieniem','suty, rzÄ™sisty','poczÄ…tkowy, rodzÄ…cy siÄ™','wykonalny, ziszczalny','figiel','szorowanie, roślinność pustynna']})
+    data.to_csv(config['revs_path']+'TEST_CARD.csv', index=False)
+
 
 
 class Test_file_handling(unittest.TestCase):
     
-
-    def test_load_correct_csv_1(self):
-        filename = 'correct_EN10092021164327.csv'
-        dataset = load.load_dataset(path_to_test(filename))
-        self.assertions_for_correct_file(dataset, ROWS_COUNT=72)
-
-
-    def test_load_correct_csv_2(self):
-        filename = 'external_correct_file_1.csv'
-        dataset = load.load_dataset(path_to_test(filename))
-        self.assertions_for_correct_file(dataset, ROWS_COUNT=793)
-
-
-    def test_load_excel(self):
-        filename = 'ru.xlsx'
-        dataset = load.load_dataset(path_to_test(filename))
-        self.assertions_for_correct_file(dataset, ROWS_COUNT=19)
-
-
     def assertions_for_correct_file(self, dataset: pd.DataFrame, ROWS_COUNT):
         assert isinstance(dataset, pd.DataFrame)
         assert dataset.shape[1] == 2
@@ -57,13 +34,6 @@ class Test_file_handling(unittest.TestCase):
         for card in dataset:
             self.assertTrue(len(card[1])>0, "ERROR ON CARD: " + card)
             self.assertNotEqual(str(card[1]).lower(), 'n/a', 'ERROR ON CARD: ' + card)
-
-
-    def test_load_wrong_csv(self):
-        error_filenames = ['wrong_EN24092021164533.csv']
-        for filename in error_filenames:
-            dataset = load.load_dataset(path_to_test(filename))
-            self.assertEqual(dataset, False)
 
 
 
@@ -255,6 +225,13 @@ class Test_db_api(unittest.TestCase):
         self.assertEqual(dbapi.get_last_positives(rev_signature), expected)
 
 
+    def test_get_max_positives_count(self):
+        dbapi = db_api.db_interface()
+        rev_signature = 'REV_EN01212022204840'
+        expected = 62
+        self.assertEqual(dbapi.get_max_positives_count(rev_signature), expected)
+
+
 class Test_flashcard_console_commands(unittest.TestCase):
 
     def init_backend_and_load_test_file(self):
@@ -320,12 +297,33 @@ class Test_mainwindow(unittest.TestCase):
     
     def test_get_progress(self):
         mw = init_backend_and_load_test_file()
-        self.assertEqual(mw.get_progress(10,0,10), 'Impressive for a first try.')
-        self.assertEqual(mw.get_progress(0,0,10), 'Not bad for a first try.')
-        self.assertEqual(mw.get_progress(0,8,10), 'You guessed right 8 cards less than last time')
-        self.assertEqual(mw.get_progress(6,5,20), 'However You guessed right 1 card more than last time')
-        self.assertEqual(mw.get_progress(10,12,30), 'You guessed right 2 cards less than last time')
-        self.assertEqual(mw.get_progress(5,5,10), 'You guessed the exact same number of cards as last time')
+
+        # first try
+        self.assertEqual(mw.get_progress(positives=90, last_positives=0, total=100, max_positives=0), "Impressive for a first try.")
+        self.assertEqual(mw.get_progress(positives=10, last_positives=0, total=100, max_positives=0), "Terrible, even for a first try.")
+        self.assertEqual(mw.get_progress(positives=75, last_positives=0, total=100, max_positives=0), "Not bad for a first try.")
+
+        # new record
+        self.assertEqual(mw.get_progress(positives=90, last_positives=10, total=100, max_positives=10), "That's a new record. Congratulations!")
+        self.assertEqual(mw.get_progress(positives=60, last_positives=10, total=100, max_positives=10), "That's a new record. But there is still a lot to improve.")
+        self.assertEqual(mw.get_progress(positives=20, last_positives=10, total=100, max_positives=10), "That's a new record. However there is nothing to brag about - you scored only 20%.")
+        self.assertEqual(mw.get_progress(positives=100, last_positives=10, total=100, max_positives=10), "That's a new record. You guessed everything right!")
+
+        # close to record
+        self.assertEqual(mw.get_progress(positives=90, last_positives=10, total=100, max_positives=90), "You matched all-time record for this revision! Way to go!")
+        self.assertEqual(mw.get_progress(positives=88, last_positives=10, total=100, max_positives=90), "You missed all-time record by only 2 cards. But that's still an excellent score.")
+        self.assertEqual(mw.get_progress(positives=8, last_positives=10, total=100, max_positives=10), "You missed all-time record by only 2 cards. But it's still entirely pathetic.")
+        self.assertEqual(mw.get_progress(positives=9, last_positives=10, total=100, max_positives=10), "You missed all-time record by only 1 card. But it's still entirely pathetic.")
+
+        # close to max
+        self.assertEqual(mw.get_progress(positives=9, last_positives=1, total=10, max_positives=12), "Hadn't it been for that 1 card and you would have scored the max!")
+        
+        # standard case
+        self.assertEqual(mw.get_progress(positives=90, last_positives=10, total=100, max_positives=100), "You guessed 80 cards more than last time. Keep it up!")
+        self.assertEqual(mw.get_progress(positives=20, last_positives=10, total=100, max_positives=100), "You guessed 10 cards more than last time. However, there is still a lot to improve.")
+        self.assertEqual(mw.get_progress(positives=20, last_positives=30, total=100, max_positives=100), "You guessed 10 cards less than last time. Get your sh*t together.")
+        self.assertEqual(mw.get_progress(positives=80, last_positives=90, total=100, max_positives=100), "You guessed 10 cards less than last time. However, overall it's not that bad - you scored 80%.")
+        self.assertEqual(mw.get_progress(positives=20, last_positives=20, total=100, max_positives=100), "You guessed the exact same number of cards as last time.")
 
 
     def test_is_complete_revision(self):
