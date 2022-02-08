@@ -336,3 +336,4 @@ class Test_mainwindow(unittest.TestCase):
         self.assertEqual(mw.is_complete_revision(), False)
         mw.goto_next_card()
         self.assertEqual(mw.is_complete_revision(), True)
+

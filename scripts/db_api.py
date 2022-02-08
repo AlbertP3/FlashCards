@@ -24,18 +24,26 @@ def create_record(signature, words_total, positives):
 
 class db_interface():
 
-
     def __init__(self):
+        self.DEFAULT_DATE = datetime(1900, 1, 1)
         self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
        
+
+    def refresh(self):
+        self.__init__()
+
+
+    def rename_signature(self, old_signature, new_signature):
+        self.db = self.db.replace(old_signature, new_signature)
+        self.db.to_csv(REV_DB_PATH, encoding='utf-8', sep=';', index=False)
+        
 
     def get_unique_signatures(self):
         return self.db['SIGNATURE'].drop_duplicates()
 
 
     def get_sum_repeated(self, signature):
-        # -1 = initial record correction
-        return self.db[self.db['SIGNATURE'] == signature].count()[0] - 1
+        return self.db[self.db['SIGNATURE'] == signature].count()[0]
     
 
     def get_last_score(self, signature):
@@ -74,7 +82,7 @@ class db_interface():
             first_date = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
             return make_datetime(first_date)
         except:
-            return None
+            return self.DEFAULT_DATE
             
 
     def get_first_date_by_filename(self, filename_with_extension):
@@ -83,7 +91,7 @@ class db_interface():
                 return first_date
             else:
                 # avoid errors down the line as function is used for sorting
-                return datetime(1900, 1, 1)
+                return self.DEFAULT_DATE
 
 
     def get_last_datetime(self, signature):
@@ -91,7 +99,7 @@ class db_interface():
             last_date = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[-1]
             return make_datetime(last_date)
         except:
-            return None
+            return self.DEFAULT_DATE
 
 
     def get_timedelta_from_creation(self, signature):

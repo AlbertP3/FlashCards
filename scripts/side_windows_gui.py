@@ -110,7 +110,7 @@ class efc_gui(efc):
         self.font = self.config['font']
         self.font_button_size = int(self.config['efc_button_font_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
-        self.textbox_width = 250
+        self.textbox_width = 275
         self.textbox_height = 200
         self.buttons_height = 45
 
@@ -162,23 +162,25 @@ class load_gui(load):
 
     def get_load_sidewindow(self):
         self.arrange_load_window()
-        self.switch_side_window(self.load_layout, 'load', 400 + self.LEFT)
+        self.switch_side_window(self.load_layout, 'load', 250 + self.LEFT)
 
 
     def arrange_load_window(self):
         # Window Parameters
         self.buttons_height = 45
-        self.textbox_width = 250
+        self.textbox_width = 275
+
         # Style
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
         self.font_button_size = int(self.config['efc_button_font_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
+
         # Elements
         self.load_layout = widget.QGridLayout()
         self.load_layout.addWidget(self.get_flashcard_files_list(), 0, 0)
-        self.load_layout.addWidget(self.create_load_button(), 1, 0)
+        self.load_layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
 
         # Fill
         self.fill_flashcard_files_list()
@@ -186,9 +188,9 @@ class load_gui(load):
 
     def get_flashcard_files_list(self):
         self.flashcard_files_qlist = widget.QListWidget(self)
+        self.flashcard_files_qlist.setFixedWidth(self.textbox_width)
         self.flashcard_files_qlist.setFont(self.button_font)
         self.flashcard_files_qlist.setStyleSheet(self.textbox_stylesheet)
-        self.flashcard_files_qlist.setFixedWidth(self.textbox_width)
         return self.flashcard_files_qlist
 
 
@@ -221,6 +223,7 @@ class mistakes_gui():
 
     def __init__(self):
         self.add_shortcut('m', self.get_mistakes_sidewindow)
+        self.score_button.clicked.connect(self.get_mistakes_sidewindow)
 
     
     def get_mistakes_sidewindow(self):

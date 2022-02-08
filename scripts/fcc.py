@@ -1,6 +1,6 @@
 from utils import *
 from random import shuffle
-
+import db_api
 
 
 class fcc():
@@ -13,7 +13,7 @@ class fcc():
         self.config = load_config()
         self.TEMP_FILE_FLAG = False
         self.QTEXTEDIT_CONSOLE = qtextedit_console
-        self.DOCS = {'help':'Says what it does',
+        self.DOCS = {'help':'Says what it does - literally',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result',
                     'dc':'Delete Card - deletes card both in current set and in the file',
@@ -23,10 +23,16 @@ class fcc():
                     'mcp':'Modify Config Parameter - allows modifications of config file',
                     'sck':'Show Config Keys - list all available parameters in config file',
                     'cls':'Clear Screen',
+                    'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     }
 
 
     def execute_command(self, parsed_input):
+        
+        if parsed_input[0] == '' and len(parsed_input) == 1:
+            # exit if blank
+            return
+
         if self.is_allowed_command(parsed_input[0]):
             function_to_call = getattr(self, parsed_input[0])
             function_to_call(parsed_input)
@@ -212,11 +218,11 @@ class fcc():
         # Modify Config Parameter
          
         # check preconditions
-        config_key = parsed_cmd[1]
-        if parsed_cmd[1] not in self.config.keys() and len(parsed_cmd) < 3:
-            self.post_fcc('Key not found in config file or not enough args given - expected at least 2')
+        if len(parsed_cmd) < 3:
+            self.post_fcc('mcp function expected following syntax: mcp dict_key dict new value')
             return
-        
+
+        config_key = parsed_cmd[1]  
         config_new_value = ' '.join(parsed_cmd[2:])
         update_config(config_key, config_new_value)
 
@@ -241,4 +247,32 @@ class fcc():
             self.CONSOLE_LOG = ''
         else:
             print('\n'*100)
+
+
+    def cfn(self, parsed_cmd):
+        # Change File Name
+       
+        # preconditions
+        if len(parsed_cmd) < 2:
+            self.post_fcc('cfn requires a filename - None was provided.')
+            return
+        
+        # change file name
+        old_filename = self.file_path.split('/')[-1].split('.')[0]
+        new_filename = ' '.join(parsed_cmd[1:])
+
+        old_file_path = self.file_path
+        new_file_path = self.file_path.replace(old_filename, new_filename)
+        
+        # rename file
+        os.rename(old_file_path, new_file_path)
+
+        # edit DB records
+        dbapi = db_api.db_interface()
+        dbapi.rename_signature(old_filename, new_filename)
+
+        self.post_fcc('Filename changed successfully')
+        
+        # load file again
+        self.initiate_flashcards(new_file_path)
 

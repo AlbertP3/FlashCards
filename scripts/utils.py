@@ -7,6 +7,8 @@ import csv
 from PyQt5.QtCore import pyqtRemoveInputHook
 import inspect
 
+
+
 UTILS_STATUS_DICT = dict()
 
 def post_utils(text):
@@ -32,8 +34,6 @@ def update_config(key, new_value):
     old_config.set('DEFAULT', key, new_value)
     with open('./scripts/resources/config.ini', 'w') as configfile:
         old_config.write(configfile)
-
-
 
 
 def get_abs_path_from_caller(file_name, abs_path=None):
@@ -123,7 +123,7 @@ def remove_layout(layout):
 def get_files_in_dir(path, include_extension = True, exclude_open=True):
     files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
     if not include_extension:
-        files_list = [f.split('.')[0] for f in files_list]
+        files_list = [f.split('.')[0] for f in files_list if f not in ['desktop.ini']]
     if exclude_open:
         files_list[:] = [f for f in files_list if not f.startswith('~$')]
     return files_list
@@ -167,13 +167,6 @@ def update_signature_timestamp(signature):
     # Tighly coupled with get_signature
     updated_signature = signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
     return updated_signature
-
-
-def ask_user_for_custom_signature():
-    # alternative: simpledialog.askstring('Saving File', 'Enter name for the file: ', initialvalue=signature)
-    pyqtRemoveInputHook()
-    custom_signature = input('Enter save prefix: ')
-    return custom_signature
 
 
 def get_lng_from_signature(signature):
@@ -223,7 +216,7 @@ def get_dialect(dataset_path):
 
 
 def read_excel(file_path):
-    if 'sht_pick' in config['optional'].split('|'):
+    if 'sht_pick' in config['optional']:
        sht_id = get_sheet_id()
     else:
         sht_id = 0
@@ -258,26 +251,27 @@ def dataset_is_valid(dataset:pd.DataFrame):
 
 
 def validate_setup():
-    operation_status = 'Setup Validated'
+    operation_status = ""
 
     # Database
     if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
-        operation_status = 'Initializing new Database'
+        operation_status += 'Initializing new Database\n'
         pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['db_path'])
 
     # Lngs folder
     lngs_dir_name = config['lngs_path'].split('/')[-2]
     if lngs_dir_name not in [f for f in os.listdir('.')]:
-        operation_status = 'Creating Lngs dir'
+        operation_status += 'Creating Lngs dir\n'
         os.mkdir('./' + lngs_dir_name)
 
     # Revs folder
     revs_dir_name = config['revs_path'].split('/')[-2]
     if revs_dir_name not in [f for f in os.listdir('.')]:
-        operation_status = 'Creating revs dir'
+        operation_status += 'Creating revs dir\n'
         os.mkdir('./' + revs_dir_name)
 
     post_utils(operation_status)
+
 
 def get_pretty_print(list_, extra_indent=1, separator=''):
     printout = '' 

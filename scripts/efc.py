@@ -29,7 +29,7 @@ class efc():
             pos_share = last_positives/total_words if last_positives is not None else 1
             x1, x2, x3, x4 = 2.039, -4.566, -12.495, -0.001
             s = (repeated_times**x1 + pos_share*x2) - (x3*exp(total_words*x4))
-            c = -0.2 if repeated_times < 3 else 0
+            c = -0.2 if repeated_times <= 3 else 0
             efc = exp(-diff_days_from_last/s) + c
 
             return efc
@@ -38,7 +38,7 @@ class efc():
     def get_recommendations(self):   
         reccommendations = list()
 
-        if 'reccommend_new' in self.config['optional'].split('|'):
+        if 'reccommend_new' in self.config['optional']:
             reccommendations.extend(self.is_it_time_for_something_new(self.unique_signatures))
 
         # get parameters and efc_function result for each unique signature
@@ -51,6 +51,7 @@ class efc():
 
 
     def get_complete_efc_table(self):
+        self.db_interface.refresh()
         rev_table_data = list()
 
         for signature in self.unique_signatures:
@@ -77,7 +78,7 @@ class efc():
 
 
     def get_path_from_selected_file(self):
-        # safety-check if item is selected
+        # safety-check if no item is selected
         if self.recommendation_list.currentItem() is None: return
 
         selected_li = self.recommendation_list.currentItem().text()
@@ -96,12 +97,12 @@ class efc():
 
 
     def is_it_time_for_something_new(self, unique_signatures):
-        # Periodically reccommend to create new revision for every lng
 
+        # Periodically reccommend to create new revision for every lng
+        self.db_interface.refresh()
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
-        dbapi = db_api.db_interface()
-        unique_signatures.sort(key=dbapi.get_first_datetime, reverse=True)  
+        unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  
 
         for lng in lngs:
             for signature in unique_signatures:

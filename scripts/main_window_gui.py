@@ -41,6 +41,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
 
     def configure_window(self):
+        
         # Window Parameters
         self.LEFT = 10
         self.TOP = 10
@@ -51,7 +52,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
         # Set Window Parameters
         self.setWindowTitle('Lama Learning')
-        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '/icon.png'))
+        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '/icon.ico'))
         self.setGeometry(self.LEFT, self.TOP, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT)
         
         # Initialize
@@ -153,6 +154,11 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
 
     def click_save_button(self):
+        # Check preconditions
+        if self.is_revision:
+            self.post_logic('Cannot save a revision')
+            return
+
         super().handle_saving()
         self.update_interface_parameters()
 
@@ -183,7 +189,11 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
     def update_interface_parameters(self):
         filename = self.file_path.split('/')[-1].split('.')[0]
         self.setWindowTitle(self.signature if self.is_revision else filename)
-        self.del_side_window()
+        
+        if self.side_window_id != 'fcc':
+            # close side window if its not a console
+            self.del_side_window()
+            
         self.display_text(self.get_current_card()[self.side])
         self.update_words_button()
 
@@ -300,8 +310,8 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
     def add_side_window(self, layout, name, extra_width):
         self.side_window_layout = layout
-        self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
         self.setFixedWidth(self.DEFAULT_WIDTH + extra_width)
+        self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = name
@@ -343,7 +353,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
     
     def update_score_button(self):
         total = self.positives + self.negatives
-        if self.revmode and total != 0:
+        if total != 0:
             score = round(100*self.positives / total, 0)
             self.score_button.setText('{}%'.format(int(score)))
         else:
@@ -351,8 +361,8 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
 
     def optional_features(self):
-        if self.config['keyboard_shortcuts'].lower() in ['on','yes','true','1', 'y']:
+        optional_features = self.config['optional']
+
+        if 'keyboard_shortcuts' in optional_features:
             self.add_shortcuts()
-        if 'switch_lng_rev' in self.config['optional'].split('|'):
-            self.switch_lng_rev_button = self.create_button('🦙', self.switch_between_lng_and_rev)
-            self.layout_third_row.addWidget(self.switch_lng_rev_button, 2, 4)
+        

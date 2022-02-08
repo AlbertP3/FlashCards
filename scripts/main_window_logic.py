@@ -7,8 +7,7 @@ class main_window_logic():
 
     def __init__(self):
         self.QTEXTEDIT_CONSOLE = None
-
-        validate_setup()
+        self.TEMP_FILE_FLAG = False
         
         # Flashcards parameters
         self.config = load_config()
@@ -104,8 +103,7 @@ class main_window_logic():
 
     def load_flashcards(self, file_path):
         try:
-            self.TEMP_FILE_FLAG = False
-            dataset = load_dataset(file_path, do_shuffle=True)
+            dataset = load_dataset(file_path, do_shuffle=True)   
             self.post_logic(self.get_status_dict('load_dataset'))
             return dataset
         except FileNotFoundError:
@@ -118,16 +116,9 @@ class main_window_logic():
 
 
     def handle_saving(self):
-        # Check preconditions
-        if self.is_revision:
-            self.post_logic('Cannot save a revision')
-            return
         
-        # get new revision filename            
-        if 'custom_saveprefix' in self.config['optional']:
-            self.signature = ask_user_for_custom_signature()
-        else:
-            self.signature = update_signature_timestamp(self.signature)
+        # update timestamp
+        self.signature = update_signature_timestamp(self.signature)
 
         save_revision(self.dataset.iloc[:self.cards_seen+1, :], self.signature)
         self.post_logic(self.get_status_dict('save_revision'))
@@ -175,6 +166,8 @@ class main_window_logic():
         self.is_saved = False
         self.side = self.get_default_side()
         self.total_words = self.dataset.shape[0]
+
+        self.config = load_config()
 
         self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {filename}')
 
@@ -269,21 +262,6 @@ class main_window_logic():
         return progress
 
 
-    def switch_between_lng_and_rev(self):
-        # go to last rev matching currently loaded LNG or go to best matching LNG file
-
-        if self.is_revision:
-            matching_filename_with_extension = get_most_similar_file(self.config['lngs_path'], 
-                                get_lng_from_signature(self.signature), if_nothing_found='load_any')
-            file_path = self.config['lngs_path'] + matching_filename_with_extension
-        else:
-            db_interface = db_api.db_interface()
-            last_rev_signature = db_interface.get_latest_record_signature(lng=self.dataset.columns[0])
-            self.post_logic(self.get_dbapi_dict('get_latest_record_signature'))
-            file_path = f"{self.config['revs_path']}" + last_rev_signature + '.csv'
-        self.load_flashcards(file_path)                                                                          
-
-
     def refresh_config(self):
         self.config = load_config()
 
@@ -338,5 +316,6 @@ class main_window_logic():
     def set_cards_seen(self, cards_seen):
         self.cards_seen = cards_seen
     
+
     def set_qtextedit_console(self, console):
         self.QTEXTEDIT_CONSOLE = console
