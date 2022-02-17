@@ -11,14 +11,13 @@ class fcc():
 
     def __init__(self,  qtextedit_console=False):
         self.config = load_config()
-        self.TEMP_FILE_FLAG = False
         self.QTEXTEDIT_CONSOLE = qtextedit_console
         self.DOCS = {'help':'Says what it does - literally',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result',
                     'dc':'Delete Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
-                    'cfm':'Create Flashcards from Mistakes List - initiate new set from current mistakes',
+                    'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
                     'efc':'Ebbinghaus Forgetting Curve - shows table with revs, days from last rev and efc score',
                     'mcp':'Modify Config Parameter - allows modifications of config file',
                     'sck':'Show Config Keys - list all available parameters in config file',
@@ -46,10 +45,6 @@ class fcc():
     def is_allowed_command(self, command):
         return command in self.DOCS.keys()
     
-
-    def reset_temp_file_flag(self):
-        self.TEMP_FILE_FLAG = False
-
 
     def refresh_interface(self):
         # try refresh interface if available
@@ -85,14 +80,12 @@ class fcc():
             self.post_fcc('mc function require at least 2 arguments')
             return
             
-        new_text = ' '.join(parsed_cmd[1:])
         # change text on the card
+        new_text = ' '.join(parsed_cmd[1:])
         self.dataset.iloc[self.current_index, self.side] = new_text
 
         # change text in the file
-        save_success = True
-        if self.TEMP_FILE_FLAG == False:
-            save_success = save_revision(self.dataset, self.signature)
+        save_success = save_revision(self.dataset, self.signature)
 
         if save_success:
             self.post_fcc('Card content successfully modified.')
@@ -114,11 +107,11 @@ class fcc():
             del self.mistakes_list[mistake_index]
             self.positives+=1
             self.negatives-=1
-            self.post_fcc('Score successfully modified for positive.')
+            self.post_fcc('Score successfully modified to positive.')
         elif parsed_cmd[1] == '-' and not is_mistake:
             self.positives-=1
             self.result_negative()
-            self.post_fcc('Score successfully modified for negative.')
+            self.post_fcc('Score successfully modified to negative.')
         else:
             self.post_fcc('Wrong argument entered.')
         
@@ -143,15 +136,18 @@ class fcc():
         # Delete from currently loaded set
         self.delete_current_card()
 
-        # Delete from the file - load file again to maintain original order
-        save_success = True
-        if self.TEMP_FILE_FLAG == False:
-            dataset_ordered = load_dataset(self.get_filepath(), do_shuffle=False)
-            dataset_ordered.drop(dataset_ordered.loc[dataset_ordered[dataset_ordered.columns[current_side]]==current_word].index, inplace=True)
-            save_success = save_revision(dataset_ordered, self.signature)
+        # load file - if not exists: returns empty DF
+        dataset_ordered = load_dataset(self.get_filepath(), do_shuffle=False)
 
-        if save_success:
-            self.post_fcc('Card deleted successfully.')
+        # modify file if exists
+        file_mod_msg = ''
+        if dataset_ordered.shape[0] > 0:
+            dataset_ordered.drop(dataset_ordered.loc[dataset_ordered[dataset_ordered.columns[current_side]]==current_word].index, inplace=True)
+            save_revision(dataset_ordered, self.signature)
+            file_mod_msg = ' and from the file as well'
+
+        # print output
+        self.post_fcc(f'Card removed from the set{file_mod_msg}.')
 
 
     def lln(self, parsed_cmd):
@@ -177,27 +173,37 @@ class fcc():
         
         self.update_backend_parameters(new_path, data)
         self.refresh_interface()
-        self.TEMP_FILE_FLAG = True
 
         self.post_fcc(f'Loaded last {n_cards} cards.')
 
     
     def cfm(self, parsed_cmd):
         # Create Flashcards from Mistakes list
-        
+
+        # Parse args - select path[rev/lng] and mode[append/write]
+        mode = 'w' if 'w' in parsed_cmd[1:] else 'a'
+        path = self.config['revs_path'] if 'r' in parsed_cmd[1:] else self.config['lngs_path']
+        do_save = False if '~' in parsed_cmd[1:] else True
+         
         # Create DataFrame - reverse arrays to match default_side
         reversed_mistakes_list = [[x[1], x[0]] for x in self.get_mistakes_list()]
         shuffle(reversed_mistakes_list)
         reversed_headings = self.get_headings()[::-1]
         mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=reversed_headings)
                                             
-        # point to a fictional LNG file as to allow save as a new revision
-        fict_path = self.config['lngs_path'] + 'mistakes_list.csv'
+        # Update[write/append] to a mistakes_list file
+        if do_save:
+            full_path = path + 'mistakes_list.csv'
+            keep_headers = True if mode == 'w' else False
+            mistakes_list.to_csv(full_path, index=False, mode=mode, header=keep_headers)
 
-        self.update_backend_parameters(fict_path, mistakes_list)
+        # shows only current mistakes
+        # fake path secures original mistakes file from 
+        # being overwritten by other commands such as mct or dc
+        fake_path = self.config['lngs_path'] + 'temp.csv'
+        self.update_backend_parameters(fake_path, mistakes_list)
         self.refresh_interface()
 
-        self.TEMP_FILE_FLAG = True
         # allow instant save of a rev created from mistakes_list
         self.set_cards_seen(mistakes_list.shape[0]-1)
         

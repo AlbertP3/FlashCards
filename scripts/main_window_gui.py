@@ -175,7 +175,9 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
 
     def load_again_click(self):
-        self.initiate_flashcards(self.file_path)
+        dataset = self.dataset.sample(frac=1).reset_index(drop=True)
+        self.update_backend_parameters(self.file_path, dataset)
+        self.update_interface_parameters()
 
 
     def initiate_flashcards(self, file_path):
@@ -215,11 +217,14 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
 
     def click_next_button(self):
-        if self.is_complete_revision():
-            self.handle_revision_complete()
-        else:    
+
+        if not self.is_complete_revision():
             super().goto_next_card()
             self.display_text(self.get_current_card()[self.side])
+        else:
+            # is_saved flag allows to save current set only once
+            if self.is_saved == False:
+                self.handle_revision_complete()
 
         self.update_score_button()
 

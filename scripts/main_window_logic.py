@@ -7,7 +7,6 @@ class main_window_logic():
 
     def __init__(self):
         self.QTEXTEDIT_CONSOLE = None
-        self.TEMP_FILE_FLAG = False
         
         # Flashcards parameters
         self.config = load_config()
@@ -112,7 +111,7 @@ class main_window_logic():
 
     def is_complete_revision(self):
         diff_words = self.total_words - self.current_index - 1
-        return diff_words == 0 and self.is_revision and self.is_saved == False
+        return diff_words == 0 and self.is_revision
 
 
     def handle_saving(self):
@@ -142,7 +141,7 @@ class main_window_logic():
             self.revmode = False
 
     
-    def update_backend_parameters(self, file_path, data, **kwargs):
+    def update_backend_parameters(self, file_path, data):
 
         # set updated values
         file_path_parts = file_path.split('/')

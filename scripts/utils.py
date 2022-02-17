@@ -4,7 +4,6 @@ import pandas as pd
 import re
 import configparser
 import csv
-from PyQt5.QtCore import pyqtRemoveInputHook
 import inspect
 
 
@@ -73,7 +72,7 @@ def make_datetime(d):
 
 
 def make_date(d):
-    # transforms date-like string from database to datetime format
+    # transforms date-like string from database to a datetime format
     return date(int(d[6:10]), int(d[:2]), int(d[3:5]))
 
 
@@ -202,8 +201,8 @@ def load_dataset(file_path, do_shuffle=True):
 
 
 def read_csv(file_path):
-        dataset = pd.read_csv(file_path, encoding='utf-8',sep=get_dialect(file_path))   
-        return dataset
+    dataset = pd.read_csv(file_path, encoding='utf-8',sep=get_dialect(file_path))   
+    return dataset
 
 
 def get_dialect(dataset_path):
@@ -216,18 +215,8 @@ def get_dialect(dataset_path):
 
 
 def read_excel(file_path):
-    if 'sht_pick' in config['optional']:
-       sht_id = get_sheet_id()
-    else:
-        sht_id = 0
+    sht_id = 0
     return pd.read_excel(file_path, sheet_name=sht_id)
-
-
-def get_sheet_id():
-     # input() causes infitnite loop of 'QCoreApplication already running post_utilsouts
-    pyqtRemoveInputHook()
-    sht_input = input('Input sheet name or index: ')
-    return int(sht_input) if str(sht_input).isnumeric() else str(sht_input)
 
 
 def dataset_is_valid(dataset:pd.DataFrame):

@@ -69,6 +69,5 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 
 <h1>Optional Features</h1>
     <p> Add 0 or more from the following codes to config.ini in section 'optional'. Separate with '|'.</p>
-    <p><b>sht_pick</b> - allows user to choose sheet while loading xlsx formats</p>
     <p><b>reccommend_new</b> - toogles reccomendations to create a new revision after some specified time</p>
     <p><b>keyboard_shortcuts</b></p>

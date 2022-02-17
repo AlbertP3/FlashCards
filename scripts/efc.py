@@ -13,33 +13,54 @@ class efc():
         self.paths_to_suggested_lngs = dict()
         self.reccommendation_texts = {'EN':'Oi mate, take a gander', 
                                         'RU':'давай товарищ, двигаемся!', 
-                                        'DE':'Es ist an der Zeit zu handeln!'}
+                                        'DE':'Es ist an der Zeit zu handeln!',
+                                        'IT':'Andiamo a lavorare',
+                                        'FR':'Mettons-nous au travail'}
         self.config = load_config()
+
         self.db_interface = db_api.db_interface()
+        self.unique_signatures = list()
+        self.refresh_source_data()
+
+    
+    def refresh_source_data(self):
+        self.db_interface.refresh()
         self.unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
                                     if s + '.csv' in listdir(self.config['revs_path'])]
 
-    
+
     def efc_function(self, last_datetime, total_words, last_positives, repeated_times):
             # based on Ebbinghaus Forgetting Curve
+            # function estimates the percentage of words in-memory for today
 
             diff_days_from_last = (make_todaytime() - last_datetime).total_seconds()/86400
             
             # employ forgetting curve
-            pos_share = last_positives/total_words if last_positives is not None else 1
+            pos_share = last_positives/total_words if total_words != 0 else 0
             x1, x2, x3, x4 = 2.039, -4.566, -12.495, -0.001
             s = (repeated_times**x1 + pos_share*x2) - (x3*exp(total_words*x4))
-            c = -0.2 if repeated_times <= 3 else 0
-            efc = exp(-diff_days_from_last/s) + c
+            initial_handicap = self.get_initial_handicap(repeated_times, diff_days_from_last)
+            efc = exp(-diff_days_from_last/s) + initial_handicap
 
             return efc
 
 
-    def get_recommendations(self):   
+    def get_initial_handicap(self, repeated_times, diff_days_from_last):
+        # force daily revision for the first 3 days in min. 12h intervals
+        if repeated_times==1: handicap = -0.21
+        elif repeated_times<=4 and diff_days_from_last>=0.5: handicap = -0.21
+        else: handicap = 0
+        return handicap
+
+
+    def get_recommendations(self):
+        
+        self.refresh_source_data()
+
         reccommendations = list()
 
         if 'reccommend_new' in self.config['optional']:
-            reccommendations.extend(self.is_it_time_for_something_new(self.unique_signatures))
+            reccommendations.extend(self.is_it_time_for_something_new())
 
         # get parameters and efc_function result for each unique signature
             for rev in self.get_complete_efc_table():
@@ -51,7 +72,6 @@ class efc():
 
 
     def get_complete_efc_table(self):
-        self.db_interface.refresh()
         rev_table_data = list()
 
         for signature in self.unique_signatures:
@@ -69,7 +89,7 @@ class efc():
 
     def get_efc_table_printout(self, efc_table_data):
         # sort revs by number of days ago since last revision
-        efc_table_data.sort(key=lambda x: x[1])
+        efc_table_data.sort(key=lambda x: x[2])
         efc_stats_list = [['REV NAME', 'ΔD', 'EFC']]
         for rev in efc_table_data:
             efc_stats_list.append([rev[0], rev[1], rev[2]])
@@ -96,16 +116,15 @@ class efc():
         return path
 
 
-    def is_it_time_for_something_new(self, unique_signatures):
-
+    def is_it_time_for_something_new(self):
         # Periodically reccommend to create new revision for every lng
-        self.db_interface.refresh()
+
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
-        unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  
-
+        self.unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  
+        
         for lng in lngs:
-            for signature in unique_signatures:
+            for signature in self.unique_signatures:
                 if lng in signature:
                     initial_date = self.db_interface.get_first_datetime(signature)
                     time_delta = (make_todaytime() - initial_date).days
@@ -118,7 +137,13 @@ class efc():
     def get_reccommendation_text(self, lng):
         # adding key to the dictionary facilitates matching 
         # reccommendation text with the lng file
-        text = self.reccommendation_texts[lng]        
+
+        # if lng message is specified else get default
+        if lng in self.reccommendation_texts:
+            text = self.reccommendation_texts[lng]  
+        else:
+            text = f"It's time for {lng}"     
+        
         self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], lng)
         return text
     

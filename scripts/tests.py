@@ -6,6 +6,7 @@ import utils
 import db_api
 from datetime import datetime, date, timedelta
 import main_window_logic
+import efc
 
 
 config = utils.load_config()
@@ -337,3 +338,14 @@ class Test_mainwindow(unittest.TestCase):
         mw.goto_next_card()
         self.assertEqual(mw.is_complete_revision(), True)
 
+
+
+class Test_EFC(unittest.TestCase):
+
+    def test_is_it_time_for_something_new(self):
+        efc_obj = efc.efc()
+        reccommendations = efc_obj.is_it_time_for_something_new()
+
+        # adjust to the current state of DB
+        self.assertIn('Oi mate, take a gander', reccommendations, reccommendations)
+        self.assertNotIn('давай товарищ, двигаемся!', reccommendations, reccommendations)

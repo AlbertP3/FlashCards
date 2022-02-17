@@ -17,12 +17,17 @@ def get_dbapi_dict():
 def create_record(signature, words_total, positives):
     # Saves revision params to rev_db
     timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    with open(REV_DB_PATH,'a') as fd:
+    with open(REV_DB_PATH, 'a') as fd:
         fd.write(';'.join([timestamp, signature, str(words_total), str(positives)])+'\n')
     post_dbapi('Record created succcessfully')
 
 
 class db_interface():
+    # handles communication with DB
+    # when error occurs it's mainly because signature not in db
+    # in that case, return value that suggests revision was made
+    # as long ago as possible e.g 1900-1-1, or was never revised
+    # e.g revised_times = 0, total_words = 0 ...
 
     def __init__(self):
         self.DEFAULT_DATE = datetime(1900, 1, 1)
@@ -30,7 +35,7 @@ class db_interface():
        
 
     def refresh(self):
-        self.__init__()
+        self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
 
 
     def rename_signature(self, old_signature, new_signature):
@@ -43,7 +48,9 @@ class db_interface():
 
 
     def get_sum_repeated(self, signature):
-        return self.db[self.db['SIGNATURE'] == signature].count()[0]
+        repeated_times = self.db[self.db['SIGNATURE'] == signature].count()[0]
+        repeated_times = 0 if repeated_times is None else repeated_times
+        return repeated_times
     
 
     def get_last_score(self, signature):
@@ -52,21 +59,21 @@ class db_interface():
             total = self.get_total_words(signature)
             return positives/total
         except:
-            return None
+            return 0
 
     
     def get_last_positives(self, signature):
         try:
             return self.db[(self.db['SIGNATURE'] == signature)]['POSITIVES'].iloc[-1]
         except:
-            return None
+            return 0
 
 
     def get_total_words(self, signature):
         try:
             return self.db[self.db['SIGNATURE'] == signature]['TOTAL'].iloc[-1]
         except:
-            return None
+            return 0
 
 
     def get_max_positives_count(self, signature):
@@ -74,7 +81,7 @@ class db_interface():
             positives_list = self.db[(self.db['SIGNATURE'] == signature)]['POSITIVES']
             return positives_list.max()
         except:
-            return None
+            return 0
 
 
     def get_first_datetime(self, signature):
@@ -90,7 +97,6 @@ class db_interface():
             if first_date is not None:
                 return first_date
             else:
-                # avoid errors down the line as function is used for sorting
                 return self.DEFAULT_DATE
 
 
@@ -108,7 +114,7 @@ class db_interface():
             today = make_todaytime()
             return today - first_date
         except:
-            return None
+            return 0
 
 
     def get_timedelta_from_last_rev(self, signature):
@@ -117,7 +123,7 @@ class db_interface():
             today = make_todaytime()
             return today - last_date
         except:
-            return None
+            return 0
 
 
     def get_latest_record_signature(self, lng):
