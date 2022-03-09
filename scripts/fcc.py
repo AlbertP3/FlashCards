@@ -99,18 +99,19 @@ class fcc():
             self.post_fcc('mcr function require 2 arguments. "+" and "-" are accepted.')
             return
 
-        mistakes_one_side = [x[1-self.side] for x in self.mistakes_list]
+        mistakes_one_side = [x[self.side] for x in self.mistakes_list]
         is_mistake = self.get_current_card()[self.side] in mistakes_one_side
 
         if parsed_cmd[1] == '+' and is_mistake:
             mistake_index = mistakes_one_side.index(self.get_current_card()[self.side])
             del self.mistakes_list[mistake_index]
-            self.positives+=1
             self.negatives-=1
+            self.positives+=1
             self.post_fcc('Score successfully modified to positive.')
         elif parsed_cmd[1] == '-' and not is_mistake:
+            self.append_current_card_to_mistakes_list()
             self.positives-=1
-            self.result_negative()
+            self.negatives+=1
             self.post_fcc('Score successfully modified to negative.')
         else:
             self.post_fcc('Wrong argument entered.')

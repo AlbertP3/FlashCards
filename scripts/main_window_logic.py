@@ -39,8 +39,12 @@ class main_window_logic():
     def result_negative(self):
         if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.negatives+=1
-            self.mistakes_list.append([self.get_current_card()[self.default_side], 
-                                        self.get_current_card()[1-self.default_side]])
+            self.append_current_card_to_mistakes_list()
+            
+
+    def append_current_card_to_mistakes_list(self):
+        self.mistakes_list.append([self.get_current_card()[self.default_side], 
+                                    self.get_current_card()[1-self.default_side]])
         
 
     def goto_next_card(self):
