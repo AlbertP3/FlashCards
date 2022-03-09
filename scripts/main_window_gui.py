@@ -198,6 +198,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
             
         self.display_text(self.get_current_card()[self.side])
         self.update_words_button()
+        self.update_score_button()
 
 
     def append_current_index(self):

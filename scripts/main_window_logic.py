@@ -266,12 +266,11 @@ class main_window_logic():
 
 
     def get_default_side(self):
-        # if default_side key is -1 then randomize time a card is drawn
-        default_side = int(self.config['card_default_side'])
-        if default_side >= 0:
-            return default_side
-        else:
+        default_side = self.config['card_default_side']
+        if default_side.startswith('rand'):
             return randint(0,1) 
+        else:
+            return int(default_side)
 
 
     def get_current_card(self):

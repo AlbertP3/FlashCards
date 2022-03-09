@@ -298,11 +298,12 @@ class stats_gui(stats):
         ax.bar(self.formatted_dates, self.chart_values, color=config['stat_bar_color'], 
                 edgecolor='#000000', linewidth=0.7, align='center')
 
-        # Labels
-        for rect, label in zip(ax.patches, self.dynamic_chain_index):
-            height = rect.get_height()
-            ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
-                    color=self.config['stat_chart_text_color'])
+        # Labels - don't show if many records as labels become hazy
+        if len(self.dynamic_chain_index) <= 12:
+            for rect, label in zip(ax.patches, self.dynamic_chain_index):
+                height = rect.get_height()
+                ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
+                        color=self.config['stat_chart_text_color'])
 
         # Style
         self.figure.set_facecolor(self.config['stat_background_color'])

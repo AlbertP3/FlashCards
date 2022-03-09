@@ -201,13 +201,16 @@ class fcc():
         # fake path secures original mistakes file from 
         # being overwritten by other commands such as mct or dc
         fake_path = self.config['lngs_path'] + 'temp.csv'
+
         self.update_backend_parameters(fake_path, mistakes_list)
         self.refresh_interface()
 
         # allow instant save of a rev created from mistakes_list
         self.set_cards_seen(mistakes_list.shape[0]-1)
         
-        self.post_fcc('Successfully created flashcards from mistakes list.')
+        msg_mode = 'written' if mode == 'w' else 'appended'
+        msg_result = f'Mistakes List {msg_mode} to {path}mistakes_list.csv' if do_save else 'Created flashcards from mistakes list'
+        self.post_fcc(msg_result)
         
     
     def efc(self, parsed_cmd):
@@ -230,6 +233,12 @@ class fcc():
 
         config_key = parsed_cmd[1]  
         config_new_value = ' '.join(parsed_cmd[2:])
+
+        # check if input key exists in dict
+        if config_key not in self.config.keys():
+            self.post_fcc('mcp function takes only existing dict keys. Use "sck" to show all available keys.')
+            return
+            
         update_config(config_key, config_new_value)
 
         # load config again if available 

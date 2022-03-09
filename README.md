@@ -59,7 +59,7 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
         <li><b>mcr</b>     -   Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result</li>
         <li><b>dc</b>      -   Delete Card - deletes card both in current set and in the file</li>
         <li><b>lln</b>     -   Load Last N, loads N-number of words from the original file, starting from the end</li>
-        <li><b>cfm</b>     -   Create Flashcards from Mistakes List - initiate new set from current mistakes</li>
+        <li><b>cfm</b>     -   Create Flashcards from Mistakes List - initiate new set from current mistakes and by default append to mistakes_list file</li>
         <li><b>efc</b>     -   Ebbinghaus Forgetting Curve - shows table with revs, days from last rev and efc score</li>
         <li><b>mcp</b>     -   Modify Config Parameter - allows modifications of config file</li>
         <li><b>sck</b>     -   Show Config Keys - list all available parameters in config file</li>
@@ -71,3 +71,8 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
     <p> Add 0 or more from the following codes to config.ini in section 'optional'. Separate with '|'.</p>
     <p><b>reccommend_new</b> - toogles reccomendations to create a new revision after some specified time</p>
     <p><b>keyboard_shortcuts</b></p>
+
+<h1>Known Bugs</h1>
+<ol>
+<li>If absolute path to the launcher (.vbs) contains whitespaces then the app will not launch and launcher.bat is to be recoursed to.</li>
+</ol>
