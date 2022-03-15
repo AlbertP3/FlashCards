@@ -26,4 +26,3 @@ class stats():
         [self.dynamic_chain_index.append('{}({}{})'.format(self.chart_values[x], 
             get_sign( self.chart_values[x] -  self.chart_values[x-1], neg_sign=''), 
             self.chart_values[x] - self.chart_values[x-1])) for x in range(1, len( self.chart_values))]
- 
