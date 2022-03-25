@@ -274,9 +274,9 @@ class stats_gui(stats):
 
 
     def arrange_stats_sidewindow(self):
-        self.get_data()
-        self.get_chart()
-        self.get_table()
+        self.get_data_for_current_revision()
+        self.get_stats_chart()
+        self.get_stats_table()
         self.stats_layout = widget.QGridLayout()
         self.stats_layout.addWidget(self.canvas, 0, 0)
         self.stats_layout.addLayout(self.stat_table, 1, 0)
@@ -290,7 +290,7 @@ class stats_gui(stats):
             print('Statistics not available for a Language')
 
 
-    def get_chart(self):
+    def get_stats_chart(self):
         self.figure = Figure(figsize=(5,2))
         self.canvas = FigureCanvas(self.figure)
 
@@ -317,7 +317,7 @@ class stats_gui(stats):
         self.canvas.draw()        
 
 
-    def get_table(self):
+    def get_stats_table(self):
         self.stat_table = widget.QGridLayout()
 
         self.repeated_times_button = self.create_button(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} Time{"s" if int(self.sum_repeated) > 1 else ""}')
@@ -328,3 +328,77 @@ class stats_gui(stats):
         self.stat_table.addWidget(self.days_from_last_rev, 0, 1)
         self.stat_table.addWidget(self.days_from_creation, 0, 2)
 
+
+
+class progress_gui(stats):
+
+    def __init__(self):
+        stats.__init__(self)
+        self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
+        self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
+    
+
+    def arrange_progress_sidewindow(self):
+        self.get_data_for_progress()
+        self.get_progress_chart()
+        self.progress_layout = widget.QGridLayout()
+        self.progress_layout.addWidget(self.canvas, 0, 0)
+    
+
+    def get_progress_sidewindow(self):
+        self.arrange_progress_sidewindow()
+        self.switch_side_window(self.progress_layout, 'prog', 400 + self.LEFT)
+
+
+    def get_progress_chart(self):
+        
+        self.figure = Figure(figsize=(5, 3))
+        self.canvas = FigureCanvas(self.figure)
+
+        # initiate plots
+        total_words_plot = self.figure.add_subplot()
+        total_words_plot.bar(self.formatted_dates, self.second_chart_values, color='#979dac', 
+                edgecolor='#000000', linewidth=0.7, align='center', zorder=9)
+
+        positives_plot = total_words_plot.twinx()
+        positives_plot.bar(self.formatted_dates, self.chart_values, color=config['stat_bar_color'], 
+                edgecolor='#000000', linewidth=0.7, align='center', zorder=0)
+
+        revision_count_plot = total_words_plot.twinx()
+        revision_count_plot.plot(self.formatted_dates, self.revision_count, color='#979dac', 
+                linewidth=1, zorder=9)
+
+        # add labels
+        for rect, label in zip(positives_plot.patches, self.chart_values):
+                height = rect.get_height()
+                positives_plot.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
+                        color=self.config['stat_chart_text_color'], zorder=10)
+
+        unlearned = self.second_chart_values - self.chart_values 
+        for rect, label in zip(total_words_plot.patches, unlearned):
+            height = rect.get_height()
+            total_words_plot.text(rect.get_x() + rect.get_width()/2, height-label/1.25, label, ha="center", va="bottom", 
+                    color=self.config['stat_chart_text_color'], zorder=10)
+        
+        for x, y in zip(self.formatted_dates, self.revision_count):
+            # xytext - distance between points and text label
+            revision_count_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
+                        color=self.config['stat_chart_text_color'])
+                      
+        # Style
+        self.figure.set_facecolor(self.config['stat_background_color'])
+        total_words_plot.set_facecolor(self.config['stat_chart_background_color'])
+        positives_plot.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
+        total_words_plot.tick_params(colors=self.config['stat_chart_text_color'])
+        self.figure.tight_layout(pad=0.1)
+        positives_plot.get_yaxis().set_visible(False)
+        revision_count_plot.get_yaxis().set_visible(False)
+        positives_plot.get_xaxis().set_visible(False)
+
+        # synchronize axes
+        max_ = max(self.chart_values.max(), self.second_chart_values.max())
+        positives_plot.set_ylim([0, max_*1.2])
+        total_words_plot.set_ylim([0, max_*1.2])
+        revision_count_plot.set_ylim([0, max_*99])
+
+        self.canvas.draw()        

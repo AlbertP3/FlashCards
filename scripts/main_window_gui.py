@@ -8,7 +8,7 @@ from side_windows_gui import *
 
 
 class main_window_gui(widget.QWidget, main_window_logic, fcc_gui, 
-                        efc_gui, load_gui, mistakes_gui, stats_gui):
+                        efc_gui, load_gui, mistakes_gui, stats_gui, progress_gui):
 
     def __init__(self):
         self.q_app = widget.QApplication([])
@@ -38,6 +38,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
         load_gui.__init__(self)
         mistakes_gui.__init__(self)
         stats_gui.__init__(self)
+        progress_gui.__init__(self)
 
 
     def configure_window(self):

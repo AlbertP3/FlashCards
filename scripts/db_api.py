@@ -153,3 +153,9 @@ class db_interface():
         # Used for stat chart
         res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
         return res
+
+
+    def get_filtered_by_lng(self, lng:str):
+        # filters out all not-matching lngs from the DB by SIGNATURE
+        # contains can be used with regex
+        return self.db.loc[self.db.iloc[:, 1].str.contains(lng)]

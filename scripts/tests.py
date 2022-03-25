@@ -233,6 +233,13 @@ class Test_db_api(unittest.TestCase):
         self.assertEqual(dbapi.get_max_positives_count(rev_signature), expected)
 
 
+    def test_filter_lng(self):
+        dbapi = db_api.db_interface()
+        db_filtered = dbapi.get_filtered_by_lng('DE')
+        self.assertEqual(db_filtered.shape[0], 3)
+
+
+
 class Test_flashcard_console_commands(unittest.TestCase):
 
     def init_backend_and_load_test_file(self):

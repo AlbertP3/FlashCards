@@ -17,6 +17,7 @@
 <li>In a revision mode, user can open a mistakes list side-window to see which cards they guessed wrong. Available with 'm' or score button.</li>
 <li>User is also able to see statistics regarding currently loaded file</li>
 <li>With Flashcards Console Commands user is able to access some extra functionalities listed in README file that are also available via 'help' command directly in the console</li>
+<li>Progress can be assessed with a 'Progress' chart displaying, in specified intervals, starting from top: total number of new words user failed to learn; sum of 'last positives' for Revisions created at this interval; total number of revisions regardless of the creation time</li>
 </ol>
 
 <h1>Tech Stack</h1>
@@ -73,6 +74,11 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
     <li><b>reccommend_new</b> - toogles reccomendations to create a new revision after some specified time</li>
     <li><b>keyboard_shortcuts</b></li>
     </ol>
+
+<h1>To-Do</h1>
+<ol>
+<li>Measure time spent on revision</li>
+</ol>
 
 <h1>Known Bugs</h1>
 <ol>
