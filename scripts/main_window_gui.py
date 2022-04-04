@@ -7,12 +7,12 @@ from side_windows_gui import *
 
 
 
-class main_window_gui(widget.QWidget, main_window_logic, fcc_gui, 
-                        efc_gui, load_gui, mistakes_gui, stats_gui, progress_gui):
+class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def __init__(self):
         self.q_app = widget.QApplication([])
         widget.QWidget.__init__(self)
+        # self.q_app.installEventFilter(self)
 
 
     def launch_app(self):
@@ -29,16 +29,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
         self.configure_window()
         self.build_layout()   
         self.optional_features()
-        self.build_sidewindows()
-
-
-    def build_sidewindows(self):
-        fcc_gui.__init__(self)
-        efc_gui.__init__(self)
-        load_gui.__init__(self)
-        mistakes_gui.__init__(self)
-        stats_gui.__init__(self)
-        progress_gui.__init__(self)
+        side_windows.__init__(self)
 
 
     def configure_window(self):
@@ -155,7 +146,6 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
 
     def click_save_button(self):
-        # Check preconditions
         if self.is_revision:
             self.post_logic('Cannot save a revision')
             return
@@ -224,7 +214,7 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
             super().goto_next_card()
             self.display_text(self.get_current_card()[self.side])
         else:
-            # is_saved flag allows to save current set only once
+            # is_saved flag allows to save current cardset only once
             if self.is_saved == False:
                 self.handle_revision_complete()
 
@@ -369,7 +359,12 @@ class main_window_gui(widget.QWidget, main_window_logic, fcc_gui,
 
     def optional_features(self):
         optional_features = self.config['optional']
-
         if 'keyboard_shortcuts' in optional_features:
             self.add_shortcuts()
         
+
+    def eventFilter(self, source, event):
+        if type(source) == QtGui.QWindow and event.type() == QtCore.QEvent.FocusOut:
+            # TODO
+            pass
+        return super(main_window_gui, self).eventFilter(source, event)

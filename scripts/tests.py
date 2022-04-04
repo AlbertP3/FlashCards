@@ -7,6 +7,7 @@ import db_api
 from datetime import datetime, date, timedelta
 import main_window_logic
 import efc
+import stats
 
 
 config = utils.load_config()
@@ -111,12 +112,12 @@ class Test_utils(unittest.TestCase):
     def test_get_lng_from_signature(self):
         s1 = utils.get_lng_from_signature('REV_EN0125370523')
         s2 = utils.get_lng_from_signature('aa_EN23525236')
-        s3 = utils.get_lng_from_signature('EN2352562')      
+        s3 = utils.get_lng_from_signature('RU_biesy_part1')     
         s4 = utils.get_lng_from_signature('random_signature')
 
         self.assertEqual(s1, 'EN')
         self.assertEqual(s2, 'EN')
-        self.assertEqual(s3, 'EN')
+        self.assertEqual(s3, 'RU')
         self.assertEqual(s4, '')
 
 
@@ -159,6 +160,13 @@ class Test_utils(unittest.TestCase):
 class Test_db_api(unittest.TestCase):
 
 
+    def test_get_db(self):
+        dbapi = db_api.db_interface()
+        df = dbapi.get_database()
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertIn('SIGNATURE', df.columns)
+
+        
     def test_get_date_from_signature(self):
         correct_signature_example_1 = 'REV_RU11252021180131'
         invalid_signature_example_1 = 'wrongfilenametest'
@@ -356,3 +364,21 @@ class Test_EFC(unittest.TestCase):
         # adjust to the current state of DB
         self.assertIn('Oi mate, take a gander', reccommendations, reccommendations)
         self.assertNotIn('давай товарищ, двигаемся!', reccommendations, reccommendations)
+
+
+class Test_stats(unittest.TestCase):
+
+    def test_get_progress_data(self):
+        stat = stats.stats()
+        stat.get_data_for_progress(signature='RU_biesy_part1')
+        self.assertEqual(stat.chart_values.shape[0], stat.second_chart_values.shape[0])
+        self.assertEqual(stat.revision_count.shape[0], stat.formatted_dates.shape[0])
+        self.assertIsInstance(stat.chart_values, list)
+        self.assertIsInstance(stat.second_chart_values, list)
+        self.assertIsInstance(stat.formatted_dates, list)
+        
+
+
+
+s = Test_stats()
+s.test_get_progress_data()

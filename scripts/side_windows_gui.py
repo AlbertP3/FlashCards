@@ -9,8 +9,8 @@ from efc import efc
 from load import load
 from stats import stats
 
-# all classes in this module are meant to be used
-# exclussively with main_window_gui
+# each class espouses one type of sidewindow (GUI + inherited logic)
+# side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
 
 
 class fcc_gui(fcc):
@@ -274,7 +274,7 @@ class stats_gui(stats):
 
 
     def arrange_stats_sidewindow(self):
-        self.get_data_for_current_revision()
+        self.get_data_for_current_revision(self.signature)
         self.get_stats_chart()
         self.get_stats_table()
         self.stats_layout = widget.QGridLayout()
@@ -339,7 +339,7 @@ class progress_gui(stats):
     
 
     def arrange_progress_sidewindow(self):
-        self.get_data_for_progress()
+        self.get_data_for_progress(self.signature)
         self.get_progress_chart()
         self.progress_layout = widget.QGridLayout()
         self.progress_layout.addWidget(self.canvas, 0, 0)
@@ -368,21 +368,27 @@ class progress_gui(stats):
         revision_count_plot.plot(self.formatted_dates, self.revision_count, color='#979dac', 
                 linewidth=1, zorder=9)
 
-        # add labels
+        # add labels - last positives sum
         for rect, label in zip(positives_plot.patches, self.chart_values):
                 height = rect.get_height()
+                label = '' if label == 0 else "{:.0f}".format(label)
                 positives_plot.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
                         color=self.config['stat_chart_text_color'], zorder=10)
 
+        # add labels - total sum
         unlearned = self.second_chart_values - self.chart_values 
         for rect, label in zip(total_words_plot.patches, unlearned):
             height = rect.get_height()
-            total_words_plot.text(rect.get_x() + rect.get_width()/2, height-label/1.25, label, ha="center", va="bottom", 
+            x = rect.get_x() + rect.get_width()/2
+            y = height-label/1.25
+            label = '' if label == 0 else "{:.0f}".format(label)
+            total_words_plot.text(x, y, label, ha="center", va="bottom", 
                     color=self.config['stat_chart_text_color'], zorder=10)
         
+        # add labels - repeated times
         for x, y in zip(self.formatted_dates, self.revision_count):
             # xytext - distance between points and text label
-            revision_count_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
+            revision_count_plot.annotate("{:.0f}".format(y), (x, y), textcoords="offset points", xytext=(0,5), ha='center',
                         color=self.config['stat_chart_text_color'])
                       
         # Style
@@ -402,3 +408,15 @@ class progress_gui(stats):
         revision_count_plot.set_ylim([0, max_*99])
 
         self.canvas.draw()        
+
+
+
+class side_windows(fcc_gui, efc_gui, load_gui, 
+                mistakes_gui, stats_gui, progress_gui):
+    def __init__(self):
+        fcc_gui.__init__(self)
+        efc_gui.__init__(self)
+        load_gui.__init__(self)
+        mistakes_gui.__init__(self)
+        stats_gui.__init__(self)
+        progress_gui.__init__(self)

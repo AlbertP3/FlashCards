@@ -245,7 +245,7 @@ def validate_setup():
     # Database
     if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
         operation_status += 'Initializing new Database\n'
-        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['db_path'])
+        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['db_path'], sep=';')
 
     # Lngs folder
     lngs_dir_name = config['lngs_path'].split('/')[-2]
