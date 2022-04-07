@@ -15,6 +15,7 @@ class main_window_logic():
         self.file_path = self.config['onload_file_path']
         self.revmode = False
         self.cards_seen = 0
+        self.signature = ''
 
 
     def build_backend_only(self):
@@ -108,6 +109,7 @@ class main_window_logic():
         try:
             dataset = load_dataset(file_path, do_shuffle=True)   
             self.post_logic(self.get_status_dict('load_dataset'))
+            self.TEMP_FILE_FLAG = False
             return dataset
         except FileNotFoundError:
             self.post_logic('File Not Found.')
@@ -276,7 +278,9 @@ class main_window_logic():
         else:
             return int(default_side)
 
-
+    def get_signature(self):
+        return self.signature
+        
     def get_current_card(self):
         return self.dataset.iloc[self.current_index, :]
 
@@ -313,7 +317,7 @@ class main_window_logic():
             return db_api.get_dbapi_dict()[key]
         except KeyError:
             return f'Key Error on: {key}'
-
+    
 
     def set_cards_seen(self, cards_seen):
         self.cards_seen = cards_seen
@@ -321,3 +325,20 @@ class main_window_logic():
 
     def set_qtextedit_console(self, console):
         self.QTEXTEDIT_CONSOLE = console
+
+
+    def log_add(self, traceback, exc_value=None):
+        now_ = datetime.now()
+        with open('log.txt', 'a') as file:
+            file.write('\n@' + str(now_) + ' | ' + traceback)
+
+        if exc_value:  # is an error
+            text_to_post = str(exc_value) + '. See log file for more details.'
+        else:
+            text_to_post = traceback
+
+        try:
+            self.get_fcc_sidewindow()
+            self.post_fcc(text_to_post)
+        except Exception:
+            print(text_to_post)

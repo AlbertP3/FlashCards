@@ -113,7 +113,7 @@ class Test_utils(unittest.TestCase):
         s1 = utils.get_lng_from_signature('REV_EN0125370523')
         s2 = utils.get_lng_from_signature('aa_EN23525236')
         s3 = utils.get_lng_from_signature('RU_biesy_part1')     
-        s4 = utils.get_lng_from_signature('random_signature')
+        s4 = utils.get_lng_from_signature('temp')
 
         self.assertEqual(s1, 'EN')
         self.assertEqual(s2, 'EN')
@@ -373,12 +373,6 @@ class Test_stats(unittest.TestCase):
         stat.get_data_for_progress(signature='RU_biesy_part1')
         self.assertEqual(stat.chart_values.shape[0], stat.second_chart_values.shape[0])
         self.assertEqual(stat.revision_count.shape[0], stat.formatted_dates.shape[0])
-        self.assertIsInstance(stat.chart_values, list)
-        self.assertIsInstance(stat.second_chart_values, list)
-        self.assertIsInstance(stat.formatted_dates, list)
+        self.assertGreater(stat.chart_values.shape[0], 1)
+
         
-
-
-
-s = Test_stats()
-s.test_get_progress_data()

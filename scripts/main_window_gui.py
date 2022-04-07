@@ -1,3 +1,5 @@
+import traceback
+import sys
 from PyQt5 import QtCore
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
@@ -12,6 +14,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def __init__(self):
         self.q_app = widget.QApplication([])
         widget.QWidget.__init__(self)
+        sys.excepthook = self.excepthook
         # self.q_app.installEventFilter(self)
 
 
@@ -342,6 +345,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.nav_buttons_visibility_control(True, True, False)
         else:
             self.nav_buttons_visibility_control(False, False, True)
+        
+        if not self.is_revision:
+            self.post_fcc('Revision mode is unavailable for a Language.')
 
 
     def update_words_button(self):
@@ -363,8 +369,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.add_shortcuts()
         
 
+    def excepthook(self, exc_type, exc_value, exc_tb):
+        err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        self.log_add(err_traceback, exc_value)
+
+
     def eventFilter(self, source, event):
-        if type(source) == QtGui.QWindow and event.type() == QtCore.QEvent.FocusOut:
+        if event.type() == QtCore.QEvent.FocusOut and type(source) == QtGui.QWindow:
             # TODO
             pass
         return super(main_window_gui, self).eventFilter(source, event)

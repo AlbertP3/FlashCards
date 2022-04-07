@@ -11,6 +11,7 @@ class fcc():
 
     def __init__(self,  qtextedit_console=False):
         self.config = load_config()
+        self.TEMP_FILE_FLAG = False
         self.QTEXTEDIT_CONSOLE = qtextedit_console
         self.DOCS = {'help':'Says what it does - literally',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
@@ -23,6 +24,7 @@ class fcc():
                     'sck':'Show Config Keys - list all available parameters in config file',
                     'cls':'Clear Screen',
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
+                    'sah':'Show Progress Chart for all languages',
                     }
 
 
@@ -72,6 +74,15 @@ class fcc():
         self.post_fcc(printout)
 
 
+    def decorator_require_nontemporary(func):
+        def verify_conditions(self, *args, **kwargs):
+            if not self.TEMP_FILE_FLAG:
+                func(self, *args, **kwargs)
+            else:
+                self.post_fcc(f'{func.__name__} requires a real file.')
+        return verify_conditions
+
+
     def mct(self, parsed_cmd):
         # Modify current card text - both in app and in the file
 
@@ -85,10 +96,12 @@ class fcc():
         self.dataset.iloc[self.current_index, self.side] = new_text
 
         # change text in the file
-        save_success = save_revision(self.dataset, self.signature)
+        mod_file_text = ''
+        if not self.TEMP_FILE_FLAG:
+            save_revision(self.dataset, self.signature)
+            mod_file_text = ' Original file updated.'
 
-        if save_success:
-            self.post_fcc('Card content successfully modified.')
+        self.post_fcc('Card content successfully modified.' + mod_file_text)
 
 
     def mcr(self, parsed_cmd):
@@ -99,20 +112,26 @@ class fcc():
             self.post_fcc('mcr function require 2 arguments. "+" and "-" are accepted.')
             return
 
-        mistakes_one_side = [x[self.side] for x in self.mistakes_list]
+        mistakes_one_side = [x[1] for x in self.mistakes_list]
         is_mistake = self.get_current_card()[self.side] in mistakes_one_side
 
-        if parsed_cmd[1] == '+' and is_mistake:
-            mistake_index = mistakes_one_side.index(self.get_current_card()[self.side])
-            del self.mistakes_list[mistake_index]
-            self.negatives-=1
-            self.positives+=1
-            self.post_fcc('Score successfully modified to positive.')
-        elif parsed_cmd[1] == '-' and not is_mistake:
-            self.append_current_card_to_mistakes_list()
-            self.positives-=1
-            self.negatives+=1
-            self.post_fcc('Score successfully modified to negative.')
+        if parsed_cmd[1] == '+':
+            if is_mistake:
+                mistake_index = mistakes_one_side.index(self.get_current_card()[self.side])
+                del self.mistakes_list[mistake_index]
+                self.negatives-=1
+                self.positives+=1
+                self.post_fcc('Score successfully modified to positive.')
+            else:
+                self.post_fcc('Score is already positive. Abandoning...')
+        elif parsed_cmd[1] == '-':
+            if not is_mistake:
+                self.append_current_card_to_mistakes_list()
+                self.positives-=1
+                self.negatives+=1
+                self.post_fcc('Score successfully modified to negative.')
+            else:
+                self.post_fcc('Score is already negative. Abandoning...')
         else:
             self.post_fcc('Wrong argument entered.')
         
@@ -151,6 +170,7 @@ class fcc():
         self.post_fcc(f'Card removed from the set{file_mod_msg}.')
 
 
+    @decorator_require_nontemporary
     def lln(self, parsed_cmd):
         # load last N cards from dataset
 
@@ -194,7 +214,8 @@ class fcc():
                                             
         # Update[write/append] to a mistakes_list file
         if do_save:
-            full_path = path + 'mistakes_list.csv'
+            lng = get_lng_from_signature(self.get_signature()).lower()
+            full_path = path + lng + '_mistakes_list.csv'
             keep_headers = True if mode == 'w' else False
             mistakes_list.to_csv(full_path, index=False, mode=mode, header=keep_headers)
 
@@ -205,12 +226,13 @@ class fcc():
 
         self.update_backend_parameters(fake_path, mistakes_list)
         self.refresh_interface()
+        self.TEMP_FILE_FLAG = True
 
         # allow instant save of a rev created from mistakes_list
         self.set_cards_seen(mistakes_list.shape[0]-1)
         
         msg_mode = 'written' if mode == 'w' else 'appended'
-        msg_result = f'Mistakes List {msg_mode} to {path}mistakes_list.csv' if do_save else 'Created flashcards from mistakes list'
+        msg_result = f'Mistakes List {msg_mode} to {full_path}' if do_save else 'Created flashcards from mistakes list'
         self.post_fcc(msg_result)
         
     
@@ -265,6 +287,7 @@ class fcc():
             print('\n'*100)
 
 
+    @decorator_require_nontemporary
     def cfn(self, parsed_cmd):
         # Change File Name
        
@@ -291,4 +314,10 @@ class fcc():
         
         # load file again
         self.initiate_flashcards(new_file_path)
+    
+
+    def sah(self, parsed_cmd):
+        # Show All (languages) History chart
+        self.get_progress_sidewindow(override_lng_gist=True)  
+        self.post_fcc('Showing Progress Chart for all languages')
 

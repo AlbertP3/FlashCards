@@ -273,6 +273,14 @@ class stats_gui(stats):
         self.add_shortcut('s', self.get_stats_sidewindow)
 
 
+    def get_stats_sidewindow(self):
+        if self.is_revision:
+            self.arrange_stats_sidewindow()
+            self.switch_side_window(self.stats_layout, 'stats', 400 + self.LEFT)
+        else:
+            self.post_fcc('Statistics are not available for a Language')
+
+
     def arrange_stats_sidewindow(self):
         self.get_data_for_current_revision(self.signature)
         self.get_stats_chart()
@@ -281,14 +289,6 @@ class stats_gui(stats):
         self.stats_layout.addWidget(self.canvas, 0, 0)
         self.stats_layout.addLayout(self.stat_table, 1, 0)
     
-
-    def get_stats_sidewindow(self):
-        if self.is_revision:
-            self.arrange_stats_sidewindow()
-            self.switch_side_window(self.stats_layout, 'stats', 400 + self.LEFT)
-        else:
-            print('Statistics not available for a Language')
-
 
     def get_stats_chart(self):
         self.figure = Figure(figsize=(5,2))
@@ -336,21 +336,28 @@ class progress_gui(stats):
         stats.__init__(self)
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
+        self.add_shortcut('h', self.get_progress_sidewindow)
     
-
-    def arrange_progress_sidewindow(self):
-        self.get_data_for_progress(self.signature)
-        self.get_progress_chart()
-        self.progress_layout = widget.QGridLayout()
-        self.progress_layout.addWidget(self.canvas, 0, 0)
     
+    def get_progress_sidewindow(self, override_lng_gist=False):
+        if override_lng_gist:
+            # allows showing data for all lngs
+            lng_gist = ''
+        else:
+            lng_gist = get_lng_from_signature(self.signature)
 
-    def get_progress_sidewindow(self):
-        self.arrange_progress_sidewindow()
+        self.arrange_progress_sidewindow(lng_gist)
         self.switch_side_window(self.progress_layout, 'prog', 400 + self.LEFT)
 
 
-    def get_progress_chart(self):
+    def arrange_progress_sidewindow(self, lng_gist):
+        self.get_data_for_progress(lng_gist)
+        self.get_progress_chart(lng_gist)
+        self.progress_layout = widget.QGridLayout()
+        self.progress_layout.addWidget(self.canvas, 0, 0)
+
+
+    def get_progress_chart(self, lng_gist):
         
         self.figure = Figure(figsize=(5, 3))
         self.canvas = FigureCanvas(self.figure)
@@ -400,6 +407,8 @@ class progress_gui(stats):
         positives_plot.get_yaxis().set_visible(False)
         revision_count_plot.get_yaxis().set_visible(False)
         positives_plot.get_xaxis().set_visible(False)
+        title = lng_gist if lng_gist != '' else 'ALL'
+        self.figure.suptitle(title, fontsize=18, y=0.92)
 
         # synchronize axes
         max_ = max(self.chart_values.max(), self.second_chart_values.max())

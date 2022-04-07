@@ -26,7 +26,7 @@ class stats():
             self.chart_values[x] - self.chart_values[x-1])) for x in range(1, len( self.chart_values))]
 
 
-    def get_data_for_progress(self, signature, interval='monthly'):
+    def get_data_for_progress(self, lng_gist, interval='monthly'):
         date_format_dict = {
             'monthly': '%m/%y',
             'daily': '%d/%m/%y',
@@ -36,8 +36,7 @@ class stats():
         db_interface = db_api.db_interface()
 
         # filter for specifc lng
-        current_lng = get_lng_from_signature(signature)
-        filtered_db = db_interface.get_filtered_by_lng(current_lng)
+        filtered_db = db_interface.get_filtered_by_lng(lng_gist)
         filtered_db = filtered_db[(filtered_db['POSITIVES'] != 0)]
 
         # format dates
