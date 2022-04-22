@@ -35,7 +35,7 @@ class stats():
         # get data
         db_interface = db_api.db_interface()
 
-        # filter for specifc lng
+        # filter for specifc lng - CASE SENSITIVE!
         filtered_db = db_interface.get_filtered_by_lng(lng_gist)
         filtered_db = filtered_db[(filtered_db['POSITIVES'] != 0)]
 

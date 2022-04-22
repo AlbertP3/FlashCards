@@ -205,18 +205,18 @@ class fcc():
         mode = 'w' if 'w' in parsed_cmd[1:] else 'a'
         path = self.config['revs_path'] if 'r' in parsed_cmd[1:] else self.config['lngs_path']
         do_save = False if '~' in parsed_cmd[1:] else True
-         
+
         # Create DataFrame - reverse arrays to match default_side
         reversed_mistakes_list = [[x[1], x[0]] for x in self.get_mistakes_list()]
         shuffle(reversed_mistakes_list)
-        reversed_headings = self.get_headings()[::-1]
-        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=reversed_headings)
+        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.get_headings()[::-1])
                                             
         # Update[write/append] to a mistakes_list file
         if do_save:
-            lng = get_lng_from_signature(self.get_signature()).lower()
-            full_path = path + lng + '_mistakes_list.csv'
-            keep_headers = True if mode == 'w' else False
+            lng = get_lng_from_signature(self.get_signature()).upper()
+            full_path = path + lng + '_mistakes.csv'
+            file_exists = lng + '_mistakes.csv' in get_files_in_dir(path)
+            keep_headers = True if mode == 'w' or not file_exists else False
             mistakes_list.to_csv(full_path, index=False, mode=mode, header=keep_headers)
 
         # shows only current mistakes
@@ -224,7 +224,7 @@ class fcc():
         # being overwritten by other commands such as mct or dc
         fake_path = self.config['lngs_path'] + 'temp.csv'
 
-        self.update_backend_parameters(fake_path, mistakes_list)
+        self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
         self.refresh_interface()
         self.TEMP_FILE_FLAG = True
 

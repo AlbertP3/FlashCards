@@ -320,8 +320,8 @@ class stats_gui(stats):
     def get_stats_table(self):
         self.stat_table = widget.QGridLayout()
 
-        self.repeated_times_button = self.create_button(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} Time{"s" if int(self.sum_repeated) > 1 else ""}')
-        self.days_from_last_rev = self.create_button(f'Last Rev {str(self.last_rev_days_ago).split(",")[0]} ago')
+        self.repeated_times_button = self.create_button(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} time{"s" if int(self.sum_repeated) > 1 else ""}')
+        self.days_from_last_rev = self.create_button(f'Last rev {str(self.last_rev_days_ago).split(",")[0]} ago')
         self.days_from_creation = self.create_button(f'Created {str(self.days_ago).split(",")[0]} ago')
         
         self.stat_table.addWidget(self.repeated_times_button, 0, 0)

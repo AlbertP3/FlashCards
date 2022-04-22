@@ -82,8 +82,8 @@ class main_window_logic():
         return wordback_mode
 
 
-    def record_revision_to_db(self):
-        db_api.create_record(self.signature, self.total_words, self.positives)
+    def record_revision_to_db(self, seconds_spent=0):
+        db_api.create_record(self.signature, self.total_words, self.positives, seconds_spent)
         self.post_logic(self.get_dbapi_dict('create_record'))
 
 
@@ -120,7 +120,7 @@ class main_window_logic():
         return diff_words == 0 and self.is_revision
 
 
-    def handle_saving(self):
+    def handle_saving(self, seconds_spent=0):
         
         # update timestamp
         self.signature = update_signature_timestamp(self.signature)
@@ -129,7 +129,7 @@ class main_window_logic():
         self.post_logic(self.get_status_dict('save_revision'))
 
         # Create initial record
-        db_api.create_record(self.signature, self.cards_seen+1, self.positives)
+        db_api.create_record(self.signature, self.cards_seen+1, self.positives, seconds_spent)
         
         # immediately load the revision
         new_path = self.config['revs_path'] + self.signature + '.csv'
@@ -147,7 +147,7 @@ class main_window_logic():
             self.revmode = False
 
     
-    def update_backend_parameters(self, file_path, data):
+    def update_backend_parameters(self, file_path, data, override_signature=None):
 
         # set updated values
         file_path_parts = file_path.split('/')
@@ -158,7 +158,12 @@ class main_window_logic():
         self.dataset = data
         self.is_revision = True if dir_name == self.config['revs_path'][2:-1] else False
         self.change_revmode(self.is_revision)
-        self.signature = get_signature(filename, str(data.columns[0])[:2], self.is_revision)
+
+        if override_signature is None:
+            self.signature = get_signature(filename, str(data.columns[0])[:2], self.is_revision)
+        else:
+            self.signature = override_signature
+
         update_config('onload_file_path', file_path)
 
         # reset flashcards parameters

@@ -124,22 +124,23 @@ def get_files_in_dir(path, include_extension = True, exclude_open=True):
     if not include_extension:
         files_list = [f.split('.')[0] for f in files_list if f not in ['desktop.ini']]
     if exclude_open:
-        files_list[:] = [f for f in files_list if not f.startswith('~$')]
+        # exclude locks for open files for OS: Linux, Windows
+        files_list[:] = [f for f in files_list if not f.startswith('.~') or f.startswith('~$')]
     return files_list
 
 
 def format_timedelta(timedelta):
     if ',' in str(timedelta): # timedelta is more than 1 day
         time_value = str(timedelta.days)
-        interval = 'Day'
+        interval = 'day'
     else:
         timedelta = str(timedelta).split(':')
         if timedelta[0] != '0':
-            interval, id = 'Hour', 0
+            interval, id = 'hour', 0
         elif timedelta[1] != '00':
-            interval, id = 'Minute', 1
+            interval, id = 'minute', 1
         else:
-            interval, id = 'Second', 2
+            interval, id = 'second', 2
         time_value =  str(timedelta[id])
 
     if time_value.startswith('0'): 
@@ -153,7 +154,9 @@ def format_timedelta(timedelta):
 def get_signature(file_name, lng_gist, is_revision):
         # create unique signature for currently loaded rev
         # or return filename for lng
-        if is_revision:
+        # Special Case - mistakes list -> return file name
+        
+        if is_revision or '_mistakes' in file_name:
             signature = file_name
         else:
             # update_signature_timestamp() is directly dependent on this format
@@ -170,7 +173,7 @@ def update_signature_timestamp(signature):
 
 def get_lng_from_signature(signature):
     lngs = config['languages'].split('|')
-    matched_lng = ''
+    matched_lng = 'UNKNOWN'
     for lng in lngs:
         if lng in signature:
             matched_lng = lng

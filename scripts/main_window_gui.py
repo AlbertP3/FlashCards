@@ -3,7 +3,7 @@ import sys
 from PyQt5 import QtCore
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import main_window_logic
 from side_windows_gui import *
 
@@ -15,7 +15,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.q_app = widget.QApplication([])
         widget.QWidget.__init__(self)
         sys.excepthook = self.excepthook
-        # self.q_app.installEventFilter(self)
+        self.initiate_timer()
 
 
     def launch_app(self):
@@ -153,7 +153,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.post_logic('Cannot save a revision')
             return
 
-        super().handle_saving()
+        super().handle_saving(seconds_spent=self.seconds_spent)
         self.update_interface_parameters()
 
 
@@ -174,12 +174,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.update_interface_parameters()
 
 
+
     def initiate_flashcards(self, file_path):
         # Manage whole process of loading flashcards file
         dataset = super().load_flashcards(file_path)
         if dataset_is_valid(dataset):
             self.update_backend_parameters(file_path, dataset)
             self.update_interface_parameters()
+            self.reset_timer()
 
 
     def update_interface_parameters(self):
@@ -193,6 +195,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.display_text(self.get_current_card()[self.side])
         self.update_words_button()
         self.update_score_button()
+        self.reset_timer()
 
 
     def append_current_index(self):
@@ -212,10 +215,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_next_button(self):
-
+        
         if not self.is_complete_revision():
             super().goto_next_card()
             self.display_text(self.get_current_card()[self.side])
+            if not self.TIMER_RUNNING_FLAG and not self.is_saved: self.start_timer()
         else:
             # is_saved flag allows to save current cardset only once
             if self.is_saved == False:
@@ -226,6 +230,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         # modify buttons visibility when previous words are displayed
         if self.words_back_mode():
             self.nav_buttons_visibility_control(True, True, False)
+        
+        # record lng to db if last word is reached (mistakes lists)
+        diff_words = self.total_words - self.current_index - 1
+        if not self.is_revision and not self.is_saved and diff_words == 0:
+            self.stop_timer()
+            self.record_revision_to_db(self.seconds_spent)
+            self.is_saved = True
 
 
     def click_negative(self):
@@ -245,9 +256,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.negatives != 0:
             self.show_mistakes()
         
-        self.record_revision_to_db()
+        self.record_revision_to_db(seconds_spent=self.seconds_spent)
         self.change_revmode(force_mode=False)
         self.is_saved = True
+        self.reset_timer()
 
 
     def show_mistakes(self):
@@ -315,6 +327,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = name
+        self.stop_timer()
 
 
     def del_side_window(self):
@@ -323,6 +336,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = None
+        self.resume_timer()
 
 
     def keyPressEvent(self, event):
@@ -346,7 +360,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.nav_buttons_visibility_control(False, False, True)
         
-        if not self.is_revision:
+        if not self.is_revision and force_mode=='auto':
+            # post only if action is performed by the user
             self.post_fcc('Revision mode is unavailable for a Language.')
 
 
@@ -374,8 +389,40 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.log_add(err_traceback, exc_value)
 
 
+    #  ============= TIMER ==================
+    def initiate_timer(self):
+        self.q_app.installEventFilter(self)
+        self.seconds_spent = 0
+        self.TIMER_RUNNING_FLAG = False
+        self.timer=QTimer()
+        self.timer.timeout.connect(self.append_seconds_spent)
+
+    def start_timer(self):
+        self.timer.start(1000)
+        self.TIMER_RUNNING_FLAG = True
+    
+    def resume_timer(self):
+        if self.seconds_spent != 0:
+            self.start_timer()
+
+    def stop_timer(self):
+        self.timer.stop()
+        self.TIMER_RUNNING_FLAG = False
+
+    def reset_timer(self):
+        self.timer.stop()
+        self.seconds_spent = 0
+        self.TIMER_RUNNING_FLAG = False
+
+    def append_seconds_spent(self):
+        self.seconds_spent+=1
+
+    def get_seconds_spent(self):
+        return self.seconds_spent
+
     def eventFilter(self, source, event):
         if event.type() == QtCore.QEvent.FocusOut and type(source) == QtGui.QWindow:
-            # TODO
-            pass
+            self.stop_timer()
+        if event.type() == QtCore.QEvent.FocusIn and type(source) == QtGui.QWindow:
+            self.resume_timer()
         return super(main_window_gui, self).eventFilter(source, event)

@@ -14,11 +14,12 @@ def get_dbapi_dict():
     return DBAPI_STATUS_DICT
 
 
-def create_record(signature, words_total, positives):
+def create_record(signature, words_total, positives, seconds_spent):
     # Saves revision params to rev_db
     timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     with open(REV_DB_PATH, 'a') as fd:
-        fd.write(';'.join([timestamp, signature, str(words_total), str(positives)])+'\n')
+        fd.write(';'.join([timestamp, signature, str(words_total), 
+                            str(positives), str(seconds_spent)])+'\n')
     post_dbapi('Record created succcessfully')
 
 
