@@ -11,9 +11,10 @@ class stats():
         db_interface = db_api.db_interface()
 
         # get data
-        self.chart_values = db_interface.get_chart_values(signature)
+        self.chart_values = db_interface.get_chart_positives(signature)
         self.chart_dates = db_interface.get_chart_dates(signature)
         self.total_words = db_interface.get_total_words(signature)
+        self.time_spent_minutes = [datetime.fromtimestamp(x).strftime('%M:%S') for x in db_interface.get_chart_time_spent(signature)]
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in self.chart_dates]
         self.sum_repeated = str(db_interface.get_sum_repeated(signature))
         self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation(signature))

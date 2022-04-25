@@ -66,6 +66,8 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
         <li><b>sck</b>     -   Show Config Keys - list all available parameters in config file</li>
         <li><b>cls</b>     -   Clear Screen</li>
         <li><b>cfn</b>     -   Change File Name - changes currently loaded file_path, filename and all records in DB for this signature</li>
+        <li><b>sah</b>     -   Show Progress Chart for all languages</li>
+        <li><b></b></li>
     </ol>
 
 <h1>Optional Features</h1>

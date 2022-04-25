@@ -1,3 +1,4 @@
+from wsgiref import headers
 from utils import *
 from random import shuffle
 import db_api
@@ -25,6 +26,7 @@ class fcc():
                     'cls':'Clear Screen',
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     'sah':'Show Progress Chart for all languages',
+                    'tts':'Total Time Spent *[lng] *[last_n] *[interval(m|d|y)] - shows amount of time (in hours) spent for *lng for each *interval. Default = all lngs, monhtly, last 12',
                     }
 
 
@@ -320,4 +322,33 @@ class fcc():
         # Show All (languages) History chart
         self.get_progress_sidewindow(override_lng_gist=True)  
         self.post_fcc('Showing Progress Chart for all languages')
+
+
+    def tts(self, parsed_cmd):
+        
+        # parse user input
+        lng = 'all' if len(parsed_cmd) < 2 else parsed_cmd[1].upper()
+        last_n = 12 if len(parsed_cmd) < 3 else int(parsed_cmd[2])
+        interval = 'm' if len(parsed_cmd) < 4 else parsed_cmd[3]
+
+        db_interface = db_api.db_interface()
+
+        if lng != 'all':
+            filtered_db = db_interface.get_filtered_by_lng(lng)
+        else:
+            filtered_db = db_interface.get_all()
+
+        date_format_dict = {
+            'm': '%m/%Y',
+            'd': '%d/%m/%Y',
+            'y': '%Y',
+        } 
+
+        date_format = date_format_dict[interval]
+        filtered_db['TIMESTAMP'] = pd.to_datetime(filtered_db['TIMESTAMP']).dt.strftime(date_format)
+        filtered_db = filtered_db.groupby(filtered_db['TIMESTAMP'], as_index=False, sort=False).sum()
+        filtered_db['SEC_SPENT'] = filtered_db['SEC_SPENT'].apply(lambda x: format_seconds_to(x, 'hour'))
+        
+        res = filtered_db.iloc[-last_n:, :].to_string(index=False, columns=['TIMESTAMP', 'SEC_SPENT'], header=['DATE', 'HOURS'])
+        self.post_fcc(res)
 

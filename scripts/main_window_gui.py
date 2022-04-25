@@ -15,12 +15,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.q_app = widget.QApplication([])
         widget.QWidget.__init__(self)
         sys.excepthook = self.excepthook
-        self.initiate_timer()
 
 
     def launch_app(self):
         main_window_logic.__init__(self)
         self.build_interface()
+        
+        self.initiate_timer()
 
         self.set_qtextedit_console(self.get_fcc_console())
 
@@ -109,11 +110,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.negative_button.hide()
         self.positive_button.hide()
         
-        self.layout_third_row.addWidget(self.del_button, 2, 1)
-        self.layout_third_row.addWidget(self.save_button, 2, 3)
+        self.layout_third_row.addWidget(self.load_again_button, 2, 1)
+        self.layout_third_row.addWidget(self.del_button, 2, 3)
+        self.layout_third_row.addWidget(self.save_button, 2, 4)
 
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
-        self.layout_fourth_row.addWidget(self.load_again_button, 3, 2)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
         self.layout_fourth_row.addWidget(self.revmode_button, 3, 4)
 
@@ -259,7 +260,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.record_revision_to_db(seconds_spent=self.seconds_spent)
         self.change_revmode(force_mode=False)
         self.is_saved = True
-        self.reset_timer()
+        self.reset_timer(clear_indicator=False)
 
 
     def show_mistakes(self):
@@ -396,26 +397,34 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = False
         self.timer=QTimer()
         self.timer.timeout.connect(self.append_seconds_spent)
+        self.create_timer_button()
+
+    def create_timer_button(self):
+        self.timer_button = self.create_button('00:00')
+        self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
     def start_timer(self):
         self.timer.start(1000)
         self.TIMER_RUNNING_FLAG = True
     
     def resume_timer(self):
-        if self.seconds_spent != 0:
+        if self.seconds_spent != 0 and not self.is_saved:
             self.start_timer()
 
     def stop_timer(self):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
 
-    def reset_timer(self):
+    def reset_timer(self, clear_indicator=True):
         self.timer.stop()
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
+        if clear_indicator:
+            self.timer_button.setText('00:00')
 
     def append_seconds_spent(self):
         self.seconds_spent+=1
+        self.timer_button.setText(datetime.fromtimestamp(self.seconds_spent).strftime('%M:%S'))
 
     def get_seconds_spent(self):
         return self.seconds_spent

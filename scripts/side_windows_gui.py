@@ -276,7 +276,7 @@ class stats_gui(stats):
     def get_stats_sidewindow(self):
         if self.is_revision:
             self.arrange_stats_sidewindow()
-            self.switch_side_window(self.stats_layout, 'stats', 400 + self.LEFT)
+            self.switch_side_window(self.stats_layout, 'stats', 430)
         else:
             self.post_fcc('Statistics are not available for a Language')
 
@@ -291,19 +291,31 @@ class stats_gui(stats):
     
 
     def get_stats_chart(self):
-        self.figure = Figure(figsize=(5,2))
+        self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
 
         ax = self.figure.add_subplot()
         ax.bar(self.formatted_dates, self.chart_values, color=config['stat_bar_color'], 
                 edgecolor='#000000', linewidth=0.7, align='center')
 
+        # Time spent for each revision
+        time_spent_plot = ax.twinx()
+        time_spent_plot.plot(self.formatted_dates, self.time_spent_minutes, color='#979dac', 
+                linewidth=1, zorder=9)
+
         # Labels - don't show if many records as labels become hazy
         if len(self.dynamic_chain_index) <= 12:
+
             for rect, label in zip(ax.patches, self.dynamic_chain_index):
                 height = rect.get_height()
                 ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
                         color=self.config['stat_chart_text_color'])
+
+            # add labels - time spent
+            for x, y in zip(self.formatted_dates, self.time_spent_minutes):
+                # xytext - distance between points and text label
+                time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
+                            color=self.config['stat_chart_text_color'])
 
         # Style
         self.figure.set_facecolor(self.config['stat_background_color'])
@@ -312,7 +324,10 @@ class stats_gui(stats):
         ax.set_ylim([0, self.total_words])
         ax.tick_params(colors=self.config['stat_chart_text_color'])
         self.figure.tight_layout(pad=0.1)
-        # ax.get_yaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        time_spent_plot.get_yaxis().set_visible(False)
+        time_spent_plot.set_ylim([0, 999])
+        self.figure.subplots_adjust(left=0.0, bottom=0.06, right=0.999, top=0.997)
 
         self.canvas.draw()        
 
@@ -395,7 +410,7 @@ class progress_gui(stats):
         # add labels - repeated times
         for x, y in zip(self.formatted_dates, self.revision_count):
             # xytext - distance between points and text label
-            revision_count_plot.annotate("{:.0f}".format(y), (x, y), textcoords="offset points", xytext=(0,5), ha='center',
+            revision_count_plot.annotate("#{:.0f}".format(y), (x, y), textcoords="offset points", xytext=(0,5), ha='center',
                         color=self.config['stat_chart_text_color'])
                       
         # Style
@@ -409,6 +424,7 @@ class progress_gui(stats):
         positives_plot.get_xaxis().set_visible(False)
         title = lng_gist if lng_gist != '' else 'ALL'
         self.figure.suptitle(title, fontsize=18, y=0.92)
+        self.figure.subplots_adjust(left=0.0, bottom=0.06, right=0.997, top=0.997)
 
         # synchronize axes
         max_ = max(self.chart_values.max(), self.second_chart_values.max())

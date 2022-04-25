@@ -131,8 +131,15 @@ def get_files_in_dir(path, include_extension = True, exclude_open=True):
 
 def format_timedelta(timedelta):
     if ',' in str(timedelta): # timedelta is more than 1 day
-        time_value = str(timedelta.days)
-        interval = 'day'
+        if timedelta.days <= 31 :
+            time_value = str(timedelta.days)
+            interval = 'day'
+        elif timedelta.days < 365:
+            time_value = str(round(timedelta.days/30.437, 1))
+            interval = 'month'
+        else:
+            time_value = str(round(timedelta.days/365.25, 1))
+            interval = 'year'
     else:
         timedelta = str(timedelta).split(':')
         if timedelta[0] != '0':
@@ -304,3 +311,40 @@ def get_indentation(max_len, sub_item_len, extra_indent, separator):
     indent = [' ' for _ in range(indent_len)]
     indent[-extra_indent-1] = separator
     return ''.join(indent)
+
+
+def format_seconds_to(total_seconds, interval, include_remainder=True):
+    if interval == 'hour':
+        prev_interval = 60
+        interval = 3600
+        sep = ':'
+    elif interval == 'minute':
+        prev_interval = 1
+        interval = 60
+        sep = ':'
+    elif interval == 'day':
+        prev_interval = 3600
+        interval = 86400
+        sep = '.'
+    elif interval == 'week':
+        prev_interval = 86400
+        interval = 604800
+        sep = '.'
+    elif interval == 'month':
+        prev_interval = 604800
+        interval = 18408297.6
+        sep = '.'
+    elif interval == 'year':
+        prev_interval = 18408297.6
+        interval = 220899571.2
+        sep = '.'
+    
+    total_intervals = total_seconds // interval
+    remaining_intervals = (total_seconds % interval)/prev_interval
+    
+    if include_remainder:
+        res = f'{round(total_intervals, 0):0>2.0f}{sep}{round(remaining_intervals,0):0>2.0f}'
+    else:
+        res = round(total_intervals, 0)
+    
+    return res

@@ -144,7 +144,7 @@ class db_interface():
         return match
 
 
-    def get_chart_values(self, signature):
+    def get_chart_positives(self, signature):
         # Used for stat chart
         res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
         return res
@@ -156,7 +156,16 @@ class db_interface():
         return res
 
 
+    def get_chart_time_spent(self, signature):
+        # used for stat chart
+        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['SEC_SPENT'].values.tolist()
+        return res
+
     def get_filtered_by_lng(self, lng:str):
         # filters out all not-matching lngs from the DB by SIGNATURE
         # contains can be used with regex
         return self.db.loc[self.db.iloc[:, 1].str.contains(lng)]
+
+
+    def get_all(self):
+        return self.db
