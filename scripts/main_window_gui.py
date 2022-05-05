@@ -19,12 +19,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def launch_app(self):
         main_window_logic.__init__(self)
-        self.build_interface()
-        
+        self.build_interface()      
         self.initiate_timer()
-
         self.set_qtextedit_console(self.get_fcc_console())
-
         self.initiate_flashcards(self.file_path)
         self.q_app.exec()
 
@@ -156,6 +153,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         super().handle_saving(seconds_spent=self.seconds_spent)
         self.update_interface_parameters()
+        self.reset_timer()
 
 
     def delete_current_card(self):
@@ -173,7 +171,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         dataset = self.dataset.sample(frac=1).reset_index(drop=True)
         self.update_backend_parameters(self.file_path, dataset)
         self.update_interface_parameters()
-
+        self.reset_timer()
 
 
     def initiate_flashcards(self, file_path):
@@ -196,7 +194,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.display_text(self.get_current_card()[self.side])
         self.update_words_button()
         self.update_score_button()
-        self.reset_timer()
 
 
     def append_current_index(self):
@@ -220,6 +217,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if not self.is_complete_revision():
             super().goto_next_card()
             self.display_text(self.get_current_card()[self.side])
+            # start timer on the first card switch
             if not self.TIMER_RUNNING_FLAG and not self.is_saved: self.start_timer()
         else:
             # is_saved flag allows to save current cardset only once
@@ -232,12 +230,19 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.words_back_mode():
             self.nav_buttons_visibility_control(True, True, False)
         
-        # record lng to db if last word is reached (mistakes lists)
+        # record lng to db if last word is reached (mistakes lists ONLY)
         diff_words = self.total_words - self.current_index - 1
-        if not self.is_revision and not self.is_saved and diff_words == 0:
+        if self.conditions_to_save_time_for_mistakes_are_met(diff_words):
             self.stop_timer()
             self.record_revision_to_db(self.seconds_spent)
             self.is_saved = True
+
+
+    def conditions_to_save_time_for_mistakes_are_met(self, diff_words):
+        if not self.is_revision and 'mistakes' in self.filename and not self.is_saved and diff_words == 0:
+            return True
+        else:
+            return False
 
 
     def click_negative(self):
@@ -332,6 +337,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def del_side_window(self):
+        # specific behaviour of side windows
+        if self.side_window_id == 'config': self.config = load_config()
+        
         remove_layout(self.side_window_layout)
         self.setFixedWidth(self.DEFAULT_WIDTH)
         self.setMinimumWidth(0)
@@ -400,7 +408,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.create_timer_button()
 
     def create_timer_button(self):
-        self.timer_button = self.create_button('00:00')
+        self.timer_button = self.create_button('00:00', self.show_timespent_sidewindow)
+        self.add_shortcut('t', self.show_timespent_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
     def start_timer(self):
@@ -408,8 +417,17 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = True
     
     def resume_timer(self):
-        if self.seconds_spent != 0 and not self.is_saved:
+        if self.conditions_to_resume_timer_are_met():
             self.start_timer()
+
+    def conditions_to_resume_timer_are_met(self):
+        if self.seconds_spent != 0 \
+            and self.is_saved is False \
+            and self.side_window_id is None:
+            conditions_met = True
+        else:
+            conditions_met = False
+        return conditions_met
 
     def stop_timer(self):
         self.timer.stop()
@@ -428,6 +446,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def get_seconds_spent(self):
         return self.seconds_spent
+
+    def show_timespent_sidewindow(self):
+        # displays time spent table utilizing FCC interface
+        timespent_sidewindow_width = len(self.config['languages'].split('|'))*120
+        self.get_fcc_sidewindow(width_=timespent_sidewindow_width, read_only=True, show_history=False)
+        self.execute_command(['tts', '12', 'm'], followup_prompt=False, save_to_log=False)
 
     def eventFilter(self, source, event):
         if event.type() == QtCore.QEvent.FocusOut and type(source) == QtGui.QWindow:

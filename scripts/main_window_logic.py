@@ -151,7 +151,7 @@ class main_window_logic():
 
         # set updated values
         file_path_parts = file_path.split('/')
-        filename = file_path_parts[-1].split('.')[0]
+        self.filename = file_path_parts[-1].split('.')[0]
         dir_name = file_path_parts[-2]
         
         self.file_path = file_path
@@ -160,7 +160,7 @@ class main_window_logic():
         self.change_revmode(self.is_revision)
 
         if override_signature is None:
-            self.signature = get_signature(filename, str(data.columns[0])[:2], self.is_revision)
+            self.signature = get_signature(self.filename, str(data.columns[0])[:2], self.is_revision)
         else:
             self.signature = override_signature
 
@@ -179,7 +179,7 @@ class main_window_logic():
 
         self.config = load_config()
 
-        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {filename}')
+        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
 
 
     def get_rating_message(self):
@@ -278,10 +278,10 @@ class main_window_logic():
 
     def get_default_side(self):
         default_side = self.config['card_default_side']
-        if default_side.startswith('rand'):
-            return randint(0,1) 
-        else:
+        if default_side.isnumeric():
             return int(default_side)
+        elif default_side.lower().startswith('rand'):
+            return randint(0,1) 
 
     def get_signature(self):
         return self.signature

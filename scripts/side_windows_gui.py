@@ -8,6 +8,7 @@ from fcc import fcc
 from efc import efc
 from load import load
 from stats import stats
+from checkable_combobox import CheckableComboBox
 
 # each class espouses one type of sidewindow (GUI + inherited logic)
 # side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
@@ -28,23 +29,24 @@ class fcc_gui(fcc):
         self.arrange_fcc_window()
 
 
-    def get_fcc_sidewindow(self):
-        self.arrange_fcc_window()
-        self.switch_side_window(self.fcc_layout, 'fcc', 500 + self.LEFT)
-        self.console.setText(self.reload_logs())
+    def get_fcc_sidewindow(self, width_=500, read_only=False, show_history=True):
+        self.arrange_fcc_window(read_only=read_only)
+        self.switch_side_window(self.fcc_layout, 'fcc', width_ + self.LEFT)
+        if show_history:
+            self.console.setText(self.reload_logs())
         self.console.setFocus()
         self.move_cursor_to_end()
         
         
-    def arrange_fcc_window(self):
+    def arrange_fcc_window(self, read_only=False):
         self.fcc_layout = widget.QGridLayout()
-        self.fcc_layout.addWidget(self.create_console(), 0, 0)
+        self.fcc_layout.addWidget(self.create_console(read_only=read_only), 0, 0)
 
         
-    def create_console(self):
+    def create_console(self, read_only=False):
         self.console = widget.QTextEdit(self)
         self.console.setFont(self.CONSOLE_FONT)
-        self.console.setReadOnly(False)
+        self.console.setReadOnly(read_only)
         self.console.setStyleSheet(self.textbox_stylesheet)
         return self.console
     
@@ -227,9 +229,11 @@ class mistakes_gui():
 
     
     def get_mistakes_sidewindow(self):
-        self.arrange_mistakes_window()
-        self.switch_side_window(self.mistakes_layout, 'mistakes', 400 + self.LEFT)
-
+        if self.is_revision:
+            self.arrange_mistakes_window()
+            self.switch_side_window(self.mistakes_layout, 'mistakes', 400 + self.LEFT)
+        else:
+            self.post_fcc('Mistakes are unavailable for a Language.')
 
     def arrange_mistakes_window(self):
         # Style
@@ -303,34 +307,33 @@ class stats_gui(stats):
         time_spent_plot.plot(self.formatted_dates, self.time_spent_minutes, color='#979dac', 
                 linewidth=1, zorder=9)
 
-        # Labels - don't show if many records as labels become hazy
-        if len(self.dynamic_chain_index) <= 12:
+        # Labels
+        for rect, label in zip(ax.patches, self.dynamic_chain_index):
+            height = rect.get_height()
+            ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
+                    color=self.config['stat_chart_text_color'])
 
-            for rect, label in zip(ax.patches, self.dynamic_chain_index):
-                height = rect.get_height()
-                ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
+        # add labels - time spent
+        for x, y in zip(self.formatted_dates, self.time_spent_minutes):
+            # xytext - distance between points and text label
+            time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
                         color=self.config['stat_chart_text_color'])
-
-            # add labels - time spent
-            for x, y in zip(self.formatted_dates, self.time_spent_minutes):
-                # xytext - distance between points and text label
-                time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
-                            color=self.config['stat_chart_text_color'])
 
         # Style
         self.figure.set_facecolor(self.config['stat_background_color'])
         ax.set_facecolor(self.config['stat_chart_background_color'])
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         ax.set_ylim([0, self.total_words])
-        ax.tick_params(colors=self.config['stat_chart_text_color'])
+        ax.tick_params(colors=self.config['stat_chart_text_color'],
+                        labelrotation=0,
+                        pad=1)
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
         time_spent_plot.get_yaxis().set_visible(False)
         time_spent_plot.set_ylim([0, 999])
-        self.figure.subplots_adjust(left=0.0, bottom=0.06, right=0.999, top=0.997)
+        self.figure.subplots_adjust(left=0.0, bottom=0.1, right=0.999, top=0.997)
 
         self.canvas.draw()        
-
 
     def get_stats_table(self):
         self.stat_table = widget.QGridLayout()
@@ -436,8 +439,135 @@ class progress_gui(stats):
 
 
 
+class config_gui():
+
+    def __init__(self):
+        self.config = load_config()
+        self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
+        self.layout_third_row.addWidget(self.config_button, 2, 5)
+        self.add_shortcut('q', self.get_config_sidewindow)
+
+    
+    def get_config_sidewindow(self):
+        self.arrange_config_sidewindow()
+        self.switch_side_window(self.config_layout, 'config', 350 + self.LEFT)
+
+
+    def arrange_config_sidewindow(self):
+        # Window Parameters
+        self.buttons_height = 45
+        self.textbox_width = 275
+
+        # Style
+        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
+        self.button_style_sheet = self.config['button_style_sheet']
+        self.font = self.config['font']
+        self.font_button_size = int(self.config['efc_button_font_size'])
+        self.button_font = QtGui.QFont(self.font, self.font_button_size)
+
+        # Elements
+        self.config_layout = widget.QGridLayout()
+        self.fill_config_list()
+
+
+    def fill_config_list(self):
+
+        # initate labels and comboboxes
+        self.confirm_and_close_button = self.create_button('Confirm Changes', self.del_config_side_window)
+        self.card_default_combobox = self.create_config_combobox('card_default_side',['0','1','Random'])
+        self.card_default_label = self.create_label('Card Default Side')
+        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', ['EN','RU','JP','DE','IT','FR'])
+        self.lngs_label = self.create_label('Languages')
+        self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
+        self.days_to_new_rev_label = self.create_label('Days between Revs')
+        self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', ['reccommend_new','keyboard_shortcuts',])
+        self.optional_label = self.create_label('Optional Features')
+        self.revs_path_qline = self.create_config_qlineedit('revs_path')
+        self.revs_path_label = self.create_label('Revs Path')
+        self.lngs_path_qline = self.create_config_qlineedit('lngs_path')
+        self.lngs_path_label = self.create_label('Lngs Path')
+
+        # add widgets
+        self.config_layout.addWidget(self.card_default_label, 0, 0)
+        self.config_layout.addWidget(self.card_default_combobox, 0, 1)
+        self.config_layout.addWidget(self.lngs_label, 1, 0)
+        self.config_layout.addWidget(self.lngs_checkablecombobox, 1, 1)
+        self.config_layout.addWidget(self.days_to_new_rev_label, 2, 0)
+        self.config_layout.addWidget(self.days_to_new_rev_qlineedit, 2, 1)
+        self.config_layout.addWidget(self.optional_label, 3, 0)
+        self.config_layout.addWidget(self.optional_checkablecombobox, 3, 1)
+        self.config_layout.addWidget(self.revs_path_label, 4, 0)
+        self.config_layout.addWidget(self.revs_path_qline, 4, 1)
+        self.config_layout.addWidget(self.lngs_path_label, 5, 0)
+        self.config_layout.addWidget(self.lngs_path_qline, 5, 1)
+        self.config_layout.addWidget(self.confirm_and_close_button, 8, 0, 1, 2)
+
+        # blank spaces
+        self.config_layout.addWidget(self.create_blank_widget(),6,0)
+        self.config_layout.addWidget(self.create_blank_widget(),7,0)
+
+
+    def create_config_combobox(self, key:str, content:list):
+        combobox = widget.QComboBox(self)
+        combobox.addItems(content)
+        combobox.setCurrentText(self.config[key])
+        combobox.setMinimumHeight(self.BUTTONS_HEIGHT)
+        combobox.setFont(self.BUTTON_FONT)
+        combobox.setStyleSheet(self.button_style_sheet)
+        return combobox
+    
+
+    def create_config_checkable_combobox(self, key:str, content:list):
+        checkable_cb = CheckableComboBox(self)
+        for i in content:
+            checkable_cb.addItem(i, is_checked= i in self.config[key])
+        checkable_cb.setMinimumHeight(self.BUTTONS_HEIGHT)
+        checkable_cb.setFont(self.BUTTON_FONT)
+        checkable_cb.setStyleSheet(self.button_style_sheet)
+        return checkable_cb
+
+
+    def create_config_qlineedit(self, key:str):
+        qlineedit = widget.QLineEdit(self)
+        qlineedit.setText(self.config[key])
+        qlineedit.setMinimumHeight(self.BUTTONS_HEIGHT)
+        qlineedit.setFont(self.BUTTON_FONT)
+        qlineedit.setStyleSheet(self.button_style_sheet)
+        return qlineedit
+
+
+    def create_label(self, text):
+        label = widget.QLabel(self)
+        label.setText(text)
+        label.setMinimumHeight(self.BUTTONS_HEIGHT)
+        label.setFont(self.BUTTON_FONT)
+        label.setText(text)
+        label.setStyleSheet(self.button_style_sheet)
+        return label
+
+    def create_blank_widget(self):
+        blank = widget.QLabel(self)
+        blank.setStyleSheet("border: 0px")
+        blank.setMinimumHeight(self.BUTTONS_HEIGHT)
+        return blank
+
+
+    def del_config_side_window(self):
+        modified_dict = dict()
+        modified_dict['card_default_side'] = self.card_default_combobox.currentText()
+        modified_dict['languages'] = '|'.join(self.lngs_checkablecombobox.currentData())
+        modified_dict['days_to_new_rev'] = self.days_to_new_rev_qlineedit.text()
+        modified_dict['optional'] = '|'.join(self.optional_checkablecombobox.currentData())
+        modified_dict['revs_path'] = self.revs_path_qline.text()
+        modified_dict['lngs_path'] = self.lngs_path_qline.text()
+
+        update_config_bulk(modified_dict)
+        self.del_side_window()
+
+    
+
 class side_windows(fcc_gui, efc_gui, load_gui, 
-                mistakes_gui, stats_gui, progress_gui):
+                mistakes_gui, stats_gui, progress_gui, config_gui):
     def __init__(self):
         fcc_gui.__init__(self)
         efc_gui.__init__(self)
@@ -445,3 +575,4 @@ class side_windows(fcc_gui, efc_gui, load_gui,
         mistakes_gui.__init__(self)
         stats_gui.__init__(self)
         progress_gui.__init__(self)
+        config_gui.__init__(self)

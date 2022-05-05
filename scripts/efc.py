@@ -118,7 +118,8 @@ class efc():
 
     def is_it_time_for_something_new(self):
         # Periodically reccommend to create new revision for every lng
-
+        if int(self.config['days_to_new_rev']) == 0: return list()
+        
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
         self.unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  

@@ -15,7 +15,7 @@
 <li>Spaced repetitons are reinforced by employing EFC (Ebbinghaus Forgetting Curve) that tells the user which sets they should repeat today</li>
 <li>Revisions can be appraised - score is then recorded to the Database</li>
 <li>In a revision mode, user can open a mistakes list side-window to see which cards they guessed wrong. Available with 'm' or score button.</li>
-<li>User is also able to see statistics regarding currently loaded file</li>
+<li>User is also able to see statistics regarding currently loaded file - count of positives and time spent on each revision</li>
 <li>With Flashcards Console Commands user is able to access some extra functionalities listed in README file that are also available via 'help' command directly in the console</li>
 <li>Progress can be assessed with a 'Progress' chart displaying, in specified intervals, starting from top: total number of new words user failed to learn; sum of 'last positives' for Revisions created at this interval; total number of revisions regardless of the creation time</li>
 </ol>
@@ -49,6 +49,8 @@
         <li><b>d</b>      -   delete currently displayed card. Does not modify the file itself</li>
         <li><b>m</b>      -   open mistakes side-window displaying all the cards user guessed wrong</li>
         <li><b>r</b>      -   reload the currently loaded file</li>
+        <li><b>h</b>      -   open progress chart for current language</li>
+        <li><b>q</b>      -   open settings</li>
         <li><b>esc</b>    -   close curretnly opened side-window</li>
     </ol>
 
@@ -67,11 +69,11 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
         <li><b>cls</b>     -   Clear Screen</li>
         <li><b>cfn</b>     -   Change File Name - changes currently loaded file_path, filename and all records in DB for this signature</li>
         <li><b>sah</b>     -   Show Progress Chart for all languages</li>
-        <li><b></b></li>
+        <li><b>tts</b>     -   Shows amount of time (in hours) spent for lng in each interval</li>
     </ol>
 
 <h1>Optional Features</h1>
-    <p> Add 0 or more from the following codes to config.ini in section 'optional'. Separate with '|'.</p>
+    <p> Select from the checkable combo box in Settings:</p>
     <ol>
     <li><b>reccommend_new</b> - toogles reccomendations to create a new revision after some specified time</li>
     <li><b>keyboard_shortcuts</b></li>
@@ -79,7 +81,7 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 
 <h1>To-Do</h1>
 <ol>
-<li>Measure time spent on revision</li>
+<li></li>
 </ol>
 
 <h1>Known Bugs</h1>

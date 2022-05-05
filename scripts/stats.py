@@ -15,16 +15,20 @@ class stats():
         self.chart_dates = db_interface.get_chart_dates(signature)
         self.total_words = db_interface.get_total_words(signature)
         self.time_spent_minutes = [datetime.fromtimestamp(x).strftime('%M:%S') for x in db_interface.get_chart_time_spent(signature)]
-        self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m/%y') for date in self.chart_dates]
+        self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m\n%Y') for date in self.chart_dates]
         self.sum_repeated = str(db_interface.get_sum_repeated(signature))
         self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation(signature))
         self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev(signature))
 
         # Create Dynamic Chain Index
-        self.dynamic_chain_index = ['']
-        [self.dynamic_chain_index.append('{}({}{})'.format(self.chart_values[x], 
-            get_sign( self.chart_values[x] -  self.chart_values[x-1], neg_sign=''), 
-            self.chart_values[x] - self.chart_values[x-1])) for x in range(1, len( self.chart_values))]
+        self.dynamic_chain_index = [self.chart_values[0] if len(self.chart_values)>=1 else '']
+        tight_format = '' if len(self.chart_values) <= 10 else '\n'
+        [self.dynamic_chain_index.append('{main_val}{tf}({sign_}{dynamic})'.format(
+            main_val = self.chart_values[x],
+            tf = tight_format,
+            sign_ = get_sign( self.chart_values[x] -  self.chart_values[x-1], neg_sign=''), 
+            dynamic = self.chart_values[x] - self.chart_values[x-1])) 
+            for x in range(1, len( self.chart_values))]
 
 
     def get_data_for_progress(self, lng_gist, interval='monthly'):

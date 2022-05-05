@@ -12,6 +12,7 @@ class fcc():
 
     def __init__(self,  qtextedit_console=False):
         self.config = load_config()
+        self.save_to_log = True
         self.TEMP_FILE_FLAG = False
         self.QTEXTEDIT_CONSOLE = qtextedit_console
         self.DOCS = {'help':'Says what it does - literally',
@@ -26,24 +27,27 @@ class fcc():
                     'cls':'Clear Screen',
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     'sah':'Show Progress Chart for all languages',
-                    'tts':'Total Time Spent *[lng] *[last_n] *[interval(m|d|y)] - shows amount of time (in hours) spent for *lng for each *interval. Default = all lngs, monhtly, last 12',
+                    'tts':'Total Time Spent *[last_n(1,2,3,...)] *[interval(m,d,y)] - shows amount of time (in hours) spent for each lng for each *interval. Default = 1 m',
                     }
 
 
-    def execute_command(self, parsed_input):
+    def execute_command(self, parsed_input, followup_prompt=True, save_to_log=True):
         
         if parsed_input[0] == '' and len(parsed_input) == 1:
             # exit if blank
             return
 
         if self.is_allowed_command(parsed_input[0]):
+            self.save_to_log = save_to_log
             function_to_call = getattr(self, parsed_input[0])
             function_to_call(parsed_input)
         elif ' '.join(parsed_input[:2]).lower() == 'hello world'.lower():
             self.post_fcc('<the world salutes back>')
         else:
             self.post_fcc('Permision Denied or Unknown Command. Type help for... well - help')
-        self.post_fcc(self.CONSOLE_PROMPT)
+        
+        if followup_prompt:
+            self.post_fcc(self.CONSOLE_PROMPT)
 
 
     def is_allowed_command(self, command):
@@ -59,9 +63,10 @@ class fcc():
 
 
     def post_fcc(self, text): 
-        if self.QTEXTEDIT_CONSOLE and len(text) > 0:  
+        if self.QTEXTEDIT_CONSOLE and len(text) > 0:
             self.console.append(text)
-            self.CONSOLE_LOG = self.console.toPlainText()
+            if self.save_to_log:
+                self.CONSOLE_LOG = self.console.toPlainText()
         else:
             print(text)
 
@@ -228,6 +233,7 @@ class fcc():
 
         self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
         self.refresh_interface()
+        self.reset_timer()
         self.TEMP_FILE_FLAG = True
 
         # allow instant save of a rev created from mistakes_list
@@ -283,10 +289,13 @@ class fcc():
     def cls(self, parsed_cmd):
         # Clear console
         if self.QTEXTEDIT_CONSOLE:
-            self.console.setText('')
-            self.CONSOLE_LOG = ''
+            self.clear_history()
         else:
             print('\n'*100)
+
+    def clear_history(self):
+        self.console.setText('')
+        self.CONSOLE_LOG = ''
 
 
     @decorator_require_nontemporary
@@ -327,28 +336,38 @@ class fcc():
     def tts(self, parsed_cmd):
         
         # parse user input
-        lng = 'all' if len(parsed_cmd) < 2 else parsed_cmd[1].upper()
-        last_n = 12 if len(parsed_cmd) < 3 else int(parsed_cmd[2])
-        interval = 'm' if len(parsed_cmd) < 4 else parsed_cmd[3]
+        last_n = 1 if len(parsed_cmd) < 2 else int(parsed_cmd[1])
+        interval = 'm' if len(parsed_cmd) < 3 else parsed_cmd[2]
 
         db_interface = db_api.db_interface()
-
-        if lng != 'all':
-            filtered_db = db_interface.get_filtered_by_lng(lng)
-        else:
-            filtered_db = db_interface.get_all()
+        db = db_interface.get_all()
+        lngs = [l.upper() for l in self.config['languages'].split('|')]
 
         date_format_dict = {
             'm': '%m/%Y',
             'd': '%d/%m/%Y',
             'y': '%Y',
         } 
-
         date_format = date_format_dict[interval]
-        filtered_db['TIMESTAMP'] = pd.to_datetime(filtered_db['TIMESTAMP']).dt.strftime(date_format)
-        filtered_db = filtered_db.groupby(filtered_db['TIMESTAMP'], as_index=False, sort=False).sum()
-        filtered_db['SEC_SPENT'] = filtered_db['SEC_SPENT'].apply(lambda x: format_seconds_to(x, 'hour'))
+        db['TIMESTAMP'] = pd.to_datetime(db['TIMESTAMP']).dt.strftime(date_format)
+
+        # create column with time for each lng in config
+        for l in lngs:  
+            db[l] = db.loc[db.iloc[:, 1].str.contains(l)]['SEC_SPENT']
+
+        # group by selected interval - removes SIGNATURE
+        db = db.groupby(db['TIMESTAMP'], as_index=False, sort=False).sum()
+
+        # cut db
+        db = db.iloc[-last_n:, :]
+        db = db.loc[db.iloc[:, 4] != 0]
+
+        # format dates in time-containing columns
+        for l in lngs:
+            db[l] = db[l].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
+        db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
         
-        res = filtered_db.iloc[-last_n:, :].to_string(index=False, columns=['TIMESTAMP', 'SEC_SPENT'], header=['DATE', 'HOURS'])
+        # print result
+        res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
         self.post_fcc(res)
 

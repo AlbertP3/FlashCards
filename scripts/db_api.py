@@ -145,21 +145,25 @@ class db_interface():
 
 
     def get_chart_positives(self, signature):
-        # Used for stat chart
-        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['POSITIVES'].values.tolist()
-        return res
+        return self.__get_chart_data_deduplicated(signature, 'POSITIVES')
 
 
     def get_chart_dates(self, signature):
-        # Used for stat chart
-        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['TIMESTAMP'].values.tolist()
-        return res
+        return self.__get_chart_data_deduplicated(signature, 'TIMESTAMP')
 
 
     def get_chart_time_spent(self, signature):
-        # used for stat chart
-        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]['SEC_SPENT'].values.tolist()
-        return res
+        return self.__get_chart_data_deduplicated(signature, 'SEC_SPENT')
+        
+
+    def __get_chart_data_deduplicated(self, signature, return_col_name):
+        # get data for each repetition - if more than 1 repetition 
+        # occured on one day - retrieve result for the last one.
+        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]
+        res['TIME'] = res['TIMESTAMP'].apply(lambda x: x[:10])
+        res = res.drop_duplicates(subset=['TIME'], keep='last')
+        return res[return_col_name].values.tolist()
+
 
     def get_filtered_by_lng(self, lng:str):
         # filters out all not-matching lngs from the DB by SIGNATURE

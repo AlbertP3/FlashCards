@@ -10,9 +10,11 @@ import inspect
 
 UTILS_STATUS_DICT = dict()
 
+
 def post_utils(text):
     caller_function = inspect.stack()[1].function
     UTILS_STATUS_DICT[caller_function] = text
+
 
 def get_status_dict():
     return UTILS_STATUS_DICT
@@ -31,6 +33,14 @@ def update_config(key, new_value):
     old_config = configparser.RawConfigParser(inline_comment_prefixes=None)
     old_config.read('./scripts/resources/config.ini')
     old_config.set('DEFAULT', key, new_value)
+    with open('./scripts/resources/config.ini', 'w') as configfile:
+        old_config.write(configfile)
+
+def update_config_bulk(modified_dict:dict):
+    old_config = configparser.RawConfigParser(inline_comment_prefixes=None)
+    old_config.read('./scripts/resources/config.ini')
+    for k, v in modified_dict.items():
+        old_config.set('DEFAULT', k, v)
     with open('./scripts/resources/config.ini', 'w') as configfile:
         old_config.write(configfile)
 
@@ -313,7 +323,7 @@ def get_indentation(max_len, sub_item_len, extra_indent, separator):
     return ''.join(indent)
 
 
-def format_seconds_to(total_seconds, interval, include_remainder=True):
+def format_seconds_to(total_seconds, interval, include_remainder=True, null_format=None):
     if interval == 'hour':
         prev_interval = 60
         interval = 3600
@@ -342,9 +352,13 @@ def format_seconds_to(total_seconds, interval, include_remainder=True):
     total_intervals = total_seconds // interval
     remaining_intervals = (total_seconds % interval)/prev_interval
     
-    if include_remainder:
+    if null_format is not None and total_intervals + remaining_intervals == 0:
+        res = null_format
+    elif include_remainder:
         res = f'{round(total_intervals, 0):0>2.0f}{sep}{round(remaining_intervals,0):0>2.0f}'
     else:
         res = round(total_intervals, 0)
     
     return res
+
+    
