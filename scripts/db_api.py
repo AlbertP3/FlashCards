@@ -171,5 +171,10 @@ class db_interface():
         return self.db.loc[self.db.iloc[:, 1].str.contains(lng)]
 
 
+    def filter_where_positives_not_zero(self):
+        # modifies self.db to contain only revision with POSITIVES != 0
+        self.db = self.db.loc[self.db['POSITIVES'] != 0]
+
+
     def get_all(self):
         return self.db

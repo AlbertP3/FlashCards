@@ -295,6 +295,9 @@ class main_window_logic():
     def get_total_words(self):
         return self.total_words
 
+    def get_words_back(self):
+        return self.words_back
+
     def get_filepath(self):
         return self.file_path  
 
@@ -333,9 +336,8 @@ class main_window_logic():
 
 
     def log_add(self, traceback, exc_value=None):
-        now_ = datetime.now()
-        with open('log.txt', 'a') as file:
-            file.write('\n@' + str(now_) + ' | ' + traceback)
+        # write log traceback to the file
+        register_log(traceback)
 
         if exc_value:  # is an error
             text_to_post = str(exc_value) + '. See log file for more details.'

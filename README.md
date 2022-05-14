@@ -59,7 +59,7 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
     <ol>
         <li><b>help</b>    -   Says what it does - literally</li>
         <li><b>mct</b>     -   Modify Cards Text - edits current side of the card both in current set and in the original file</li>
-        <li><b>mcr</b>     -   Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result</li>
+        <li><b>mcr</b>     -   Modify Card Result - allows changing pos/neg for the current card</li>
         <li><b>dc</b>      -   Delete Card - deletes card both in current set and in the file</li>
         <li><b>lln</b>     -   Load Last N, loads N-number of words from the original file, starting from the end</li>
         <li><b>cfm</b>     -   Create Flashcards from Mistakes List - initiate new set from current mistakes and by default append to mistakes_list file</li>

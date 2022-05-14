@@ -17,7 +17,7 @@ class fcc():
         self.QTEXTEDIT_CONSOLE = qtextedit_console
         self.DOCS = {'help':'Says what it does - literally',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
-                    'mcr':'Modify Card Result - allows changing pos/neg for the current card. Add "+" or "-" arg to specify target result',
+                    'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dc':'Delete Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
                     'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
@@ -114,15 +114,13 @@ class fcc():
     def mcr(self, parsed_cmd):
         # Modify Card Result - allows modification of current score
 
-        # check preconditions
-        if len(parsed_cmd) != 2:
-            self.post_fcc('mcr function require 2 arguments. "+" and "-" are accepted.')
-            return
-
         mistakes_one_side = [x[1] for x in self.mistakes_list]
         is_mistake = self.get_current_card()[self.side] in mistakes_one_side
+        is_wordsback_mode = self.get_words_back() != 0
 
-        if parsed_cmd[1] == '+':
+        if not is_wordsback_mode:
+            self.post_fcc('Card not yet checked. Abandoning.')
+        else:
             if is_mistake:
                 mistake_index = mistakes_one_side.index(self.get_current_card()[self.side])
                 del self.mistakes_list[mistake_index]
@@ -130,19 +128,12 @@ class fcc():
                 self.positives+=1
                 self.post_fcc('Score successfully modified to positive.')
             else:
-                self.post_fcc('Score is already positive. Abandoning...')
-        elif parsed_cmd[1] == '-':
-            if not is_mistake:
                 self.append_current_card_to_mistakes_list()
                 self.positives-=1
                 self.negatives+=1
                 self.post_fcc('Score successfully modified to negative.')
-            else:
-                self.post_fcc('Score is already negative. Abandoning...')
-        else:
-            self.post_fcc('Wrong argument entered.')
-        
-        self.refresh_interface()
+      
+            self.refresh_interface()
 
 
     def dc(self, parsed_cmd):
@@ -229,7 +220,7 @@ class fcc():
         # shows only current mistakes
         # fake path secures original mistakes file from 
         # being overwritten by other commands such as mct or dc
-        fake_path = self.config['lngs_path'] + 'temp.csv'
+        fake_path = self.config['lngs_path'] + 'mistakes_temp.csv'
 
         self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
         self.refresh_interface()

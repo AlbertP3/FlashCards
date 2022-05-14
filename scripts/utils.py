@@ -45,6 +45,11 @@ def update_config_bulk(modified_dict:dict):
         old_config.write(configfile)
 
 
+def register_log(traceback):
+    with open('log.txt', 'a') as file:
+        file.write('\n@' + str(datetime.now()) + ' | ' + traceback)
+
+
 def get_abs_path_from_caller(file_name, abs_path=None):
     from os import path
     from inspect import stack

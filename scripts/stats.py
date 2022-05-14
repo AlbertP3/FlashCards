@@ -22,11 +22,11 @@ class stats():
 
         # Create Dynamic Chain Index
         self.dynamic_chain_index = [self.chart_values[0] if len(self.chart_values)>=1 else '']
-        tight_format = '' if len(self.chart_values) <= 10 else '\n'
+        tight_format = '' if len(self.chart_values) < 9 else '\n'
         [self.dynamic_chain_index.append('{main_val}{tf}({sign_}{dynamic})'.format(
             main_val = self.chart_values[x],
             tf = tight_format,
-            sign_ = get_sign( self.chart_values[x] -  self.chart_values[x-1], neg_sign=''), 
+            sign_ = get_sign(self.chart_values[x] -  self.chart_values[x-1], neg_sign=''), 
             dynamic = self.chart_values[x] - self.chart_values[x-1])) 
             for x in range(1, len( self.chart_values))]
 

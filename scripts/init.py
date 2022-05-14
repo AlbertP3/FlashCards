@@ -1,10 +1,11 @@
 import os
 from datetime import datetime
+from utils import register_log
 
 setup_success = True
 try:
     if 'config.ini' not in os.listdir('./scripts/resources/'):
-        setup_status = "Config file was not found. Aborting"
+        setup_status = "Config file was not found. Pleace follow the setup instructions: place the Launcher in the directory with scripts folder."
         setup_success = False
 except FileNotFoundError as e:
         setup_status = e
@@ -17,5 +18,5 @@ if setup_success:
     mw = main_window_gui()
     mw.launch_app()
 else:
-    print(setup_status)
-    x=input('Press Enter to exit.')
+    register_log(setup_status)
+
