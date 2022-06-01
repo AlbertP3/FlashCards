@@ -48,7 +48,7 @@ class efc():
     def get_initial_handicap(self, repeated_times, diff_days_from_last):
         # force daily revision for the first 3 days in min. 12h intervals
         if repeated_times==1: handicap = -0.21
-        elif repeated_times<=4 and diff_days_from_last>=0.5: handicap = -0.21
+        elif repeated_times <= int(self.config['initial_repetitions']) and diff_days_from_last>=0.5: handicap = -0.21
         else: handicap = 0
         return handicap
 
@@ -63,11 +63,11 @@ class efc():
             reccommendations.extend(self.is_it_time_for_something_new())
 
         # get parameters and efc_function result for each unique signature
-            for rev in self.get_complete_efc_table():
-                efc_critera_met = rev[-1] < self.EFC_THRESHOLD
-                if efc_critera_met:
-                    reccommendations.append(rev[0])
-
+        for rev in self.get_complete_efc_table():
+            efc_critera_met = rev[-1] < self.EFC_THRESHOLD
+            if efc_critera_met:
+                reccommendations.append(rev[0])
+        
         return reccommendations
 
 
@@ -118,8 +118,6 @@ class efc():
 
     def is_it_time_for_something_new(self):
         # Periodically reccommend to create new revision for every lng
-        if int(self.config['days_to_new_rev']) == 0: return list()
-        
         lngs = self.config['languages'].split('|')
         new_reccommendations = list()
         self.unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  

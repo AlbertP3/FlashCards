@@ -8,7 +8,8 @@ from datetime import datetime, date, timedelta
 import main_window_logic
 import efc
 import stats
-
+from random import randint
+from rev_summary import summary_generator
 
 config = utils.load_config()
 
@@ -375,4 +376,50 @@ class Test_stats(unittest.TestCase):
         self.assertEqual(stat.revision_count.shape[0], stat.formatted_dates.shape[0])
         self.assertGreater(stat.chart_values.shape[0], 1)
 
-        
+
+def run_summary_generator_test(positives=None, last_positives=None, total=None, max_positives=None, 
+                                time_spent=None, last_time_spent=None, verbose=True):
+        positives = randint(20,100)
+        last_positives = randint(20,80)
+        total = max(last_positives, positives) + randint(0,25)
+        max_positives = randint(randint(min(positives, last_positives),max(positives, last_positives)) , total)
+        time_spent = randint(50, 600)
+        last_time_spent = randint(50, 600)
+        res = str()
+
+        summary_gen = summary_generator(positives, last_positives, total, max_positives, 
+                                        time_spent, last_time_spent)
+
+        if verbose:
+            res+=('='*80)
+            res+='\n'
+            res+=(f'positives = {positives}\n')
+            res+=(f'last_positives = {last_positives}\n')
+            res+=(f'total = {total}\n')
+            res+=(f'max_positives = {max_positives}\n')
+            res+=(f'time_spent = {time_spent}\n')
+            res+=(f'last_time_spent = {last_time_spent}\n')
+            res+=(f'RESULT: {summary_gen.get_summary_text()}\n')
+        else:
+            res = summary_gen.get_summary_text()
+
+        if verbose:
+            res+=('='*80)
+
+        return res    
+
+
+def print_summary_generator_in_loop(positives=None, last_positives=None, total=None, max_positives=None, 
+                                time_spent=None, last_time_spent=None, verbose=True, iter=1, filters:list()=[]):
+    for _ in range(iter):
+        res = run_summary_generator_test(positives=positives, last_positives=last_positives, total=total, 
+                                        max_positives=max_positives, time_spent=time_spent, last_time_spent=last_time_spent, 
+                                        verbose=verbose)
+        if filters:
+            if any(f in res for f in filters): print(res)
+        else:
+            print(res)
+
+
+# print_summary_generator_in_loop(iter=50, verbose=False, 
+#                                 filters=[])

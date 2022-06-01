@@ -1,3 +1,4 @@
+from atexit import register
 from utils import *
 import db_api
 
@@ -9,16 +10,20 @@ class stats():
     
     def get_data_for_current_revision(self, signature):
         db_interface = db_api.db_interface()
+        db_interface.filter_where_signature_is_equal_to(signature)
 
         # get data
-        self.chart_values = db_interface.get_chart_positives(signature)
-        self.chart_dates = db_interface.get_chart_dates(signature)
-        self.total_words = db_interface.get_total_words(signature)
-        self.time_spent_minutes = [datetime.fromtimestamp(x).strftime('%M:%S') for x in db_interface.get_chart_time_spent(signature)]
+        self.chart_values = db_interface.get_chart_positives()
+        self.chart_dates = db_interface.get_chart_dates()
+        self.total_words = db_interface.get_total_words()
+        self.total_seconds_spent = db_interface.get_total_time_spent_for_signature()
+        self.time_spent_seconds = db_interface.get_chart_time_spent()
+        self.missing_records_cnt = db_interface.get_count_of_records_missing_time()
+        self.time_spent_minutes = [datetime.fromtimestamp(x).strftime('%M:%S') for x in self.time_spent_seconds]
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m\n%Y') for date in self.chart_dates]
-        self.sum_repeated = str(db_interface.get_sum_repeated(signature))
-        self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation(signature))
-        self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev(signature))
+        self.sum_repeated = int(db_interface.get_sum_repeated())
+        self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation())
+        self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev())
 
         # Create Dynamic Chain Index
         self.dynamic_chain_index = [self.chart_values[0] if len(self.chart_values)>=1 else '']

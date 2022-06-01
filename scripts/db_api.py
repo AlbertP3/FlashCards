@@ -48,13 +48,21 @@ class db_interface():
         return self.db['SIGNATURE'].drop_duplicates()
 
 
-    def get_sum_repeated(self, signature):
-        repeated_times = self.db[self.db['SIGNATURE'] == signature].count()[0]
+    def get_sum_repeated(self, signature=None):
+        repeated_times = self.get_filtered_db_if('SIGNATURE', signature)
+        repeated_times = repeated_times.count()[0]
         repeated_times = 0 if repeated_times is None else repeated_times
         return repeated_times
     
 
-    def get_last_score(self, signature):
+    def get_total_time_spent_for_signature(self, signature=None):
+        time_spent = self.get_filtered_db_if('SIGNATURE', signature)
+        time_spent = time_spent['SEC_SPENT'].sum()
+        time_spent = time_spent if time_spent is not None else 0
+        return time_spent
+    
+
+    def get_last_score(self, signature=None):
         try:
             positives = self.get_last_positives(signature)
             total = self.get_total_words(signature)
@@ -63,53 +71,66 @@ class db_interface():
             return 0
 
     
-    def get_last_positives(self, signature):
+    def get_last_positives(self, signature=None):
         try:
-            return self.db[(self.db['SIGNATURE'] == signature)]['POSITIVES'].iloc[-1]
+            res = self.get_filtered_db_if('SIGNATURE', signature)
+            return res['POSITIVES'].iloc[-1]
         except:
             return 0
 
 
-    def get_total_words(self, signature):
+    def get_last_time_spent(self, signature=None):
         try:
-            return self.db[self.db['SIGNATURE'] == signature]['TOTAL'].iloc[-1]
+            res = self.get_filtered_db_if('SIGNATURE', signature)
+            return res['SEC_SPENT'].iloc[-1]
         except:
             return 0
 
 
-    def get_max_positives_count(self, signature):
+    def get_total_words(self, signature=None):
         try:
-            positives_list = self.db[(self.db['SIGNATURE'] == signature)]['POSITIVES']
+            res = self.get_filtered_db_if('SIGNATURE', signature)
+            return res['TOTAL'].iloc[-1]
+        except:
+            return 0
+
+
+    def get_max_positives_count(self, signature=None):
+        try:
+            positives_list = self.get_filtered_db_if('SIGNATURE', signature)
+            positives_list = positives_list['POSITIVES']
             return positives_list.max()
         except:
             return 0
 
 
-    def get_first_datetime(self, signature):
+    def get_first_datetime(self, signature=None):
         try:
-            first_date = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[0]
+            first_date = self.get_filtered_db_if('SIGNATURE', signature)
+            first_date = first_date['TIMESTAMP'].iloc[0]
             return make_datetime(first_date)
         except:
             return self.DEFAULT_DATE
             
 
     def get_first_date_by_filename(self, filename_with_extension):
-            first_date = self.get_first_datetime(filename_with_extension.split('.')[0])
-            if first_date is not None:
-                return first_date
-            else:
-                return self.DEFAULT_DATE
+        first_date = self.get_first_datetime(filename_with_extension.split('.')[0])
+        if first_date is not None:
+            return first_date
+        else:
+            return self.DEFAULT_DATE
 
 
-    def get_last_datetime(self, signature):
+    def get_last_datetime(self, signature=None):
         try:
-            last_date = self.db[self.db['SIGNATURE'] == signature]['TIMESTAMP'].iloc[-1]
+            last_date = self.get_filtered_db_if('SIGNATURE', signature)
+            last_date = last_date['TIMESTAMP'].iloc[-1]
             return make_datetime(last_date)
         except:
             return self.DEFAULT_DATE
 
 
-    def get_timedelta_from_creation(self, signature):
+    def get_timedelta_from_creation(self, signature=None):
         try:
             first_date = self.get_first_datetime(signature)
             today = make_todaytime()
@@ -118,7 +139,7 @@ class db_interface():
             return 0
 
 
-    def get_timedelta_from_last_rev(self, signature):
+    def get_timedelta_from_last_rev(self, signature=None):
         try:
             last_date = self.get_last_datetime(signature)
             today = make_todaytime()
@@ -144,22 +165,28 @@ class db_interface():
         return match
 
 
-    def get_chart_positives(self, signature):
-        return self.__get_chart_data_deduplicated(signature, 'POSITIVES')
+    def get_count_of_records_missing_time(self, signature=None):
+        res = self.get_filtered_db_if('SIGNATURE', signature)
+        return res[self.db['SEC_SPENT']==0].shape[0]
 
 
-    def get_chart_dates(self, signature):
-        return self.__get_chart_data_deduplicated(signature, 'TIMESTAMP')
+    def get_chart_positives(self, signature=None):
+        return self.__get_chart_data_deduplicated('POSITIVES', signature)
 
 
-    def get_chart_time_spent(self, signature):
-        return self.__get_chart_data_deduplicated(signature, 'SEC_SPENT')
+    def get_chart_dates(self, signature=None):
+        return self.__get_chart_data_deduplicated('TIMESTAMP', signature)
+
+
+    def get_chart_time_spent(self, signature=None):
+        return self.__get_chart_data_deduplicated('SEC_SPENT', signature)
         
 
-    def __get_chart_data_deduplicated(self, signature, return_col_name):
+    def __get_chart_data_deduplicated(self, return_col_name, signature=None):
         # get data for each repetition - if more than 1 repetition 
         # occured on one day - retrieve result for the last one.
-        res = self.db[(self.db['SIGNATURE'] == signature) & (self.db['POSITIVES'] != 0)]
+        res = self.get_filtered_db_if('SIGNATURE', signature)
+        res = res[self.db['POSITIVES'] != 0]
         res['TIME'] = res['TIMESTAMP'].apply(lambda x: x[:10])
         res = res.drop_duplicates(subset=['TIME'], keep='last')
         return res[return_col_name].values.tolist()
@@ -176,5 +203,15 @@ class db_interface():
         self.db = self.db.loc[self.db['POSITIVES'] != 0]
 
 
+    def filter_where_signature_is_equal_to(self, signature):
+        self.db = self.db.loc[self.db['SIGNATURE'] == signature]
+
+
     def get_all(self):
         return self.db
+
+
+    def get_filtered_db_if(self, col:str, condition=None):
+        # returns filtered db if condtion is not None
+        if condition is None: return self.db
+        else: return self.db[self.db[col]==condition]

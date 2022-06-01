@@ -173,6 +173,17 @@ def format_timedelta(timedelta):
     return f'{time_value} {interval}{suffix}'
 
 
+def format_seconds(total_seconds):
+    hours = total_seconds // 3600
+    minutes = round((total_seconds % 3600)/60,0)
+    leading_zero = '0' if minutes <= 9 else ''
+    if hours == 0:
+        res = f'{minutes:.0f} Minutes'
+    else:
+        res = f'{hours:.0f}:{leading_zero}{minutes:.0f} Hours'
+    return res
+
+
 def get_signature(file_name, lng_gist, is_revision):
         # create unique signature for currently loaded rev
         # or return filename for lng

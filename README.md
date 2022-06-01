@@ -81,7 +81,12 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 
 <h1>To-Do</h1>
 <ol>
-<li></li>
+<li>config updater for distributed versions</li>
+<li>paced-repetition - specific time for each card</li>
+<li>show all cards as a (synchronized dual-)list - implement in mistakes list later on</li>
+<li>EFC optimizer - ML? based</li>
+<li>scrape online dictionaries</li>
+<li>singleton config</li>
 </ol>
 
 <h1>Known Bugs</h1>

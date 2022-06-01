@@ -165,6 +165,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def reverse_side(self):
         super().reverse_side()
         self.display_text(self.get_current_card()[self.side])
+        if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
+            self.start_timer()
 
 
     def load_again_click(self):
@@ -197,8 +199,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def append_current_index(self):
-        super().append_current_index()
-        self.update_words_button()
+            super().append_current_index()
+            self.update_words_button()
 
     
     def decrease_current_index(self, value=1):
@@ -207,39 +209,34 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_prev_button(self):
-        super().goto_prev_card()
-        self.nav_buttons_visibility_control(False, False, True)
-        self.display_text(self.get_current_card()[self.side])
+        if self.current_index >= 1:
+            super().goto_prev_card()
+            self.nav_buttons_visibility_control(False, False, True)
+            self.display_text(self.get_current_card()[self.side])
 
 
     def click_next_button(self):
-        
-        if not self.is_complete_revision():
+        diff_words = self.total_words - self.current_index - 1
+        if diff_words > 0:
             super().goto_next_card()
             self.display_text(self.get_current_card()[self.side])
-            # start timer on the first card switch
+            last_card_was_reached = self.cards_seen+1 == self.total_words
+            conditions_to_stop_timer = last_card_was_reached and not self.is_revision and not self.is_mistakes_list
             if not self.TIMER_RUNNING_FLAG and not self.is_saved: self.start_timer()
-        else:
-            # is_saved flag allows to save current cardset only once
-            if self.is_saved == False:
-                self.handle_revision_complete()
-
-        self.update_score_button()
-
-        # modify buttons visibility when previous words are displayed
-        if self.words_back_mode():
-            self.nav_buttons_visibility_control(True, True, False)
-        
-        # record lng to db if last word is reached (mistakes lists ONLY)
-        diff_words = self.total_words - self.current_index - 1
-        if self.conditions_to_save_time_for_mistakes_are_met(diff_words):
+            elif conditions_to_stop_timer: self.stop_timer()
+            self.update_score_button()
+            if self.words_back_mode(): self.nav_buttons_visibility_control(True, True, False)
+        elif self.is_complete_revision() and self.is_saved == False: 
+            self.handle_revision_complete()
+        elif self.conditions_to_save_time_for_mistakes_are_met(diff_words):
             self.stop_timer()
             self.record_revision_to_db(self.seconds_spent)
             self.is_saved = True
-
+        
 
     def conditions_to_save_time_for_mistakes_are_met(self, diff_words):
-        if not self.is_revision and 'mistakes' in self.filename and not self.is_saved and diff_words == 0:
+        if not self.is_revision and self.is_mistakes_list and \
+            not self.is_saved and diff_words==0:
             return True
         else:
             return False
@@ -391,6 +388,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         optional_features = self.config['optional']
         if 'keyboard_shortcuts' in optional_features:
             self.add_shortcuts()
+        self.do_show_timer = 'hide_timer' not in optional_features
         
 
     def excepthook(self, exc_type, exc_value, exc_tb):
@@ -408,7 +406,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.create_timer_button()
 
     def create_timer_button(self):
-        self.timer_button = self.create_button('00:00', self.show_timespent_sidewindow)
+        self.timer_button = self.create_button('⏲', self.show_timespent_sidewindow)
         self.add_shortcut('t', self.show_timespent_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
@@ -432,17 +430,22 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def stop_timer(self):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
+        if not self.do_show_timer:
+            self.timer_button.setText('⏹')
 
     def reset_timer(self, clear_indicator=True):
         self.timer.stop()
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         if clear_indicator:
-            self.timer_button.setText('00:00')
+            self.timer_button.setText('⏲')
 
     def append_seconds_spent(self):
         self.seconds_spent+=1
-        self.timer_button.setText(datetime.fromtimestamp(self.seconds_spent).strftime('%M:%S'))
+        if self.do_show_timer:
+            self.timer_button.setText(datetime.fromtimestamp(self.seconds_spent).strftime('%M:%S'))
+        else:
+            self.timer_button.setText('⏲')
 
     def get_seconds_spent(self):
         return self.seconds_spent

@@ -1,4 +1,4 @@
-from wsgiref import headers
+from atexit import register
 from utils import *
 from random import shuffle
 import db_api
@@ -28,6 +28,8 @@ class fcc():
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     'sah':'Show Progress Chart for all languages',
                     'tts':'Total Time Spent *[last_n(1,2,3,...)] *[interval(m,d,y)] - shows amount of time (in hours) spent for each lng for each *interval. Default = 1 m',
+                    'scs':'Show Current Signature',
+                    'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.'
                     }
 
 
@@ -114,7 +116,7 @@ class fcc():
     def mcr(self, parsed_cmd):
         # Modify Card Result - allows modification of current score
 
-        mistakes_one_side = [x[1] for x in self.mistakes_list]
+        mistakes_one_side = [x[1-self.side] for x in self.mistakes_list]
         is_mistake = self.get_current_card()[self.side] in mistakes_one_side
         is_wordsback_mode = self.get_words_back() != 0
 
@@ -210,8 +212,8 @@ class fcc():
         mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.get_headings()[::-1])
                                             
         # Update[write/append] to a mistakes_list file
+        lng = get_lng_from_signature(self.get_signature()).upper()
         if do_save:
-            lng = get_lng_from_signature(self.get_signature()).upper()
             full_path = path + lng + '_mistakes.csv'
             file_exists = lng + '_mistakes.csv' in get_files_in_dir(path)
             keep_headers = True if mode == 'w' or not file_exists else False
@@ -233,6 +235,8 @@ class fcc():
         msg_mode = 'written' if mode == 'w' else 'appended'
         msg_result = f'Mistakes List {msg_mode} to {full_path}' if do_save else 'Created flashcards from mistakes list'
         self.post_fcc(msg_result)
+        self.del_side_window()
+
         
     
     def efc(self, parsed_cmd):
@@ -361,4 +365,21 @@ class fcc():
         # print result
         res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
         self.post_fcc(res)
+
+
+    def scs(self, parsed_cmd):
+        self.post_fcc(self.signature)
+
+
+    def lor(self, parsed_cmd):
+        db_interface = db_api.db_interface()
+
+        unique_signatures = db_interface.get_unique_signatures().values.tolist()
+        available_files = get_files_in_dir(self.config['revs_path'], include_extension=False)
+
+        for s in available_files:
+            if s in unique_signatures:
+                unique_signatures.remove(s)
+        
+        self.post_fcc('\n'.join([f'{i+1}. {v}' for i, v in enumerate(unique_signatures) if '_mistakes' not in v]))
 

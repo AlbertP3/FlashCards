@@ -23,8 +23,9 @@ class fcc_gui(fcc):
         self.CONSOLE_PROMPT = '$~>'
         self.CONSOLE_LOG = ''
 
-        self.add_shortcut('c', self.get_fcc_sidewindow)
-        self.add_shortcut('Insert', self.run_command)
+        if 'keyboard_shortcuts' in self.config['optional']:
+            self.add_shortcut('c', self.get_fcc_sidewindow)
+            self.add_shortcut('Insert', self.run_command)
 
         self.arrange_fcc_window()
 
@@ -97,7 +98,8 @@ class efc_gui(efc):
         # add button to main window
         self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
-        self.add_shortcut('e', self.get_efc_sidewindow)
+        if 'keyboard_shortcuts' in self.config['optional']: 
+            self.add_shortcut('e', self.get_efc_sidewindow)
 
 
     def get_efc_sidewindow(self):
@@ -159,7 +161,8 @@ class load_gui(load):
         # add button to main window
         self.load_button = self.create_button('Load', self.get_load_sidewindow)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
-        self.add_shortcut('l', self.get_load_sidewindow)
+        if 'keyboard_shortcuts' in self.config['optional']:
+            self.add_shortcut('l', self.get_load_sidewindow)
     
 
     def get_load_sidewindow(self):
@@ -224,7 +227,8 @@ class mistakes_gui():
     # no logic module for this side window
 
     def __init__(self):
-        self.add_shortcut('m', self.get_mistakes_sidewindow)
+        if 'keyboard_shortcuts' in self.config['optional']:
+            self.add_shortcut('m', self.get_mistakes_sidewindow)
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
 
     
@@ -274,7 +278,8 @@ class stats_gui(stats):
         stats.__init__(self)
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
-        self.add_shortcut('s', self.get_stats_sidewindow)
+        if 'keyboard_shortcuts' in self.config['optional']:
+            self.add_shortcut('s', self.get_stats_sidewindow)
 
 
     def get_stats_sidewindow(self):
@@ -314,7 +319,8 @@ class stats_gui(stats):
                     color=self.config['stat_chart_text_color'])
 
         # add labels - time spent
-        for x, y in zip(self.formatted_dates, self.time_spent_minutes):
+        time_spent_labels = self.time_spent_minutes if 'show_cpm_stats' not in self.config['optional'] else [round(self.total_words/(x/60), 1) for x in self.time_spent_seconds]
+        for x, y in zip(self.formatted_dates, time_spent_labels):
             # xytext - distance between points and text label
             time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
                         color=self.config['stat_chart_text_color'])
@@ -330,7 +336,7 @@ class stats_gui(stats):
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
         time_spent_plot.get_yaxis().set_visible(False)
-        time_spent_plot.set_ylim([0, 999])
+        time_spent_plot.set_ylim([0, 9999])
         self.figure.subplots_adjust(left=0.0, bottom=0.1, right=0.999, top=0.997)
 
         self.canvas.draw()        
@@ -338,13 +344,29 @@ class stats_gui(stats):
     def get_stats_table(self):
         self.stat_table = widget.QGridLayout()
 
-        self.repeated_times_button = self.create_button(f'{" "*(len(str(self.sum_repeated))+1)}Repeated {self.sum_repeated} time{"s" if int(self.sum_repeated) > 1 else ""}')
-        self.days_from_last_rev = self.create_button(f'Last rev {str(self.last_rev_days_ago).split(",")[0]} ago')
-        self.days_from_creation = self.create_button(f'Created {str(self.days_ago).split(",")[0]} ago')
-        
+        self.repeated_times_button = self.create_button(f'Repeated\n{self.sum_repeated} time{"s" if self.sum_repeated > 1 else ""}')
+        self.days_from_last_rev = self.create_button(f'Last Revision\n{str(self.last_rev_days_ago).split(",")[0]} ago')
+        self.days_from_creation = self.create_button(f'Created\n{str(self.days_ago).split(",")[0]} ago')
+
+        # estimate total time spent if some records miss time_spent
+        if self.missing_records_cnt == 0:
+            self.missing_records_adj = format_seconds(self.total_seconds_spent)
+        elif self.total_seconds_spent != 0:
+            # estimate total time by adding to actual total_seconds_spent, 
+            # the estimate = X * count of missing records multiplied by average time spent on non-zero revision
+            # X is an arbitrary number to adjust for learning curve
+            adjustment = 1.481*self.missing_records_cnt*(self.total_seconds_spent/(self.sum_repeated-self.missing_records_cnt))
+            self.missing_records_adj = f"±{format_seconds(self.total_seconds_spent + adjustment)}"
+        else:
+            # no time records for this revision
+            self.missing_records_adj = f'±{format_seconds(self.sum_repeated*(60*self.total_words/12))}'
+
+        self.total_time_spent = self.create_button(f'Spent\n{self.missing_records_adj}')
+
         self.stat_table.addWidget(self.repeated_times_button, 0, 0)
         self.stat_table.addWidget(self.days_from_last_rev, 0, 1)
         self.stat_table.addWidget(self.days_from_creation, 0, 2)
+        self.stat_table.addWidget(self.total_time_spent, 0, 3)
 
 
 
@@ -354,7 +376,8 @@ class progress_gui(stats):
         stats.__init__(self)
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
-        self.add_shortcut('h', self.get_progress_sidewindow)
+        if 'keyboard_shortcuts' in self.config['optional']:
+            self.add_shortcut('h', self.get_progress_sidewindow)
     
     
     def get_progress_sidewindow(self, override_lng_gist=False):
@@ -445,7 +468,8 @@ class config_gui():
         self.config = load_config()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
-        self.add_shortcut('q', self.get_config_sidewindow)
+        if 'keyboard_shortcuts' in self.config['optional']:
+            self.add_shortcut('q', self.get_config_sidewindow)
 
     
     def get_config_sidewindow(self):
@@ -467,10 +491,13 @@ class config_gui():
 
         # Elements
         self.config_layout = widget.QGridLayout()
+        self.options_layout = widget.QGridLayout()
+        self.config_layout.addLayout(self.options_layout, 0, 0)
         self.fill_config_list()
 
 
     def fill_config_list(self):
+        # Create label + qlineedit/combobox/... then add it to options_layout then fetch data from it to the modified_dict
 
         # initate labels and comboboxes
         self.confirm_and_close_button = self.create_button('Confirm Changes', self.del_config_side_window)
@@ -480,38 +507,42 @@ class config_gui():
         self.lngs_label = self.create_label('Languages')
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
-        self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', ['reccommend_new','keyboard_shortcuts',])
+        self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
+            ['reccommend_new','keyboard_shortcuts','hide_timer','show_cpm_stats', 'revision_summary'])
         self.optional_label = self.create_label('Optional Features')
         self.revs_path_qline = self.create_config_qlineedit('revs_path')
         self.revs_path_label = self.create_label('Revs Path')
         self.lngs_path_qline = self.create_config_qlineedit('lngs_path')
         self.lngs_path_label = self.create_label('Lngs Path')
+        self.init_rep_qline = self.create_config_qlineedit('initial_repetitions')
+        self.init_rep_label = self.create_label("Initial Repetitions")
 
         # add widgets
-        self.config_layout.addWidget(self.card_default_label, 0, 0)
-        self.config_layout.addWidget(self.card_default_combobox, 0, 1)
-        self.config_layout.addWidget(self.lngs_label, 1, 0)
-        self.config_layout.addWidget(self.lngs_checkablecombobox, 1, 1)
-        self.config_layout.addWidget(self.days_to_new_rev_label, 2, 0)
-        self.config_layout.addWidget(self.days_to_new_rev_qlineedit, 2, 1)
-        self.config_layout.addWidget(self.optional_label, 3, 0)
-        self.config_layout.addWidget(self.optional_checkablecombobox, 3, 1)
-        self.config_layout.addWidget(self.revs_path_label, 4, 0)
-        self.config_layout.addWidget(self.revs_path_qline, 4, 1)
-        self.config_layout.addWidget(self.lngs_path_label, 5, 0)
-        self.config_layout.addWidget(self.lngs_path_qline, 5, 1)
-        self.config_layout.addWidget(self.confirm_and_close_button, 8, 0, 1, 2)
+        self.options_layout.addWidget(self.card_default_label, 0, 0)
+        self.options_layout.addWidget(self.card_default_combobox, 0, 1)
+        self.options_layout.addWidget(self.lngs_label, 1, 0)
+        self.options_layout.addWidget(self.lngs_checkablecombobox, 1, 1)
+        self.options_layout.addWidget(self.days_to_new_rev_label, 2, 0)
+        self.options_layout.addWidget(self.days_to_new_rev_qlineedit, 2, 1)
+        self.options_layout.addWidget(self.optional_label, 3, 0)
+        self.options_layout.addWidget(self.optional_checkablecombobox, 3, 1)
+        self.options_layout.addWidget(self.revs_path_label, 4, 0)
+        self.options_layout.addWidget(self.revs_path_qline, 4, 1)
+        self.options_layout.addWidget(self.lngs_path_label, 5, 0)
+        self.options_layout.addWidget(self.lngs_path_qline, 5, 1)
+        self.options_layout.addWidget(self.init_rep_label, 6, 0)
+        self.options_layout.addWidget(self.init_rep_qline, 6, 1)
+        self.options_layout.addWidget(self.confirm_and_close_button, 9, 0, 1, 2)
 
         # blank spaces
-        self.config_layout.addWidget(self.create_blank_widget(),6,0)
-        self.config_layout.addWidget(self.create_blank_widget(),7,0)
+        self.options_layout.addWidget(self.create_blank_widget(),7,0)
+        self.options_layout.addWidget(self.create_blank_widget(),8,0)
 
 
     def create_config_combobox(self, key:str, content:list):
         combobox = widget.QComboBox(self)
         combobox.addItems(content)
         combobox.setCurrentText(self.config[key])
-        combobox.setMinimumHeight(self.BUTTONS_HEIGHT)
         combobox.setFont(self.BUTTON_FONT)
         combobox.setStyleSheet(self.button_style_sheet)
         return combobox
@@ -521,7 +552,6 @@ class config_gui():
         checkable_cb = CheckableComboBox(self)
         for i in content:
             checkable_cb.addItem(i, is_checked= i in self.config[key])
-        checkable_cb.setMinimumHeight(self.BUTTONS_HEIGHT)
         checkable_cb.setFont(self.BUTTON_FONT)
         checkable_cb.setStyleSheet(self.button_style_sheet)
         return checkable_cb
@@ -530,7 +560,6 @@ class config_gui():
     def create_config_qlineedit(self, key:str):
         qlineedit = widget.QLineEdit(self)
         qlineedit.setText(self.config[key])
-        qlineedit.setMinimumHeight(self.BUTTONS_HEIGHT)
         qlineedit.setFont(self.BUTTON_FONT)
         qlineedit.setStyleSheet(self.button_style_sheet)
         return qlineedit
@@ -539,7 +568,6 @@ class config_gui():
     def create_label(self, text):
         label = widget.QLabel(self)
         label.setText(text)
-        label.setMinimumHeight(self.BUTTONS_HEIGHT)
         label.setFont(self.BUTTON_FONT)
         label.setText(text)
         label.setStyleSheet(self.button_style_sheet)
@@ -548,7 +576,6 @@ class config_gui():
     def create_blank_widget(self):
         blank = widget.QLabel(self)
         blank.setStyleSheet("border: 0px")
-        blank.setMinimumHeight(self.BUTTONS_HEIGHT)
         return blank
 
 
@@ -560,6 +587,7 @@ class config_gui():
         modified_dict['optional'] = '|'.join(self.optional_checkablecombobox.currentData())
         modified_dict['revs_path'] = self.revs_path_qline.text()
         modified_dict['lngs_path'] = self.lngs_path_qline.text()
+        modified_dict['initial_repetitions'] = self.init_rep_qline.text()
 
         update_config_bulk(modified_dict)
         self.del_side_window()
