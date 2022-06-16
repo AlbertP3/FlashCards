@@ -16,15 +16,15 @@ class efc():
                                         'DE':'Es ist an der Zeit zu handeln!',
                                         'IT':'Andiamo a lavorare',
                                         'FR':'Mettons-nous au travail'}
-        self.config = load_config()
-
+        self.config = Config().get_instance()
         self.db_interface = db_api.db_interface()
-        self.unique_signatures = list()
+        self.db_interface.filter_where_lng(lngs=self.config['languages'])
         self.refresh_source_data()
+        self.unique_signatures = list()
 
     
     def refresh_source_data(self):
-        self.db_interface.refresh()
+        self.db_interface.refresh(retain_filters=True)
         self.unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
                                     if s + '.csv' in listdir(self.config['revs_path'])]
 
@@ -118,7 +118,7 @@ class efc():
 
     def is_it_time_for_something_new(self):
         # Periodically reccommend to create new revision for every lng
-        lngs = self.config['languages'].split('|')
+        lngs = self.config['languages']
         new_reccommendations = list()
         self.unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  
         

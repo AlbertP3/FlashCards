@@ -7,17 +7,19 @@ class load():
     
     def __init__(self):
         self.selected_file_name = None
-        self.config = load_config()
+        self.config = Config().get_instance()
     
 
     def get_lng_files(self):
         self.lng_files_list = get_files_in_dir(self.config['lngs_path'])
+        self.lng_files_list = filter_with_list(self.config['languages'], self.lng_files_list, case_sensitive=True)
         self.lng_files_list.sort(reverse=False)  
         return self.lng_files_list
 
 
     def get_rev_files(self):
         self.rev_files_list = get_files_in_dir(self.config['revs_path'])
+        self.rev_files_list = filter_with_list(self.config['languages'], self.rev_files_list, case_sensitive=True)
         dbapi = db_api.db_interface()
         self.rev_files_list.sort(key=dbapi.get_first_date_by_filename, reverse=True)  
         return self.rev_files_list

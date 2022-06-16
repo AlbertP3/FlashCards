@@ -465,7 +465,7 @@ class progress_gui(stats):
 class config_gui():
 
     def __init__(self):
-        self.config = load_config()
+        self.config = Config.get_instance()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         if 'keyboard_shortcuts' in self.config['optional']:
@@ -589,7 +589,7 @@ class config_gui():
         modified_dict['lngs_path'] = self.lngs_path_qline.text()
         modified_dict['initial_repetitions'] = self.init_rep_qline.text()
 
-        update_config_bulk(modified_dict)
+        self.config.update(modified_dict)
         self.del_side_window()
 
     

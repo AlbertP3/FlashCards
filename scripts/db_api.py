@@ -2,7 +2,7 @@ import pandas as pd
 from utils import *
 
 
-config = load_config()
+config = Config.get_instance()
 REV_DB_PATH = config['db_path'] 
 DBAPI_STATUS_DICT = dict()
 
@@ -20,7 +20,7 @@ def create_record(signature, words_total, positives, seconds_spent):
     with open(REV_DB_PATH, 'a') as fd:
         fd.write(';'.join([timestamp, signature, str(words_total), 
                             str(positives), str(seconds_spent)])+'\n')
-    post_dbapi('Record created succcessfully')
+    post_dbapi(f'Recorded: {signature}|{positives}|{seconds_spent}@{str(timestamp)[-8:-3]}')
 
 
 class db_interface():
@@ -33,10 +33,27 @@ class db_interface():
     def __init__(self):
         self.DEFAULT_DATE = datetime(1900, 1, 1)
         self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
-       
+        self.__reset_filters_flags()
 
-    def refresh(self):
+
+    def __reset_filters_flags(self):
+        # when adding a filter function, must add
+        # the flag in this and the refresh() functions
+        # positive flags will equal to args passed to the filter function (dict if multiple args)
+        self.FILTER_POSITIVES_NOT_ZERO = None
+        self.FILTER_LNG = None
+        self.FILTER_SIGNATURE_IS_EQUAL = None
+
+
+    def refresh(self, retain_filters=False):
         self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
+
+        if retain_filters:
+            if self.FILTER_LNG: self.filter_where_lng(self.FILTER_LNG)
+            if self.FILTER_POSITIVES_NOT_ZERO: self.filter_where_positives_not_zero()
+            if self.FILTER_SIGNATURE_IS_EQUAL: self.filter_where_signature_is_equal_to(self.FILTER_SIGNATURE_IS_EQUAL)
+        else:
+            self.__reset_filters_flags()
 
 
     def rename_signature(self, old_signature, new_signature):
@@ -71,6 +88,12 @@ class db_interface():
             return 0
 
     
+    def get_filtered_db_if(self, col:str, condition=None):
+        # returns filtered db if condtion is not None
+        if condition is None: return self.db
+        else: return self.db[self.db[col]==condition]
+
+
     def get_last_positives(self, signature=None):
         try:
             res = self.get_filtered_db_if('SIGNATURE', signature)
@@ -192,26 +215,37 @@ class db_interface():
         return res[return_col_name].values.tolist()
 
 
-    def get_filtered_by_lng(self, lng:str):
+    def get_filtered_by_lng(self, lngs:list):
+        return self.__get_filtered_by_lng(lngs)
+
+
+    def __get_filtered_by_lng(self, lngs:list):
         # filters out all not-matching lngs from the DB by SIGNATURE
         # contains can be used with regex
-        return self.db.loc[self.db.iloc[:, 1].str.contains(lng)]
+        if not isinstance(lngs, list): lngs = [lngs]  
+        res = pd.DataFrame(columns=self.db.columns)
+        for l in lngs:
+            l_df = self.db.loc[self.db.iloc[:, 1].str.contains(l)]
+            res = res.append(l_df, ignore_index=True, sort=False)
+        
+        return res
 
 
     def filter_where_positives_not_zero(self):
         # modifies self.db to contain only revision with POSITIVES != 0
         self.db = self.db.loc[self.db['POSITIVES'] != 0]
+        self.FILTER_POSITIVES_NOT_ZERO = True
 
 
     def filter_where_signature_is_equal_to(self, signature):
         self.db = self.db.loc[self.db['SIGNATURE'] == signature]
+        self.FILTER_SIGNATURE_IS_EQUAL = signature
+
+
+    def filter_where_lng(self, lngs:list=[]):
+        self.db = self.__get_filtered_by_lng(lngs)
+        self.FILTER_LNG = lngs
 
 
     def get_all(self):
         return self.db
-
-
-    def get_filtered_db_if(self, col:str, condition=None):
-        # returns filtered db if condtion is not None
-        if condition is None: return self.db
-        else: return self.db[self.db[col]==condition]

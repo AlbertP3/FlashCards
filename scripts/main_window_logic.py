@@ -10,13 +10,14 @@ class main_window_logic():
         self.QTEXTEDIT_CONSOLE = None
         
         # Flashcards parameters
-        self.config = load_config()
+        self.config = Config.get_instance()
         self.default_side = self.get_default_side()
         self.side = self.default_side
         self.file_path = self.config['onload_file_path']
         self.revmode = False
         self.cards_seen = 0
         self.signature = ''
+        self.revision_summary = None
         
 
     def build_backend_only(self):
@@ -163,7 +164,7 @@ class main_window_logic():
         else:
             self.signature = override_signature
 
-        update_config('onload_file_path', file_path)
+        self.config.update({'onload_file_path': file_path})
 
         # reset flashcards parameters
         self.current_index = 0
@@ -176,8 +177,7 @@ class main_window_logic():
         self.side = self.get_default_side()
         self.total_words = self.dataset.shape[0]
         self.is_mistakes_list = 'mistakes' in self.filename
-
-        self.config = load_config()
+        self.revision_summary = None
 
         self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
 
@@ -195,10 +195,6 @@ class main_window_logic():
         else:
             progress = 'Revision done'
         return progress
-
-
-    def refresh_config(self):
-        self.config = load_config()
 
 
     def get_default_side(self):

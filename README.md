@@ -86,7 +86,10 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <li>show all cards as a (synchronized dual-)list - implement in mistakes list later on</li>
 <li>EFC optimizer - ML? based</li>
 <li>scrape online dictionaries</li>
-<li>singleton config</li>
+<li>--revision summary should stay in the set</li>
+<li>--singleton config</li>
+<li>refactor config fields inside the Config class e.g. languages to list()</li>
+<li>Create setup for tests - test_config, test_db, ... </li>
 </ol>
 
 <h1>Known Bugs</h1>

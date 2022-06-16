@@ -11,7 +11,7 @@ class fcc():
     # graphical interface is available.
 
     def __init__(self,  qtextedit_console=False):
-        self.config = load_config()
+        self.config = Config.get_instance()
         self.save_to_log = True
         self.TEMP_FILE_FLAG = False
         self.QTEXTEDIT_CONSOLE = qtextedit_console
@@ -29,7 +29,8 @@ class fcc():
                     'sah':'Show Progress Chart for all languages',
                     'tts':'Total Time Spent *[last_n(1,2,3,...)] *[interval(m,d,y)] - shows amount of time (in hours) spent for each lng for each *interval. Default = 1 m',
                     'scs':'Show Current Signature',
-                    'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.'
+                    'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.',
+                    'sod':'Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.',
                     }
 
 
@@ -97,7 +98,7 @@ class fcc():
 
         # check preconditions
         if len(parsed_cmd) < 2:
-            self.post_fcc('mc function require at least 2 arguments')
+            self.post_fcc('mct function require at least 2 arguments')
             return
             
         # change text on the card
@@ -194,7 +195,7 @@ class fcc():
         
         self.update_backend_parameters(new_path, data)
         self.refresh_interface()
-
+        self.TEMP_FILE_FLAG = True
         self.post_fcc(f'Loaded last {n_cards} cards.')
 
     
@@ -265,7 +266,7 @@ class fcc():
             self.post_fcc('mcp function takes only existing dict keys. Use "sck" to show all available keys.')
             return
             
-        update_config(config_key, config_new_value)
+        self.config.update({config_key: config_new_value})
 
         # load config again if available 
         try:
@@ -329,14 +330,15 @@ class fcc():
 
 
     def tts(self, parsed_cmd):
-        
+        # total time spent
+
         # parse user input
         last_n = 1 if len(parsed_cmd) < 2 else int(parsed_cmd[1])
         interval = 'm' if len(parsed_cmd) < 3 else parsed_cmd[2]
 
         db_interface = db_api.db_interface()
         db = db_interface.get_all()
-        lngs = [l.upper() for l in self.config['languages'].split('|')]
+        lngs = [l.upper() for l in self.config['languages']]
 
         date_format_dict = {
             'm': '%m/%Y',
@@ -372,6 +374,7 @@ class fcc():
 
 
     def lor(self, parsed_cmd):
+        # list obsolete revisions
         db_interface = db_api.db_interface()
 
         unique_signatures = db_interface.get_unique_signatures().values.tolist()
@@ -382,4 +385,41 @@ class fcc():
                 unique_signatures.remove(s)
         
         self.post_fcc('\n'.join([f'{i+1}. {v}' for i, v in enumerate(unique_signatures) if '_mistakes' not in v]))
+
+
+    def sod(self, parsed_cmd):
+        # scrape online dictionary
+        DEFAULT_DICT = 'google'
+        d_index = 0
+        phrase = ''
+
+        # pick phrase
+        if len(parsed_cmd) == 1:
+            phrase = self.dataset.iloc[self.current_index, self.get_current_side()]
+        else:
+            for i, v in enumerate(parsed_cmd[1:]):
+                if v != '-d':
+                    phrase+=str(v)+' '
+                else:
+                    d_index = i+2
+                    break
+        
+        # pick dict
+        lng = get_lng_from_signature(self.get_signature())
+        cur_lng = [lng, self.config['native_lng']][self.get_current_side()].lower().replace(' ', '\&')
+        other_lng = [lng, self.config['native_lng']][1-self.get_current_side()].lower().replace(' ', '\&')
+
+        DICTS_MAP = dict(google = f'https://translate.google.com/?sl={cur_lng}&tl={other_lng}&text={phrase}&op=translate')
+        
+        input_dict = parsed_cmd[d_index]
+        if input_dict in DICTS_MAP.keys():
+            url = DICTS_MAP[input_dict]
+        else:
+            url = DICTS_MAP[DEFAULT_DICT]
+            if d_index != 0:
+                # only print a msg if user has provided something
+                self.post_fcc(f'{input_dict} is not available - recoursing to {DEFAULT_DICT}. Available dicts are: {DICTS_MAP}')
+        
+        self.post_fcc('Work in progress')
+        self.post_fcc(str(url))
 

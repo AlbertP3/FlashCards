@@ -66,8 +66,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         # Organize Layout
         self.setStyleSheet(self.config['main_style_sheet'])
-        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
-        self.button_style_sheet = (self.config['button_style_sheet'])
+        self.textbox_stylesheet = self.config['textbox_style_sheet']
+        self.button_style_sheet = self.config['button_style_sheet']
 
         self.layout_first_row = widget.QGridLayout()
         self.layout_second_row = widget.QGridLayout()
@@ -232,6 +232,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.stop_timer()
             self.record_revision_to_db(self.seconds_spent)
             self.is_saved = True
+        else:
+            # display rev summary each time user reaches final card
+            self.display_text(self.revision_summary)
         
 
     def conditions_to_save_time_for_mistakes_are_met(self, diff_words):
@@ -254,7 +257,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def handle_revision_complete(self):
         if self.positives !=  0:
-            self.display_text(self.get_rating_message())
+            self.revision_summary = self.get_rating_message()
+            self.display_text(self.revision_summary)
 
         if self.negatives != 0:
             self.show_mistakes()
@@ -333,10 +337,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.stop_timer()
 
 
-    def del_side_window(self):
-        # specific behaviour of side windows
-        if self.side_window_id == 'config': self.config = load_config()
-        
+    def del_side_window(self): 
         remove_layout(self.side_window_layout)
         self.setFixedWidth(self.DEFAULT_WIDTH)
         self.setMinimumWidth(0)
@@ -452,7 +453,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def show_timespent_sidewindow(self):
         # displays time spent table utilizing FCC interface
-        timespent_sidewindow_width = len(self.config['languages'].split('|'))*120
+        timespent_sidewindow_width = len(self.config['languages'])*120
         self.get_fcc_sidewindow(width_=timespent_sidewindow_width, read_only=True, show_history=False)
         self.execute_command(['tts', '12', 'm'], followup_prompt=False, save_to_log=False)
 

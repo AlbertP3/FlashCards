@@ -7,9 +7,47 @@ import csv
 import inspect
 
 
+class Config(object):
+    instance = None
+
+    def __init__(self):
+        self.PATH_TO_DICT = './scripts/resources/config.ini'
+        self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
+        self.__refresh()
+    
+    def __getitem__(self, key):
+        return self.config[key]
+
+    def __refresh(self):
+        self.parser.read(self.PATH_TO_DICT)
+        self.config = dict(self.parser.items('DEFAULT'))
+        self.__parse_items()
+    
+    def __save(self):
+        with open(self.PATH_TO_DICT, 'w') as configfile:
+            self.parser.write(configfile)
+
+    def update(self, modified_dict:dict):
+        for k, v in modified_dict.items():
+            self.parser.set('DEFAULT', k, v)
+            self.config[k] = v
+        self.__save()
+
+    def __parse_items(self):
+        l_items = ['languages', 'optional']
+        for item in l_items:
+            self.config[item] = self.config[item].split('|')
+
+    @staticmethod
+    def get_instance():
+        if not Config.instance:
+            Config.instance = Config()
+        return Config.instance     
+
+
 
 UTILS_STATUS_DICT = dict()
-
+config = Config.get_instance()
 
 def post_utils(text):
     caller_function = inspect.stack()[1].function
@@ -18,31 +56,6 @@ def post_utils(text):
 
 def get_status_dict():
     return UTILS_STATUS_DICT
-
-
-def load_config():
-    config = configparser.RawConfigParser(inline_comment_prefixes=None)
-    config.read('./scripts/resources/config.ini')
-    return config['DEFAULT']
-
-
-config = load_config()
-
-
-def update_config(key, new_value):
-    old_config = configparser.RawConfigParser(inline_comment_prefixes=None)
-    old_config.read('./scripts/resources/config.ini')
-    old_config.set('DEFAULT', key, new_value)
-    with open('./scripts/resources/config.ini', 'w') as configfile:
-        old_config.write(configfile)
-
-def update_config_bulk(modified_dict:dict):
-    old_config = configparser.RawConfigParser(inline_comment_prefixes=None)
-    old_config.read('./scripts/resources/config.ini')
-    for k, v in modified_dict.items():
-        old_config.set('DEFAULT', k, v)
-    with open('./scripts/resources/config.ini', 'w') as configfile:
-        old_config.write(configfile)
 
 
 def register_log(traceback):
@@ -205,7 +218,7 @@ def update_signature_timestamp(signature):
 
 
 def get_lng_from_signature(signature):
-    lngs = config['languages'].split('|')
+    lngs = config['languages']
     matched_lng = 'UNKNOWN'
     for lng in lngs:
         if lng in signature:
@@ -223,7 +236,10 @@ def load_dataset(file_path, do_shuffle=True):
             dataset = read_csv(file_path)
         elif extension in ['xlsx', 'xlsm']:  
             dataset = read_excel(file_path)
+        elif extension in ['odf']:
+            dataset = pd.read_excel(file_path, engine='odf')
         else:
+            dataset = pd.DataFrame()
             operation_status = f'Chosen extension is not (yet) supported: {extension}'
     except Exception as e:
         operation_status = f'Unable to load requested {extension} file due to ' + str(e)
@@ -377,4 +393,19 @@ def format_seconds_to(total_seconds, interval, include_remainder=True, null_form
     
     return res
 
-    
+
+def filter_with_list(filter_, list_, case_sensitive=True):
+    res = list()
+    for i in list_:
+        for k in filter_:
+            if in_str(k, i, case_sensitive):
+                res.append(i)
+    return res
+
+
+def in_str(sub_string, string, case_sensitive=True):
+    if case_sensitive:
+        return sub_string in string
+    else:
+        # https://stackoverflow.com/questions/319426/how-do-i-do-a-case-insensitive-string-comparison
+        return sub_string.upper().lower() in string.upper().lower()

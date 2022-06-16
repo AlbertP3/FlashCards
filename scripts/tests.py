@@ -2,7 +2,6 @@ import unittest
 import pandas as pd
 import os
 from utils import *
-import utils
 import db_api
 from datetime import datetime, date, timedelta
 import main_window_logic
@@ -10,8 +9,6 @@ import efc
 import stats
 from random import randint
 from rev_summary import summary_generator
-
-config = utils.load_config()
 
 
 def init_backend_and_load_test_file():
@@ -53,15 +50,15 @@ class Test_utils(unittest.TestCase):
         example_timedelta_8 = timedelta(days=1, hours=0, minutes=0, seconds=0)
         example_timedelta_9 = timedelta(days=2, hours=4, minutes=15, seconds=43)
         
-        self.assertEqual(utils.format_timedelta(example_timedelta_1), '0 Seconds')
-        self.assertEqual(utils.format_timedelta(example_timedelta_2), '1 Second')
-        self.assertEqual(utils.format_timedelta(example_timedelta_3), '2 Seconds')
-        self.assertEqual(utils.format_timedelta(example_timedelta_4), '1 Minute')
-        self.assertEqual(utils.format_timedelta(example_timedelta_5), '2 Minutes')
-        self.assertEqual(utils.format_timedelta(example_timedelta_6), '1 Hour')
-        self.assertEqual(utils.format_timedelta(example_timedelta_7), '2 Hours')
-        self.assertEqual(utils.format_timedelta(example_timedelta_8), '1 Day')
-        self.assertEqual(utils.format_timedelta(example_timedelta_9), '2 Days')
+        self.assertEqual(format_timedelta(example_timedelta_1), '0 Seconds')
+        self.assertEqual(format_timedelta(example_timedelta_2), '1 Second')
+        self.assertEqual(format_timedelta(example_timedelta_3), '2 Seconds')
+        self.assertEqual(format_timedelta(example_timedelta_4), '1 Minute')
+        self.assertEqual(format_timedelta(example_timedelta_5), '2 Minutes')
+        self.assertEqual(format_timedelta(example_timedelta_6), '1 Hour')
+        self.assertEqual(format_timedelta(example_timedelta_7), '2 Hours')
+        self.assertEqual(format_timedelta(example_timedelta_8), '1 Day')
+        self.assertEqual(format_timedelta(example_timedelta_9), '2 Days')
             
 
     def test_get_signature_from_filename(self):
@@ -69,9 +66,9 @@ class Test_utils(unittest.TestCase):
         language = 'language'
         
         self.assertEqual(
-            utils.get_signature(revision, 'XT', is_revision=True)
+            get_signature(revision, 'XT', is_revision=True)
             , revision)
-        self.assertEqual(utils.get_signature(language, 'XT', is_revision=False)
+        self.assertEqual(get_signature(language, 'XT', is_revision=False)
             , 'REV_' + 'XT' + datetime.now().strftime('%m%d%Y%H%M%S'))
     
 
@@ -84,37 +81,37 @@ class Test_utils(unittest.TestCase):
                                         '3rd':['x', 'y', 'z']})
         ds_empty = pd.DataFrame(data={})
 
-        self.assertEqual(utils.dataset_is_valid(ds_correct), True)
-        self.assertEqual(utils.dataset_is_valid(ds_one_col), False)
-        self.assertEqual(utils.dataset_is_valid(ds_three_cols), True)
-        self.assertEqual(utils.dataset_is_valid(ds_empty), False)
+        self.assertEqual(dataset_is_valid(ds_correct), True)
+        self.assertEqual(dataset_is_valid(ds_one_col), False)
+        self.assertEqual(dataset_is_valid(ds_three_cols), True)
+        self.assertEqual(dataset_is_valid(ds_empty), False)
 
 
     def test_load_dataset(self):
         path_csv = './revisions/TEST_CARD.csv'
         path_absent = './revisions/non-existing-file.csv'
 
-        data = utils.load_dataset(path_csv)
-        data_3 = utils.load_dataset(path_absent)
+        data = load_dataset(path_csv)
+        data_3 = load_dataset(path_absent)
 
-        self.assertEqual(utils.dataset_is_valid(data), True)
-        self.assertEqual(utils.dataset_is_valid(data_3), False)
+        self.assertEqual(dataset_is_valid(data), True)
+        self.assertEqual(dataset_is_valid(data_3), False)
       
 
     def test_load_dataset_randomization(self):
         path = './revisions/TEST_CARD.csv'
-        datasample_1 = utils.load_dataset(path, True).values.tolist()[:5]
-        datasample_2 = utils.load_dataset(path, True).values.tolist()[:5]
-        datasample_3 = utils.load_dataset(path, True).values.tolist()[:5]
+        datasample_1 = load_dataset(path, True).values.tolist()[:5]
+        datasample_2 = load_dataset(path, True).values.tolist()[:5]
+        datasample_3 = load_dataset(path, True).values.tolist()[:5]
 
         self.assertEqual(datasample_1 != datasample_2 != datasample_3, True)
 
 
     def test_get_lng_from_signature(self):
-        s1 = utils.get_lng_from_signature('REV_EN0125370523')
-        s2 = utils.get_lng_from_signature('aa_EN23525236')
-        s3 = utils.get_lng_from_signature('RU_biesy_part1')     
-        s4 = utils.get_lng_from_signature('temp')
+        s1 = get_lng_from_signature('REV_EN0125370523')
+        s2 = get_lng_from_signature('aa_EN23525236')
+        s3 = get_lng_from_signature('RU_biesy_part1')     
+        s4 = get_lng_from_signature('temp')
 
         self.assertEqual(s1, 'EN')
         self.assertEqual(s2, 'EN')
@@ -125,7 +122,7 @@ class Test_utils(unittest.TestCase):
     def test_update_signature_timestamp(self):
         s1 = 'REV_EN31122022101010'
         s_expected = f"REV_EN{datetime.now().strftime('%m%d%Y%H%M%S')}"
-        self.assertEqual(utils.update_signature_timestamp(s1), s_expected)
+        self.assertEqual(update_signature_timestamp(s1), s_expected)
 
 
     def test_get_signature(self):
@@ -134,15 +131,15 @@ class Test_utils(unittest.TestCase):
         filename_3 = 'just_a_rev'
         timestamp = datetime.now().strftime('%m%d%Y%H%M%S')
 
-        self.assertEqual(utils.get_signature(filename_1, 'EN',  False), f'REV_EN{timestamp}')
-        self.assertEqual(utils.get_signature(filename_2, 'EDB', False), f'REV_EDB{timestamp}')
-        self.assertEqual(utils.get_signature(filename_3, 'EN', True), filename_3)
+        self.assertEqual(get_signature(filename_1, 'EN',  False), f'REV_EN{timestamp}')
+        self.assertEqual(get_signature(filename_2, 'EDB', False), f'REV_EDB{timestamp}')
+        self.assertEqual(get_signature(filename_3, 'EN', True), filename_3)
 
 
     def test_get_most_similar_file(self):
-        self.assertEqual(utils.get_most_similar_file('./languages/', 'en'), 'en.xlsx')
-        self.assertEqual(utils.get_most_similar_file('./languages/', 'non-existing', None), None)
-        self.assertEqual(utils.get_most_similar_file('./languages/', 'non-existing', 'load_any'), 'de.csv')
+        self.assertEqual(get_most_similar_file('./languages/', 'en'), 'en.xlsx')
+        self.assertEqual(get_most_similar_file('./languages/', 'non-existing', None), None)
+        self.assertEqual(get_most_similar_file('./languages/', 'non-existing', 'load_any'), 'de.csv')
 
 
     def test_save_revision(self):
@@ -150,12 +147,27 @@ class Test_utils(unittest.TestCase):
         data = pd.DataFrame(data={'EN':['loiter', 'agog', 'compelling'], 
                                         'PL':['szwendac sie', 'podniecony', 'wazny']})
 
-        utils.save_revision(data, filename)
-        files_in_rev_folder = utils.get_files_in_dir('./revisions/', include_extension=False)
+        save_revision(data, filename)
+        files_in_rev_folder = get_files_in_dir('./revisions/', include_extension=False)
 
         self.assertIn(filename, files_in_rev_folder)
         os.remove(f'./revisions/{filename}.csv')
 
+
+
+class config_class_test(unittest.TestCase):
+
+    def setUp(self):
+        self.conf = Config.get_instance()
+
+    def test_load(self):
+        self.assertEqual(self.conf['optional'], 'keyboard_shortcuts|revision_summary')
+        self.assertNotEqual(self.conf['textbox_style_sheet'], '')
+
+    def test_update_config(self):
+        self.conf.update({'TEST_ATTR': '0'})
+        self.assertEqual(self.conf['TEST_ATTR'], '0')
+        
 
 
 class Test_db_api(unittest.TestCase):
@@ -182,19 +194,19 @@ class Test_db_api(unittest.TestCase):
     def test_get_first_date(self):
         dbapi = db_api.db_interface()
         # db_api.create_record('TEST_SIGNATURE', 0, 0)
-        self.assertEqual(dbapi.get_first_datetime('TEST_SIGNATURE'), utils.make_todayte())
+        self.assertEqual(dbapi.get_first_datetime('TEST_SIGNATURE'), make_todayte())
 
 
     def test_get_first_date_if_file_not_in_db(self):
         dbapi = db_api.db_interface()
-        first_date = dbapi.get_first_datetime(utils.get_signature('TEST_FILE_NOT_IN_DB', '', True))
+        first_date = dbapi.get_first_datetime(get_signature('TEST_FILE_NOT_IN_DB', '', True))
         self.assertEqual(first_date, date(1900, 1, 1))
 
 
     def test_get_last_date(self):
         # db_api.create_record('TEST_SIGNATURE', 0, 0)
         dbapi = db_api.db_interface()
-        self.assertEqual(dbapi.get_last_datetime('TEST_SIGNATURE'), utils.make_todayte())
+        self.assertEqual(dbapi.get_last_datetime('TEST_SIGNATURE'), make_todayte())
 
 
     def test_get_newest_record(self):
@@ -244,8 +256,10 @@ class Test_db_api(unittest.TestCase):
 
     def test_filter_lng(self):
         dbapi = db_api.db_interface()
-        db_filtered = dbapi.get_filtered_by_lng('DE')
-        self.assertEqual(db_filtered.shape[0], 3)
+        total = dbapi.get_all()
+        db_filtered = dbapi.get_filtered_by_lng('EN')
+        self.assertNotEqual(db_filtered.shape[0], 0)
+        self.assertLess(db_filtered.shape[0], total.shape[0])
 
 
 
@@ -285,14 +299,14 @@ class Test_flashcard_console_commands(unittest.TestCase):
         self.init_backend_and_load_test_file()
         self.mw.goto_next_card()
 
-        dataset_ordered_pre = utils.load_dataset(self.mw.get_filepath(), False).values.tolist()
+        dataset_ordered_pre = load_dataset(self.mw.get_filepath(), False).values.tolist()
         current_card = self.mw.get_current_card()
 
         self.mw.dc(parsed_cmd=['dc','-'])
 
         # Assert order maintained
         dataset_ordered_pre = [x[0] for x in dataset_ordered_pre if x[0] != current_card[0]]
-        dataset_ordered_post = utils.load_dataset(self.mw.get_filepath(), False).values.tolist()
+        dataset_ordered_post = load_dataset(self.mw.get_filepath(), False).values.tolist()
         dataset_ordered_post = [x[0] for x in dataset_ordered_post]
 
         self.assertEqual(len(dataset_ordered_pre), len(dataset_ordered_post))
@@ -409,6 +423,7 @@ def run_summary_generator_test(positives=None, last_positives=None, total=None, 
         return res    
 
 
+
 def print_summary_generator_in_loop(positives=None, last_positives=None, total=None, max_positives=None, 
                                 time_spent=None, last_time_spent=None, verbose=True, iter=1, filters:list()=[]):
     for _ in range(iter):
@@ -419,7 +434,3 @@ def print_summary_generator_in_loop(positives=None, last_positives=None, total=N
             if any(f in res for f in filters): print(res)
         else:
             print(res)
-
-
-# print_summary_generator_in_loop(iter=50, verbose=False, 
-#                                 filters=[])
