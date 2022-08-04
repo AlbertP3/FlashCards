@@ -81,15 +81,43 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 
 <h1>To-Do</h1>
 <ol>
-<li>config updater for distributed versions</li>
+<li>NEW FEATURES</li>
 <li>paced-repetition - specific time for each card</li>
-<li>show all cards as a (synchronized dual-)list - implement in mistakes list later on</li>
-<li>EFC optimizer - ML? based</li>
-<li>scrape online dictionaries</li>
-<li>--revision summary should stay in the set</li>
-<li>--singleton config</li>
-<li>refactor config fields inside the Config class e.g. languages to list()</li>
-<li>Create setup for tests - test_config, test_db, ... </li>
+<li>EFC optimizer - ML based?</li>
+<li>pomodoro timer</li>
+<li>percentages on the chart instead of values</li>
+<br>
+<li>FIXES AND UPGRADES</li>
+<!-- <li>SOD - remove items by index</li> -->
+<!-- <li>abstract class for dicts - create new script</li>E -->
+<!-- <li>add error handling to sod selection mode </liE> -->
+<!-- <li>SOD - language switching, more info to status_bar </li> -->
+<!-- <li>SOD - status bar</li> -->
+<!-- <li>Show what was saved</li> -->
+<!-- <li>lngs listed twice in load side-window</li> side_windows L:199 - Stopped occuring? -->
+<!-- <li>sod -single manual entry in the queue</li> -->
+<!-- <li>time - show only for selected lngs</li> -->
+<!-- <li>lln with range e.g. lln 50 20 loads list[-50:-20] </li> -->
+<!-- <li>don't save positives if not all cards where graded</li> -->
+<!-- <li>summary - look for last non-empty, not only the last</li> -->
+<!-- <li>reload elements when changing to side-by-side</li> -->
+<!-- <li>show all cards as a (synchronized dual-)list - implement in mistakes list later on</li> -->
+<!-- <li>SOD - phrase not saved after mofication of the orig phrase</li> -->
+<!-- <li>--revision summary should stay in the set</li> -->
+<!-- <li>create mock dictionary service</li> -->
+<!-- <li>--singleton config</li> -->
+<!-- <li>save with fix sides (0-EN, 1-PL</li> -->
+<!-- <li>add 80% horizontal line on stat chart</li> -->
+<!-- <li>Debug timer formatting</li> -->
+<!-- <li>FCC - pull current card from the file - get random seed when loading?</li> -->
+<!-- <li>periodically check if file was updated - add option to set interval or turn off</li> -->
+<!-- <li>window resizing issued - forgetting origin size on side-window switch</li> -->
+<!-- <li>record revision at any moment</li> -->
+<!-- <li>GUI theme update - config cleanup </li> -->
+<!-- <li>integrate SOD into fcs</li> -->
+<!-- <li>open side window on top of the main - optional feature</li> -->
+<!-- <li>dark theme</li> -->
+<!-- <li>sod - que results scaling to width</li> -->
 </ol>
 
 <h1>Known Bugs</h1>

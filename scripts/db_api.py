@@ -20,7 +20,7 @@ def create_record(signature, words_total, positives, seconds_spent):
     with open(REV_DB_PATH, 'a') as fd:
         fd.write(';'.join([timestamp, signature, str(words_total), 
                             str(positives), str(seconds_spent)])+'\n')
-    post_dbapi(f'Recorded: {signature}|{positives}|{seconds_spent}@{str(timestamp)[-8:-3]}')
+    post_dbapi(f'Recorded: {signature}|{positives}|{seconds_spent} @{str(timestamp)[-8:-3]}')
 
 
 class db_interface():
@@ -94,20 +94,29 @@ class db_interface():
         else: return self.db[self.db[col]==condition]
 
 
-    def get_last_positives(self, signature=None):
+    def get_last_positives(self, signature=None, req_pos:bool=False):
         try:
             res = self.get_filtered_db_if('SIGNATURE', signature)
+            if req_pos:
+                for _, row in res.iloc[::-1].iterrows():
+                    if row['POSITIVES'] != 0:
+                        return row['POSITIVES']
             return res['POSITIVES'].iloc[-1]
         except:
             return 0
 
 
-    def get_last_time_spent(self, signature=None):
+    def get_last_time_spent(self, signature=None, req_pos=False):
         try:
             res = self.get_filtered_db_if('SIGNATURE', signature)
+            if req_pos:
+                for _, row in res.iloc[::-1].iterrows():
+                    if row['POSITIVES'] != 0:
+                        return row['SEC_SPENT']
             return res['SEC_SPENT'].iloc[-1]
         except:
             return 0
+
 
 
     def get_total_words(self, signature=None):
@@ -246,6 +255,6 @@ class db_interface():
         self.db = self.__get_filtered_by_lng(lngs)
         self.FILTER_LNG = lngs
 
-
+    
     def get_all(self):
         return self.db

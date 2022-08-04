@@ -1,6 +1,7 @@
 import PyQt5.QtWidgets as widget
-from utils import * 
+from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
+from utils import * 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
@@ -9,6 +10,7 @@ from efc import efc
 from load import load
 from stats import stats
 from checkable_combobox import CheckableComboBox
+from themes import THEMES
 
 # each class espouses one type of sidewindow (GUI + inherited logic)
 # side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
@@ -17,24 +19,26 @@ from checkable_combobox import CheckableComboBox
 class fcc_gui(fcc):
 
     def __init__(self):
-        fcc.__init__(self, qtextedit_console=True)
-
-        self.CONSOLE_FONT = QtGui.QFont('Consolas', 14)
-        self.CONSOLE_PROMPT = '$~>'
-        self.CONSOLE_LOG = ''
+        self.DEFAULT_PS1 = '$~>'
+        self.CONSOLE_FONT_SIZE = 12
+        self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
+        self.CONSOLE_PROMPT = self.DEFAULT_PS1
+        self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
 
         if 'keyboard_shortcuts' in self.config['optional']:
             self.add_shortcut('c', self.get_fcc_sidewindow)
             self.add_shortcut('Insert', self.run_command)
+        
 
         self.arrange_fcc_window()
+        fcc.__init__(self, console=self.console)
 
 
     def get_fcc_sidewindow(self, width_=500, read_only=False, show_history=True):
         self.arrange_fcc_window(read_only=read_only)
-        self.switch_side_window(self.fcc_layout, 'fcc', width_ + self.LEFT)
+        self.open_side_window(self.fcc_layout, 'fcc', width_ + self.LEFT)
         if show_history:
-            self.console.setText(self.reload_logs())
+            self.reload_logs()
         self.console.setFocus()
         self.move_cursor_to_end()
         
@@ -55,13 +59,13 @@ class fcc_gui(fcc):
     def run_command(self):
         # format user input
         trimmed_command = self.console.toPlainText().strip()
-
+        
         # get command from last line
-        last_prompt_index = trimmed_command.rfind(self.CONSOLE_PROMPT)
-        trimmed_command = trimmed_command[last_prompt_index+len(self.CONSOLE_PROMPT):]
+        trimmed_command = trimmed_command.split('\n')[-1][len(self.CONSOLE_PROMPT):]
+        self.CONSOLE_LOG[-1]+=trimmed_command
 
         # execute command
-        parsed_command = trimmed_command.split(' ')   
+        parsed_command = [x for x in trimmed_command.split(' ')]
         fcc.execute_command(self, parsed_command)
 
         self.move_cursor_to_end()
@@ -72,17 +76,11 @@ class fcc_gui(fcc):
     
 
     def reload_logs(self):
-        
         # remove extensive command prompts
-        self.CONSOLE_LOG = self.CONSOLE_LOG.replace(self.CONSOLE_PROMPT+'\n', '')
-        
-        if self.CONSOLE_LOG.endswith(self.CONSOLE_PROMPT):
-            logs = self.CONSOLE_LOG
-        else:
-            logs = self.CONSOLE_LOG + '\n' + self.CONSOLE_PROMPT
-        
-
-        return logs
+        self.CONSOLE_LOG[-1] = self.CONSOLE_LOG[-1].replace(self.CONSOLE_PROMPT+'\n', '')     
+        if not self.CONSOLE_LOG[-1].endswith(self.CONSOLE_PROMPT):
+            self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
+        self.console.setText('\n'.join(self.CONSOLE_LOG))
 
 
     def get_fcc_console(self):
@@ -94,7 +92,7 @@ class efc_gui(efc):
 
     def __init__(self):
         efc.__init__(self)
-
+        self.EXTRA_WIDTH_EFC = 250
         # add button to main window
         self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
@@ -104,7 +102,7 @@ class efc_gui(efc):
 
     def get_efc_sidewindow(self):
         self.arrange_efc_window()
-        self.switch_side_window(self.efc_layout, 'efc', 250 + self.LEFT)
+        self.open_side_window(self.efc_layout, 'efc', self.EXTRA_WIDTH_EFC)
         
 
     def arrange_efc_window(self):
@@ -112,7 +110,7 @@ class efc_gui(efc):
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = int(self.config['efc_button_font_size'])
+        self.font_button_size = int(self.config['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
         self.textbox_width = 275
         self.textbox_height = 200
@@ -136,14 +134,14 @@ class efc_gui(efc):
 
 
     def create_load_efc_button(self):
-        self.load_button = widget.QPushButton(self)
-        self.load_button.setFixedHeight(self.buttons_height)
-        self.load_button.setFixedWidth(self.textbox_width)
-        self.load_button.setFont(self.button_font)
-        self.load_button.setText('Load')
-        self.load_button.setStyleSheet(self.button_style_sheet)
-        self.load_button.clicked.connect(self.load_selected_efc)
-        return self.load_button
+        efc_button = widget.QPushButton(self)
+        efc_button.setFixedHeight(self.buttons_height)
+        efc_button.setFixedWidth(self.textbox_width)
+        efc_button.setFont(self.button_font)
+        efc_button.setText('Load')
+        efc_button.setStyleSheet(self.button_style_sheet)
+        efc_button.clicked.connect(self.load_selected_efc)
+        return efc_button
 
 
     def load_selected_efc(self):
@@ -157,7 +155,7 @@ class load_gui(load):
 
     def __init__(self):
         load.__init__(self)
-
+        self.EXTRA_WIDTH_LOAD = 200
         # add button to main window
         self.load_button = self.create_button('Load', self.get_load_sidewindow)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
@@ -167,7 +165,7 @@ class load_gui(load):
 
     def get_load_sidewindow(self):
         self.arrange_load_window()
-        self.switch_side_window(self.load_layout, 'load', 250 + self.LEFT)
+        self.open_side_window(self.load_layout, 'load', self.EXTRA_WIDTH_LOAD)
 
 
     def arrange_load_window(self):
@@ -179,7 +177,7 @@ class load_gui(load):
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = int(self.config['efc_button_font_size'])
+        self.font_button_size = int(self.config['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
@@ -200,19 +198,20 @@ class load_gui(load):
 
 
     def fill_flashcard_files_list(self):
+        # self.flashcard_files_qlist.clear()
         [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_lng_files()]
         [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_rev_files()]
 
         
     def create_load_button(self):
-        self.load_button = widget.QPushButton(self)
-        self.load_button.setFixedHeight(self.buttons_height)
-        self.load_button.setFixedWidth(self.textbox_width)
-        self.load_button.setFont(self.button_font)
-        self.load_button.setText('Load')
-        self.load_button.setStyleSheet(self.button_style_sheet)
-        self.load_button.clicked.connect(self.load_selected_file)
-        return self.load_button
+        load_button = widget.QPushButton(self)
+        load_button.setFixedHeight(self.buttons_height)
+        load_button.setFixedWidth(self.textbox_width)
+        load_button.setFont(self.button_font)
+        load_button.setText('Load')
+        load_button.setStyleSheet(self.button_style_sheet)
+        load_button.clicked.connect(self.load_selected_file)
+        return load_button
 
 
     def load_selected_file(self):
@@ -227,6 +226,7 @@ class mistakes_gui():
     # no logic module for this side window
 
     def __init__(self):
+        self.EXTRA_WIDTH_MISTAKES = 400
         if 'keyboard_shortcuts' in self.config['optional']:
             self.add_shortcut('m', self.get_mistakes_sidewindow)
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
@@ -235,7 +235,7 @@ class mistakes_gui():
     def get_mistakes_sidewindow(self):
         if self.is_revision:
             self.arrange_mistakes_window()
-            self.switch_side_window(self.mistakes_layout, 'mistakes', 400 + self.LEFT)
+            self.open_side_window(self.mistakes_layout, 'mistakes', self.EXTRA_WIDTH_MISTAKES)
         else:
             self.post_fcc('Mistakes are unavailable for a Language.')
 
@@ -244,37 +244,34 @@ class mistakes_gui():
         self.textbox_stylesheet = self.config['textbox_style_sheet']
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = int(self.config['efc_button_font_size'])
+        self.font_button_size = int(self.config['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
         self.mistakes_layout = widget.QGridLayout()
-        self.mistakes_layout.addWidget(self.create_mistakes_list_alternate_side(), 0, 0)
-        self.mistakes_layout.addWidget(self.create_mistakes_list_default_side(), 0, 1)
+        self.mistakes_layout.addWidget(self.create_mistakes_list(), 0, 0)
         
         # Fill
-        [self.mistakes_list_default_side.addItem(m[self.default_side]) for m in self.mistakes_list]
-        [self.mistakes_list_alternate_side.addItem(m[1-self.default_side]) for m in self.mistakes_list]
+        w = self.frameGeometry().width()/4  if 'side_by_side' in self.config['optional'] else self.frameGeometry().width()/2
+        lim = int(1.134 * w / self.CONSOLE_FONT_SIZE)
+        for m in self.mistakes_list:
+            sparse_m1 = max(lim - len(m[self.default_side]), 0)
+            m1 = m[self.default_side][:lim-1] + '…' if len(m[self.default_side]) > lim else m[self.default_side]
+            m2 = m[1-self.default_side][:lim+sparse_m1] + '…' if len(m[1-self.default_side]) > lim else m[1-self.default_side]
+            self.mistakes_qlist.addItem(f'{m1} ⇾ {m2}')
 
 
-    def create_mistakes_list_default_side(self):
-        self.mistakes_list_default_side = widget.QListWidget(self)
-        self.mistakes_list_default_side.setFont(self.button_font)
-        self.mistakes_list_default_side.setStyleSheet(self.textbox_stylesheet)
-        return self.mistakes_list_default_side
-    
-
-    def create_mistakes_list_alternate_side(self):
-        self.mistakes_list_alternate_side = widget.QListWidget(self)
-        self.mistakes_list_alternate_side.setFont(self.button_font)
-        self.mistakes_list_alternate_side.setStyleSheet(self.textbox_stylesheet)
-        return self.mistakes_list_alternate_side
-
+    def create_mistakes_list(self):
+        self.mistakes_qlist = widget.QListWidget(self)
+        self.mistakes_qlist.setFont(self.button_font)
+        self.mistakes_qlist.setStyleSheet(self.textbox_stylesheet)
+        return self.mistakes_qlist
 
 
 class stats_gui(stats):
 
     def __init__(self):
+        self.EXTRA_WIDTH_STATS = 430
         stats.__init__(self)
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
@@ -285,7 +282,7 @@ class stats_gui(stats):
     def get_stats_sidewindow(self):
         if self.is_revision:
             self.arrange_stats_sidewindow()
-            self.switch_side_window(self.stats_layout, 'stats', 430)
+            self.open_side_window(self.stats_layout, 'stats', self.EXTRA_WIDTH_STATS)
         else:
             self.post_fcc('Statistics are not available for a Language')
 
@@ -317,6 +314,11 @@ class stats_gui(stats):
             height = rect.get_height()
             ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
                     color=self.config['stat_chart_text_color'])
+
+         # horizontal line at EFC predicate
+        if 'show_efc_line' in self.config['optional']:
+            ax.axhline(y=self.total_words*0.8, color='#a0a0a0', linestyle='--', zorder=-3)
+            ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, '80%', va="bottom", color='#a0a0a0')
 
         # add labels - time spent
         time_spent_labels = self.time_spent_minutes if 'show_cpm_stats' not in self.config['optional'] else [round(self.total_words/(x/60), 1) for x in self.time_spent_seconds]
@@ -374,6 +376,7 @@ class progress_gui(stats):
 
     def __init__(self):
         stats.__init__(self)
+        self.EXTRA_WIDTH_PROGRESS = 400
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
         if 'keyboard_shortcuts' in self.config['optional']:
@@ -388,7 +391,7 @@ class progress_gui(stats):
             lng_gist = get_lng_from_signature(self.signature)
 
         self.arrange_progress_sidewindow(lng_gist)
-        self.switch_side_window(self.progress_layout, 'prog', 400 + self.LEFT)
+        self.open_side_window(self.progress_layout, 'prog', self.EXTRA_WIDTH_PROGRESS)
 
 
     def arrange_progress_sidewindow(self, lng_gist):
@@ -449,7 +452,7 @@ class progress_gui(stats):
         revision_count_plot.get_yaxis().set_visible(False)
         positives_plot.get_xaxis().set_visible(False)
         title = lng_gist if lng_gist != '' else 'ALL'
-        self.figure.suptitle(title, fontsize=18, y=0.92)
+        self.figure.suptitle(title, fontsize=18, y=0.92, color=self.config['font_color'])
         self.figure.subplots_adjust(left=0.0, bottom=0.06, right=0.997, top=0.997)
 
         # synchronize axes
@@ -465,6 +468,7 @@ class progress_gui(stats):
 class config_gui():
 
     def __init__(self):
+        self.EXTRA_WIDTH_CONFIG = 300
         self.config = Config.get_instance()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
@@ -474,7 +478,7 @@ class config_gui():
     
     def get_config_sidewindow(self):
         self.arrange_config_sidewindow()
-        self.switch_side_window(self.config_layout, 'config', 350 + self.LEFT)
+        self.open_side_window(self.config_layout, 'config', self.EXTRA_WIDTH_CONFIG)
 
 
     def arrange_config_sidewindow(self):
@@ -486,7 +490,7 @@ class config_gui():
         self.textbox_stylesheet = (self.config['textbox_style_sheet'])
         self.button_style_sheet = self.config['button_style_sheet']
         self.font = self.config['font']
-        self.font_button_size = int(self.config['efc_button_font_size'])
+        self.font_button_size = int(self.config['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
@@ -503,12 +507,12 @@ class config_gui():
         self.confirm_and_close_button = self.create_button('Confirm Changes', self.del_config_side_window)
         self.card_default_combobox = self.create_config_combobox('card_default_side',['0','1','Random'])
         self.card_default_label = self.create_label('Card Default Side')
-        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', ['EN','RU','JP','DE','IT','FR'])
+        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', ['EN','RU','JP','DE','IT','FR','QN'])
         self.lngs_label = self.create_label('Languages')
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
         self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['reccommend_new','keyboard_shortcuts','hide_timer','show_cpm_stats', 'revision_summary'])
+            ['side_by_side','reccommend_new','keyboard_shortcuts','hide_timer','show_cpm_stats', 'revision_summary', 'show_efc_line'])
         self.optional_label = self.create_label('Optional Features')
         self.revs_path_qline = self.create_config_qlineedit('revs_path')
         self.revs_path_label = self.create_label('Revs Path')
@@ -516,6 +520,14 @@ class config_gui():
         self.lngs_path_label = self.create_label('Lngs Path')
         self.init_rep_qline = self.create_config_qlineedit('initial_repetitions')
         self.init_rep_label = self.create_label("Initial Repetitions")
+        self.check_for_file_updates_combobox = self.create_config_qlineedit('file_update_interval')
+        self.check_for_file_updates_label = self.create_label('Check file udpates')
+        self.sod_fp_qline = self.create_config_qlineedit('sod_filepath')
+        self.sod_fp_label = self.create_label('SOD Workbook')
+        self.sod_sheetname_qline = self.create_config_qlineedit('sod_sheetname')
+        self.sod_sheetname_label = self.create_label('SOD Sheet Name')
+        self.theme_checkablecombobox = self.create_config_checkable_combobox('theme', THEMES.keys())
+        self.theme_label = self.create_label('Theme')
 
         # add widgets
         self.options_layout.addWidget(self.card_default_label, 0, 0)
@@ -532,11 +544,17 @@ class config_gui():
         self.options_layout.addWidget(self.lngs_path_qline, 5, 1)
         self.options_layout.addWidget(self.init_rep_label, 6, 0)
         self.options_layout.addWidget(self.init_rep_qline, 6, 1)
-        self.options_layout.addWidget(self.confirm_and_close_button, 9, 0, 1, 2)
+        self.options_layout.addWidget(self.check_for_file_updates_label, 7, 0)
+        self.options_layout.addWidget(self.check_for_file_updates_combobox, 7, 1)
+        self.options_layout.addWidget(self.sod_fp_label, 8, 0)
+        self.options_layout.addWidget(self.sod_fp_qline, 8, 1)
+        self.options_layout.addWidget(self.sod_sheetname_label, 9, 0)
+        self.options_layout.addWidget(self.sod_sheetname_qline, 9, 1)
+        self.options_layout.addWidget(self.theme_label, 10, 0)
+        self.options_layout.addWidget(self.theme_checkablecombobox, 10, 1)
 
-        # blank spaces
-        self.options_layout.addWidget(self.create_blank_widget(),7,0)
-        self.options_layout.addWidget(self.create_blank_widget(),8,0)
+        self.options_layout.addWidget(self.create_blank_widget(),11,0)
+        self.options_layout.addWidget(self.confirm_and_close_button, 12, 0, 1, 2)
 
 
     def create_config_combobox(self, key:str, content:list):
@@ -588,6 +606,17 @@ class config_gui():
         modified_dict['revs_path'] = self.revs_path_qline.text()
         modified_dict['lngs_path'] = self.lngs_path_qline.text()
         modified_dict['initial_repetitions'] = self.init_rep_qline.text()
+        modified_dict['file_update_interval'] = self.check_for_file_updates_combobox.text()
+        modified_dict['sod_filepath'] = self.sod_fp_qline.text()
+        modified_dict['sod_sheetname'] = self.sod_sheetname_qline.text()
+        modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
+
+        if modified_dict['theme'] != self.config['theme']:
+            self.config.update(THEMES[modified_dict['theme']])
+            self.set_theme()
+        if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
+            self.toggle_primary_widgets_visibility(True)
+        
 
         self.config.update(modified_dict)
         self.del_side_window()
@@ -604,3 +633,7 @@ class side_windows(fcc_gui, efc_gui, load_gui,
         stats_gui.__init__(self)
         progress_gui.__init__(self)
         config_gui.__init__(self)
+    
+
+    def __del__(self):
+        del self

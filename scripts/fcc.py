@@ -1,8 +1,8 @@
-from atexit import register
 from utils import *
 from random import shuffle
 import db_api
-
+from SOD.init import sod_spawn
+import time
 
 class fcc():
     # Flashcards console commands allows access to extra functionality
@@ -10,11 +10,11 @@ class fcc():
     # Behaviour of certain function might adjust if
     # graphical interface is available.
 
-    def __init__(self,  qtextedit_console=False):
+    def __init__(self,  console):
         self.config = Config.get_instance()
         self.save_to_log = True
-        self.TEMP_FILE_FLAG = False
-        self.QTEXTEDIT_CONSOLE = qtextedit_console
+        self.SOD_MODE = False
+        self.console = console
         self.DOCS = {'help':'Says what it does - literally',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
@@ -31,23 +31,24 @@ class fcc():
                     'scs':'Show Current Signature',
                     'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.',
                     'sod':'Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.',
+                    'gwd':'Get Window Dimensions',
+                    'pcc':'Pull Current Card - load the origin file and updates the currently displayed card',
+                    'sfs':'Set Font Size - sets font for current card and returns info on width, height and text len',
+                    'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
                     }
 
 
-    def execute_command(self, parsed_input, followup_prompt=True, save_to_log=True):
-        
-        if parsed_input[0] == '' and len(parsed_input) == 1:
-            # exit if blank
-            return
-
-        if self.is_allowed_command(parsed_input[0]):
+    def execute_command(self, parsed_input:list, followup_prompt=True, save_to_log=True):
+        if self.SOD_MODE:
+            self.sod(parsed_input)
+        elif self.is_allowed_command(parsed_input[0]):
             self.save_to_log = save_to_log
             function_to_call = getattr(self, parsed_input[0])
             function_to_call(parsed_input)
         elif ' '.join(parsed_input[:2]).lower() == 'hello world'.lower():
-            self.post_fcc('<the world salutes back>')
+            self.post_fcc('<the world salutes back>')      
         else:
-            self.post_fcc('Permision Denied or Unknown Command. Type help for... well - help')
+            self.post_fcc('Permision Denied or Unknown Command. Type help for more info')
         
         if followup_prompt:
             self.post_fcc(self.CONSOLE_PROMPT)
@@ -66,12 +67,17 @@ class fcc():
 
 
     def post_fcc(self, text): 
-        if self.QTEXTEDIT_CONSOLE and len(text) > 0:
+        if len(text) > 0:
             self.console.append(text)
             if self.save_to_log:
-                self.CONSOLE_LOG = self.console.toPlainText()
-        else:
-            print(text)
+                if self.CONSOLE_LOG[-1].endswith(self.CONSOLE_PROMPT): self.CONSOLE_LOG[-1] = text
+                else: self.CONSOLE_LOG.append(text)
+
+
+    def input_fcc(self, prompt):
+        self.post_fcc(prompt)
+        time.sleep(1)
+        return self.console.toPlainText().split('\n')[-1][len(prompt):]
 
 
     def help(self, parsed_cmd):
@@ -117,7 +123,7 @@ class fcc():
     def mcr(self, parsed_cmd):
         # Modify Card Result - allows modification of current score
 
-        mistakes_one_side = [x[1-self.side] for x in self.mistakes_list]
+        mistakes_one_side = [x[self.side] for x in self.mistakes_list]
         is_mistake = self.get_current_card()[self.side] in mistakes_one_side
         is_wordsback_mode = self.get_words_back() != 0
 
@@ -175,27 +181,32 @@ class fcc():
     def lln(self, parsed_cmd):
         # load last N cards from dataset
 
-        # check preconditions
-        if len(parsed_cmd) != 2:
-            self.post_fcc('Expected 2 args.')
-            return
-        elif not parsed_cmd[1].isnumeric():
+        if not parsed_cmd[1].isnumeric():
             self.post_fcc('number of cards must be a number')
             return
         
         # get last N records from the file -> shuffle only the part
         n_cards = abs(int(parsed_cmd[1]))
+        l_cards = abs(int(parsed_cmd[2])) if len(parsed_cmd)>=2 else 0
         file_path = self.get_filepath()
-        data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:, :]
-        data = data.sample(frac=1).reset_index(drop=True)
+        if l_cards == 0:
+            data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:, :]
+        else:
+            print('tej!')
+            n_cards, l_cards = sorted([n_cards, l_cards], reverse=True)
+            data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:-l_cards, :]
+
+        data = shuffle_dataset(data)
 
         # point to non-existing file in case user modified cards
         filename = file_path.split('/')[-1].split('.')[0]
         new_path = self.config['lngs_path'] + filename + str(n_cards) + '.csv'
         
+        self.TEMP_FILE_FLAG = True
         self.update_backend_parameters(new_path, data)
         self.refresh_interface()
-        self.TEMP_FILE_FLAG = True
+        self.reset_timer()
+        self.start_file_update_timer()
         self.post_fcc(f'Loaded last {n_cards} cards.')
 
     
@@ -282,16 +293,13 @@ class fcc():
         self.post_fcc(keys_printout)
     
 
-    def cls(self, parsed_cmd):
+    def cls(self, parsed_cmd=None):
         # Clear console
-        if self.QTEXTEDIT_CONSOLE:
-            self.clear_history()
-        else:
-            print('\n'*100)
+        self.clear_history()
 
     def clear_history(self):
         self.console.setText('')
-        self.CONSOLE_LOG = ''
+        self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
 
 
     @decorator_require_nontemporary
@@ -337,8 +345,8 @@ class fcc():
         interval = 'm' if len(parsed_cmd) < 3 else parsed_cmd[2]
 
         db_interface = db_api.db_interface()
-        db = db_interface.get_all()
         lngs = [l.upper() for l in self.config['languages']]
+        db = db_interface.get_filtered_by_lng(lngs)
 
         date_format_dict = {
             'm': '%m/%Y',
@@ -365,7 +373,10 @@ class fcc():
         db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
         
         # print result
-        res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
+        if len(lngs) > 1:
+            res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
+        else:
+            res = db.to_string(index=False, columns=['TIMESTAMP']+lngs, header=['DATE']+['TOTAL'])
         self.post_fcc(res)
 
 
@@ -387,39 +398,34 @@ class fcc():
         self.post_fcc('\n'.join([f'{i+1}. {v}' for i, v in enumerate(unique_signatures) if '_mistakes' not in v]))
 
 
-    def sod(self, parsed_cmd):
-        # scrape online dictionary
-        DEFAULT_DICT = 'google'
-        d_index = 0
-        phrase = ''
+    def gwd(self, parsed_cmd):
+        # get window dimensions
+        w = self.frameGeometry().width()
+        h = self.frameGeometry().height()
+        self.post_fcc(f"W:{int(w)} H:{int(h)}")
+    
 
-        # pick phrase
-        if len(parsed_cmd) == 1:
-            phrase = self.dataset.iloc[self.current_index, self.get_current_side()]
-        else:
-            for i, v in enumerate(parsed_cmd[1:]):
-                if v != '-d':
-                    phrase+=str(v)+' '
-                else:
-                    d_index = i+2
-                    break
-        
-        # pick dict
-        lng = get_lng_from_signature(self.get_signature())
-        cur_lng = [lng, self.config['native_lng']][self.get_current_side()].lower().replace(' ', '\&')
-        other_lng = [lng, self.config['native_lng']][1-self.get_current_side()].lower().replace(' ', '\&')
+    def pcc(self, parsed_cmd):
+        # pull current card
+        new_data = load_dataset(self.file_path, seed=self.config['pd_random_seed'])
+        self.dataset.iloc[self.current_index, :2] = new_data.iloc[self.current_index, :2]
+        self.display_text(self.get_current_card()[self.side])
 
-        DICTS_MAP = dict(google = f'https://translate.google.com/?sl={cur_lng}&tl={other_lng}&text={phrase}&op=translate')
+
+    def sfs(self, parsed_cmd):
+        # Set Font Size (and return some info)
+        if not parsed_cmd[1].isnumeric():
+            self.post_fcc('SFT requires a numeric argument')
+            return
         
-        input_dict = parsed_cmd[d_index]
-        if input_dict in DICTS_MAP.keys():
-            url = DICTS_MAP[input_dict]
+        self.display_text(forced_size=int(parsed_cmd[1]))
+        self.post_fcc(f'FONT_SIZE:{parsed_cmd[1]} | TEXT_LEN={len(self.get_current_card()[self.side])} | WIDTH={self.frameGeometry().width()} | HEIGHT={self.frameGeometry().height()}')
+    
+
+    def sod(self, parsed_cmd:list):
+        # Scrape Online Dictionary
+        if self.SOD_MODE:
+            self.sod_object.run(parsed_cmd)
         else:
-            url = DICTS_MAP[DEFAULT_DICT]
-            if d_index != 0:
-                # only print a msg if user has provided something
-                self.post_fcc(f'{input_dict} is not available - recoursing to {DEFAULT_DICT}. Available dicts are: {DICTS_MAP}')
-        
-        self.post_fcc('Work in progress')
-        self.post_fcc(str(url))
+            self.sod_object = sod_spawn(stream_out=self)
 

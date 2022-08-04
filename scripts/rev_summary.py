@@ -30,10 +30,10 @@ class summary_generator():
         self.desc_diff_last_record= ['more', 'less'][self.diff_last_record<0]
         self.diff_to_record = max_positives - positives
         self.desc_diff_record = ['more', 'less'][self.diff_to_record<0]
-        self.diff_time = time_spent - last_time_spent
+        self.diff_time = time_spent - last_time_spent if self.last_time_spent else 0
         self.desc_diff_time = ['more', 'less'][self.diff_time<0]
         self.cpm_score = total/(time_spent/60)
-        self.last_cpm_score = total/(last_time_spent/60)
+        self.last_cpm_score = total/(last_time_spent/60) if self.last_time_spent else 0
         self.cpm_diff = self.cpm_score - self.last_cpm_score
         self.desc_cpm_diff = ['more', 'less'][self.cpm_diff<0]
 
@@ -152,7 +152,7 @@ class summary_generator():
                     suffix = 'not only were you slower, but the % score dropped as well' if self.diff_last_record < 0 else 'at least the % score improved'
                     res = f"{abs(self.cpm_diff):.0f} CPM {self.desc_cpm_diff} than last time - {suffix}."
             elif self.cpm_score >= self.CPM_SLOW:
-                res = f"{self.cpm_score:.0f} CPM - a soft stroll in the park..."
+                res = f"{self.cpm_score:.0f} CPM - taking it easy"
             else:
                 res = f"With {self.cpm_score:.0f} CPM even sloths are faster than you."
         else:

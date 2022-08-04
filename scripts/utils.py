@@ -1,3 +1,4 @@
+import random
 from datetime import datetime, date
 import os
 import pandas as pd
@@ -34,10 +35,9 @@ class Config(object):
         self.__save()
 
     def __parse_items(self):
-        l_items = ['languages', 'optional']
-        for item in l_items:
+        for item in ['languages', 'optional']:
             self.config[item] = self.config[item].split('|')
-
+        
     @staticmethod
     def get_instance():
         if not Config.instance:
@@ -147,6 +147,26 @@ def remove_layout(layout):
                  remove_layout(item.layout())
 
 
+def get_children_layouts(layout):
+    layouts = list()
+    for l in layout.children():
+        layouts.append(l)
+        for w in range(l.count()):
+            wdg = l.itemAt(w).widget()
+            if wdg is None:
+                layouts.append(l.itemAt(w))
+    return layouts
+
+
+def get_children_widgets(layout):
+    widgets = list()
+    for i in range(layout.count()):
+            w = layout.itemAt(i)
+            if w is not None:
+                widgets.append(w.widget())
+    return widgets
+
+
 def get_files_in_dir(path, include_extension = True, exclude_open=True):
     files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
     if not include_extension:
@@ -226,17 +246,17 @@ def get_lng_from_signature(signature):
     return matched_lng
 
 
-def load_dataset(file_path, do_shuffle=True):
-    extension = get_filename_from_path(file_path, True).split('.')[-1]
+def load_dataset(file_path, do_shuffle=True, seed=None):
+    _, extension = os.path.splitext(file_path)
     operation_status = ''
     
     # Choose File Extension Handler
     try:
-        if extension in ['csv', 'txt']:
+        if extension in ['.csv', '.txt']:
             dataset = read_csv(file_path)
-        elif extension in ['xlsx', 'xlsm']:  
+        elif extension in ['.xlsx', '.xlsm']:  
             dataset = read_excel(file_path)
-        elif extension in ['odf']:
+        elif extension in ['.odf']:
             dataset = pd.read_excel(file_path, engine='odf')
         else:
             dataset = pd.DataFrame()
@@ -246,10 +266,17 @@ def load_dataset(file_path, do_shuffle=True):
         dataset = pd.DataFrame()
 
     if do_shuffle:
-        dataset = dataset.sample(frac=1).reset_index(drop=True)
+        dataset = shuffle_dataset(dataset, seed)
 
     post_utils(operation_status)
     return dataset
+
+
+def shuffle_dataset(dataset:pd.DataFrame, seed=None):
+    if not seed: pd_random_seed = random.randrange(10000)
+    else: pd_random_seed = config['pd_random_seed']
+    config.update({'pd_random_seed':pd_random_seed})
+    return dataset.sample(frac=1, random_state=pd_random_seed).reset_index(drop=True)
 
 
 def read_csv(file_path):

@@ -46,7 +46,7 @@ class stats():
         db_interface = db_api.db_interface()
 
         # filter for specifc lng - CASE SENSITIVE!
-        filtered_db = db_interface.get_filtered_by_lng(lng_gist)
+        filtered_db = db_interface.get_filtered_by_lng([lng_gist])
         filtered_db = filtered_db[(filtered_db['POSITIVES'] != 0)]
 
         # format dates
@@ -58,8 +58,9 @@ class stats():
         counted_db = filtered_db.groupby(filtered_db['TIMESTAMP'], as_index=False, sort=False).count()
         filtered_db.drop_duplicates(['SIGNATURE'], keep='first', inplace=True)
         filtered_db['LAST_POSITIVES'] = filtered_db['SIGNATURE'].apply(lambda x: db_interface.get_last_positives(x))
+        filtered_db['TOTAL'] = filtered_db['TOTAL'].astype('int64')
         grouped_db = filtered_db.groupby(filtered_db['TIMESTAMP'], as_index=False, sort=False).sum()
-
+        
         # join dataframes
         grouped_db.set_index('TIMESTAMP', inplace=True)
         grouped_db = unique_timestamps.join(grouped_db, on='TIMESTAMP')

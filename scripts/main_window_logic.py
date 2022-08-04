@@ -18,6 +18,11 @@ class main_window_logic():
         self.cards_seen = 0
         self.signature = ''
         self.revision_summary = None
+        self.TIMER_KILLED_FLAG = False
+        self.TEMP_FILE_FLAG = False
+        self.is_revision = False
+        self.last_modification_time = None
+        self.is_saved = False
         
 
     def build_backend_only(self):
@@ -178,16 +183,18 @@ class main_window_logic():
         self.total_words = self.dataset.shape[0]
         self.is_mistakes_list = 'mistakes' in self.filename
         self.revision_summary = None
-
+        self.TIMER_KILLED_FLAG = False
+        self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
+        
         self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
 
 
     def get_rating_message(self):
         dbapi = db_api.db_interface()
  
-        last_positives = dbapi.get_last_positives(self.signature)
+        last_positives = dbapi.get_last_positives(self.signature, req_pos=True)
         max_positives = dbapi.get_max_positives_count(self.signature)
-        last_time_spent = dbapi.get_last_time_spent(self.signature)
+        last_time_spent = dbapi.get_last_time_spent(self.signature, req_pos=True)
         summary_gen = summary_generator(self.positives, last_positives, self.total_words,
                                     max_positives, self.seconds_spent, last_time_spent)
         if 'revision_summary' in self.config['optional']:
