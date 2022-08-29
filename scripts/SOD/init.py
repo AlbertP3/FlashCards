@@ -7,7 +7,7 @@ import requests
 class sod_spawn:
 
     def __init__(self, stream_out):
-        self.config = Config.get_instance()
+        self.config = Config()
         self.sout = stream_out
         self.cli = CLI(output=self.sout,
                         wb_path=self.config['sod_filepath'], 

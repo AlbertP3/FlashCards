@@ -3,22 +3,22 @@ from random import shuffle
 import db_api
 from SOD.init import sod_spawn
 import time
+from operator import methodcaller
+
+
 
 class fcc():
     # Flashcards console commands allows access to extra functionality
-    # through the chosen console - cmd, QTextExit,...
-    # Behaviour of certain function might adjust if
-    # graphical interface is available.
 
     def __init__(self,  console):
-        self.config = Config.get_instance()
+        self.config = Config()
         self.save_to_log = True
         self.SOD_MODE = False
         self.console = console
         self.DOCS = {'help':'Says what it does - literally',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
-                    'dc':'Delete Card - deletes card both in current set and in the file',
+                    'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
                     'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
                     'efc':'Ebbinghaus Forgetting Curve - shows table with revs, days from last rev and efc score',
@@ -37,14 +37,13 @@ class fcc():
                     'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
                     }
 
-
+        
     def execute_command(self, parsed_input:list, followup_prompt=True, save_to_log=True):
         if self.SOD_MODE:
             self.sod(parsed_input)
         elif self.is_allowed_command(parsed_input[0]):
             self.save_to_log = save_to_log
-            function_to_call = getattr(self, parsed_input[0])
-            function_to_call(parsed_input)
+            methodcaller(parsed_input[0], parsed_input)(self)
         elif ' '.join(parsed_input[:2]).lower() == 'hello world'.lower():
             self.post_fcc('<the world salutes back>')      
         else:
@@ -59,11 +58,7 @@ class fcc():
     
 
     def refresh_interface(self):
-        # try refresh interface if available
-        try:
-            self.update_interface_parameters()
-        except:
-            pass
+        self.update_interface_parameters()
 
 
     def post_fcc(self, text): 
@@ -101,8 +96,6 @@ class fcc():
 
     def mct(self, parsed_cmd):
         # Modify current card text - both in app and in the file
-
-        # check preconditions
         if len(parsed_cmd) < 2:
             self.post_fcc('mct function require at least 2 arguments')
             return
@@ -145,8 +138,8 @@ class fcc():
             self.refresh_interface()
 
 
-    def dc(self, parsed_cmd):
-        # Delete card - from set and from the file
+    def dcc(self, parsed_cmd):
+        # Delete current card - from set and from the file
 
         # check preconditions
         if len(parsed_cmd) != 2:
@@ -223,7 +216,7 @@ class fcc():
         shuffle(reversed_mistakes_list)
         mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.get_headings()[::-1])
                                             
-        # Update[write/append] to a mistakes_list file
+        # [write/append] to a mistakes_list file
         lng = get_lng_from_signature(self.get_signature()).upper()
         if do_save:
             full_path = path + lng + '_mistakes.csv'
@@ -234,12 +227,12 @@ class fcc():
         # shows only current mistakes
         # fake path secures original mistakes file from 
         # being overwritten by other commands such as mct or dc
-        fake_path = self.config['lngs_path'] + 'mistakes_temp.csv'
+        fake_path = self.config['lngs_path'] + f'{lng} Mistakes.csv'
+        self.TEMP_FILE_FLAG = True
 
         self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
         self.refresh_interface()
         self.reset_timer()
-        self.TEMP_FILE_FLAG = True
 
         # allow instant save of a rev created from mistakes_list
         self.set_cards_seen(mistakes_list.shape[0]-1)
@@ -255,8 +248,8 @@ class fcc():
         # show efc table
         from efc import efc
         efc_obj = efc()
-        reccommendtations = efc_obj.get_complete_efc_table()
-        efc_table_printout = efc_obj.get_efc_table_printout(reccommendtations)
+        reccommendations = efc_obj.get_complete_efc_table()
+        efc_table_printout = efc_obj.get_efc_table_printout(reccommendations)
 
         self.post_fcc(efc_table_printout)
         
@@ -413,13 +406,15 @@ class fcc():
 
 
     def sfs(self, parsed_cmd):
-        # Set Font Size (and return some info)
-        if not parsed_cmd[1].isnumeric():
-            self.post_fcc('SFT requires a numeric argument')
+        # Set Font Size 
+        if len(parsed_cmd)<2 or not parsed_cmd[1].isnumeric():
+            self.post_fcc('SFS requires at least one, numeric argument')
             return
         
         self.display_text(forced_size=int(parsed_cmd[1]))
-        self.post_fcc(f'FONT_SIZE:{parsed_cmd[1]} | TEXT_LEN={len(self.get_current_card()[self.side])} | WIDTH={self.frameGeometry().width()} | HEIGHT={self.frameGeometry().height()}')
+        self.post_fcc(f'FONT_SIZE:{parsed_cmd[1]} | ' \
+                    + f'TEXT_LEN={len(self.get_current_card()[self.side])} | ' \
+                    + f'WIDTH={self.frameGeometry().width()} | HEIGHT={self.frameGeometry().height()}')
     
 
     def sod(self, parsed_cmd:list):

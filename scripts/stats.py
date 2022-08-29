@@ -5,7 +5,7 @@ import db_api
 class stats():
 
     def __init__(self):
-        self.config = Config().get_instance()
+        self.config = Config()
 
     
     def get_data_for_current_revision(self, signature):

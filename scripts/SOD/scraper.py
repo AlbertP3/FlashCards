@@ -5,7 +5,7 @@ class dict_api:
 
     def __init__(self):
         # source_lng - from which language user wants to translate -->> target_lng - to which lng ...
-        self.config = Config.get_instance()
+        self.config = Config()
         self.WORDS_LIMIT = 8
         self.DEFAULT_SOURCE_LNG = self.config['sod_source_lng']
         self.DEFAULT_TARGET_LNG = self.config['sod_target_lng']

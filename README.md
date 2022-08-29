@@ -86,8 +86,10 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <li>EFC optimizer - ML based?</li>
 <li>pomodoro timer</li>
 <li>percentages on the chart instead of values</li>
+<li>update readme and help commands to cover new features</li>
 <br>
 <li>FIXES AND UPGRADES</li>
+<li>SOD - show last n in Queue </li>
 <!-- <li>SOD - remove items by index</li> -->
 <!-- <li>abstract class for dicts - create new script</li>E -->
 <!-- <li>add error handling to sod selection mode </liE> -->

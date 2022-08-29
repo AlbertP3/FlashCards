@@ -469,7 +469,7 @@ class config_gui():
 
     def __init__(self):
         self.EXTRA_WIDTH_CONFIG = 300
-        self.config = Config.get_instance()
+        self.config = Config()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         if 'keyboard_shortcuts' in self.config['optional']:

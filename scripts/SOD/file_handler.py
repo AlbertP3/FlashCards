@@ -8,7 +8,7 @@ class file_handler:
         self.path = path
         self.wb = openpyxl.load_workbook(self.path)
         self.ws = self.wb[ws]
-        self.data = [self.ws.cell(r, 1).value for r in range(1, self.ws.max_row+1)]
+        self.data = {self.ws.cell(r, 1).value for r in range(1, self.ws.max_row+1)}
     
 
     def append_content(self, foreign_word, domestic_word):    
@@ -17,7 +17,7 @@ class file_handler:
         if self.ws.cell(row=target_row, column=1).value is None:
             self.ws.cell(row=target_row, column=1, value=foreign_word)
             self.ws.cell(row=target_row, column=2, value=domestic_word)
-            self.data.append(foreign_word)
+            self.data.add(foreign_word)
         else:
             print('[WARNING] Target Cell is not empty!')
 

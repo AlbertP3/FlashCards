@@ -8,8 +8,16 @@ import csv
 import inspect
 
 
-class Config(object):
-    instance = None
+def singleton(class_):
+    instances = {}
+    def get_instance(*args, **kwargs):
+        if class_ not in instances:
+            instances[class_] = class_(*args, **kwargs)
+        return instances[class_]
+    return get_instance
+
+@singleton
+class Config:
 
     def __init__(self):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
@@ -38,16 +46,10 @@ class Config(object):
         for item in ['languages', 'optional']:
             self.config[item] = self.config[item].split('|')
         
-    @staticmethod
-    def get_instance():
-        if not Config.instance:
-            Config.instance = Config()
-        return Config.instance     
-
 
 
 UTILS_STATUS_DICT = dict()
-config = Config.get_instance()
+config = Config()
 
 def post_utils(text):
     caller_function = inspect.stack()[1].function
@@ -341,7 +343,7 @@ def validate_setup():
     post_utils(operation_status)
 
 
-def get_pretty_print(list_, extra_indent=1, separator=''):
+def get_pretty_print(list_, extra_indent=1, separator='') -> str:
     printout = '' 
     longest_elements = list()
 

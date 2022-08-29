@@ -7,7 +7,7 @@ class load():
     
     def __init__(self):
         self.selected_file_name = None
-        self.config = Config().get_instance()
+        self.config = Config()
     
 
     def get_lng_files(self):

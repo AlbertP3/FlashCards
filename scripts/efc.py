@@ -16,11 +16,11 @@ class efc():
                                         'DE':'Es ist an der Zeit zu handeln!',
                                         'IT':'Andiamo a lavorare',
                                         'FR':'Mettons-nous au travail'}
-        self.config = Config().get_instance()
+        self.config = Config()
         self.db_interface = db_api.db_interface()
         self.db_interface.filter_where_lng(lngs=self.config['languages'])
-        self.refresh_source_data()
         self.unique_signatures = list()
+        self.refresh_source_data()
 
     
     def refresh_source_data(self):
@@ -71,7 +71,7 @@ class efc():
         return reccommendations
 
 
-    def get_complete_efc_table(self):
+    def get_complete_efc_table(self) -> list[str, str, float]:
         rev_table_data = list()
 
         for signature in self.unique_signatures:

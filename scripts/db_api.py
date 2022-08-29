@@ -2,7 +2,7 @@ import pandas as pd
 from utils import *
 
 
-config = Config.get_instance()
+config = Config()
 REV_DB_PATH = config['db_path'] 
 DBAPI_STATUS_DICT = dict()
 

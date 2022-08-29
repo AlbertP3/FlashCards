@@ -65,6 +65,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.layout is None:
             self.layout = widget.QGridLayout()
             self.setLayout(self.layout)
+        # left, top, right, bottom
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
         self.FONT = self.config['font']
         self.FONT_BUTTON_SIZE = int(self.config['font_button_size'])
@@ -456,8 +457,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def change_revmode(self, force_mode='auto'):
-        if self.side_window_id: return
-
         super().change_revmode(force_mode)
 
         if not self.is_saved:
@@ -578,6 +577,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             conditions_met = False
         return conditions_met
+
 
     def stop_timer(self):
         self.timer.stop()

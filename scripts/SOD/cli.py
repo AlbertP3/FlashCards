@@ -27,7 +27,6 @@ class CLI():
         self.fh = file_handler(wb_path, ws_sheet_name)
         self.selection_queue = list()
         self.status_message = str()
-        self.queue_errors = 0
 
 
     def reset_flags(self):
@@ -41,6 +40,10 @@ class CLI():
 
     def set_output_prompt(self, t):
         self.output.CONSOLE_PROMPT = t
+
+
+    def send_output(self, text:str):
+        self.output.post_fcc(text)
 
 
     def execute_command(self, parsed_phrase:list):
@@ -67,12 +70,14 @@ class CLI():
         for i in parsed_cmd:
             if i == 'p': self.set_dict('pons')
             elif i == 'm': self.set_dict('merriam')
+            elif i == 'b': self.set_dict('babla')
             elif i in ['PL', 'EN']:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
             else: break
             parsed_cmd = parsed_cmd[1:]
-        self.d_api.switch_languages(src_lng, tgt_lng)
+            if src_lng or tgt_lng: 
+                self.d_api.switch_languages(src_lng, tgt_lng)
         return parsed_cmd
 
 
@@ -100,7 +105,7 @@ class CLI():
 
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase):
-                self.output.post_fcc(self.PHRASE_EXISTS_IN_DB)
+                self.send_output(self.PHRASE_EXISTS_IN_DB)
             else:
                 self.save_to_db(self.phrase, self.transl.split(' '))
         else:
@@ -122,7 +127,7 @@ class CLI():
             self.print_translations_table(self.translations, self.originals)
         else:
             self.cls(self.NO_TRANSLATIONS)
-        if self.warnings: self.output.post_fcc('\n'.join(self.warnings)+'\n')
+        if self.warnings: self.send_output('\n'.join(self.warnings)+'\n')
 
 
     def setup_queue(self):
@@ -130,11 +135,10 @@ class CLI():
         self.queue_index = 1
         self.queue_page_counter = 0
         self.cls()
-        self.output.post_fcc('Queue:')
+        self.send_output('Queue:')
         self.QUEUE_MODE = True
         self.phrase = None
         self.translations = None
-        self.queue_errors = 0
         self.set_output_prompt(f'{self.queue_index:>2d}. ')
 
 
@@ -160,7 +164,7 @@ class CLI():
             self.queue_page_counter+=1
             is_duplicate = self.fh.is_duplicate(p)
             if not is_duplicate:
-                self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1-self.queue_errors}]:')
+                self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1}]:')
                 self.print_translations_table(rs[0], rs[1])
                 self.phrase = p
                 self.translations = rs[0]
@@ -175,7 +179,9 @@ class CLI():
 
 
     def queue_builder(self, parsed_cmd:list):
-        if parsed_cmd[0] == 'del': self.del_from_queue(parsed_cmd[1:]); return
+        if parsed_cmd[0] == 'del': 
+            self.del_from_queue(parsed_cmd[1:])
+            return
 
         c_lim = self.get_char_limit() - 3
         phrase:str = ' '.join(self.handle_prefix(parsed_cmd))
@@ -190,27 +196,30 @@ class CLI():
             warnings = None
         else:
             translations, originals, warnings = self.d_api.get_info_about_phrase(phrase)
-            if translations and originals:
+            if translations or originals:
                 self.queue_dict[phrase] = [translations, originals, warnings]
                 transl = "; ".join(translations[:2]).rstrip()
                 transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
             else:
                 transl = 'N/A'
-                self.queue_errors+=1
 
         if self.fh.is_duplicate(phrase): msg = self.PHRASE_EXISTS_IN_DB
         elif warnings: msg = self.PROBLEM_OCCURRED
         else: msg = '✅ OK'
         self.cls(msg, keep_content=True, keep_cmd=True )
-        self.output.post_fcc(f' | {transl}')
+        self.send_output(f' | {transl}')
         self.queue_index+=1
 
 
     def del_from_queue(self, indices:list):
-        if not all([i.isnumeric() for i in indices]): return
+        if indices:
+            if not all([i.isnumeric() for i in indices]): return
+        else:
+            indices = [len(self.queue_dict.keys())]
         indices = [int(i) for i in indices if int(i) <= len(self.queue_dict.keys())]
         l_k = list(self.queue_dict.keys())
-        [self.queue_dict.pop(l_k[i-1]) for i in indices]
+        for i in indices:
+            self.queue_dict.pop(l_k[i-1])
         self.queue_index = 1
         self.cls()
         c_lim = self.get_char_limit() - 3
@@ -219,7 +228,7 @@ class CLI():
             transl = "; ".join(info[0][:2]).rstrip()
             transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
             s2 = f' | {transl}'
-            self.output.post_fcc(s1+'\n'+s2)
+            self.send_output(s1+'\n'+s2)
             self.queue_index+=1
         self.set_output_prompt(f'{self.queue_index:>2d}. ')
             
@@ -252,7 +261,7 @@ class CLI():
             t = trans[i][:lim-1] + '…' if len(trans[i]) > lim else trans[i].ljust(lim, ' ')
             o = origs[i][:lim-1] + '…' if len(origs[i]) > lim else origs[i].ljust(lim, ' ')
             output+=f'{i+1}. {t}{sep}{o}' + '\n'
-        self.output.post_fcc(output[:-1])
+        self.send_output(output[:-1])
         
 
     def get_char_limit(self):
@@ -343,7 +352,7 @@ class CLI():
         with open('queue_dict.txt', 'a') as file:
             for p, t in self.queue_dict.items():
                 file.write(f'{p};;;{"; ".join(t)}')
-        self.output.post_fcc('Created backup of the Queue')
+        self.send_output('Created backup of the Queue')
 
 
     def cls(self, msg=None, keep_content=False, keep_cmd=False):
@@ -354,21 +363,21 @@ class CLI():
         self.output.cls()
         self.post_status_bar(msg)
         if keep_content: 
-            self.output.post_fcc(content)
+            self.send_output(content)
 
 
     def post_status_bar(self, msg=None):
         active_dict = self.d_api.get_dict_service()
         source_lng = self.d_api.source_lng
         target_lng = self.d_api.target_lng
-        len_db = len(self.fh.data)-1
+        len_db = self.fh.ws.max_row - 1
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {len_db} | "
 
         if msg:
             remaining_len = self.get_char_limit() - len(status)
             status += msg[:remaining_len-1]+'…' if len(msg)>remaining_len else msg
         
-        self.output.post_fcc(status)
+        self.send_output(status)
 
 
     def show_help(self):
@@ -380,7 +389,7 @@ Q - enter queue mode
 search results modification: prepend with 'e' to edit; 'm' to modify
 phrase; 'a' to add new translation; empty to abort
 Available dicts: {self.d_api.get_available_dicts()}'''
-        self.output.post_fcc(msg)
+        self.send_output(msg)
 
 
     def close_wb(self):

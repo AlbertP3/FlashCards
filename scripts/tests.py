@@ -161,7 +161,7 @@ class Test_utils(unittest.TestCase):
 class config_class_test(unittest.TestCase):
 
     def setUp(self):
-        self.conf = Config.get_instance()
+        self.conf = Config()
 
     def test_load(self):
         self.assertEqual(self.conf['optional'], 'keyboard_shortcuts|revision_summary')

@@ -10,7 +10,7 @@ class main_window_logic():
         self.QTEXTEDIT_CONSOLE = None
         
         # Flashcards parameters
-        self.config = Config.get_instance()
+        self.config = Config()
         self.default_side = self.get_default_side()
         self.side = self.default_side
         self.file_path = self.config['onload_file_path']
@@ -142,18 +142,16 @@ class main_window_logic():
         self.update_backend_parameters(new_path, data)
 
 
-    def change_revmode(self, force_mode='auto'):
-        if self.is_revision:
-            if force_mode == 'auto':
-                self.revmode = not self.revmode
-            else:
-                self.revmode = force_mode
-        else:
+    def change_revmode(self, force_which=None):
+        if not self.is_revision:
             self.revmode = False
+        elif force_which is None:
+            self.revmode = not self.revmode
+        else:
+            self.revmode = force_which
 
     
     def update_backend_parameters(self, file_path, data, override_signature=None):
-
         # set updated values
         file_path_parts = file_path.split('/')
         self.filename = file_path_parts[-1].split('.')[0]
@@ -181,7 +179,7 @@ class main_window_logic():
         self.is_saved = False
         self.side = self.get_default_side()
         self.total_words = self.dataset.shape[0]
-        self.is_mistakes_list = 'mistakes' in self.filename
+        self.is_mistakes_list = 'mistakes' in self.filename.lower()
         self.revision_summary = None
         self.TIMER_KILLED_FLAG = False
         self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
@@ -242,18 +240,11 @@ class main_window_logic():
         return self.dataset.columns
     
     def get_status_dict(self, key):
-        try:
-            return get_status_dict()[key]
-        except KeyError:
-            return f'Key Error on: {key}'
+        return get_status_dict().get(key,f'{key} does not exist')
 
 
     def get_dbapi_dict(self, key):
-        try:
-            return db_api.get_dbapi_dict()[key]
-        except KeyError:
-            return f'Key Error on: {key}'
-    
+        return db_api.get_dbapi_dict().get(key, f'Key Error on: {key}')
 
     def set_cards_seen(self, cards_seen):
         self.cards_seen = cards_seen
@@ -272,8 +263,5 @@ class main_window_logic():
         else:
             text_to_post = traceback
 
-        try:
-            self.get_fcc_sidewindow()
-            self.post_fcc(text_to_post)
-        except Exception:
-            print(text_to_post)
+        self.get_fcc_sidewindow()
+        self.post_fcc(text_to_post)
