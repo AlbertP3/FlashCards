@@ -294,7 +294,7 @@ class Test_flashcard_console_commands(unittest.TestCase):
         command = ['mcr', '+']
 
         self.mw.mcr(command)
-        self.assertEqual(self.mw.get_positives(), 1)
+        self.assertEqual(self.mw.positives, 1)
 
 
     def test_delete_card(self):
@@ -302,14 +302,14 @@ class Test_flashcard_console_commands(unittest.TestCase):
         self.init_backend_and_load_test_file()
         self.mw.goto_next_card()
 
-        dataset_ordered_pre = load_dataset(self.mw.get_filepath(), False).values.tolist()
+        dataset_ordered_pre = load_dataset(self.mw.filepath, False).values.tolist()
         current_card = self.mw.get_current_card()
 
         self.mw.dc(parsed_cmd=['dc','-'])
 
         # Assert order maintained
         dataset_ordered_pre = [x[0] for x in dataset_ordered_pre if x[0] != current_card[0]]
-        dataset_ordered_post = load_dataset(self.mw.get_filepath(), False).values.tolist()
+        dataset_ordered_post = load_dataset(self.mw.filepath, False).values.tolist()
         dataset_ordered_post = [x[0] for x in dataset_ordered_post]
 
         self.assertEqual(len(dataset_ordered_pre), len(dataset_ordered_post))
@@ -321,8 +321,8 @@ class Test_flashcard_console_commands(unittest.TestCase):
         self.init_backend_and_load_test_file()
         self.mw.lln(['lln','5'])
 
-        self.assertEqual(self.mw.get_dataset().shape[0], 5)
-        self.assertListEqual(data, self.mw.get_dataset().values.tolist())
+        self.assertEqual(self.mw.dataset.shape[0], 5)
+        self.assertListEqual(data, self.mw.dataset.values.tolist())
 
 
 
@@ -362,7 +362,7 @@ class Test_mainwindow(unittest.TestCase):
 
     def test_is_complete_revision(self):
         mw = init_backend_and_load_test_file()
-        total_words = mw.get_total_words()
+        total_words = mw.total_words
         # go to the last index
         for _ in range(total_words-2):
             mw.goto_next_card()

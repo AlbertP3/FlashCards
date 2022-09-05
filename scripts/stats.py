@@ -1,29 +1,30 @@
-from atexit import register
 from utils import *
 import db_api
+
+
 
 class stats():
 
     def __init__(self):
         self.config = Config()
+        self.db_interface = db_api.db_interface()
 
-    
     def get_data_for_current_revision(self, signature):
-        db_interface = db_api.db_interface()
-        db_interface.filter_where_signature_is_equal_to(signature)
+        self.db_interface.refresh()
+        self.db_interface.filter_where_signature_is_equal_to(signature)
 
         # get data
-        self.chart_values = db_interface.get_chart_positives()
-        self.chart_dates = db_interface.get_chart_dates()
-        self.total_words = db_interface.get_total_words()
-        self.total_seconds_spent = db_interface.get_total_time_spent_for_signature()
-        self.time_spent_seconds = db_interface.get_chart_time_spent()
-        self.missing_records_cnt = db_interface.get_count_of_records_missing_time()
+        self.chart_values = self.db_interface.get_chart_positives()
+        self.chart_dates = self.db_interface.get_chart_dates()
+        self.total_words = self.db_interface.get_total_words()
+        self.total_seconds_spent = self.db_interface.get_total_time_spent_for_signature()
+        self.time_spent_seconds = self.db_interface.get_chart_time_spent()
+        self.missing_records_cnt = self.db_interface.get_count_of_records_missing_time()
         self.time_spent_minutes = [datetime.fromtimestamp(x).strftime('%M:%S') for x in self.time_spent_seconds]
         self.formatted_dates = [datetime.strftime(datetime.strptime(date, '%m/%d/%Y, %H:%M:%S'),'%d/%m\n%Y') for date in self.chart_dates]
-        self.sum_repeated = int(db_interface.get_sum_repeated())
-        self.days_ago = format_timedelta(db_interface.get_timedelta_from_creation())
-        self.last_rev_days_ago = format_timedelta(db_interface.get_timedelta_from_last_rev())
+        self.sum_repeated = int(self.db_interface.get_sum_repeated())
+        self.days_ago = format_timedelta(self.db_interface.get_timedelta_from_creation())
+        self.last_rev_days_ago = format_timedelta(self.db_interface.get_timedelta_from_last_rev())
 
         # Create Dynamic Chain Index
         self.dynamic_chain_index = [self.chart_values[0] if len(self.chart_values)>=1 else '']
@@ -42,11 +43,10 @@ class stats():
             'daily': '%d/%m/%y',
         } 
 
-        # get data
-        db_interface = db_api.db_interface()
+        self.db_interface.refresh()
 
         # filter for specifc lng - CASE SENSITIVE!
-        filtered_db = db_interface.get_filtered_by_lng([lng_gist])
+        filtered_db = self.db_interface.get_filtered_by_lng([lng_gist])
         filtered_db = filtered_db[(filtered_db['POSITIVES'] != 0)]
 
         # format dates
@@ -57,7 +57,7 @@ class stats():
         # transform data
         counted_db = filtered_db.groupby(filtered_db['TIMESTAMP'], as_index=False, sort=False).count()
         filtered_db.drop_duplicates(['SIGNATURE'], keep='first', inplace=True)
-        filtered_db['LAST_POSITIVES'] = filtered_db['SIGNATURE'].apply(lambda x: db_interface.get_last_positives(x))
+        filtered_db['LAST_POSITIVES'] = filtered_db['SIGNATURE'].apply(lambda x: self.db_interface.get_last_positives(x))
         filtered_db['TOTAL'] = filtered_db['TOTAL'].astype('int64')
         grouped_db = filtered_db.groupby(filtered_db['TIMESTAMP'], as_index=False, sort=False).sum()
         

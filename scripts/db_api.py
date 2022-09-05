@@ -1,59 +1,63 @@
+from time import monotonic
 import pandas as pd
 from utils import *
 
 
 config = Config()
+pd.options.mode.chained_assignment = None
 REV_DB_PATH = config['db_path'] 
 DBAPI_STATUS_DICT = dict()
+
 
 def post_dbapi(text):
     caller_function = inspect.stack()[1].function
     DBAPI_STATUS_DICT[caller_function] = text
 
-def get_dbapi_dict():
-    return DBAPI_STATUS_DICT
 
-
-def create_record(signature, words_total, positives, seconds_spent):
-    # Saves revision params to rev_db
-    timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    with open(REV_DB_PATH, 'a') as fd:
-        fd.write(';'.join([timestamp, signature, str(words_total), 
-                            str(positives), str(seconds_spent)])+'\n')
-    post_dbapi(f'Recorded: {signature}|{positives}|{seconds_spent} @{str(timestamp)[-8:-3]}')
-
-
+@singleton
 class db_interface():
     # handles communication with DB
     # when error occurs it's mainly because signature not in db
     # in that case, return value that suggests revision was made
     # as long ago as possible e.g 1900-1-1, or was never revised
-    # e.g revised_times = 0, total_words = 0 ...
 
     def __init__(self):
         self.DEFAULT_DATE = datetime(1900, 1, 1)
-        self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
-        self.__reset_filters_flags()
+        self.db = pd.DataFrame()
+        self.filters = dict(
+            POS_NOT_ZERO = False,
+            BY_LNG = False,
+            BY_SIGNATURE = False, 
+        )
+        self.last_update:float = 0
+        self.last_load:float = -1
 
+
+    def create_record(self, signature, words_total, positives, seconds_spent):
+        timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        with open(REV_DB_PATH, 'a') as fd:
+            fd.write(';'.join([timestamp, signature, str(words_total), 
+                                str(positives), str(seconds_spent)])+'\n')
+        self.last_update = monotonic()
+        post_dbapi(f'Recorded: {signature}|{positives}|{seconds_spent} @{str(timestamp)[-8:-3]}')
+    
 
     def __reset_filters_flags(self):
-        # when adding a filter function, must add
-        # the flag in this and the refresh() functions
-        # positive flags will equal to args passed to the filter function (dict if multiple args)
-        self.FILTER_POSITIVES_NOT_ZERO = None
-        self.FILTER_LNG = None
-        self.FILTER_SIGNATURE_IS_EQUAL = None
+        for key in self.filters.keys():
+            self.filters[key] = False
 
 
-    def refresh(self, retain_filters=False):
-        self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
+    def __load_db(self):
+        if self.last_load < self.last_update or any(self.filters): 
+            self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
+            self.last_load = monotonic()
+            return True
 
-        if retain_filters:
-            if self.FILTER_LNG: self.filter_where_lng(self.FILTER_LNG)
-            if self.FILTER_POSITIVES_NOT_ZERO: self.filter_where_positives_not_zero()
-            if self.FILTER_SIGNATURE_IS_EQUAL: self.filter_where_signature_is_equal_to(self.FILTER_SIGNATURE_IS_EQUAL)
-        else:
+
+    def refresh(self):
+        if self.__load_db():
             self.__reset_filters_flags()
+            return True
 
 
     def rename_signature(self, old_signature, new_signature):
@@ -243,17 +247,17 @@ class db_interface():
     def filter_where_positives_not_zero(self):
         # modifies self.db to contain only revision with POSITIVES != 0
         self.db = self.db.loc[self.db['POSITIVES'] != 0]
-        self.FILTER_POSITIVES_NOT_ZERO = True
+        self.filters['POS_NOT_ZERO'] = True
 
 
     def filter_where_signature_is_equal_to(self, signature):
         self.db = self.db.loc[self.db['SIGNATURE'] == signature]
-        self.FILTER_SIGNATURE_IS_EQUAL = signature
+        self.filters['BY_SIGNATURE'] = signature
 
 
     def filter_where_lng(self, lngs:list=[]):
         self.db = self.__get_filtered_by_lng(lngs)
-        self.FILTER_LNG = lngs
+        self.filters['BY_LNG'] = lngs
 
     
     def get_all(self):

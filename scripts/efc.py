@@ -3,11 +3,10 @@ from utils import *
 from math import exp
 from os import listdir
 
-
-
 class efc():
 
     def __init__(self):
+        self.config = Config()
         self.INITIAL_REPETITIONS = 2
         self.EFC_THRESHOLD = 0.8
         self.paths_to_suggested_lngs = dict()
@@ -16,17 +15,14 @@ class efc():
                                         'DE':'Es ist an der Zeit zu handeln!',
                                         'IT':'Andiamo a lavorare',
                                         'FR':'Mettons-nous au travail'}
-        self.config = Config()
         self.db_interface = db_api.db_interface()
-        self.db_interface.filter_where_lng(lngs=self.config['languages'])
-        self.unique_signatures = list()
-        self.refresh_source_data()
+        self.unique_signatures = set()
 
-    
     def refresh_source_data(self):
-        self.db_interface.refresh(retain_filters=True)
-        self.unique_signatures = [s for s in self.db_interface.get_unique_signatures() 
-                                    if s + '.csv' in listdir(self.config['revs_path'])]
+        if self.db_interface.refresh():
+            self.db_interface.filter_where_lng(lngs=self.config['languages'])
+            self.unique_signatures = {s for s in self.db_interface.db['SIGNATURE'] 
+                                    if s + '.csv' in listdir(self.config['revs_path'])}
 
 
     def efc_function(self, last_datetime, total_words, last_positives, repeated_times):
@@ -54,9 +50,6 @@ class efc():
 
 
     def get_recommendations(self):
-        
-        self.refresh_source_data()
-
         reccommendations = list()
 
         if 'reccommend_new' in self.config['optional']:
@@ -120,10 +113,9 @@ class efc():
         # Periodically reccommend to create new revision for every lng
         lngs = self.config['languages']
         new_reccommendations = list()
-        self.unique_signatures.sort(key=self.db_interface.get_first_datetime, reverse=True)  
-        
+
         for lng in lngs:
-            for signature in self.unique_signatures:
+            for signature in sorted(list(self.unique_signatures), key=self.db_interface.get_first_datetime, reverse=True):  
                 if lng in signature:
                     initial_date = self.db_interface.get_first_datetime(signature)
                     time_delta = (make_todaytime() - initial_date).days

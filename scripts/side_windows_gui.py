@@ -11,6 +11,7 @@ from load import load
 from stats import stats
 from checkable_combobox import CheckableComboBox
 from themes import THEMES
+from ks import *
 
 # each class espouses one type of sidewindow (GUI + inherited logic)
 # side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
@@ -26,8 +27,8 @@ class fcc_gui(fcc):
         self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
 
         if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut('c', self.get_fcc_sidewindow)
-            self.add_shortcut('Insert', self.run_command)
+            self.add_shortcut(kss['fcc'], self.get_fcc_sidewindow)
+            self.add_shortcut(kss['run_command'], self.run_command)
         
 
         self.arrange_fcc_window()
@@ -83,10 +84,6 @@ class fcc_gui(fcc):
         self.console.setText('\n'.join(self.CONSOLE_LOG))
 
 
-    def get_fcc_console(self):
-        return self.console
-
-
 
 class efc_gui(efc):
 
@@ -97,7 +94,7 @@ class efc_gui(efc):
         self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
         if 'keyboard_shortcuts' in self.config['optional']: 
-            self.add_shortcut('e', self.get_efc_sidewindow)
+            self.add_shortcut(kss['efc'], self.get_efc_sidewindow)
 
 
     def get_efc_sidewindow(self):
@@ -122,6 +119,7 @@ class efc_gui(efc):
         self.efc_layout.addWidget(self.create_load_efc_button(), 1, 0, 1, 1)
 
         # Fill List Widget
+        self.refresh_source_data()
         [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
 
 
@@ -160,7 +158,7 @@ class load_gui(load):
         self.load_button = self.create_button('Load', self.get_load_sidewindow)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
         if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut('l', self.get_load_sidewindow)
+            self.add_shortcut(kss['load'], self.get_load_sidewindow)
     
 
     def get_load_sidewindow(self):
@@ -228,7 +226,7 @@ class mistakes_gui():
     def __init__(self):
         self.EXTRA_WIDTH_MISTAKES = 400
         if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut('m', self.get_mistakes_sidewindow)
+            self.add_shortcut(kss['mistakes'], self.get_mistakes_sidewindow)
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
 
     
@@ -276,8 +274,7 @@ class stats_gui(stats):
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
         if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut('s', self.get_stats_sidewindow)
-
+            self.add_shortcut(kss['stats'], self.get_stats_sidewindow)
 
     def get_stats_sidewindow(self):
         if self.is_revision:
@@ -285,7 +282,6 @@ class stats_gui(stats):
             self.open_side_window(self.stats_layout, 'stats', self.EXTRA_WIDTH_STATS)
         else:
             self.post_fcc('Statistics are not available for a Language')
-
 
     def arrange_stats_sidewindow(self):
         self.get_data_for_current_revision(self.signature)
@@ -343,6 +339,7 @@ class stats_gui(stats):
 
         self.canvas.draw()        
 
+
     def get_stats_table(self):
         self.stat_table = widget.QGridLayout()
 
@@ -380,12 +377,11 @@ class progress_gui(stats):
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
         if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut('h', self.get_progress_sidewindow)
-    
+            self.add_shortcut(kss['progress'], self.get_progress_sidewindow)
     
     def get_progress_sidewindow(self, override_lng_gist=False):
         if override_lng_gist:
-            # allows showing data for all lngs
+            # show data for all lngs
             lng_gist = ''
         else:
             lng_gist = get_lng_from_signature(self.signature)
@@ -473,7 +469,7 @@ class config_gui():
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut('q', self.get_config_sidewindow)
+            self.add_shortcut(kss['config'], self.get_config_sidewindow)
 
     
     def get_config_sidewindow(self):
@@ -512,7 +508,7 @@ class config_gui():
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
         self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','reccommend_new','keyboard_shortcuts','hide_timer','show_cpm_stats', 'revision_summary', 'show_efc_line'])
+            ['side_by_side','reccommend_new','keyboard_shortcuts','hide_timer','show_cpm_stats', 'revision_summary', 'show_efc_line', 'vim_ks'])
         self.optional_label = self.create_label('Optional Features')
         self.revs_path_qline = self.create_config_qlineedit('revs_path')
         self.revs_path_label = self.create_label('Revs Path')

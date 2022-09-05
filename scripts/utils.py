@@ -6,21 +6,35 @@ import re
 import configparser
 import csv
 import inspect
+from time import perf_counter
 
 
-def singleton(class_):
+
+def timer(func):
+    def timed(*args, **kwargs):
+        t1 = perf_counter() 
+        result = func(*args, **kwargs)
+        t2 = perf_counter()
+        register_log(f'[{func.__name__}] took {(t2-t1)*1000:0.4f}ms')
+        return result
+    return timed
+        
+
+def singleton(cls):
     instances = {}
     def get_instance(*args, **kwargs):
-        if class_ not in instances:
-            instances[class_] = class_(*args, **kwargs)
-        return instances[class_]
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
     return get_instance
+
 
 @singleton
 class Config:
 
     def __init__(self):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
+        self.iterable_fields:list= ['languages', 'optional']
         self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
         self.__refresh()
     
@@ -31,20 +45,21 @@ class Config:
         self.parser.read(self.PATH_TO_DICT)
         self.config = dict(self.parser.items('DEFAULT'))
         self.__parse_items()
-    
-    def __save(self):
+
+    def save(self):
+        for field in self.iterable_fields:
+            self.config[field] = '|'.join(self.config[field])
+        for k, v in self.config.items():
+            self.parser.set('DEFAULT', k, v)
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
 
     def update(self, modified_dict:dict):
-        for k, v in modified_dict.items():
-            self.parser.set('DEFAULT', k, v)
-            self.config[k] = v
-        self.__save()
+        self.config.update(modified_dict)
 
     def __parse_items(self):
-        for item in ['languages', 'optional']:
-            self.config[item] = self.config[item].split('|')
+        for field in self.iterable_fields:
+            self.config[field] = self.config[field].split('|')
         
 
 
@@ -54,10 +69,6 @@ config = Config()
 def post_utils(text):
     caller_function = inspect.stack()[1].function
     UTILS_STATUS_DICT[caller_function] = text
-
-
-def get_status_dict():
-    return UTILS_STATUS_DICT
 
 
 def register_log(traceback):
@@ -181,7 +192,7 @@ def get_files_in_dir(path, include_extension = True, exclude_open=True):
 
 def format_timedelta(timedelta):
     if ',' in str(timedelta): # timedelta is more than 1 day
-        if timedelta.days <= 31 :
+        if timedelta.days < 31 :
             time_value = str(timedelta.days)
             interval = 'day'
         elif timedelta.days < 365:
@@ -436,5 +447,4 @@ def in_str(sub_string, string, case_sensitive=True):
     if case_sensitive:
         return sub_string in string
     else:
-        # https://stackoverflow.com/questions/319426/how-do-i-do-a-case-insensitive-string-comparison
-        return sub_string.upper().lower() in string.upper().lower()
+        return sub_string.casefold() in string.casefold()

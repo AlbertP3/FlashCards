@@ -166,8 +166,6 @@ class dict_babla(template_dict):
         re_patterns = OrderedDict()
         content = self.get_page_content()
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
-        with open("Output.txt", "w") as text_file:
-            text_file.write(f"bs")
         warnings = self.check_for_warning(bs)
         originals = self.fetch_data_source(bs) if not warnings else list()
         translations = self.fetch_data_target(bs) if not warnings else list()

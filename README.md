@@ -87,9 +87,18 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <li>pomodoro timer</li>
 <li>percentages on the chart instead of values</li>
 <li>update readme and help commands to cover new features</li>
+<li>PROJECT: send data to a website, where it can be compared between users</li>
+<li>mobile version written in... golang?</li>
 <br>
 <li>FIXES AND UPGRADES</li>
-<li>SOD - show last n in Queue </li>
+<li>dbinterface optimization - singleton, loading timing, cache, ... REMEMBER TO ASSESS PERFORMANCE</li>
+    singleton, remove loading from __init__, 
+    Refreshing data should always be done by the caller
+<li>SOD - show last n in Queue - but how should it look like?</li>
+<li>auto cfm</li>
+<li>SOD - offline mode for dict - type phrases and translate only when dict-service available again</li>
+<!-- <li>delegate theme setting to another config file</li> -->
+<!-- <li>fix output.txt appearing when sod did not crash</li> -->
 <!-- <li>SOD - remove items by index</li> -->
 <!-- <li>abstract class for dicts - create new script</li>E -->
 <!-- <li>add error handling to sod selection mode </liE> -->

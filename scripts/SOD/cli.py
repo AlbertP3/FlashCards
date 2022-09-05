@@ -2,11 +2,12 @@ from SOD.scraper import dict_api
 from SOD.file_handler import file_handler
 from collections import OrderedDict
 import re
-
+from utils import Config
 
 class CLI():
 
     def __init__(self, output, wb_path, ws_sheet_name) -> None:
+        self.config = Config()
         self.PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
         self.PHRASE_PROMPT = 'Enter a phrase: '
         self.SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
@@ -97,16 +98,19 @@ class CLI():
             return
         elif self.MANUAL_MODE == 'phrase':
             self.phrase = ' '.join(parsed_cmd)
-            self.set_output_prompt('Transl: ')
-            self.MANUAL_MODE = 'transl'
+            if not self.fh.is_duplicate(self.phrase):
+                 self.set_output_prompt('Transl: ')
+                 self.MANUAL_MODE = 'transl'
+            else:
+                self.MANUAL_MODE = False
+                self.set_output_prompt(self.PHRASE_PROMPT)
+                self.cls(self.PHRASE_EXISTS_IN_DB)
             return
         elif self.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
 
+        # Finalize
         if self.phrase and self.transl:
-            if self.fh.is_duplicate(self.phrase):
-                self.send_output(self.PHRASE_EXISTS_IN_DB)
-            else:
                 self.save_to_db(self.phrase, self.transl.split(' '))
         else:
             self.cls(self.SAVE_ABORTED)
@@ -233,12 +237,15 @@ class CLI():
         self.set_output_prompt(f'{self.queue_index:>2d}. ')
             
 
-    def save_to_db(self, phrase:str, res_edit:list):
-        res_edit = '; '.join(res_edit)
-        if len(res_edit) > 0:
+    def save_to_db(self, phrase:str, translations:list):
+        translations:str= '; '.join(translations)
+        if len(translations) > 0:
+            # match columns order in the target file
+            if self.config['sod_source_lng']==self.config['native_lng']:
+                phrase, translations = translations, phrase
             if self.d_api.dict_service != 'mock':
-                self.fh.append_content(phrase, res_edit)    
-            self.notify_on_save(phrase, res_edit)
+                self.fh.append_content(phrase, translations)    
+            self.notify_on_save(phrase, translations)
         else:
             self.cls(self.SAVE_ABORTED)
 
@@ -315,7 +322,7 @@ class CLI():
         if (self.SELECT_TRANSLATIONS_MODE and str(self.MODIFY_RES_EDIT_MODE)[0] not in 'ea') \
             and not self.QUEUE_SELECTION_MODE:
             all_args_match = all({pattern.match(c) for c in parsed_cmd})
-            index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'a') if all_args_match else True
+            index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'am') if all_args_match else True
             if not all_args_match or index_out_of_range:
                 result = False
                 self.cls(self.WRONG_EDIT, keep_content=True)

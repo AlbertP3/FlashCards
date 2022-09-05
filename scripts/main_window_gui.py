@@ -6,7 +6,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import main_window_logic
 from side_windows_gui import *
-
+from ks import *
 
 
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
@@ -17,16 +17,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         widget.QWidget.__init__(self)
         sys.excepthook = self.excepthook
 
-
     def launch_app(self):
         main_window_logic.__init__(self)
         self.build_interface()      
         self.initiate_timer()
         self.initiate_cyclic_file_update()
-        self.set_qtextedit_console(self.get_fcc_console())
         self.initiate_flashcards(self.file_path)
         self.q_app.exec()
-
 
     def build_interface(self):
         self.configure_window()
@@ -36,7 +33,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def configure_window(self):
-        
         # Window Parameters
         self.C_MG = 5  # Content Margin
         self.LEFT = 10
@@ -53,7 +49,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.setGeometry(self.LEFT, self.TOP, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT)
 
         # Initialize
-        self.used_keybindings = list()
+        self.used_keybindings = set()
         self.layout = None
         self.side_window_id = None
         self.center_window()
@@ -100,7 +96,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.save_button = self.create_button('Save', self.click_save_button)
         self.del_button = self.create_button('🗑', self.delete_current_card)
         self.load_again_button = self.create_button('⟳', self.load_again_click)
-        self.revmode_button = self.create_button('RM:{}'.format('OFF'), lambda: self.change_revmode('auto'))
+        self.revmode_button = self.create_button('RM:{}'.format('OFF'), lambda: self.change_revmode(None))
         self.words_button = self.create_button('-')
 
         # Widgets
@@ -297,7 +293,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.display_text()
 
-        self.change_revmode(force_mode=False)
+        self.change_revmode(force_which=False)
         self.is_saved = True
         self.reset_timer(clear_indicator=False)
 
@@ -306,13 +302,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def add_shortcuts(self): 
-        self.add_shortcut('right', self.ks_nav_next)
-        self.add_shortcut('down', self.ks_nav_negative)
-        self.add_shortcut('left', self.click_prev_button)
-        self.add_shortcut('up', self.reverse_side)
-        self.add_shortcut('p', self.change_revmode)
-        self.add_shortcut('d', self.delete_current_card)
-        self.add_shortcut('r', self.load_again_click)
+        self.add_shortcut(kss['next'], self.ks_nav_next)
+        self.add_shortcut(kss['negative'], self.ks_nav_negative)
+        self.add_shortcut(kss['prev'], self.click_prev_button)
+        self.add_shortcut(kss['reverse'], self.reverse_side)
+        self.add_shortcut(kss['change_revmode'], self.change_revmode)
+        self.add_shortcut(kss['del_cur_card'], self.delete_current_card)
+        self.add_shortcut(kss['load_again'], self.load_again_click)
         
 
     def add_shortcut(self, key:str, function):
@@ -320,7 +316,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if key not in self.used_keybindings:
             shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
             shortcut.activated.connect(function)
-            self.used_keybindings.append(key)
+            self.used_keybindings.add(key)
 
 
     def ks_nav_next(self):
@@ -456,18 +452,19 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.move(frame_geo.topLeft())
 
 
-    def change_revmode(self, force_mode='auto'):
-        super().change_revmode(force_mode)
+    def change_revmode(self, force_which=None):
+        # Wrapper for main_window_logic.change_revmode. Beware of the MRO.
+        super().change_revmode(force_which)
 
         if not self.is_saved:
             self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
+
         if self.revmode and not self.is_saved:
             self.nav_buttons_visibility_control(True, True, False)
         else:
             self.nav_buttons_visibility_control(False, False, True)
         
-        if not self.is_revision and force_mode=='auto':
-            # post only if action is performed by the user
+        if not self.is_revision and force_which is None:
             self.post_fcc('Revision mode is unavailable for a Language.')
 
 
@@ -493,7 +490,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def excepthook(self, exc_type, exc_value, exc_tb):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
-        self.log_add(err_traceback, exc_value)
+        self.notify_on_error(err_traceback, exc_value)
 
 
     def update_width_and_height(self):
@@ -556,7 +553,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def create_timer_button(self):
         self.timer_button = self.create_button('⏲', self.show_timespent_sidewindow)
-        self.add_shortcut('t', self.show_timespent_sidewindow)
+        self.add_shortcut(kss['timespent'], self.show_timespent_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
     def start_timer(self):
@@ -621,6 +618,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if event.type() == QtCore.QEvent.FocusIn and type(source) == QtGui.QWindow:
             self.resume_timer()
         return super(main_window_gui, self).eventFilter(source, event)
+
+
+    def closeEvent(self, event):
+        self.config.save()
 
 
     # def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:

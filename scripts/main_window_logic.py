@@ -7,9 +7,6 @@ from rev_summary import summary_generator
 class main_window_logic():
 
     def __init__(self):
-        self.QTEXTEDIT_CONSOLE = None
-        
-        # Flashcards parameters
         self.config = Config()
         self.default_side = self.get_default_side()
         self.side = self.default_side
@@ -23,20 +20,18 @@ class main_window_logic():
         self.is_revision = False
         self.last_modification_time = None
         self.is_saved = False
+        self.dbapi = db_api.db_interface()
         
 
     def build_backend_only(self):
         data = self.load_flashcards(self.file_path)
         if dataset_is_valid(data):
             self.update_backend_parameters(self.file_path, data)
-            self.post_logic(self.get_status_dict('dataset_is_valid'))
+            self.post_logic(UTILS_STATUS_DICT['dataset_is_valid'])
 
 
     def post_logic(self, text):
-        if self.QTEXTEDIT_CONSOLE is not None:    
-            self.post_fcc(text)
-        else:
-            print(text)        
+        self.post_fcc(text)
 
 
     def result_positive(self):
@@ -78,8 +73,6 @@ class main_window_logic():
 
             
     def words_back_mode(self):
-        # used for managing visibility of buttons
-        # occurs when user goes to previous cards
         wordback_mode = False
         if self.words_back > 0:
             self.words_back-=1
@@ -89,8 +82,8 @@ class main_window_logic():
 
 
     def record_revision_to_db(self, seconds_spent=0):
-        db_api.create_record(self.signature, self.total_words, self.positives, seconds_spent)
-        self.post_logic(self.get_dbapi_dict('create_record'))
+        self.dbapi.create_record(self.signature, self.total_words, self.positives, seconds_spent)
+        self.post_logic(db_api.DBAPI_STATUS_DICT['create_record'])
 
 
     def goto_prev_card(self):
@@ -113,7 +106,7 @@ class main_window_logic():
     def load_flashcards(self, file_path):
         try:
             dataset = load_dataset(file_path, do_shuffle=True)   
-            self.post_logic(self.get_status_dict('load_dataset'))
+            self.post_logic(UTILS_STATUS_DICT['load_dataset'])
             self.TEMP_FILE_FLAG = False
             return dataset
         except FileNotFoundError:
@@ -131,10 +124,10 @@ class main_window_logic():
         self.signature = update_signature_timestamp(self.signature)
 
         save_revision(self.dataset.iloc[:self.cards_seen+1, :], self.signature)
-        self.post_logic(self.get_status_dict('save_revision'))
+        self.post_logic(UTILS_STATUS_DICT['save_revision'])
 
         # Create initial record
-        db_api.create_record(self.signature, self.cards_seen+1, self.positives, seconds_spent)
+        self.dbapi.create_record(self.signature, self.cards_seen+1, self.positives, seconds_spent)
         
         # immediately load the revision
         new_path = self.config['revs_path'] + self.signature + '.csv'
@@ -152,7 +145,6 @@ class main_window_logic():
 
     
     def update_backend_parameters(self, file_path, data, override_signature=None):
-        # set updated values
         file_path_parts = file_path.split('/')
         self.filename = file_path_parts[-1].split('.')[0]
         dir_name = file_path_parts[-2]
@@ -188,11 +180,9 @@ class main_window_logic():
 
 
     def get_rating_message(self):
-        dbapi = db_api.db_interface()
- 
-        last_positives = dbapi.get_last_positives(self.signature, req_pos=True)
-        max_positives = dbapi.get_max_positives_count(self.signature)
-        last_time_spent = dbapi.get_last_time_spent(self.signature, req_pos=True)
+        last_positives = self.dbapi.get_last_positives(self.signature, req_pos=True)
+        max_positives = self.dbapi.get_max_positives_count(self.signature)
+        last_time_spent = self.dbapi.get_last_time_spent(self.signature, req_pos=True)
         summary_gen = summary_generator(self.positives, last_positives, self.total_words,
                                     max_positives, self.seconds_spent, last_time_spent)
         if 'revision_summary' in self.config['optional']:
@@ -209,53 +199,12 @@ class main_window_logic():
         elif default_side.lower().startswith('rand'):
             return randint(0,1) 
 
-    def get_signature(self):
-        return self.signature
-        
+
     def get_current_card(self):
         return self.dataset.iloc[self.current_index, :]
 
-    def get_positives(self):
-        return self.positives
 
-    def get_total_words(self):
-        return self.total_words
-
-    def get_words_back(self):
-        return self.words_back
-
-    def get_filepath(self):
-        return self.file_path  
-
-    def get_dataset(self):
-        return self.dataset
-    
-    def get_current_side(self):
-        return self.side
-    
-    def get_mistakes_list(self):
-        return self.mistakes_list
-    
-    def get_headings(self):
-        return self.dataset.columns
-    
-    def get_status_dict(self, key):
-        return get_status_dict().get(key,f'{key} does not exist')
-
-
-    def get_dbapi_dict(self, key):
-        return db_api.get_dbapi_dict().get(key, f'Key Error on: {key}')
-
-    def set_cards_seen(self, cards_seen):
-        self.cards_seen = cards_seen
-    
-
-    def set_qtextedit_console(self, console):
-        self.QTEXTEDIT_CONSOLE = console
-
-
-    def log_add(self, traceback, exc_value=None):
-        # write log traceback to the file
+    def notify_on_error(self, traceback, exc_value=None):
         register_log(traceback)
 
         if exc_value:  # is an error

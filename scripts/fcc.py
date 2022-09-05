@@ -105,23 +105,23 @@ class fcc():
         self.dataset.iloc[self.current_index, self.side] = new_text
 
         # change text in the file
-        mod_file_text = ''
+        notification_file_mod = ''
         if not self.TEMP_FILE_FLAG:
             save_revision(self.dataset, self.signature)
-            mod_file_text = ' Original file updated.'
+            notification_file_mod = ' Original file updated.'
 
-        self.post_fcc('Card content successfully modified.' + mod_file_text)
+        self.post_fcc('Card content successfully modified.' + notification_file_mod)
 
 
     def mcr(self, parsed_cmd):
         # Modify Card Result - allows modification of current score
 
-        mistakes_one_side = [x[self.side] for x in self.mistakes_list]
+        mistakes_one_side = [x[1-self.side] for x in self.mistakes_list]
         is_mistake = self.get_current_card()[self.side] in mistakes_one_side
-        is_wordsback_mode = self.get_words_back() != 0
+        is_wordsback_mode = self.words_back != 0
 
         if not is_wordsback_mode:
-            self.post_fcc('Card not yet checked. Abandoning.')
+            self.post_fcc('Card not yet checked.')
         else:
             if is_mistake:
                 mistake_index = mistakes_one_side.index(self.get_current_card()[self.side])
@@ -150,14 +150,11 @@ class fcc():
             return
 
         # Get parameters before deletion
-        current_side = self.get_current_side()
-        current_word = self.get_current_card()[current_side]
+        current_word = self.get_current_card()[self.side]
 
-        # Delete from currently loaded set
         self.delete_current_card()
 
-        # load file - if not exists: returns empty DF
-        dataset_ordered = load_dataset(self.get_filepath(), do_shuffle=False)
+        dataset_ordered = load_dataset(self.filepath, do_shuffle=False)
 
         # modify file if exists
         file_mod_msg = ''
@@ -181,7 +178,7 @@ class fcc():
         # get last N records from the file -> shuffle only the part
         n_cards = abs(int(parsed_cmd[1]))
         l_cards = abs(int(parsed_cmd[2])) if len(parsed_cmd)>=2 else 0
-        file_path = self.get_filepath()
+        file_path = self.filepath
         if l_cards == 0:
             data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:, :]
         else:
@@ -212,12 +209,12 @@ class fcc():
         do_save = False if '~' in parsed_cmd[1:] else True
 
         # Create DataFrame - reverse arrays to match default_side
-        reversed_mistakes_list = [[x[1], x[0]] for x in self.get_mistakes_list()]
+        reversed_mistakes_list = [[x[1], x[0]] for x in self.mistakes_list]
         shuffle(reversed_mistakes_list)
-        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.get_headings()[::-1])
+        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.dataset.columns[::-1])
                                             
         # [write/append] to a mistakes_list file
-        lng = get_lng_from_signature(self.get_signature()).upper()
+        lng = get_lng_from_signature(self.signature).upper()
         if do_save:
             full_path = path + lng + '_mistakes.csv'
             file_exists = lng + '_mistakes.csv' in get_files_in_dir(path)
@@ -235,7 +232,7 @@ class fcc():
         self.reset_timer()
 
         # allow instant save of a rev created from mistakes_list
-        self.set_cards_seen(mistakes_list.shape[0]-1)
+        self.cards_seen = mistakes_list.shape[0]-1
         
         msg_mode = 'written' if mode == 'w' else 'appended'
         msg_result = f'Mistakes List {msg_mode} to {full_path}' if do_save else 'Created flashcards from mistakes list'
@@ -248,6 +245,7 @@ class fcc():
         # show efc table
         from efc import efc
         efc_obj = efc()
+        efc_obj.refresh_source_data()
         reccommendations = efc_obj.get_complete_efc_table()
         efc_table_printout = efc_obj.get_efc_table_printout(reccommendations)
 
