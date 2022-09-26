@@ -4,6 +4,6 @@ numpy==1.22
 PyQt5==5.15.7
 matplotlib==3.5.2
 openpyxl
-beatifulsoup4==4.11.1
+beautifulsoup4==4.11.1
 requests==2.28.1
 html5lib==1.1

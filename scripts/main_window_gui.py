@@ -9,6 +9,7 @@ from side_windows_gui import *
 from ks import *
 
 
+
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def __init__(self):
@@ -30,6 +31,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.build_layout()   
         self.optional_features()
         side_windows.__init__(self)
+        self.side_window_geometry['main'] = self.get_geometry()
 
 
     def configure_window(self):
@@ -51,7 +53,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         # Initialize
         self.used_keybindings = set()
         self.layout = None
-        self.side_window_id = None
+        self.side_window_id:str = None
         self.center_window()
         self.show()
 
@@ -169,12 +171,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def click_save_button(self):
         if self.is_revision:
-            self.save_revision()
+           self.save_to_mistakes_list()
         else:
             super().handle_saving(seconds_spent=self.seconds_spent)
             self.update_interface_parameters()
             self.reset_timer()
-
+                
 
     def delete_current_card(self):
         super().delete_current_card()
@@ -190,10 +192,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def load_again_click(self):
-        if not self.TEMP_FILE_FLAG:
-            dataset = load_dataset(self.file_path)
-        else:
+        if self.TEMP_FILE_FLAG:
             dataset = shuffle_dataset(self.dataset)
+        else:
+            dataset = load_dataset(self.file_path)
+
         self.update_backend_parameters(self.file_path, dataset)
         self.update_interface_parameters()
         self.reset_timer()
@@ -370,18 +373,22 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.move(self.pos()) 
     
     def add_window_in_place(self, layout, name):
+        self.stop_timer()
         self.side_window_layout = layout
         self.toggle_primary_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 1, 5, 1)
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
+        self.side_window_geometry['main'] = self.get_geometry()
+        self.set_geometry(self.side_window_geometry.setdefault(name, self.get_geometry()))
         self.side_window_id = name
-        self.stop_timer()
     
     def del_side_window_in_place(self):
+        self.side_window_geometry[self.side_window_id] = self.get_geometry()
         remove_layout(self.side_window_layout)
         self.toggle_primary_widgets_visibility(True)
         self.reset_window_size()
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
+        self.set_geometry(self.side_window_geometry['main'])
         self.side_window_id = None
         self.resume_timer()
 
@@ -396,13 +403,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.move(self.pos()) 
 
     def add_window_to_side(self, layout, name, extra_width):
+        self.stop_timer()
         self.side_window_layout = layout
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
         self.setFixedWidth(self.prev_width+extra_width)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = name
-        self.stop_timer()
     
     def del_side_window_side_by_side(self): 
         remove_layout(self.side_window_layout)
@@ -465,7 +472,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.nav_buttons_visibility_control(False, False, True)
         
         if not self.is_revision and force_which is None:
-            self.post_fcc('Revision mode is unavailable for a Language.')
+            self.fcc_inst.post_fcc('Revision mode is unavailable for a Language.')
 
 
     def update_words_button(self):
@@ -499,6 +506,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.prev_height = self.frameGeometry().height()-37
 
 
+    def get_geometry(self) -> tuple[int,int,int,int]:
+        return self.geometry().getRect()
+
+
+    def set_geometry(self, rect:tuple[int,int,int,int]):
+        # Change widht and height only
+        cur_geo = self.get_geometry()
+        self.setGeometry(cur_geo[0], cur_geo[1], rect[2], rect[3])
+
+
     # =============== FILE UPDATE TIMER ================
     def initiate_cyclic_file_update(self):
         if self.config['file_update_interval']=='0':
@@ -509,7 +526,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     
     def start_file_update_timer(self):
         if not self.condition_to_run_file_update_timer(): return
-        self.post_fcc('File update timer: started')
+        self.fcc_inst.post_fcc('File update timer: started')
         self.last_file_update_seconds_ago = 0
         self.file_update_timer.timeout.connect(self.file_update_timer_handler)
         self.file_update_timer.start(1000)    
@@ -520,12 +537,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         interval_sec = int(self.config['file_update_interval'])
         if interval_sec == 0 or self.TEMP_FILE_FLAG:
             self.file_update_timer.stop()
-            self.post_fcc('File update timer: stopped')
+            self.fcc_inst.post_fcc('File update timer: stopped')
         elif interval_sec <= self.last_file_update_seconds_ago:
             mod_time = os.path.getmtime(self.file_path)
             if mod_time > self.last_modification_time:
                 self.update_dataset()
-                self.post_fcc('Dataset refreshed')
+                self.fcc_inst.post_fcc('Dataset refreshed')
             self.last_file_update_seconds_ago = 0
             self.last_modification_time = mod_time
 
@@ -607,8 +624,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def show_timespent_sidewindow(self):
         # displays time spent table utilizing FCC interface
         timespent_sidewindow_width = len(self.config['languages'])*120
-        self.get_fcc_sidewindow(width_=timespent_sidewindow_width, read_only=True, show_history=False)
-        self.execute_command(['tts', '12', 'm'], followup_prompt=False, save_to_log=False)
+        self.get_fcc_sidewindow(width_=timespent_sidewindow_width, incognito=True)
+        self.fcc_inst.cls()
+        self.fcc_inst.execute_command(['tts', '12', 'm'], followup_prompt=False)
 
 
     # default methods overrides

@@ -7,15 +7,16 @@ import configparser
 import csv
 import inspect
 from time import perf_counter
-
+import inspect
 
 
 def timer(func):
     def timed(*args, **kwargs):
+        caller = inspect.stack()[1][3]
         t1 = perf_counter() 
         result = func(*args, **kwargs)
         t2 = perf_counter()
-        register_log(f'[{func.__name__}] took {(t2-t1)*1000:0.4f}ms')
+        register_log(f'{func.__name__} called by {caller} took {(t2-t1)*1000:0.4f}ms')
         return result
     return timed
         

@@ -82,21 +82,35 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <h1>To-Do</h1>
 <ol>
 <li>NEW FEATURES</li>
+<li>Add LICENSE</li>
+<li>write tests for SOD</li>
 <li>paced-repetition - specific time for each card</li>
 <li>EFC optimizer - ML based?</li>
-<li>pomodoro timer</li>
 <li>percentages on the chart instead of values</li>
 <li>update readme and help commands to cover new features</li>
 <li>PROJECT: send data to a website, where it can be compared between users</li>
 <li>mobile version written in... golang?</li>
 <br>
+<ol
 <li>FIXES AND UPGRADES</li>
-<li>dbinterface optimization - singleton, loading timing, cache, ... REMEMBER TO ASSESS PERFORMANCE</li>
-    singleton, remove loading from __init__, 
-    Refreshing data should always be done by the caller
 <li>SOD - show last n in Queue - but how should it look like?</li>
-<li>auto cfm</li>
-<li>SOD - offline mode for dict - type phrases and translate only when dict-service available again</li>
+<li>SOD - add Diki dictionary</li>
+<li>SOD - add Cambridge dictionary</li>
+</ol>
+<br>
+<ol>
+<li>OPTIMIZATION</li>
+<li>performance overhead - If word is a duplicate - show result from DB and only then prompt for online search</li>
+<li>change rev_db format to something faster - feather</li>
+<li>make saving to file a separate thread</li>
+</ol>
+<!--<li>don't post to fcc if sod is running - or post to status bar?</li>-->
+<!-- <li>remeber size of side windows while in in-place mode</li> -->
+<!-- <li>SOD - NoInternetConnection while queue mode - allow continue by only displaying a notification about Error - applicable to all types of errs</li> -->
+<!-- <li>write tests for SOD - move MOCK dict to tests module and path the save_method</li>-->
+<!--<li>auto cfm - modified SAVE button behavior - if is_revision, then appends mistakes list (with offset) to mistakes file in languages dir, manual write still possible via FCC</li> -->
+<!-- <li>show time spent should be placed in separate console - bug: posting command to SOD</li> -->
+<!--<li>dbinterface optimization - singleton, loading timing, cache, ... REMEMBER TO ASSESS PERFORMANCE</li>-->
 <!-- <li>delegate theme setting to another config file</li> -->
 <!-- <li>fix output.txt appearing when sod did not crash</li> -->
 <!-- <li>SOD - remove items by index</li> -->
@@ -129,7 +143,6 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <!-- <li>open side window on top of the main - optional feature</li> -->
 <!-- <li>dark theme</li> -->
 <!-- <li>sod - que results scaling to width</li> -->
-</ol>
 
 <h1>Known Bugs</h1>
 <ol>

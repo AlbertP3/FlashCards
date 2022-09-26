@@ -1,7 +1,11 @@
-from collections import OrderedDict
+import sys
+import os
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
+
 import unittest
 import pandas as pd
-import os
 from utils import *
 import db_api
 from datetime import datetime, date, timedelta
@@ -11,8 +15,8 @@ import stats
 from random import randint
 from rev_summary import summary_generator
 import time
-import re
-from SOD.scraper import dict_api
+
+
 
 def init_backend_and_load_test_file():
     mw = main_window_logic.main_window_logic()
@@ -426,84 +430,7 @@ def run_summary_generator_test(positives=None, last_positives=None, total=None, 
         return res    
 
 
-class test_dict_scraper(unittest.TestCase):
-
-    def test_pons_regex(self):
-        examples =  {'przekazywać [perf przekazać]' : 'przekazywać',
-        'robotnik(-ica) m (f)' : 'robotnik(-ica)',
-         'zakład m zbrojeniowy' : 'zakład zbrojeniowy',
-         'cukrzyca f' : 'cukrzyca',
-         'czerwienić [perf za-] się' : 'czerwienić się',
-         'to go [or turn] red [in the face]' : 'to go [or turn] red [in the face]',
-         'zadłużać [perf zadłużyć] się nt' : 'zadłużać się',
-         '[automatyczna] sekretarka f': '[automatyczna] sekretarka',
-         'korzeń m': 'korzeń',
-         'dezodorant m /klej m w sztyfcie': 'dezodorant/klej w sztyfcie',
-         'przerzutki fpl' : 'przerzutki',
-         'trudności pl z uczeniem się' : 'trudności z uczeniem się',
-         'uczyć [perf na-] się': 'uczyć się',
-         'to masticate': 'to masticate',
-         '[niedźwiedź] grizzly m [lub grizli m ]' : '[niedźwiedź] grizzly',
-         'radio nt na baterie': 'radio na baterie',
-         'regent(ka) m (f)': 'regent(ka)',
-         'przypochlebiać się imperf': 'przypochlebiać się',
-         'salon m kosmetyczny [lub piękności]': 'salon kosmetyczny',
-         'bojkotować [perf z-]': 'bojkotować',
-         'red as a beetroot [or AM beet]': 'red as a beetroot'
-        }
-        re_patterns = OrderedDict()
-        re_patterns[r'\[(((or )?AM)|lub|perf|inf).*\]'] = ' '
-        re_patterns[r'( |\()+(f?pl|fig|m|\(?f\)?|nt|mpl|imperf)([^a-zA-Z0-9\(/]+|$)'] = ' '
-        re_patterns[r' ( |$)'] = ''
-        re_patterns[r' /'] = '/'
-
-        for raw, expected in examples.items():
-            s = raw
-            for p, r in re_patterns.items():
-                s = re.sub(p, r, s)
-            self.assertEqual(s, expected)
-
-
-    def test_get_from_pons(self):
-        d = dict_api('pons')
-        translations, originals, warnings = d.get_info_about_phrase('machine learning')
-        self.assertNotIn('COMPUT ', originals[0])
-        self.assertEqual('uczenie maszynowe', translations[0])
-
-        translations, originals, warnings = d.get_info_about_phrase('ravenous')
-        self.assertNotIn('person ', originals[0])
-        self.assertEqual('wygłodniały', translations[0])
-        
-    
-    def test_merriam_regex(self):
-        pass
-
-
-    def test_get_from_merriam(self):
-        d = dict_api('merriam')
-        translations, originals, warnings = d.get_info_about_phrase('iconoclast')
-        self.assertIn('a person who attacks settled beliefs or institutions', translations)
-
-    
-    def test_get_from_mock(self):
-        d = dict_api('mock')
-        translations, originals, warnings = d.get_info_about_phrase('whatever')
-        self.assertNotEqual(translations, [])
-        self.assertIn('hello world', translations)
-    
-
-    def test_selection_cmd_pattern(self):
-        r = re.compile(r'^(\d+|e\d+|[am])$')
-        self.assertIs(r.match('a') is not None, True)
-        self.assertIs(r.match('10') is not None, True)
-        self.assertIs(r.match('e2') is not None, True)
-        self.assertIs(r.match('m') is not None, True)
-
-        self.assertIs(r.match('b10') is not None, False)
-        self.assertIs(r.match('a1') is not None, False)
-        self.assertIs(r.match('vsase') is not None, False)
-        self.assertIs(r.match('2e') is not None, False)
-        
+       
 
 
 def print_summary_generator_in_loop(positives=None, last_positives=None, total=None, max_positives=None, 

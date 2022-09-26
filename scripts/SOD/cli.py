@@ -1,4 +1,4 @@
-from SOD.scraper import dict_api
+from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
 from collections import OrderedDict
 import re
@@ -24,7 +24,7 @@ class CLI():
         self.phrase = str()
         self.queue_dict = OrderedDict()
         self.output = output
-        self.d_api = dict_api()
+        self.d_api = Dict_Services()
         self.fh = file_handler(wb_path, ws_sheet_name)
         self.selection_queue = list()
         self.status_message = str()
@@ -40,11 +40,11 @@ class CLI():
 
 
     def set_output_prompt(self, t):
-        self.output.CONSOLE_PROMPT = t
+        self.output.mw.CONSOLE_PROMPT = t
 
 
     def send_output(self, text:str):
-        self.output.post_fcc(text)
+        self.output.console.append(text)
 
 
     def execute_command(self, parsed_phrase:list):
@@ -85,7 +85,7 @@ class CLI():
     def set_dict(self, new_dict):
         if new_dict in self.d_api.get_available_dicts():
             self.d_api.set_dict_service(new_dict)
-            self.cls(keep_content=True, keep_cmd = self.QUEUE_MODE)
+            self.cls(keep_content=self.QUEUE_MODE, keep_cmd=self.QUEUE_MODE)
         else:
             self.cls(f'⚠ Wrong Dict!', keep_content=True, keep_cmd = self.QUEUE_MODE)
 
@@ -111,7 +111,7 @@ class CLI():
 
         # Finalize
         if self.phrase and self.transl:
-                self.save_to_db(self.phrase, self.transl.split(' '))
+                self.save_to_db(self.phrase, [self.transl])
         else:
             self.cls(self.SAVE_ABORTED)
         self.MANUAL_MODE = False
@@ -207,12 +207,16 @@ class CLI():
             else:
                 transl = 'N/A'
 
-        if self.fh.is_duplicate(phrase): msg = self.PHRASE_EXISTS_IN_DB
-        elif warnings: msg = self.PROBLEM_OCCURRED
-        else: msg = '✅ OK'
-        self.cls(msg, keep_content=True, keep_cmd=True )
-        self.send_output(f' | {transl}')
-        self.queue_index+=1
+        if warnings:
+            msg = warnings[0]
+            self.cls(msg, keep_content=False, keep_cmd=True)
+            self.print_queue()  
+        else: 
+            msg = self.PHRASE_EXISTS_IN_DB if self.fh.is_duplicate(phrase) else '✅ OK'
+            self.cls(msg, keep_content=True, keep_cmd=True )
+            self.send_output(f' | {transl}')
+            self.queue_index+=1
+
 
 
     def del_from_queue(self, indices:list):
@@ -226,7 +230,13 @@ class CLI():
             self.queue_dict.pop(l_k[i-1])
         self.queue_index = 1
         self.cls()
+        self.print_queue()
+        self.set_output_prompt(f'{self.queue_index:>2d}. ')
+            
+    
+    def print_queue(self):
         c_lim = self.get_char_limit() - 3
+        self.queue_index = 1
         for phrase, info in self.queue_dict.items():
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
@@ -234,8 +244,7 @@ class CLI():
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
-        self.set_output_prompt(f'{self.queue_index:>2d}. ')
-            
+        
 
     def save_to_db(self, phrase:str, translations:list):
         translations:str= '; '.join(translations)
@@ -243,9 +252,11 @@ class CLI():
             # match columns order in the target file
             if self.config['sod_source_lng']==self.config['native_lng']:
                 phrase, translations = translations, phrase
-            if self.d_api.dict_service != 'mock':
-                self.fh.append_content(phrase, translations)    
-            self.notify_on_save(phrase, translations)
+            success, errs = self.fh.append_content(phrase, translations)    
+            if success: 
+                self.notify_on_save(phrase, translations)
+            else:
+                self.cls(errs)
         else:
             self.cls(self.SAVE_ABORTED)
 
@@ -255,7 +266,7 @@ class CLI():
 
     def notify_on_save(self, phrase, res_edit):
         lim = self.get_char_limit()
-        msg = f"🖫 {phrase}: {res_edit}"
+        msg = f'🖫 {phrase}: {res_edit}'
         self.cls(msg[:lim]+'…' if len(msg)>lim else msg)
 
 
@@ -272,7 +283,7 @@ class CLI():
         
 
     def get_char_limit(self):
-        return int(1.134 * self.output.console.width() / self.output.CONSOLE_FONT_SIZE)
+        return int(1.134 * self.output.console.width() / self.output.mw.CONSOLE_FONT_SIZE)
 
 
     def select_translations(self, parsed_cmd):
@@ -354,13 +365,6 @@ class CLI():
         else: new_prompt = self.PHRASE_PROMPT
         self.set_output_prompt(new_prompt)
 
-    
-    def create_queue_backup(self):
-        with open('queue_dict.txt', 'a') as file:
-            for p, t in self.queue_dict.items():
-                file.write(f'{p};;;{"; ".join(t)}')
-        self.send_output('Created backup of the Queue')
-
 
     def cls(self, msg=None, keep_content=False, keep_cmd=False):
         if keep_content:
@@ -368,13 +372,13 @@ class CLI():
             content = content[1:] if keep_cmd else content[1:-1]
             content = '\n'.join(content)
         self.output.cls()
-        self.post_status_bar(msg)
+        self.__post_status_bar(msg)
         if keep_content: 
             self.send_output(content)
 
 
-    def post_status_bar(self, msg=None):
-        active_dict = self.d_api.get_dict_service()
+    def __post_status_bar(self, msg=None):
+        active_dict = self.d_api.dict_service
         source_lng = self.d_api.source_lng
         target_lng = self.d_api.target_lng
         len_db = self.fh.ws.max_row - 1

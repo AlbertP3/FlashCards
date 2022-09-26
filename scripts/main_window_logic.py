@@ -1,4 +1,4 @@
-from random import randint
+from random import randint, shuffle
 import db_api
 from utils import *
 from rev_summary import summary_generator
@@ -8,30 +8,28 @@ class main_window_logic():
 
     def __init__(self):
         self.config = Config()
+        self.dataset = None
         self.default_side = self.get_default_side()
         self.side = self.default_side
         self.file_path = self.config['onload_file_path']
         self.revmode = False
+        self.total_words = 0
+        self.current_index = 0
         self.cards_seen = 0
         self.signature = ''
         self.revision_summary = None
         self.TIMER_KILLED_FLAG = False
         self.TEMP_FILE_FLAG = False
         self.is_revision = False
+        self.is_mistakes_list = False
         self.last_modification_time = None
         self.is_saved = False
         self.dbapi = db_api.db_interface()
+        self.auto_cfm_offset = 0
+
         
-
-    def build_backend_only(self):
-        data = self.load_flashcards(self.file_path)
-        if dataset_is_valid(data):
-            self.update_backend_parameters(self.file_path, data)
-            self.post_logic(UTILS_STATUS_DICT['dataset_is_valid'])
-
-
     def post_logic(self, text):
-        self.post_fcc(text)
+        self.fcc_inst.post_fcc(text)
 
 
     def result_positive(self):
@@ -106,7 +104,6 @@ class main_window_logic():
     def load_flashcards(self, file_path):
         try:
             dataset = load_dataset(file_path, do_shuffle=True)   
-            self.post_logic(UTILS_STATUS_DICT['load_dataset'])
             self.TEMP_FILE_FLAG = False
             return dataset
         except FileNotFoundError:
@@ -175,8 +172,30 @@ class main_window_logic():
         self.revision_summary = None
         self.TIMER_KILLED_FLAG = False
         self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
+        self.auto_cfm_offset = 0
         
         self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
+
+
+    def save_to_mistakes_list(self):
+        reversed_mistakes_list = [[x[1], x[0]] for x in self.mistakes_list]
+        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.dataset.columns[::-1])
+        lng = get_lng_from_signature(self.signature).upper()
+        full_path = self.config['lngs_path'] + lng + '_mistakes.csv'
+        mistakes_list.iloc[self.auto_cfm_offset:].to_csv(full_path, index=False, mode='a', header=False)
+        m_cnt = mistakes_list.shape[0] - self.auto_cfm_offset
+        self.post_logic(f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes List')
+        self.auto_cfm_offset = mistakes_list.shape[0]
+
+        # show only the current mistakes as flashcards
+        fake_path = self.config['lngs_path'] + f'{lng} Mistakes.csv'
+        self.TEMP_FILE_FLAG = True
+        self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
+        self.update_interface_parameters()
+        self.reset_timer()
+
+        # allow instant save of a rev created from mistakes_list
+        self.cards_seen = mistakes_list.shape[0]-1
 
 
     def get_rating_message(self):
@@ -213,4 +232,4 @@ class main_window_logic():
             text_to_post = traceback
 
         self.get_fcc_sidewindow()
-        self.post_fcc(text_to_post)
+        self.fcc_inst.post_fcc(text_to_post)

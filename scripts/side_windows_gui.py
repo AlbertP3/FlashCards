@@ -17,57 +17,67 @@ from ks import *
 # side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
 
 
-class fcc_gui(fcc):
+class fcc_gui():
 
     def __init__(self):
         self.DEFAULT_PS1 = '$~>'
         self.CONSOLE_FONT_SIZE = 12
         self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
-        self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
+        self.CONSOLE_LOG = None
+        self.console = None
+        self.incognito = False # if True: forget content added within cur session
 
         if 'keyboard_shortcuts' in self.config['optional']:
             self.add_shortcut(kss['fcc'], self.get_fcc_sidewindow)
             self.add_shortcut(kss['run_command'], self.run_command)
-        
 
+        self.fcc_inst = fcc(self)
         self.arrange_fcc_window()
-        fcc.__init__(self, console=self.console)
 
 
-    def get_fcc_sidewindow(self, width_=500, read_only=False, show_history=True):
-        self.arrange_fcc_window(read_only=read_only)
+    def get_fcc_sidewindow(self, width_=500, incognito=False):
+        self.incognito = incognito
+        self.arrange_fcc_window()
         self.open_side_window(self.fcc_layout, 'fcc', width_ + self.LEFT)
-        if show_history:
-            self.reload_logs()
         self.console.setFocus()
         self.move_cursor_to_end()
         
         
-    def arrange_fcc_window(self, read_only=False):
+    def arrange_fcc_window(self):
         self.fcc_layout = widget.QGridLayout()
-        self.fcc_layout.addWidget(self.create_console(read_only=read_only), 0, 0)
+
+        if not self.console:
+            self.create_console()
+        elif not self.console.toPlainText().split('\n')[-1].startswith(self.CONSOLE_PROMPT): 
+            self.console.append(self.CONSOLE_PROMPT)
+
+        if self.incognito: 
+            self.CONSOLE_LOG = self.console.toPlainText()
+        elif self.CONSOLE_LOG:
+            self.console.setText(self.CONSOLE_LOG)
+            self.CONSOLE_LOG = None
+
+        self.fcc_layout.addWidget(self.console, 0, 0)
 
         
-    def create_console(self, read_only=False):
+    def create_console(self):
         self.console = widget.QTextEdit(self)
         self.console.setFont(self.CONSOLE_FONT)
-        self.console.setReadOnly(read_only)
         self.console.setStyleSheet(self.textbox_stylesheet)
-        return self.console
-    
+        self.fcc_inst.update_console_id(self.console)
+       
 
     def run_command(self):
         # format user input
-        trimmed_command = self.console.toPlainText().strip()
+        trimmed_command = self.console.toPlainText()
         
         # get command from last line
-        trimmed_command = trimmed_command.split('\n')[-1][len(self.CONSOLE_PROMPT):]
-        self.CONSOLE_LOG[-1]+=trimmed_command
+        trimmed_command = trimmed_command.split('\n')[-1][len(self.CONSOLE_PROMPT):].strip()
 
         # execute command
         parsed_command = [x for x in trimmed_command.split(' ')]
-        fcc.execute_command(self, parsed_command)
+        self.fcc_inst.execute_command(parsed_command)
 
         self.move_cursor_to_end()
     
@@ -75,14 +85,6 @@ class fcc_gui(fcc):
     def move_cursor_to_end(self):
         self.console.moveCursor(QtGui.QTextCursor.End)
     
-
-    def reload_logs(self):
-        # remove extensive command prompts
-        self.CONSOLE_LOG[-1] = self.CONSOLE_LOG[-1].replace(self.CONSOLE_PROMPT+'\n', '')     
-        if not self.CONSOLE_LOG[-1].endswith(self.CONSOLE_PROMPT):
-            self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
-        self.console.setText('\n'.join(self.CONSOLE_LOG))
-
 
 
 class efc_gui(efc):
@@ -235,7 +237,7 @@ class mistakes_gui():
             self.arrange_mistakes_window()
             self.open_side_window(self.mistakes_layout, 'mistakes', self.EXTRA_WIDTH_MISTAKES)
         else:
-            self.post_fcc('Mistakes are unavailable for a Language.')
+            self.fcc_inst.post_fcc('Mistakes are unavailable for a Language.')
 
     def arrange_mistakes_window(self):
         # Style
@@ -281,7 +283,7 @@ class stats_gui(stats):
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, 'stats', self.EXTRA_WIDTH_STATS)
         else:
-            self.post_fcc('Statistics are not available for a Language')
+            self.fcc_inst.post_fcc('Statistics are not available for a Language')
 
     def arrange_stats_sidewindow(self):
         self.get_data_for_current_revision(self.signature)
@@ -500,7 +502,7 @@ class config_gui():
         # Create label + qlineedit/combobox/... then add it to options_layout then fetch data from it to the modified_dict
 
         # initate labels and comboboxes
-        self.confirm_and_close_button = self.create_button('Confirm Changes', self.del_config_side_window)
+        self.confirm_and_close_button = self.create_button('Confirm Changes', self.commit_config_update)
         self.card_default_combobox = self.create_config_combobox('card_default_side',['0','1','Random'])
         self.card_default_label = self.create_label('Card Default Side')
         self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', ['EN','RU','JP','DE','IT','FR','QN'])
@@ -593,7 +595,7 @@ class config_gui():
         return blank
 
 
-    def del_config_side_window(self):
+    def commit_config_update(self):
         modified_dict = dict()
         modified_dict['card_default_side'] = self.card_default_combobox.currentText()
         modified_dict['languages'] = '|'.join(self.lngs_checkablecombobox.currentData())
@@ -622,6 +624,7 @@ class config_gui():
 class side_windows(fcc_gui, efc_gui, load_gui, 
                 mistakes_gui, stats_gui, progress_gui, config_gui):
     def __init__(self):
+        self.side_window_geometry:dict[str, tuple[int, int, int, int]] = dict() # left, top, width, height
         fcc_gui.__init__(self)
         efc_gui.__init__(self)
         load_gui.__init__(self)

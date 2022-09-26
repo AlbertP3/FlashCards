@@ -16,7 +16,6 @@ def register_dict(name:str):
 
 
 class template_dict(ABC):
-
     @abstractmethod
     def get(self, word:str) -> tuple[list[str], list[str], list[str]]:
         # returns (translations, originals, warnings)
@@ -36,6 +35,12 @@ class dict_pons(template_dict):
             ru = 'russian',
             de = 'german',
         )
+        self.re_patterns = OrderedDict([
+            (r'\[(((or )?AM)|lub|perf|inf).*\]' , ' '),
+            (r'( |\()+(f?pl|fig|m|\(?f\)?|nt|mpl|imperf)([^a-zA-Z0-9\(/]+|$)' , ' '),
+            (r' ( |$)', ''),
+            (r' /', '/')
+        ])
 
 
     def get(self, word:str):
@@ -43,17 +48,12 @@ class dict_pons(template_dict):
         self.target_lng = self.config['sod_target_lng']
         self.source_lng = self.config['sod_source_lng']
         warnings = list()
-        re_patterns = OrderedDict()
         content = self.get_page_content()
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
         warnings = self.check_for_warning(bs)
         translations = self.fetch_data(bs, 'target', self.pons_mapping[self.target_lng].capitalize())
         originals = self.fetch_data(bs, 'source', self.pons_mapping[self.source_lng].capitalize())
-        re_patterns[r'\[(((or )?AM)|lub|perf|inf).*\]'] = ' '
-        re_patterns[r'( |\()+(f?pl|fig|m|\(?f\)?|nt|mpl|imperf)([^a-zA-Z0-9\(/]+|$)'] = ' '
-        re_patterns[r' ( |$)'] = ''
-        re_patterns[r' /'] = '/'
-        for r, s in re_patterns.items():
+        for r, s in self.re_patterns.items():
             translations = [re.sub(r, s, text_) for text_ in translations]
             originals = [re.sub(r, s, text_) for text_ in originals]
 
@@ -131,21 +131,6 @@ class dict_merriam(template_dict):
         return output
 
 
-@register_dict('mock')
-class dict_mock(template_dict):
-
-    def get(self, word):
-        originals = ['witaj świecie', 'domyślny serwis', 'czerwony', 'traktować kogoś z honorami', 'lorem ipsum']
-        translations = ['hello world', 'default dict service for tests', 'red', 'to roll out the red carpet for sb [or to give sb the red carpet treatment]', 'dolor sit amet']
-        warnings = []
-        if word == 'none': 
-            translations.clear()
-            originals.clear()
-        elif word == 'mauve':
-            originals = ['mauve']
-            translations = ['jasno fioletowy']
-        return translations, originals, warnings
-
 
 @register_dict('babla')
 class dict_babla(template_dict):
@@ -219,8 +204,21 @@ class dict_babla(template_dict):
 
 
 class Dict_Services:
+    # source_lng - from which language user wants to translate -->> target_lng - to which lng ...
+    # dict_service - which dict is currently selected
+
     def __init__(self):
-        self.dicts = dict_services
+        self.config = Config()
+        self.dicts:dict = dict_services
+        self.dict_service:str = self.config['sod_dict_service']
+        self.DEFAULT_SOURCE_LNG = self.config['sod_source_lng']
+        self.DEFAULT_TARGET_LNG = self.config['sod_target_lng']
+        self.WORDS_LIMIT = 8
+        self.word = None
+        self.mute_warning = False
+        self.source_lng = self.DEFAULT_SOURCE_LNG
+        self.target_lng = self.DEFAULT_TARGET_LNG
+
 
     def __getitem__(self, key):
         return self.dicts[key]
@@ -229,6 +227,38 @@ class Dict_Services:
     def get_available_dicts(self):
         return self.dicts.keys()
     
+
+    def set_dict_service(self, dict_service):
+        if dict_service in self.get_available_dicts():
+            self.dict_service = dict_service
+            self.config.update({'sod_dict_service':dict_service})
+            
+
+    def switch_languages(self, src_lng:str=None, tgt_lng:str=None):
+        if src_lng == self.target_lng:
+            self.set_target_language(self.source_lng)
+            self.set_source_language(src_lng)
+        elif src_lng != self.source_lng:
+            self.set_source_language(src_lng)
+            self.set_target_language(tgt_lng)
+
+
+    def set_source_language(self, src_lng=None):
+        self.source_lng = src_lng or self.DEFAULT_SOURCE_LNG
+        self.config.update({'sod_source_lng': self.source_lng})
+
+
+    def set_target_language(self, tgt_lng=None):
+        self.target_lng = tgt_lng or self.DEFAULT_TARGET_LNG
+        self.config.update({'sod_target_lng': self.target_lng})
+
+
+    def get_info_about_phrase(self, word:str) -> tuple[list, list, list]:
+        try:
+            trans, orig, warn = self.dicts[self.dict_service].get(word)
+        except requests.exceptions.ConnectionError:
+            trans, orig, warn = [], [], ['No Internet Connection!']
+        return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn
 
 
 
