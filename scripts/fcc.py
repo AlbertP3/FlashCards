@@ -14,7 +14,7 @@ class fcc():
         self.mw = mw
         self.config = Config()
         self.console = self.mw.console
-        self.DOCS = {'help':'Says what it does - literally',
+        self.DOCS = {
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
@@ -120,12 +120,12 @@ class fcc():
                 del self.mw.mistakes_list[mistake_index]
                 self.mw.negatives-=1
                 self.mw.positives+=1
-                self.post_fcc('Score successfully modified to positive.')
+                self.post_fcc('Score modified to positive.')
             else:
                 self.mw.append_current_card_to_mistakes_list()
                 self.mw.positives-=1
                 self.mw.negatives+=1
-                self.post_fcc('Score successfully modified to negative.')
+                self.post_fcc('Score modified to negative.')
       
             self.refresh_interface()
 
@@ -397,5 +397,5 @@ class fcc():
 
     def sod(self, parsed_cmd:list):
         # Scrape Online Dictionaries
-        self.sod_object = sod_spawn(stream_out=self)
+        self.sod_object = sod_spawn(adapter='fcc', stream_out=self)
 

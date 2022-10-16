@@ -1,7 +1,8 @@
+from collections import OrderedDict
+from itertools import islice
+import re
 from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
-from collections import OrderedDict
-import re
 from utils import Config
 
 class CLI():
@@ -72,6 +73,7 @@ class CLI():
             if i == 'p': self.set_dict('pons')
             elif i == 'm': self.set_dict('merriam')
             elif i == 'b': self.set_dict('babla')
+            elif i == 'd': self.set_dict('diki')
             elif i in ['PL', 'EN']:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
@@ -138,8 +140,8 @@ class CLI():
         self.queue_dict = OrderedDict()
         self.queue_index = 1
         self.queue_page_counter = 0
+        self.queue_visible_items = 0
         self.cls()
-        self.send_output('Queue:')
         self.QUEUE_MODE = True
         self.phrase = None
         self.translations = None
@@ -166,8 +168,10 @@ class CLI():
         while self.queue_dict:
             p, rs = self.queue_dict.popitem(last=False)
             self.queue_page_counter+=1
-            is_duplicate = self.fh.is_duplicate(p)
-            if not is_duplicate:
+            if 'DUPLICATE' not in rs[2]:
+                if 'MANUAL' in rs[2]: 
+                    self.save_to_db(p, rs[0])
+                    continue
                 self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1}]:')
                 self.print_translations_table(rs[0], rs[1])
                 self.phrase = p
@@ -177,7 +181,7 @@ class CLI():
                 break
 
         if not self.queue_dict:
-            if is_duplicate: 
+            if 'DUPLICATE' not in rs[2]: 
                 self.set_output_prompt(self.PHRASE_PROMPT)
             self.QUEUE_SELECTION_MODE = False
 
@@ -189,34 +193,49 @@ class CLI():
 
         c_lim = self.get_char_limit() - 3
         phrase:str = ' '.join(self.handle_prefix(parsed_cmd))
+        exists_in_queue = phrase in self.queue_dict.keys()
         if phrase.startswith('$'):  # Manual Mode for Queue
             l2 = ['']*3; l1 = phrase.split('$')
             l2[:len(l1)] = l1
             phrase, translations = l2[1], l2[2]
-            self.queue_dict[phrase] = [[translations.strip()], [phrase.strip()], list()]    
+            self.queue_dict[phrase] = [[translations.strip()], [phrase.strip()], ['MANUAL']]    
             cleaned_text = self.output.console.toPlainText().replace(' $ ', ' ').replace(translations,'')
             self.output.console.setText(cleaned_text)
             transl = translations
             warnings = None
-        else:
+        else:  # Online Dictionary
             translations, originals, warnings = self.d_api.get_info_about_phrase(phrase)
-            if translations or originals:
+            if (translations or originals) and not warnings:
                 self.queue_dict[phrase] = [translations, originals, warnings]
                 transl = "; ".join(translations[:2]).rstrip()
                 transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
             else:
-                transl = 'N/A'
-
-        if warnings:
+                transl = ''
+                warnings = warnings if warnings else [self.NO_TRANSLATIONS]
+        
+        if exists_in_queue:
+            self.cls(msg="🔃 Updated Queue")
+            self.print_queue()
+        elif warnings:
             msg = warnings[0]
             self.cls(msg, keep_content=False, keep_cmd=True)
             self.print_queue()  
         else: 
-            msg = self.PHRASE_EXISTS_IN_DB if self.fh.is_duplicate(phrase) else '✅ OK'
-            self.cls(msg, keep_content=True, keep_cmd=True )
-            self.send_output(f' | {transl}')
-            self.queue_index+=1
+            if self.fh.is_duplicate(phrase):
+                msg = self.PHRASE_EXISTS_IN_DB
+                self.queue_dict[phrase][2] = ['DUPLICATE']
+            else:
+                msg = '✅ OK'
 
+            lim_items = int(self.get_lines_limit()/2)-2
+            if self.queue_visible_items+1 > lim_items:
+                self.cls(msg, keep_content=False, keep_cmd=True)
+                self.print_queue(slice=[len(self.queue_dict)-lim_items, 0])
+            else:
+                self.cls(msg, keep_content=True, keep_cmd=True )
+                self.send_output(f' | {transl}')
+                self.queue_index+=1
+                self.queue_visible_items+=1
 
 
     def del_from_queue(self, indices:list):
@@ -234,16 +253,20 @@ class CLI():
         self.set_output_prompt(f'{self.queue_index:>2d}. ')
             
     
-    def print_queue(self):
+    def print_queue(self, slice:list=[0, 0]):
         c_lim = self.get_char_limit() - 3
-        self.queue_index = 1
-        for phrase, info in self.queue_dict.items():
+        if slice[0]<0: slice[0] = len(self.queue_dict) + slice[0] 
+        if slice[1]==0: slice[1] = len(self.queue_dict)
+        self.queue_index = slice[0]+1
+        self.queue_visible_items = 0
+        for phrase, info in islice(self.queue_dict.items(), slice[0], slice[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
             transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
+            self.queue_visible_items+=1
         
 
     def save_to_db(self, phrase:str, translations:list):
@@ -283,7 +306,11 @@ class CLI():
         
 
     def get_char_limit(self):
-        return int(1.134 * self.output.console.width() / self.output.mw.CONSOLE_FONT_SIZE)
+        return int(1.184 * self.output.console.width() / self.output.mw.CONSOLE_FONT_SIZE)
+
+
+    def get_lines_limit(self):
+        return int(0.589 * self.output.console.height() / self.output.mw.CONSOLE_FONT_SIZE)
 
 
     def select_translations(self, parsed_cmd):
@@ -387,7 +414,6 @@ class CLI():
         if msg:
             remaining_len = self.get_char_limit() - len(status)
             status += msg[:remaining_len-1]+'…' if len(msg)>remaining_len else msg
-        
         self.send_output(status)
 
 

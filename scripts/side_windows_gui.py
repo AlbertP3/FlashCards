@@ -1,5 +1,5 @@
 import PyQt5.QtWidgets as widget
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QModelIndex
 from PyQt5 import QtGui
 from utils import * 
 from matplotlib.figure import Figure
@@ -11,7 +11,6 @@ from load import load
 from stats import stats
 from checkable_combobox import CheckableComboBox
 from themes import THEMES
-from ks import *
 
 # each class espouses one type of sidewindow (GUI + inherited logic)
 # side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
@@ -28,9 +27,8 @@ class fcc_gui():
         self.console = None
         self.incognito = False # if True: forget content added within cur session
 
-        if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut(kss['fcc'], self.get_fcc_sidewindow)
-            self.add_shortcut(kss['run_command'], self.run_command)
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'main')
+        self.add_shortcut('run_command', self.run_command, 'fcc')
 
         self.fcc_inst = fcc(self)
         self.arrange_fcc_window()
@@ -92,11 +90,15 @@ class efc_gui(efc):
     def __init__(self):
         efc.__init__(self)
         self.EXTRA_WIDTH_EFC = 250
+        self.cur_efc_index = 0
         # add button to main window
         self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
-        if 'keyboard_shortcuts' in self.config['optional']: 
-            self.add_shortcut(kss['efc'], self.get_efc_sidewindow)
+        
+        self.add_shortcut('efc', self.get_efc_sidewindow, 'main')
+        self.add_shortcut('run_command', self.load_selected_efc, 'efc')
+        self.add_shortcut('negative', lambda: self.nagivate_efc_list(1), 'efc')
+        self.add_shortcut('reverse', lambda: self.nagivate_efc_list(-1), 'efc')
 
 
     def get_efc_sidewindow(self):
@@ -123,6 +125,8 @@ class efc_gui(efc):
         # Fill List Widget
         self.refresh_source_data()
         [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
+        self.files_count = self.recommendation_list.count()
+        if self.files_count: self.recommendation_list.setCurrentRow(self.cur_efc_index)
 
 
     def create_recommendations_list(self):
@@ -144,6 +148,14 @@ class efc_gui(efc):
         return efc_button
 
 
+    def nagivate_efc_list(self, move:int):
+        new_index = self.cur_efc_index + move
+        if new_index < 0: self.cur_efc_index = self.files_count-1
+        elif new_index >= self.files_count: self.cur_efc_index = 0
+        else: self.cur_efc_index = new_index 
+        self.recommendation_list.setCurrentRow(self.cur_efc_index)
+
+
     def load_selected_efc(self):
         selected_path = self.get_path_from_selected_file()
         self.initiate_flashcards(selected_path)
@@ -156,11 +168,15 @@ class load_gui(load):
     def __init__(self):
         load.__init__(self)
         self.EXTRA_WIDTH_LOAD = 200
+        self.cur_load_index = 0
         # add button to main window
         self.load_button = self.create_button('Load', self.get_load_sidewindow)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
-        if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut(kss['load'], self.get_load_sidewindow)
+
+        self.add_shortcut('load', self.get_load_sidewindow, 'main')
+        self.add_shortcut('run_command', self.load_selected_file, 'load')
+        self.add_shortcut('negative', lambda: self.nagivate_load_list(1), 'load')
+        self.add_shortcut('reverse', lambda: self.nagivate_load_list(-1), 'load')
     
 
     def get_load_sidewindow(self):
@@ -187,6 +203,7 @@ class load_gui(load):
 
         # Fill
         self.fill_flashcard_files_list()
+        if self.files_count: self.flashcard_files_qlist.setCurrentRow(self.cur_load_index)
 
 
     def get_flashcard_files_list(self):
@@ -201,6 +218,7 @@ class load_gui(load):
         # self.flashcard_files_qlist.clear()
         [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_lng_files()]
         [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_rev_files()]
+        self.files_count = self.flashcard_files_qlist.count()
 
         
     def create_load_button(self):
@@ -212,6 +230,14 @@ class load_gui(load):
         load_button.setStyleSheet(self.button_style_sheet)
         load_button.clicked.connect(self.load_selected_file)
         return load_button
+
+    
+    def nagivate_load_list(self, move:int):
+        new_index = self.cur_load_index + move
+        if new_index < 0: self.cur_load_index = self.files_count-1
+        elif new_index >= self.files_count: self.cur_load_index = 0
+        else: self.cur_load_index = new_index 
+        self.flashcard_files_qlist.setCurrentRow(self.cur_load_index)
 
 
     def load_selected_file(self):
@@ -227,8 +253,7 @@ class mistakes_gui():
 
     def __init__(self):
         self.EXTRA_WIDTH_MISTAKES = 400
-        if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut(kss['mistakes'], self.get_mistakes_sidewindow)
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'main')
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
 
     
@@ -275,8 +300,8 @@ class stats_gui(stats):
         stats.__init__(self)
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
-        if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut(kss['stats'], self.get_stats_sidewindow)
+        self.add_shortcut('stats', self.get_stats_sidewindow, 'main')
+
 
     def get_stats_sidewindow(self):
         if self.is_revision:
@@ -378,9 +403,9 @@ class progress_gui(stats):
         self.EXTRA_WIDTH_PROGRESS = 400
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
-        if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut(kss['progress'], self.get_progress_sidewindow)
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'main')
     
+
     def get_progress_sidewindow(self, override_lng_gist=False):
         if override_lng_gist:
             # show data for all lngs
@@ -388,8 +413,11 @@ class progress_gui(stats):
         else:
             lng_gist = get_lng_from_signature(self.signature)
 
-        self.arrange_progress_sidewindow(lng_gist)
-        self.open_side_window(self.progress_layout, 'prog', self.EXTRA_WIDTH_PROGRESS)
+        if not self.TEMP_FILE_FLAG:
+            self.arrange_progress_sidewindow(lng_gist)
+            self.open_side_window(self.progress_layout, 'prog', self.EXTRA_WIDTH_PROGRESS)
+        else:
+            self.post_logic('Progress not available')
 
 
     def arrange_progress_sidewindow(self, lng_gist):
@@ -470,8 +498,7 @@ class config_gui():
         self.config = Config()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
-        if 'keyboard_shortcuts' in self.config['optional']:
-            self.add_shortcut(kss['config'], self.get_config_sidewindow)
+        self.add_shortcut('config', self.get_config_sidewindow, 'main')
 
     
     def get_config_sidewindow(self):
@@ -510,7 +537,7 @@ class config_gui():
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
         self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','reccommend_new','keyboard_shortcuts','hide_timer','show_cpm_stats', 'revision_summary', 'show_efc_line', 'vim_ks'])
+            ['side_by_side','reccommend_new','hide_timer','show_cpm_stats', 'revision_summary', 'show_efc_line'])
         self.optional_label = self.create_label('Optional Features')
         self.revs_path_qline = self.create_config_qlineedit('revs_path')
         self.revs_path_label = self.create_label('Revs Path')
@@ -598,9 +625,9 @@ class config_gui():
     def commit_config_update(self):
         modified_dict = dict()
         modified_dict['card_default_side'] = self.card_default_combobox.currentText()
-        modified_dict['languages'] = '|'.join(self.lngs_checkablecombobox.currentData())
+        modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
         modified_dict['days_to_new_rev'] = self.days_to_new_rev_qlineedit.text()
-        modified_dict['optional'] = '|'.join(self.optional_checkablecombobox.currentData())
+        modified_dict['optional'] = self.optional_checkablecombobox.currentData()
         modified_dict['revs_path'] = self.revs_path_qline.text()
         modified_dict['lngs_path'] = self.lngs_path_qline.text()
         modified_dict['initial_repetitions'] = self.init_rep_qline.text()
@@ -614,7 +641,6 @@ class config_gui():
             self.set_theme()
         if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
             self.toggle_primary_widgets_visibility(True)
-        
 
         self.config.update(modified_dict)
         self.del_side_window()

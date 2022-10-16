@@ -104,10 +104,12 @@ class main_window_logic():
     def load_flashcards(self, file_path):
         try:
             dataset = load_dataset(file_path, do_shuffle=True)   
-            self.TEMP_FILE_FLAG = False
+            if dataset.empty: self.post_logic(UTILS_STATUS_DICT['load_dataset'])
+            self.TEMP_FILE_FLAG = dataset.empty
             return dataset
         except FileNotFoundError:
             self.post_logic('File Not Found.')
+            self.TEMP_FILE_FLAG = True
 
 
     def is_complete_revision(self):

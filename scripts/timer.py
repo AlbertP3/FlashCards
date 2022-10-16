@@ -30,15 +30,7 @@ class rev_timer:
     def conditions_to_resume_timer_are_met(self):
         if self.seconds_spent != 0 \
             and self.is_saved is False \
-            and self.side_window_id is None \
-            and not self.TIMER_KILLED_FLAG:
-            conditions_met = True
-        else:
-            conditions_met = False
-        return conditions_met
-
-
-    def stop_timer(self):
+            and self.side_window_id == 'main':
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
         if not self.do_show_timer:

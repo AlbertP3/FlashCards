@@ -7,4 +7,4 @@ rev_db.csv
 .vscode
 desktop.ini
 log.txt
-test_env
+scripts/tests/res/

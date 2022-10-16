@@ -35,7 +35,7 @@ class Config:
 
     def __init__(self):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
-        self.iterable_fields:list= ['languages', 'optional']
+        self.iterable_fields:set= {'languages', 'optional'}
         self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
         self.__refresh()
     
@@ -44,14 +44,16 @@ class Config:
 
     def __refresh(self):
         self.parser.read(self.PATH_TO_DICT)
-        self.config = dict(self.parser.items('DEFAULT'))
+        self.config = dict(self.parser.items('PARAMETERS'))
+        self.config['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
         self.__parse_items()
 
     def save(self):
         for field in self.iterable_fields:
             self.config[field] = '|'.join(self.config[field])
         for k, v in self.config.items():
-            self.parser.set('DEFAULT', k, v)
+            if k=='KEYBOARD_SHORTCUTS': [self.parser.set('KEYBOARD_SHORTCUTS', k_, v_) for k_, v_ in v.items()]
+            else: self.parser.set('PARAMETERS', k, v)
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
 
@@ -74,7 +76,7 @@ def post_utils(text):
 
 def register_log(traceback):
     with open('log.txt', 'a') as file:
-        file.write('\n@' + str(datetime.now()) + ' | ' + traceback)
+        file.write('\n@' + str(datetime.now()) + ' | ' + str(traceback))
 
 
 def get_abs_path_from_caller(file_name, abs_path=None):
@@ -275,8 +277,11 @@ def load_dataset(file_path, do_shuffle=True, seed=None):
         else:
             dataset = pd.DataFrame()
             operation_status = f'Chosen extension is not (yet) supported: {extension}'
+    except FileNotFoundError as e:
+        operation_status = 'File Not Found'
+        dataset = pd.DataFrame()
     except Exception as e:
-        operation_status = f'Unable to load requested {extension} file due to ' + str(e)
+        operation_status = f'Exception occurred: {e}'
         dataset = pd.DataFrame()
 
     if do_shuffle:

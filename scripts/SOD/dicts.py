@@ -1,4 +1,4 @@
-from utils import Config
+from utils import Config, register_log
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 import bs4
@@ -201,6 +201,70 @@ class dict_babla(template_dict):
                 output.append(' | '.join([word.get_text().replace('volume_up\n','').strip() for word in sim_res]))
         return output
 
+
+
+@register_dict('diki')
+class dict_diki(template_dict):
+    def __init__(self):
+        self.config = Config()
+        self.dict_url = 'https://www.diki.pl/slownik-|TRANSLATION|?q=|PHRASE|'
+        self.diki_mapping = dict(
+            en = 'angielskiego',
+            de = 'niemieckiego',
+        )
+
+    def get(self, word:str):
+        self.word = word
+        self.target_lng = self.config['sod_target_lng']
+        self.source_lng = self.config['sod_source_lng']
+        warnings = list()
+        content = self.get_page_content()
+        bs = bs4.BeautifulSoup(content.content, 'html5lib')
+        warnings = self.check_for_warning(bs)
+        originals = self.fetch_data_source(bs) if not warnings else list()
+        translations = self.fetch_data_target(bs) if not warnings else list()
+        if len(originals)!=len(translations): originals.append(originals[0]*(len(translations)-len(originals)))
+        return translations, originals, warnings
+
+
+    def get_page_content(self):
+        url = self.dict_url.replace('|PHRASE|', self.word)
+        url = url.replace('|TRANSLATION|', self.diki_mapping.get(self.target_lng, self.diki_mapping['en']))
+        agent = {"User-Agent":"Mozilla/5.0"}
+        html = requests.get(url, headers=agent)
+        return html
+
+
+    def fetch_data_source(self, bs:bs4.BeautifulSoup):
+        tags = ['*']
+        res = list()
+        bs_res = bs.find_all('div', class_='hws')
+        for word in bs_res:
+            text_ = ' '.join(word.text.split())
+            for t in tags:
+                text_ = text_.replace(t, '')
+            res.append(text_.strip())
+        return res
+        
+
+    def fetch_data_target(self, bs:bs4.BeautifulSoup):
+        tags = ['oficjalnie', 'policzalny', 'Słownik żeglarski', '[]']
+        res = list()
+        li = bs.find_all('li', class_=re.compile(r'meaning\d+'))
+        for i, v in enumerate(li):
+            transl = ', '.join([w.text for w in li[i].find_all('span', class_='hw')])
+            for t in tags:
+                transl = transl.replace(t, '')
+            transl = ' '.join([w.strip() for w in transl.split()])
+            if transl: res.append(transl)
+        return res
+
+
+    def check_for_warning(self, bs:bs4.BeautifulSoup):
+        warn = bs.find('div', class_='dictionarySuggestions')
+        if warn: return [warn.text.replace('\n','').strip()]
+        else: return list()
+        
 
 
 class Dict_Services:

@@ -83,66 +83,66 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <ol>
 <li>NEW FEATURES</li>
 <li>Add LICENSE</li>
-<li>write tests for SOD</li>
 <li>paced-repetition - specific time for each card</li>
 <li>EFC optimizer - ML based?</li>
-<li>percentages on the chart instead of values</li>
-<li>update readme and help commands to cover new features</li>
-<li>PROJECT: send data to a website, where it can be compared between users</li>
-<li>mobile version written in... golang?</li>
 <br>
 <ol
 <li>FIXES AND UPGRADES</li>
-<li>SOD - show last n in Queue - but how should it look like?</li>
-<li>SOD - add Diki dictionary</li>
+<li>percentages on the chart instead of values</li>
 <li>SOD - add Cambridge dictionary</li>
+<li>SOD - make it easily detachable to a terminal (adapters, abstraction, ...)</li>
 </ol>
 <br>
 <ol>
 <li>OPTIMIZATION</li>
 <li>performance overhead - If word is a duplicate - show result from DB and only then prompt for online search</li>
 <li>change rev_db format to something faster - feather</li>
-<li>make saving to file a separate thread</li>
+<li>make saving to a file into a separate thread</li>
 </ol>
+<!--<li>error when trying to load stats for non-existing file</li>-->
+<!--<li>shortcuts - modify behaviour when side window is opened - allow traversing the load/efc list with keys</li>-->
+<!--<li>SOD - add Diki dictionary</li>-->
+<!--li>SOD - show last n in Queue - but how should it look like?</li>-->
+<!--<li>SOD - intelligent query management - auto erroneous deletion or overwrite</li>-->
 <!--<li>don't post to fcc if sod is running - or post to status bar?</li>-->
-<!-- <li>remeber size of side windows while in in-place mode</li> -->
-<!-- <li>SOD - NoInternetConnection while queue mode - allow continue by only displaying a notification about Error - applicable to all types of errs</li> -->
-<!-- <li>write tests for SOD - move MOCK dict to tests module and path the save_method</li>-->
+<!--<li>remeber size of side windows while in in-place mode</li> -->
+<!--<li>SOD - NoInternetConnection while queue mode - allow continue by only displaying a notification about Error - applicable to all types of errs</li> -->
+<!--<li>write tests for SOD - move MOCK dict to tests module and path the save_method</li>-->
 <!--<li>auto cfm - modified SAVE button behavior - if is_revision, then appends mistakes list (with offset) to mistakes file in languages dir, manual write still possible via FCC</li> -->
-<!-- <li>show time spent should be placed in separate console - bug: posting command to SOD</li> -->
+<!--<li>show time spent should be placed in separate console - bug: posting command to SOD</li> -->
 <!--<li>dbinterface optimization - singleton, loading timing, cache, ... REMEMBER TO ASSESS PERFORMANCE</li>-->
-<!-- <li>delegate theme setting to another config file</li> -->
-<!-- <li>fix output.txt appearing when sod did not crash</li> -->
-<!-- <li>SOD - remove items by index</li> -->
-<!-- <li>abstract class for dicts - create new script</li>E -->
-<!-- <li>add error handling to sod selection mode </liE> -->
-<!-- <li>SOD - language switching, more info to status_bar </li> -->
-<!-- <li>SOD - status bar</li> -->
-<!-- <li>Show what was saved</li> -->
-<!-- <li>lngs listed twice in load side-window</li> side_windows L:199 - Stopped occuring? -->
-<!-- <li>sod -single manual entry in the queue</li> -->
-<!-- <li>time - show only for selected lngs</li> -->
-<!-- <li>lln with range e.g. lln 50 20 loads list[-50:-20] </li> -->
-<!-- <li>don't save positives if not all cards where graded</li> -->
-<!-- <li>summary - look for last non-empty, not only the last</li> -->
-<!-- <li>reload elements when changing to side-by-side</li> -->
-<!-- <li>show all cards as a (synchronized dual-)list - implement in mistakes list later on</li> -->
-<!-- <li>SOD - phrase not saved after mofication of the orig phrase</li> -->
-<!-- <li>--revision summary should stay in the set</li> -->
-<!-- <li>create mock dictionary service</li> -->
-<!-- <li>--singleton config</li> -->
-<!-- <li>save with fix sides (0-EN, 1-PL</li> -->
-<!-- <li>add 80% horizontal line on stat chart</li> -->
-<!-- <li>Debug timer formatting</li> -->
-<!-- <li>FCC - pull current card from the file - get random seed when loading?</li> -->
-<!-- <li>periodically check if file was updated - add option to set interval or turn off</li> -->
-<!-- <li>window resizing issued - forgetting origin size on side-window switch</li> -->
-<!-- <li>record revision at any moment</li> -->
-<!-- <li>GUI theme update - config cleanup </li> -->
-<!-- <li>integrate SOD into fcs</li> -->
-<!-- <li>open side window on top of the main - optional feature</li> -->
-<!-- <li>dark theme</li> -->
-<!-- <li>sod - que results scaling to width</li> -->
+<!--<li>delegate theme setting to another config file</li> -->
+<!--<li>fix output.txt appearing when sod did not crash</li> -->
+<!--<li>SOD - remove items by index</li> -->
+<!--<li>abstract class for dicts - create new script</li>E -->
+<!--<li>add error handling to sod selection mode </liE> -->
+<!--<li>SOD - language switching, more info to status_bar </li> -->
+<!--<li>SOD - status bar</li> -->
+<!--<li>Show what was saved</li> -->
+<!--<li>lngs listed twice in load side-window</li> side_windows L:199 - Stopped occuring? -->
+<!--<li>sod -single manual entry in the queue</li> -->
+<!--<li>time - show only for selected lngs</li> -->
+<!--<li>lln with range e.g. lln 50 20 loads list[-50:-20] </li> -->
+<!--<li>don't save positives if not all cards where graded</li> -->
+<!--<li>summary - look for last non-empty, not only the last</li> -->
+<!--<li>reload elements when changing to side-by-side</li> -->
+<!--<li>show all cards as a (synchronized dual-)list - implement in mistakes list later on</li> -->
+<!--<li>SOD - phrase not saved after mofication of the orig phrase</li> -->
+<!--<li>--revision summary should stay in the set</li> -->
+<!--<li>create mock dictionary service</li> -->
+<!--<li>--singleton config</li> -->
+<!--<li>save with fix sides (0-EN, 1-PL</li> -->
+<!--<li>add 80% horizontal line on stat chart</li> -->
+<!--<li>Debug timer formatting</li> -->
+<!--<li>FCC - pull current card from the file - get random seed when loading?</li> -->
+<!--<li>periodically check if file was updated - add option to set interval or turn off</li> -->
+<!--<li>window resizing issued - forgetting origin size on side-window switch</li> -->
+<!--<li>record revision at any moment</li> -->
+<!--<li>GUI theme update - config cleanup </li> -->
+<!--<li>integrate SOD into fcs</li> -->
+<!--<li>open side window on top of the main - optional feature</li> -->
+<!--<li>dark theme</li> -->
+<!--<li>sod - que results scaling to width</li> -->
 
 <h1>Known Bugs</h1>
 <ol>

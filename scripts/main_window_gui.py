@@ -6,7 +6,6 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import main_window_logic
 from side_windows_gui import *
-from ks import *
 
 
 
@@ -52,10 +51,20 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         # Initialize
         self.used_keybindings = set()
+        self.create_ks_mapping()
         self.layout = None
-        self.side_window_id:str = None
+        self.side_window_id:str = 'main'
         self.center_window()
         self.show()
+
+    
+    def create_ks_mapping(self):
+        # create dict[window_id][nagivation]=dummy_function
+        # for managing keybindings calls dependent on context of the current side_window
+        self.nav_mapping = dict()
+        sw_ids = {'main','load','efc','config','fcc','mistakes','stats','progress'}
+        for id in sw_ids:
+            self.nav_mapping[id] = {k: lambda:'' for k in self.config['KEYBOARD_SHORTCUTS'].keys()} 
 
 
     def build_layout(self):
@@ -299,27 +308,32 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.change_revmode(force_which=False)
         self.is_saved = True
         self.reset_timer(clear_indicator=False)
-
-        if self.negatives != 0:
-            self.get_mistakes_sidewindow()
+        # if self.negatives != 0:
+        #     self.get_mistakes_sidewindow()
 
 
     def add_shortcuts(self): 
-        self.add_shortcut(kss['next'], self.ks_nav_next)
-        self.add_shortcut(kss['negative'], self.ks_nav_negative)
-        self.add_shortcut(kss['prev'], self.click_prev_button)
-        self.add_shortcut(kss['reverse'], self.reverse_side)
-        self.add_shortcut(kss['change_revmode'], self.change_revmode)
-        self.add_shortcut(kss['del_cur_card'], self.delete_current_card)
-        self.add_shortcut(kss['load_again'], self.load_again_click)
+        self.add_shortcut('next', self.ks_nav_next, 'main')
+        self.add_shortcut('negative', self.ks_nav_negative, 'main')
+        self.add_shortcut('prev', self.click_prev_button, 'main')
+        self.add_shortcut('reverse', self.reverse_side, 'main')
+        self.add_shortcut('change_revmode', self.change_revmode, 'main')
+        self.add_shortcut('del_cur_card', self.delete_current_card, 'main')
+        self.add_shortcut('load_again', self.load_again_click, 'main')
         
 
-    def add_shortcut(self, key:str, function):
+    def add_shortcut(self, action:str, function, sw_id:str='main'):
         # binding twice on the same key breaks the shortcut permanently
+        key = self.config['KEYBOARD_SHORTCUTS'][action]
+        self.nav_mapping[sw_id][action] = function
         if key not in self.used_keybindings:
-            shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
-            shortcut.activated.connect(function)
             self.used_keybindings.add(key)
+            shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
+            shortcut.activated.connect(lambda: self._exec_ks(action))
+
+
+    def _exec_ks(self, action):
+        self.nav_mapping[self.side_window_id][action]()
 
 
     def ks_nav_next(self):
@@ -357,6 +371,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.open_in_place(layout, name, extra_width)
         
+
     def del_side_window(self):
         if 'side_by_side' in self.config['optional']:
             self.del_side_window_side_by_side()
@@ -366,7 +381,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def open_in_place(self, layout, name, extra_width):
         if self.side_window_id != name:
-            if self.side_window_id: self.del_side_window_in_place()
+            if self.side_window_id != 'main': self.del_side_window_in_place()
             self.add_window_in_place(layout, name)
         else:
             self.del_side_window_in_place()
@@ -389,13 +404,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.reset_window_size()
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
         self.set_geometry(self.side_window_geometry['main'])
-        self.side_window_id = None
+        self.side_window_id = 'main'
         self.resume_timer()
 
 
     def open_side_by_side(self, layout, name, extra_width):
         if self.side_window_id != name:
-            if self.side_window_id: self.del_side_window_side_by_side()
+            if self.side_window_id != 'main': self.del_side_window_side_by_side()
             else: self.update_width_and_height()
             self.add_window_to_side(layout, name, extra_width)
         else:
@@ -414,7 +429,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def del_side_window_side_by_side(self): 
         remove_layout(self.side_window_layout)
         self.reset_window_size()
-        self.side_window_id = None
+        self.side_window_id = 'main'
         self.resume_timer()
 
 
@@ -448,7 +463,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            if self.side_window_id is not None:
+            if self.side_window_id != 'main':
                 self.del_side_window()
 
 
@@ -490,8 +505,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def optional_features(self):
         optional_features = self.config['optional']
-        if 'keyboard_shortcuts' in optional_features:
-            self.add_shortcuts()
+        self.add_shortcuts()
         self.do_show_timer = 'hide_timer' not in optional_features
         
 
@@ -570,7 +584,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def create_timer_button(self):
         self.timer_button = self.create_button('⏲', self.show_timespent_sidewindow)
-        self.add_shortcut(kss['timespent'], self.show_timespent_sidewindow)
+        self.add_shortcut('timespent', self.show_timespent_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
     def start_timer(self):
@@ -585,7 +599,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def conditions_to_resume_timer_are_met(self):
         if self.seconds_spent != 0 \
             and self.is_saved is False \
-            and self.side_window_id is None \
+            and self.side_window_id == 'main' \
             and not self.TIMER_KILLED_FLAG:
             conditions_met = True
         else:
