@@ -5,6 +5,7 @@ import re
 import unittest
 import requests
 from functools import partial
+from itertools import zip_longest
 
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -165,6 +166,23 @@ class Test_dicts(TestCase):
         self.assertEqual(['transform', 'metamorphose', 'przemienić, zmienić', 'przemienić (za pomocą czarów)'], t)
         self.assertEqual(['przekształcać, transformować, przekształcić się', 'przeobrażać się', 'przemienić', 'przekształcać, transformować, przekształcić się'], o)
         self.assertEqual([], w)
+
+    def test_dict_diki_query_success_8(self):
+        d = self.d_api['diki']
+        d.get_page_content = partial(self.mock_connection_html, 'diki_discern.txt')
+        t, o, w = d.get('discern')
+        self.assertEqual(len(t), len(o))
+        self.assertEqual(['discern']*3, o)
+        self.assertEqual(['rozeznawać się, dostrzegać', 'dostrzegać, spostrzegać', 'rozeznać'], t)
+
+    def test_dict_diki_query_success_9(self):
+        d = self.d_api['diki']
+        self.d_api.switch_languages('pl', 'en')
+        d.get_page_content = partial(self.mock_connection_html, 'diki_torebka.txt')
+        t, o, w = d.get('torebka')
+        self.assertEqual(len(t), len(o))
+        self.assertEqual(['torebka, torba (damska)', 'torebka, torba, worek, torebka (ilość)', 'woreczek, torebka (jako wewnętrzna część rośliny lub zwierzęcia)', 'torebka (np. z wonnymi ziołami)', 'Słownik terminów anatomicznych', 'torba, torebka', 'pochewka, torebka'], o)
+        self.assertEqual(['bag , handbag , purse', 'bag', 'sac', 'sachet', 'capsula', 'bagful', 'involucre'], t)
 
     def test_dict_diki_query_error_1(self):
         d = self.d_api['diki']

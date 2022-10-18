@@ -223,7 +223,10 @@ class dict_diki(template_dict):
         warnings = self.check_for_warning(bs)
         originals = self.fetch_data_source(bs) if not warnings else list()
         translations = self.fetch_data_target(bs) if not warnings else list()
-        if len(originals)!=len(translations): originals.append(originals[0]*(len(translations)-len(originals)))
+        if len(originals) < len(translations):
+            originals+=[originals[0]]*(len(translations)-len(originals))
+        elif len(originals) > len(translations):
+            translations+=[translations[0]]*(len(originals)-len(translations))
         return translations, originals, warnings
 
 
@@ -236,18 +239,54 @@ class dict_diki(template_dict):
 
 
     def fetch_data_source(self, bs:bs4.BeautifulSoup):
-        tags = ['*']
+        # diki returns different results when translating
+        # from language that is not in the service e.g. PL
+        if self.source_lng in self.diki_mapping.keys():
+            res = self._fetch_data_source_incl(bs)
+        else:
+            res = self._fetch_data_source_excl(bs)
+        return res
+
+
+    def _fetch_data_source_incl(self, bs:bs4.BeautifulSoup):
+        tags = {r'\*':'', r' [a-zA-Z]* dawne użycie':''}
         res = list()
         bs_res = bs.find_all('div', class_='hws')
         for word in bs_res:
             text_ = ' '.join(word.text.split())
-            for t in tags:
-                text_ = text_.replace(t, '')
+            for t, r in tags.items():
+                text_ = re.sub(t, r, text_)
             res.append(text_.strip())
         return res
-        
+
+
+    def _fetch_data_source_excl(self, bs:bs4.BeautifulSoup):
+        res = list()
+        ul = bs.find_all('ul', class_='nativeToForeignMeanings')
+        for i, v in enumerate(ul):
+            transl = ', '.join([a.text for a in ul[i].find_all('span', 'hw')])
+            transl = ' '.join([w.strip() for w in transl.split()])
+            res.append(transl or 'N/A')
+
+            context_transl = ', '.join([a.text for a in ul[i].find_all('div', 'cat')]) 
+            context_transl = ' '.join([w.strip() for w in context_transl.split()])
+            try:
+                if context_transl: res.insert(-2, context_transl)
+            except IndexError:
+                pass
+        return res
+
+
 
     def fetch_data_target(self, bs:bs4.BeautifulSoup):
+        if self.source_lng in self.diki_mapping.keys():
+            res = self._fetch_data_target_incl(bs)
+        else:
+            res = self._fetch_data_target_excl(bs)
+        return res
+
+
+    def _fetch_data_target_incl(self, bs:bs4.BeautifulSoup):
         tags = ['oficjalnie', 'policzalny', 'Słownik żeglarski', '[]']
         res = list()
         li = bs.find_all('li', class_=re.compile(r'meaning\d+'))
@@ -257,6 +296,16 @@ class dict_diki(template_dict):
                 transl = transl.replace(t, '')
             transl = ' '.join([w.strip() for w in transl.split()])
             if transl: res.append(transl)
+        return res
+
+
+    def _fetch_data_target_excl(self, bs:bs4.BeautifulSoup):
+        res = list()
+        ol = bs.find('ol', class_='nativeToForeignEntrySlices')
+        for li in ol.find_all('li', recursive=False):
+            transl = ', '.join([a.text for a in li.find_all('span', 'hw', recursive=False)])
+            transl = ' '.join([w.strip() for w in transl.split()])
+            res.append(transl or 'N/A')
         return res
 
 

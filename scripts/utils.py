@@ -46,6 +46,7 @@ class Config:
         self.parser.read(self.PATH_TO_DICT)
         self.config = dict(self.parser.items('PARAMETERS'))
         self.config['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
+        self.config['GEOMETRY'] = dict(self.parser.items('GEOMETRY'))
         self.__parse_items()
 
     def save(self):
@@ -53,6 +54,7 @@ class Config:
             self.config[field] = '|'.join(self.config[field])
         for k, v in self.config.items():
             if k=='KEYBOARD_SHORTCUTS': [self.parser.set('KEYBOARD_SHORTCUTS', k_, v_) for k_, v_ in v.items()]
+            elif k=='GEOMETRY': [self.parser.set('GEOMETRY', k_, v_) for k_, v_ in v.items()]
             else: self.parser.set('PARAMETERS', k, v)
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
@@ -63,6 +65,8 @@ class Config:
     def __parse_items(self):
         for field in self.iterable_fields:
             self.config[field] = self.config[field].split('|')
+        for window, geometry in self.config['GEOMETRY'].items():
+            self.config['GEOMETRY'][window] = tuple(eval(geometry))
         
 
 
@@ -217,7 +221,7 @@ def format_timedelta(timedelta):
     if time_value.startswith('0'): 
         time_value = time_value[1:]
 
-    suffix = 's' if time_value != '1' else ''
+    suffix = 's' if time_value not in {'1','1.0'} else ''
             
     return f'{time_value} {interval}{suffix}'
 

@@ -30,7 +30,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.build_layout()   
         self.optional_features()
         side_windows.__init__(self)
-        self.side_window_geometry['main'] = self.get_geometry()
+        self.config['GEOMETRY']['main'] = self.get_geometry()
 
 
     def configure_window(self):
@@ -320,6 +320,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.add_shortcut('change_revmode', self.change_revmode, 'main')
         self.add_shortcut('del_cur_card', self.delete_current_card, 'main')
         self.add_shortcut('load_again', self.load_again_click, 'main')
+        self.add_shortcut('save', self.click_save_button, 'main')
         
 
     def add_shortcut(self, action:str, function, sw_id:str='main'):
@@ -393,17 +394,17 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.toggle_primary_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 1, 5, 1)
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
-        self.side_window_geometry['main'] = self.get_geometry()
-        self.set_geometry(self.side_window_geometry.setdefault(name, self.get_geometry()))
+        self.config['GEOMETRY']['main'] = self.get_geometry()
+        self.set_geometry(self.config['GEOMETRY'][name])
         self.side_window_id = name
     
     def del_side_window_in_place(self):
-        self.side_window_geometry[self.side_window_id] = self.get_geometry()
+        self.config['GEOMETRY'][self.side_window_id] = self.get_geometry()
         remove_layout(self.side_window_layout)
         self.toggle_primary_widgets_visibility(True)
         self.reset_window_size()
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
-        self.set_geometry(self.side_window_geometry['main'])
+        self.set_geometry(self.config['GEOMETRY']['main'])
         self.side_window_id = 'main'
         self.resume_timer()
 

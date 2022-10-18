@@ -39,7 +39,7 @@ class db_interface():
             fd.write(';'.join([timestamp, signature, str(words_total), 
                                 str(positives), str(seconds_spent)])+'\n')
         self.last_update = monotonic()
-        post_dbapi(f'Recorded: {signature}|{positives}|{seconds_spent} @{str(timestamp)[-8:-3]}')
+        post_dbapi(f'Recorded {signature}')
     
 
     def __reset_filters_flags(self):

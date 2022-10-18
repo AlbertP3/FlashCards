@@ -169,8 +169,10 @@ class fcc():
         
         # get last N records from the file -> shuffle only the part
         n_cards = abs(int(parsed_cmd[1]))
-        l_cards = abs(int(parsed_cmd[2])) if len(parsed_cmd)>=2 else 0
-        file_path = self.mw.filepath
+        try: l_cards = abs(int(parsed_cmd[2]))
+        except IndexError: l_cards = 0
+
+        file_path = self.mw.file_path
         if l_cards == 0:
             data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:, :]
         else:
@@ -184,6 +186,7 @@ class fcc():
         new_path = self.config['lngs_path'] + filename + str(n_cards) + '.csv'
         
         self.mw.TEMP_FILE_FLAG = True
+        self.mw.del_side_window()
         self.mw.update_backend_parameters(new_path, data)
         self.refresh_interface()
         self.mw.reset_timer()

@@ -10,7 +10,7 @@ from efc import efc
 from load import load
 from stats import stats
 from checkable_combobox import CheckableComboBox
-from themes import THEMES
+import themes
 
 # each class espouses one type of sidewindow (GUI + inherited logic)
 # side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
@@ -322,6 +322,7 @@ class stats_gui(stats):
     def get_stats_chart(self):
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
+        rect = None
 
         ax = self.figure.add_subplot()
         ax.bar(self.formatted_dates, self.chart_values, color=config['stat_bar_color'], 
@@ -339,7 +340,7 @@ class stats_gui(stats):
                     color=self.config['stat_chart_text_color'])
 
          # horizontal line at EFC predicate
-        if 'show_efc_line' in self.config['optional']:
+        if rect and 'show_efc_line' in self.config['optional']:
             ax.axhline(y=self.total_words*0.8, color='#a0a0a0', linestyle='--', zorder=-3)
             ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, '80%', va="bottom", color='#a0a0a0')
 
@@ -415,7 +416,7 @@ class progress_gui(stats):
 
         if not self.TEMP_FILE_FLAG:
             self.arrange_progress_sidewindow(lng_gist)
-            self.open_side_window(self.progress_layout, 'prog', self.EXTRA_WIDTH_PROGRESS)
+            self.open_side_window(self.progress_layout, 'progress', self.EXTRA_WIDTH_PROGRESS)
         else:
             self.post_logic('Progress not available')
 
@@ -502,6 +503,7 @@ class config_gui():
 
     
     def get_config_sidewindow(self):
+        self.themes_dict = themes.load_themes()
         self.arrange_config_sidewindow()
         self.open_side_window(self.config_layout, 'config', self.EXTRA_WIDTH_CONFIG)
 
@@ -551,7 +553,7 @@ class config_gui():
         self.sod_fp_label = self.create_label('SOD Workbook')
         self.sod_sheetname_qline = self.create_config_qlineedit('sod_sheetname')
         self.sod_sheetname_label = self.create_label('SOD Sheet Name')
-        self.theme_checkablecombobox = self.create_config_checkable_combobox('theme', THEMES.keys())
+        self.theme_checkablecombobox = self.create_config_checkable_combobox('theme', self.themes_dict.keys())
         self.theme_label = self.create_label('Theme')
 
         # add widgets
@@ -637,7 +639,7 @@ class config_gui():
         modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
 
         if modified_dict['theme'] != self.config['theme']:
-            self.config.update(THEMES[modified_dict['theme']])
+            self.config.update(self.themes_dict[modified_dict['theme']])
             self.set_theme()
         if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
             self.toggle_primary_widgets_visibility(True)
@@ -650,7 +652,6 @@ class config_gui():
 class side_windows(fcc_gui, efc_gui, load_gui, 
                 mistakes_gui, stats_gui, progress_gui, config_gui):
     def __init__(self):
-        self.side_window_geometry:dict[str, tuple[int, int, int, int]] = dict() # left, top, width, height
         fcc_gui.__init__(self)
         efc_gui.__init__(self)
         load_gui.__init__(self)
