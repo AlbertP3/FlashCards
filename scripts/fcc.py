@@ -1,3 +1,4 @@
+from numpy import append
 from utils import *
 from random import shuffle
 import db_api
@@ -331,26 +332,44 @@ class fcc():
         db['TIMESTAMP'] = pd.to_datetime(db['TIMESTAMP']).dt.strftime(date_format)
 
         # create column with time for each lng in config
+        grand_total_time = list()
         for l in lngs:  
             db[l] = db.loc[db.iloc[:, 1].str.contains(l)]['SEC_SPENT']
+            grand_total_time.append(db[l].sum())
 
         # group by selected interval - removes SIGNATURE
         db = db.groupby(db['TIMESTAMP'], as_index=False, sort=False).sum()
-
+        
         # cut db
         db = db.iloc[-last_n:, :]
-        db = db.loc[db.iloc[:, 4] != 0]
+        try:
+            db = db.loc[db.iloc[:, 4] != 0]
+        except IndexError:
+            self.post_fcc(f'DATE  {"  ".join([l.upper() for l in lngs])}{"  TOTAL" if len(lngs)>1 else ""}')
+            return
 
         # format dates in time-containing columns
+        visible_total_time = list()
         for l in lngs:
+            visible_total_time.append(db[l].sum())
             db[l] = db[l].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
         db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
         
         # print result
         if len(lngs) > 1:
             res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
+            visible_total_time.append(sum(visible_total_time))
+            grand_total_time.append(sum(grand_total_time))
         else:
             res = db.to_string(index=False, columns=['TIMESTAMP']+lngs, header=['DATE']+['TOTAL'])
+
+        # add row for Grand Total
+        visible_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in visible_total_time]
+        grand_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in grand_total_time]
+        res += '\n' + '-'*len(res.split('\n')[1])
+        res += '\n∑        ' + '  '.join(visible_total_time)
+        res += '\nTOTAL    ' + '  '.join(grand_total_time)
+
         self.post_fcc(res)
 
 

@@ -72,7 +72,7 @@ class Test_dicts(TestCase):
     def mock_connection_html(self, file_name):
         requests_session = requests.session()
         requests_session.mount(f'file://', tools.LocalFileAdapter())
-        html = requests_session.get(f"file://{os.getcwd()}/scripts/tests/res/{file_name}")
+        html = requests_session.get(f"file://{os.getcwd()}/scripts/tests/res/dicts/{file_name}")
         return html
 
 
@@ -211,7 +211,7 @@ class Test_CLI(TestCase):
         output.console.setText = set_text_mock
         self.ss = sod_init.sod_spawn(adapter='fcc', stream_out=output)
 
-        self.ss.cli = sod_cli.CLI(output, './scripts/unittests/res/example.xlsx', 'Sheet1')
+        self.ss.cli = sod_cli.CLI(output, './scripts/unittests/res/languages/example.xlsx', 'Sheet1')
         self.ss.cli.d_api.dicts['mock'] = dict_mock()
         self.ss.cli.d_api.dict_service = 'mock'
 

@@ -28,7 +28,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def build_interface(self):
         self.configure_window()
         self.build_layout()   
-        self.optional_features()
+        self.add_shortcuts()
         side_windows.__init__(self)
         self.config['GEOMETRY']['main'] = self.get_geometry()
 
@@ -504,12 +504,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.score_button.setText('<>')
 
 
-    def optional_features(self):
-        optional_features = self.config['optional']
-        self.add_shortcuts()
-        self.do_show_timer = 'hide_timer' not in optional_features
-        
-
     def excepthook(self, exc_type, exc_value, exc_tb):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
         self.notify_on_error(err_traceback, exc_value)
@@ -611,7 +605,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def stop_timer(self):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
-        if not self.do_show_timer:
+        if 'hide_timer' not in self.config['optional']:
             self.timer_button.setText('⏹')
 
     def reset_timer(self, clear_indicator=True):
@@ -627,11 +621,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
    
     def append_seconds_spent(self):
         self.seconds_spent+=1
-        if self.do_show_timer:
+        if 'hide_timer' in self.config['optional']:
+            self.timer_button.setText('⏲')
+        elif 'show_cpm_timer' in self.config['optional']:
+            cpm = self.cards_seen/(self.seconds_spent/60)
+            self.timer_button.setText(f'{cpm:.0f}')
+        else:
             interval = 'minute' if self.seconds_spent < 3600 else 'hour'
             self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
-        else:
-            self.timer_button.setText('⏲')
 
     def get_seconds_spent(self):
         return self.seconds_spent

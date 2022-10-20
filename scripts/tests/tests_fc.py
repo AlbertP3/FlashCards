@@ -1,46 +1,27 @@
 import sys
 import os
+from PyQt5.QtCore import Qt, QTimer
+from threading import Thread
+
+from pandas.core.dtypes.missing import partial
+
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
 import unittest
+from unittest.mock import patch, Mock
 import pandas as pd
 from utils import *
 import db_api
 from datetime import datetime, date, timedelta
 import main_window_logic
+import main_window_gui
 import efc
 import stats
 from random import randint
 from rev_summary import summary_generator
 import time
-
-
-
-def init_backend_and_load_test_file():
-    mw = main_window_logic.main_window_logic()
-    data = mw.load_flashcards('./revisions/TEST_CARD.csv')
-    mw.update_backend_parameters('./revisions/TEST_CARD.csv', data)
-    return mw
-
-
-def create_testcards():
-    data = pd.DataFrame(data={'TEST_FLNG':['grudge','compelling','ecclesiastical','to put stock in','retentive','castor','disingenuous','cantankerous','Our company is ahead of the curve when it comes to fiber optics.','not unlike','to loiter','Rube','vestigial','fraught','Seeing the writing on the wall, David abruptly announced his retirement last year.','fickle','reckoning','arcane','summa cum laude','copious','incipient','feasible','lark','scrub'],
-                        'TEST_NLNG':['zal, uraza','wazny, istotny, frapujÄ…cy','kościelny, duchowny','wierzyÄ‡ w powodzenie czegos','dobry, chłonny','olejek rycynowy','obłudny, afektowny','przykry w usposobieniu ','more advanced than the competition','nieco podobny','wałęsać','prostak, kmiot','szczÄ…tkowy, śladowy','napi?ty, spi?ty','clues that something (usually negative) will happen','zmienny, lekkomyślny','szacunki, rozliczenie/obrachunek','tajemny','z wyrÃ³Å¼nieniem','suty, rzÄ™sisty','poczÄ…tkowy, rodzÄ…cy siÄ™','wykonalny, ziszczalny','figiel','szorowanie, roślinność pustynna']})
-    data.to_csv(config['revs_path']+'TEST_CARD.csv', index=False)
-
-
-
-class Test_file_handling(unittest.TestCase):
-    
-    def assertions_for_correct_file(self, dataset: pd.DataFrame, ROWS_COUNT):
-        assert isinstance(dataset, pd.DataFrame)
-        assert dataset.shape[1] == 2
-        assert dataset.shape[0] == ROWS_COUNT - 1
-        for card in dataset:
-            self.assertTrue(len(card[1])>0, "ERROR ON CARD: " + card)
-            self.assertNotEqual(str(card[1]).lower(), 'n/a', 'ERROR ON CARD: ' + card)
 
 
 
@@ -51,8 +32,7 @@ class Test_utils(unittest.TestCase):
         example_timedelta_2 = timedelta(days=0, hours=0, minutes=0, seconds=1)
         example_timedelta_3 = timedelta(days=0, hours=0, minutes=0, seconds=2)
         example_timedelta_4 = timedelta(days=0, hours=0, minutes=1, seconds=15)
-        example_timedelta_5 = timedelta(days=0, hours=0, minutes=2, seconds=54)
-        example_timedelta_6 = timedelta(days=0, hours=1, minutes=6, seconds=12)
+        example_timedelta_6 = timedelta(days=0, hours=1, minutes=23, seconds=12)
         example_timedelta_7 = timedelta(days=0, hours=2, minutes=0, seconds=0)
         example_timedelta_8 = timedelta(days=1, hours=0, minutes=0, seconds=0)
         example_timedelta_9 = timedelta(days=2, hours=4, minutes=15, seconds=43)
@@ -65,7 +45,6 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(format_timedelta(example_timedelta_2), '1 second')
         self.assertEqual(format_timedelta(example_timedelta_3), '2 seconds')
         self.assertEqual(format_timedelta(example_timedelta_4), '1 minute')
-        self.assertEqual(format_timedelta(example_timedelta_5), '2 minutes')
         self.assertEqual(format_timedelta(example_timedelta_6), '1 hour')
         self.assertEqual(format_timedelta(example_timedelta_7), '2 hours')
         self.assertEqual(format_timedelta(example_timedelta_8), '1 day')
@@ -76,17 +55,6 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(format_timedelta(example_timedelta_13), '1.3 years')
             
 
-    def test_get_signature_from_filename(self):
-        revision = 'signatureassignementtest'
-        language = 'language'
-        
-        self.assertEqual(
-            get_signature(revision, 'XT', is_revision=True)
-            , revision)
-        self.assertEqual(get_signature(language, 'XT', is_revision=False)
-            , 'REV_' + 'XT' + datetime.now().strftime('%m%d%Y%H%M%S'))
-    
-
     def test_validate_dataset(self):
         ds_correct = pd.DataFrame(data={'EN':['loiter', 'agog', 'compelling'], 
                                         'PL':['szwendac sie', 'podniecony', 'wazny']})
@@ -95,43 +63,25 @@ class Test_utils(unittest.TestCase):
                                         'PL':['szwendac sie', 'podniecony', 'wazny'],
                                         '3rd':['x', 'y', 'z']})
         ds_empty = pd.DataFrame(data={})
-
         self.assertEqual(dataset_is_valid(ds_correct), True)
         self.assertEqual(dataset_is_valid(ds_one_col), False)
         self.assertEqual(dataset_is_valid(ds_three_cols), True)
         self.assertEqual(dataset_is_valid(ds_empty), False)
 
 
-    def test_load_dataset(self):
-        path_csv = './revisions/TEST_CARD.csv'
-        path_absent = './revisions/non-existing-file.csv'
-
-        data = load_dataset(path_csv)
-        data_3 = load_dataset(path_absent)
-
-        self.assertEqual(dataset_is_valid(data), True)
-        self.assertEqual(dataset_is_valid(data_3), False)
-      
-
-    def test_load_dataset_randomization(self):
-        path = './revisions/TEST_CARD.csv'
-        datasample_1 = load_dataset(path, True).values.tolist()[:5]
-        datasample_2 = load_dataset(path, True).values.tolist()[:5]
-        datasample_3 = load_dataset(path, True).values.tolist()[:5]
-
-        self.assertEqual(datasample_1 != datasample_2 != datasample_3, True)
-
-
     def test_get_lng_from_signature(self):
-        s1 = get_lng_from_signature('REV_EN0125370523')
-        s2 = get_lng_from_signature('aa_EN23525236')
-        s3 = get_lng_from_signature('RU_biesy_part1')     
-        s4 = get_lng_from_signature('temp')
+        with patch('utils.config') as mock_config:
+            d = {'languages':{'EN', 'RU'}}
+            mock_config.__getitem__.side_effect = d.__getitem__
+            s1 = get_lng_from_signature('REV_EN0125370523')
+            s2 = get_lng_from_signature('aa_EN23525236')
+            s3 = get_lng_from_signature('RU_biesy_part1')     
+            s4 = get_lng_from_signature('temp')
 
         self.assertEqual(s1, 'EN')
         self.assertEqual(s2, 'EN')
         self.assertEqual(s3, 'RU')
-        self.assertEqual(s4, '')
+        self.assertEqual(s4, 'UNKNOWN')
 
 
     def test_update_signature_timestamp(self):
@@ -156,33 +106,6 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(get_most_similar_file('./languages/', 'non-existing', None), None)
         self.assertEqual(get_most_similar_file('./languages/', 'non-existing', 'load_any'), 'de.csv')
 
-
-    def test_save_revision(self):
-        filename = 'TEST-SAVE-REV'
-        data = pd.DataFrame(data={'EN':['loiter', 'agog', 'compelling'], 
-                                        'PL':['szwendac sie', 'podniecony', 'wazny']})
-
-        save_revision(data, filename)
-        files_in_rev_folder = get_files_in_dir('./revisions/', include_extension=False)
-
-        self.assertIn(filename, files_in_rev_folder)
-        os.remove(f'./revisions/{filename}.csv')
-
-
-
-class config_class_test(unittest.TestCase):
-
-    def setUp(self):
-        self.conf = Config()
-
-    def test_load(self):
-        self.assertEqual(self.conf['optional'], 'keyboard_shortcuts|revision_summary')
-        self.assertNotEqual(self.conf['textbox_style_sheet'], '')
-
-    def test_update_config(self):
-        self.conf.update({'TEST_ATTR': '0'})
-        self.assertEqual(self.conf['TEST_ATTR'], '0')
-        
 
 
 class Test_db_api(unittest.TestCase):
@@ -338,50 +261,56 @@ class Test_flashcard_console_commands(unittest.TestCase):
 
 
 
-class Test_mainwindow(unittest.TestCase):
-
+class Test_FlashCards(unittest.TestCase):
     
-    def test_get_progress(self):
-        mw = init_backend_and_load_test_file()
+    def setUp(self):
+        # configuration
+        self.registry = list()
+        self.config = Config()
+        self.t_path = './scripts/tests/res'
+        self.config.update({
+                            'lngs_path': os.path.join(self.t_path, 'languages'),
+                            'revs_path': os.path.join(self.t_path,'revisions'),
+                            'db_path': os.path.join(self.t_path, 'resources/rev_db.csv'),
+                            'sod_filepath':os.path.join(self.t_path,'languages/example.csv'),
+                           })
+        self.mw = main_window_logic.main_window_logic()
+        self.gui = main_window_gui.main_window_gui()
 
-        # first try
-        self.assertEqual(mw.get_progress(positives=90, last_positives=0, total=100, max_positives=0), "Impressive for a first try.")
-        self.assertEqual(mw.get_progress(positives=10, last_positives=0, total=100, max_positives=0), "Terrible, even for a first try.")
-        self.assertEqual(mw.get_progress(positives=75, last_positives=0, total=100, max_positives=0), "Not bad for a first try.")
+        # mock variables
+        self.mw.fcc_inst = Mock()
+        self.mw.fcc_inst.post_fcc = lambda text: self.registry.append(text)
+        self.gui.fcc_inst = Mock()
+        self.gui.fcc_inst.post_fcc = lambda text: self.registry.append(text)
+       
+        # finish loading up
+        data = self.mw.load_flashcards(os.path.join(self.t_path,'languages/example.xlsx'))
+        self.mw.update_backend_parameters(os.path.join(self.t_path,'languages/example.xlsx'), data)
+    
 
-        # new record
-        self.assertEqual(mw.get_progress(positives=90, last_positives=10, total=100, max_positives=10), "That's a new record. Congratulations!")
-        self.assertEqual(mw.get_progress(positives=60, last_positives=10, total=100, max_positives=10), "That's a new record. But there is still a lot to improve.")
-        self.assertEqual(mw.get_progress(positives=20, last_positives=10, total=100, max_positives=10), "That's a new record. However there is nothing to brag about - you scored only 20%.")
-        self.assertEqual(mw.get_progress(positives=100, last_positives=10, total=100, max_positives=10), "That's a new record. You guessed everything right!")
-
-        # close to record
-        self.assertEqual(mw.get_progress(positives=90, last_positives=10, total=100, max_positives=90), "You matched all-time record for this revision! Way to go!")
-        self.assertEqual(mw.get_progress(positives=88, last_positives=10, total=100, max_positives=90), "You missed all-time record by only 2 cards. But that's still an excellent score.")
-        self.assertEqual(mw.get_progress(positives=8, last_positives=10, total=100, max_positives=10), "You missed all-time record by only 2 cards. But it's still entirely pathetic.")
-        self.assertEqual(mw.get_progress(positives=9, last_positives=10, total=100, max_positives=10), "You missed all-time record by only 1 card. But it's still entirely pathetic.")
-
-        # close to max
-        self.assertEqual(mw.get_progress(positives=9, last_positives=1, total=10, max_positives=12), "Hadn't it been for that 1 card and you would have scored the max!")
-        
-        # standard case
-        self.assertEqual(mw.get_progress(positives=90, last_positives=10, total=100, max_positives=100), "You guessed 80 cards more than last time. Keep it up!")
-        self.assertEqual(mw.get_progress(positives=20, last_positives=10, total=100, max_positives=100), "You guessed 10 cards more than last time. However, there is still a lot to improve.")
-        self.assertEqual(mw.get_progress(positives=20, last_positives=30, total=100, max_positives=100), "You guessed 10 cards less than last time. Get your sh*t together.")
-        self.assertEqual(mw.get_progress(positives=80, last_positives=90, total=100, max_positives=100), "You guessed 10 cards less than last time. However, overall it's not that bad - you scored 80%.")
-        self.assertEqual(mw.get_progress(positives=20, last_positives=20, total=100, max_positives=100), "You guessed the exact same number of cards as last time.")
-
-
-    def test_is_complete_revision(self):
-        mw = init_backend_and_load_test_file()
-        total_words = mw.total_words
-        # go to the last index
-        for _ in range(total_words-2):
-            mw.goto_next_card()
-        
-        self.assertEqual(mw.is_complete_revision(), False)
-        mw.goto_next_card()
-        self.assertEqual(mw.is_complete_revision(), True)
+    def test_file_update_timer_dont_run_if_update_interval_0(self):
+        # assert will not run if update_interval == 0
+        self.config.update({'file_update_interval':'0'})
+        self.gui.initiate_cyclic_file_update()
+        self.assertIsNone(self.gui.file_update_timer)
+        self.assertFalse(self.gui.condition_to_run_file_update_timer()) 
+        self.gui.file_update_timer = Mock(side_effect=True)
+        self.gui.start_file_update_timer()
+        Mock.assert_not_called(self.gui.file_update_timer.start)
+         
+    def test_file_update_timer_check_file_no_update(self):
+        self.config.update({'file_update_interval':'1'})
+        with patch('os.path.getmtime') as mock_mtime:
+            mock_mtime = Mock(side_effect=100)
+            self.gui.update_dataset = Mock()
+            self.gui.last_modification_time = 100
+            self.gui.initiate_cyclic_file_update()
+            self.gui.start_file_update_timer()
+            self.assertIsInstance(self.gui.file_update_timer, QTimer)
+            time.sleep(1)
+            self.assertNotIn('stop', self.registry[-1])
+            Mock.assert_not_called(mock_mtime)
+            Mock.assert_not_called(self.gui.update_dataset)
 
 
 
@@ -396,6 +325,7 @@ class Test_EFC(unittest.TestCase):
         self.assertNotIn('давай товарищ, двигаемся!', reccommendations, reccommendations)
 
 
+
 class Test_stats(unittest.TestCase):
 
     def test_get_progress_data(self):
@@ -404,6 +334,7 @@ class Test_stats(unittest.TestCase):
         self.assertEqual(stat.chart_values.shape[0], stat.second_chart_values.shape[0])
         self.assertEqual(stat.revision_count.shape[0], stat.formatted_dates.shape[0])
         self.assertGreater(stat.chart_values.shape[0], 1)
+
 
 
 def run_summary_generator_test(positives=None, last_positives=None, total=None, max_positives=None, 
@@ -438,9 +369,6 @@ def run_summary_generator_test(positives=None, last_positives=None, total=None, 
         return res    
 
 
-       
-
-
 def print_summary_generator_in_loop(positives=None, last_positives=None, total=None, max_positives=None, 
                                 time_spent=None, last_time_spent=None, verbose=True, iter=1, filters:list()=[]):
     for _ in range(iter):
@@ -452,14 +380,3 @@ def print_summary_generator_in_loop(positives=None, last_positives=None, total=N
         else:
             print(res)
 
-
-def test_time_file_save_comp():
-    t1 = time.perf_counter()
-    comp_time = 1657569324.5002236
-    path = './revisions/REV_QN07072022225804.csv'
-    mtime = os.path.getmtime(path)
-    print(f'TIME SPENT: {time.perf_counter()-t1}')
-    print(mtime)
-    print()
-
-# test_time_file_save_comp()

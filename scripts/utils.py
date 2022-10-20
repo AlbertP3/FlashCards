@@ -231,9 +231,11 @@ def format_seconds(total_seconds):
     minutes = round((total_seconds % 3600)/60,0)
     leading_zero = '0' if minutes <= 9 else ''
     if hours == 0:
-        res = f'{minutes:.0f} Minutes'
+        s = '' if int(minutes) == 1 else 's'
+        res = f'{minutes:.0f} minute{s}'
     else:
-        res = f'{hours:.0f}:{leading_zero}{minutes:.0f} Hours'
+        s = '' if int(hours) == 1 else 's'
+        res = f'{hours:.0f}:{leading_zero}{minutes:.0f} hour{s}'
     return res
 
 
@@ -405,7 +407,7 @@ def get_indentation(max_len, sub_item_len, extra_indent, separator):
     return ''.join(indent)
 
 
-def format_seconds_to(total_seconds, interval, include_remainder=True, null_format=None):
+def format_seconds_to(total_seconds, interval, include_remainder=True, null_format=None, max_len=0):
     if interval == 'hour':
         prev_interval = 60
         interval = 3600
@@ -439,8 +441,12 @@ def format_seconds_to(total_seconds, interval, include_remainder=True, null_form
     elif include_remainder:
         res = f'{round(total_intervals, 0):0>2.0f}{sep}{round(remaining_intervals,0):0>2.0f}'
     else:
-        res = round(total_intervals, 0)
+        res = str(round(total_intervals, 0))
     
+    if max_len != 0 and len(res) > max_len and include_remainder:
+        # remove remainder and the colon
+        res = res.split(':')[0].rjust(max_len, ' ')
+
     return res
 
 

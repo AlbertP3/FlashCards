@@ -345,7 +345,7 @@ class stats_gui(stats):
             ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, '80%', va="bottom", color='#a0a0a0')
 
         # add labels - time spent
-        time_spent_labels = self.time_spent_minutes if 'show_cpm_stats' not in self.config['optional'] else [round(self.total_words/(x/60), 1) for x in self.time_spent_seconds]
+        time_spent_labels = self.time_spent_minutes if 'show_cpm_stats' not in self.config['optional'] else [round(self.total_words/(x/60), 1) if x else '-' for x in self.time_spent_seconds]
         for x, y in zip(self.formatted_dates, time_spent_labels):
             # xytext - distance between points and text label
             time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
@@ -539,12 +539,9 @@ class config_gui():
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
         self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','reccommend_new','hide_timer','show_cpm_stats', 'revision_summary', 'show_efc_line'])
+            ['side_by_side','reccommend_new','hide_timer','show_cpm_stats', 'revision_summary',
+                'show_efc_line', 'show_percent_stats', 'show_cpm_timer'])
         self.optional_label = self.create_label('Optional Features')
-        self.revs_path_qline = self.create_config_qlineedit('revs_path')
-        self.revs_path_label = self.create_label('Revs Path')
-        self.lngs_path_qline = self.create_config_qlineedit('lngs_path')
-        self.lngs_path_label = self.create_label('Lngs Path')
         self.init_rep_qline = self.create_config_qlineedit('initial_repetitions')
         self.init_rep_label = self.create_label("Initial Repetitions")
         self.check_for_file_updates_combobox = self.create_config_qlineedit('file_update_interval')
@@ -557,31 +554,28 @@ class config_gui():
         self.theme_label = self.create_label('Theme')
 
         # add widgets
-        self.options_layout.addWidget(self.card_default_label, 0, 0)
-        self.options_layout.addWidget(self.card_default_combobox, 0, 1)
-        self.options_layout.addWidget(self.lngs_label, 1, 0)
-        self.options_layout.addWidget(self.lngs_checkablecombobox, 1, 1)
-        self.options_layout.addWidget(self.days_to_new_rev_label, 2, 0)
-        self.options_layout.addWidget(self.days_to_new_rev_qlineedit, 2, 1)
-        self.options_layout.addWidget(self.optional_label, 3, 0)
-        self.options_layout.addWidget(self.optional_checkablecombobox, 3, 1)
-        self.options_layout.addWidget(self.revs_path_label, 4, 0)
-        self.options_layout.addWidget(self.revs_path_qline, 4, 1)
-        self.options_layout.addWidget(self.lngs_path_label, 5, 0)
-        self.options_layout.addWidget(self.lngs_path_qline, 5, 1)
-        self.options_layout.addWidget(self.init_rep_label, 6, 0)
-        self.options_layout.addWidget(self.init_rep_qline, 6, 1)
-        self.options_layout.addWidget(self.check_for_file_updates_label, 7, 0)
-        self.options_layout.addWidget(self.check_for_file_updates_combobox, 7, 1)
-        self.options_layout.addWidget(self.sod_fp_label, 8, 0)
-        self.options_layout.addWidget(self.sod_fp_qline, 8, 1)
-        self.options_layout.addWidget(self.sod_sheetname_label, 9, 0)
-        self.options_layout.addWidget(self.sod_sheetname_qline, 9, 1)
-        self.options_layout.addWidget(self.theme_label, 10, 0)
-        self.options_layout.addWidget(self.theme_checkablecombobox, 10, 1)
+        p = self.list_pos_gen()
+        self.options_layout.addWidget(self.card_default_label, next(p), 0)
+        self.options_layout.addWidget(self.card_default_combobox, next(p), 1)
+        self.options_layout.addWidget(self.lngs_label, next(p), 0)
+        self.options_layout.addWidget(self.lngs_checkablecombobox, next(p), 1)
+        self.options_layout.addWidget(self.days_to_new_rev_label, next(p), 0)
+        self.options_layout.addWidget(self.days_to_new_rev_qlineedit, next(p), 1)
+        self.options_layout.addWidget(self.optional_label, next(p), 0)
+        self.options_layout.addWidget(self.optional_checkablecombobox, next(p), 1)
+        self.options_layout.addWidget(self.init_rep_label, next(p), 0)
+        self.options_layout.addWidget(self.init_rep_qline, next(p), 1)
+        self.options_layout.addWidget(self.check_for_file_updates_label, next(p), 0)
+        self.options_layout.addWidget(self.check_for_file_updates_combobox, next(p), 1)
+        self.options_layout.addWidget(self.sod_fp_label, next(p), 0)
+        self.options_layout.addWidget(self.sod_fp_qline, next(p), 1)
+        self.options_layout.addWidget(self.sod_sheetname_label, next(p), 0)
+        self.options_layout.addWidget(self.sod_sheetname_qline, next(p), 1)
+        self.options_layout.addWidget(self.theme_label, next(p), 0)
+        self.options_layout.addWidget(self.theme_checkablecombobox, next(p), 1)
 
-        self.options_layout.addWidget(self.create_blank_widget(),11,0)
-        self.options_layout.addWidget(self.confirm_and_close_button, 12, 0, 1, 2)
+        self.options_layout.addWidget(self.create_blank_widget(),next(p)+1,0)
+        self.options_layout.addWidget(self.confirm_and_close_button, next(p)+2, 0, 1, 2)
 
 
     def create_config_combobox(self, key:str, content:list):
@@ -630,8 +624,6 @@ class config_gui():
         modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
         modified_dict['days_to_new_rev'] = self.days_to_new_rev_qlineedit.text()
         modified_dict['optional'] = self.optional_checkablecombobox.currentData()
-        modified_dict['revs_path'] = self.revs_path_qline.text()
-        modified_dict['lngs_path'] = self.lngs_path_qline.text()
         modified_dict['initial_repetitions'] = self.init_rep_qline.text()
         modified_dict['file_update_interval'] = self.check_for_file_updates_combobox.text()
         modified_dict['sod_filepath'] = self.sod_fp_qline.text()
@@ -646,6 +638,14 @@ class config_gui():
 
         self.config.update(modified_dict)
         self.del_side_window()
+
+
+    def list_pos_gen(self):
+        # increments iterator every 2 calls
+        i = 0
+        while True:
+            yield int(i)
+            i+=0.5
 
     
 

@@ -88,8 +88,6 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <br>
 <ol
 <li>FIXES AND UPGRADES</li>
-<li>percentages on the chart instead of values</li>
-<li>SOD - add Cambridge dictionary</li>
 <li>SOD - make it easily detachable to a terminal (adapters, abstraction, ...)</li>
 </ol>
 <br>
@@ -99,6 +97,7 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <li>change rev_db format to something faster - feather</li>
 <li>make saving to a file into a separate thread</li>
 </ol>
+<!--<li>percentages on the chart instead of values</li>-->
 <!--<li>Save window sizes to config</li>-->
 <!--<li>error when trying to load stats for non-existing file</li>-->
 <!--<li>shortcuts - modify behaviour when side window is opened - allow traversing the load/efc list with keys</li>-->

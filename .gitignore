@@ -8,3 +8,4 @@ rev_db.csv
 desktop.ini
 log.txt
 scripts/tests/res/
+build/
