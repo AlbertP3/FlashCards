@@ -35,6 +35,7 @@ class fcc():
                     'pcc':'Pull Current Card - load the origin file and updates the currently displayed card',
                     'sfs':'Set Font Size - sets font for current card and returns info on width, height and text len',
                     'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
+                    'rgd':'Reset Geometry Defaults',
                     }
 
 
@@ -416,6 +417,19 @@ class fcc():
                     + f'TEXT_LEN={len(self.mw.get_current_card()[self.mw.side])} | ' \
                     + f'WIDTH={self.mw.frameGeometry().width()} | HEIGHT={self.mw.frameGeometry().height()}')
     
+
+    def rgd(self, parsed_cmd):
+        # Reset Geometry Default
+        if len(parsed_cmd)==1:
+            for w in self.config['GEOMETRY']:
+                self.config['GEOMETRY'][w] = self.config['GEOMETRY']['default']
+            self.post_fcc("All windows were resized to default")
+        elif parsed_cmd[1] in self.config['GEOMETRY'].keys():
+            self.config['GEOMETRY'][parsed_cmd[1]] = self.config['GEOMETRY']['default']
+            self.post_fcc(f"{parsed_cmd[1]} was resized to default")
+        else:
+            self.post_fcc('Specified window does not exist. See config to list of available windows')
+
 
     def sod(self, parsed_cmd:list):
         # Scrape Online Dictionaries

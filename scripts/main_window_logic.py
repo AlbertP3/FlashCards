@@ -135,7 +135,7 @@ class main_window_logic():
 
 
     def change_revmode(self, force_which=None):
-        if not self.is_revision:
+        if not self.is_revision or self.is_saved:
             self.revmode = False
         elif force_which is None:
             self.revmode = not self.revmode
@@ -151,7 +151,6 @@ class main_window_logic():
         self.file_path = file_path
         self.dataset = data
         self.is_revision = True if dir_name == self.config['revs_path'][2:-1] else False
-        self.change_revmode(self.is_revision)
 
         if override_signature is None:
             self.signature = get_signature(self.filename, str(data.columns[0])[:2], self.is_revision)
@@ -175,6 +174,7 @@ class main_window_logic():
         self.TIMER_KILLED_FLAG = False
         self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
         self.auto_cfm_offset = 0
+        self.change_revmode()
         
         self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
 

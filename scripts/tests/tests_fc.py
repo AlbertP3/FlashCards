@@ -18,12 +18,21 @@ from datetime import datetime, date, timedelta
 import main_window_logic
 import main_window_gui
 import efc
+from fcc import fcc
 import stats
 from random import randint
 from rev_summary import summary_generator
 import time
 
 
+config = Config()
+T_PATH = './scripts/tests/res'
+config.update({
+    'lngs_path': os.path.join(T_PATH, 'languages'),
+    'revs_path': os.path.join(T_PATH,'revisions'),
+    'db_path': os.path.join(T_PATH, 'resources/rev_db.csv'),
+    'sod_filepath':os.path.join(T_PATH,'languages/example.csv'),
+})
 
 class Test_utils(unittest.TestCase):
 
@@ -203,62 +212,26 @@ class Test_db_api(unittest.TestCase):
 
 class Test_flashcard_console_commands(unittest.TestCase):
 
-    def init_backend_and_load_test_file(self):
-        self.mw = main_window_logic.main_window_logic()
-        data = self.mw.load_flashcards('./revisions/TEST_CARD.csv')
-        self.mw.update_backend_parameters('./revisions/TEST_CARD.csv', data)
+    def setUp(self):
+        self.registry = list()
+        self.mw = Mock()
+        self.mw.console = Mock()
+        self.fcc_inst = fcc(self.mw)
+        self.fcc_inst.post_fcc = lambda text: self.registry.append(str(text))
 
-
-    def test_modify_card(self):
-        self.init_backend_and_load_test_file()
-
-        # modify card in current set
-        self.mw.modify_card(['modify_card', 'NEW', 'TEXT'])
-        self.assertEqual(self.mw.get_current_card(), 'NEW TEXT')
-
-        # modify the file
-        data = self.mw.load_flashcards('./revisions/TEST_CARD.csv')
-        one_side_cards = [x[1] for x in data.values.tolist()]
-        self.assertIn('NEW TEXT', one_side_cards)
-
-
-    def test_modify_card_result(self):
-        self.init_backend_and_load_test_file()
-        self.mw.next_negative()
-        self.mw.goto_prev_card()
-        command = ['mcr', '+']
-
-        self.mw.mcr(command)
-        self.assertEqual(self.mw.positives, 1)
-
-
-    def test_delete_card(self):
-        
-        self.init_backend_and_load_test_file()
-        self.mw.goto_next_card()
-
-        dataset_ordered_pre = load_dataset(self.mw.filepath, False).values.tolist()
-        current_card = self.mw.get_current_card()
-
-        self.mw.dc(parsed_cmd=['dc','-'])
-
-        # Assert order maintained
-        dataset_ordered_pre = [x[0] for x in dataset_ordered_pre if x[0] != current_card[0]]
-        dataset_ordered_post = load_dataset(self.mw.filepath, False).values.tolist()
-        dataset_ordered_post = [x[0] for x in dataset_ordered_post]
-
-        self.assertEqual(len(dataset_ordered_pre), len(dataset_ordered_post))
-        self.assertListEqual(dataset_ordered_pre, dataset_ordered_post)
-
-
-    def test_load_last_n(self):
-        data = load_dataset('./revisions/TEST_CARD.csv', do_shuffle=False).values.tolist()[-5:]
-        self.init_backend_and_load_test_file()
-        self.mw.lln(['lln','5'])
-
-        self.assertEqual(self.mw.dataset.shape[0], 5)
-        self.assertListEqual(data, self.mw.dataset.values.tolist())
-
+    def test_rgd(self):
+        config['GEOMETRY'].update({'main':(99,49,49,9)})
+        # default specific window
+        self.fcc_inst.execute_command(['rgd', 'main'])
+        self.assertEqual(config['GEOMETRY']['main'], config['GEOMETRY']['default'])
+        # default all windows
+        config['GEOMETRY'].update({'main':(100,100,100,100)})
+        self.fcc_inst.execute_command(['rgd'])
+        for w in config['GEOMETRY'].values():
+            self.assertEqual(w, config['GEOMETRY']['default'])
+        # try default non-existent window
+        self.fcc_inst.execute_command(['rgd', 'nasgas'])
+        self.assertIn('does not exist', self.registry[-2])
 
 
 class Test_FlashCards(unittest.TestCase):
@@ -266,14 +239,6 @@ class Test_FlashCards(unittest.TestCase):
     def setUp(self):
         # configuration
         self.registry = list()
-        self.config = Config()
-        self.t_path = './scripts/tests/res'
-        self.config.update({
-                            'lngs_path': os.path.join(self.t_path, 'languages'),
-                            'revs_path': os.path.join(self.t_path,'revisions'),
-                            'db_path': os.path.join(self.t_path, 'resources/rev_db.csv'),
-                            'sod_filepath':os.path.join(self.t_path,'languages/example.csv'),
-                           })
         self.mw = main_window_logic.main_window_logic()
         self.gui = main_window_gui.main_window_gui()
 
@@ -284,13 +249,13 @@ class Test_FlashCards(unittest.TestCase):
         self.gui.fcc_inst.post_fcc = lambda text: self.registry.append(text)
        
         # finish loading up
-        data = self.mw.load_flashcards(os.path.join(self.t_path,'languages/example.xlsx'))
-        self.mw.update_backend_parameters(os.path.join(self.t_path,'languages/example.xlsx'), data)
+        data = self.mw.load_flashcards(os.path.join(T_PATH,'languages/example.xlsx'))
+        self.mw.update_backend_parameters(os.path.join(T_PATH,'languages/example.xlsx'), data)
     
 
     def test_file_update_timer_dont_run_if_update_interval_0(self):
         # assert will not run if update_interval == 0
-        self.config.update({'file_update_interval':'0'})
+        config.update({'file_update_interval':'0'})
         self.gui.initiate_cyclic_file_update()
         self.assertIsNone(self.gui.file_update_timer)
         self.assertFalse(self.gui.condition_to_run_file_update_timer()) 
@@ -299,7 +264,7 @@ class Test_FlashCards(unittest.TestCase):
         Mock.assert_not_called(self.gui.file_update_timer.start)
          
     def test_file_update_timer_check_file_no_update(self):
-        self.config.update({'file_update_interval':'1'})
+        config.update({'file_update_interval':'1'})
         with patch('os.path.getmtime') as mock_mtime:
             mock_mtime = Mock(side_effect=100)
             self.gui.update_dataset = Mock()

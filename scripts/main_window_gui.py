@@ -268,13 +268,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         elif self.is_revision:
             self.display_text(self.revision_summary)
         else:
-            self.kill_timer()
+            self.reset_timer()
             self.display_text("You have reached the world's edge, none but devils play past here")
         
 
     def save_revision(self):
-        self.kill_timer()
         self.record_revision_to_db(self.seconds_spent)
+        self.reset_timer()
         self.is_saved = True
 
 
@@ -305,8 +305,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.display_text()
 
-        self.change_revmode(force_which=False)
         self.is_saved = True
+        self.change_revmode()
         self.reset_timer(clear_indicator=False)
         # if self.negatives != 0:
         #     self.get_mistakes_sidewindow()
@@ -371,6 +371,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.open_side_by_side(layout, name, extra_width)
         else:
             self.open_in_place(layout, name, extra_width)
+        self.stop_timer()
         
 
     def del_side_window(self):
@@ -378,6 +379,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.del_side_window_side_by_side()
         else:
             self.del_side_window_in_place()
+        self.resume_timer()
 
 
     def open_in_place(self, layout, name, extra_width):
@@ -389,7 +391,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.move(self.pos()) 
     
     def add_window_in_place(self, layout, name):
-        self.stop_timer()
         self.side_window_layout = layout
         self.toggle_primary_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 1, 5, 1)
@@ -406,7 +407,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
         self.set_geometry(self.config['GEOMETRY']['main'])
         self.side_window_id = 'main'
-        self.resume_timer()
 
 
     def open_side_by_side(self, layout, name, extra_width):
@@ -419,7 +419,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.move(self.pos()) 
 
     def add_window_to_side(self, layout, name, extra_width):
-        self.stop_timer()
         self.side_window_layout = layout
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
         self.setFixedWidth(self.prev_width+extra_width)
@@ -431,7 +430,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         remove_layout(self.side_window_layout)
         self.reset_window_size()
         self.side_window_id = 'main'
-        self.resume_timer()
 
 
     def reset_window_size(self):
@@ -479,13 +477,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         # Wrapper for main_window_logic.change_revmode. Beware of the MRO.
         super().change_revmode(force_which)
 
-        if not self.is_saved:
-            self.revmode_button.setText('RM:{}'.format('ON' if self.revmode else 'OFF'))
-
-        if self.revmode and not self.is_saved:
+        if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
+            self.revmode_button.setText('RM:ON')
         else:
             self.nav_buttons_visibility_control(False, False, True)
+            self.revmode_button.setText('RM:OFF')
         
         if not self.is_revision and force_which is None:
             self.fcc_inst.post_fcc('Revision mode is unavailable for a Language.')
@@ -573,6 +570,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.q_app.installEventFilter(self)
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
+        self.timer_prev_text = '⏲'
         self.timer=QTimer()
         self.timer.timeout.connect(self.append_seconds_spent)
         self.create_timer_button()
@@ -583,30 +581,29 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
     def start_timer(self):
-        if not self.TIMER_KILLED_FLAG:
-            self.timer.start(1000)
-            self.TIMER_RUNNING_FLAG = True
+        self.timer.start(1000)
+        self.TIMER_RUNNING_FLAG = True
     
     def resume_timer(self):
+        self.timer_button.setText(self.timer_prev_text)
         if self.conditions_to_resume_timer_are_met():
             self.start_timer()
 
     def conditions_to_resume_timer_are_met(self):
         if self.seconds_spent != 0 \
             and self.is_saved is False \
-            and self.side_window_id == 'main' \
-            and not self.TIMER_KILLED_FLAG:
+            and self.side_window_id == 'main':
             conditions_met = True
         else:
             conditions_met = False
         return conditions_met
 
-
     def stop_timer(self):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
         if 'hide_timer' not in self.config['optional']:
-            self.timer_button.setText('⏹')
+            self.timer_prev_text = self.timer_button.text()
+            self.timer_button.setText('⏸')
 
     def reset_timer(self, clear_indicator=True):
         self.timer.stop()
@@ -614,11 +611,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = False
         if clear_indicator:
             self.timer_button.setText('⏲')
-
-    def kill_timer(self):
-        self.stop_timer()
-        self.TIMER_KILLED_FLAG = True
    
+
     def append_seconds_spent(self):
         self.seconds_spent+=1
         if 'hide_timer' in self.config['optional']:
@@ -630,8 +624,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             interval = 'minute' if self.seconds_spent < 3600 else 'hour'
             self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
 
-    def get_seconds_spent(self):
-        return self.seconds_spent
 
     def show_timespent_sidewindow(self):
         # displays time spent table utilizing FCC interface
