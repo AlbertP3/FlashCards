@@ -9,17 +9,17 @@ from fcc import fcc
 from efc import efc
 from load import load
 from stats import stats
+import db_api
+import timer
 from checkable_combobox import CheckableComboBox
 import themes
 
-# each class espouses one type of sidewindow (GUI + inherited logic)
-# side_windows class comprising of multiple sidewindows is to be inherited by the main GUI
 
 
 class fcc_gui():
 
     def __init__(self):
-        self.DEFAULT_PS1 = '$~>'
+        self.DEFAULT_PS1 = '$~> '
         self.CONSOLE_FONT_SIZE = 12
         self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
@@ -61,10 +61,18 @@ class fcc_gui():
         
     def create_console(self):
         self.console = widget.QTextEdit(self)
+        self.console.keyPressEvent = self.accept_with_enter_fcc
         self.console.setFont(self.CONSOLE_FONT)
         self.console.setStyleSheet(self.textbox_stylesheet)
         self.fcc_inst.update_console_id(self.console)
        
+
+    def accept_with_enter_fcc(self, event):
+        if event.key() == Qt.Key_Return:
+            self.nav_mapping[self.side_window_id]['run_command']()
+        else:
+            widget.QTextEdit.keyPressEvent(self.console, event) 
+            
 
     def run_command(self):
         # format user input
@@ -108,10 +116,10 @@ class efc_gui(efc):
 
     def arrange_efc_window(self):
         # Style
-        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
-        self.button_style_sheet = self.config['button_style_sheet']
-        self.font = self.config['font']
-        self.font_button_size = int(self.config['font_button_size'])
+        self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
+        self.button_style_sheet = self.config['THEME']['button_style_sheet']
+        self.font = self.config['THEME']['font']
+        self.font_button_size = int(self.config['THEME']['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
         self.textbox_width = 275
         self.textbox_height = 200
@@ -190,10 +198,10 @@ class load_gui(load):
         self.textbox_width = 275
 
         # Style
-        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
-        self.button_style_sheet = self.config['button_style_sheet']
-        self.font = self.config['font']
-        self.font_button_size = int(self.config['font_button_size'])
+        self.textbox_stylesheet = (self.config['THEME']['textbox_style_sheet'])
+        self.button_style_sheet = self.config['THEME']['button_style_sheet']
+        self.font = self.config['THEME']['font']
+        self.font_button_size = int(self.config['THEME']['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
@@ -266,10 +274,10 @@ class mistakes_gui():
 
     def arrange_mistakes_window(self):
         # Style
-        self.textbox_stylesheet = self.config['textbox_style_sheet']
-        self.button_style_sheet = self.config['button_style_sheet']
-        self.font = self.config['font']
-        self.font_button_size = int(self.config['font_button_size'])
+        self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
+        self.button_style_sheet = self.config['THEME']['button_style_sheet']
+        self.font = self.config['THEME']['font']
+        self.font_button_size = int(self.config['THEME']['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
@@ -325,7 +333,7 @@ class stats_gui(stats):
         rect = None
 
         ax = self.figure.add_subplot()
-        ax.bar(self.formatted_dates, self.chart_values, color=config['stat_bar_color'], 
+        ax.bar(self.formatted_dates, self.chart_values, color=config['THEME']['stat_bar_color'], 
                 edgecolor='#000000', linewidth=0.7, align='center')
 
         # Time spent for each revision
@@ -337,7 +345,7 @@ class stats_gui(stats):
         for rect, label in zip(ax.patches, self.dynamic_chain_index):
             height = rect.get_height()
             ax.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
-                    color=self.config['stat_chart_text_color'])
+                    color=self.config['THEME']['stat_chart_text_color'])
 
          # horizontal line at EFC predicate
         if rect and 'show_efc_line' in self.config['optional']:
@@ -349,14 +357,14 @@ class stats_gui(stats):
         for x, y in zip(self.formatted_dates, time_spent_labels):
             # xytext - distance between points and text label
             time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
-                        color=self.config['stat_chart_text_color'])
+                        color=self.config['THEME']['stat_chart_text_color'])
 
         # Style
-        self.figure.set_facecolor(self.config['stat_background_color'])
-        ax.set_facecolor(self.config['stat_chart_background_color'])
+        self.figure.set_facecolor(self.config['THEME']['stat_background_color'])
+        ax.set_facecolor(self.config['THEME']['stat_chart_background_color'])
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         ax.set_ylim([0, self.total_words])
-        ax.tick_params(colors=self.config['stat_chart_text_color'],
+        ax.tick_params(colors=self.config['THEME']['stat_chart_text_color'],
                         labelrotation=0,
                         pad=1)
         self.figure.tight_layout(pad=0.1)
@@ -439,7 +447,7 @@ class progress_gui(stats):
                 edgecolor='#000000', linewidth=0.7, align='center', zorder=9)
 
         positives_plot = total_words_plot.twinx()
-        positives_plot.bar(self.formatted_dates, self.chart_values, color=config['stat_bar_color'], 
+        positives_plot.bar(self.formatted_dates, self.chart_values, color=config['THEME']['stat_bar_color'], 
                 edgecolor='#000000', linewidth=0.7, align='center', zorder=0)
 
         revision_count_plot = total_words_plot.twinx()
@@ -451,7 +459,7 @@ class progress_gui(stats):
                 height = rect.get_height()
                 label = '' if label == 0 else "{:.0f}".format(label)
                 positives_plot.text(rect.get_x() + rect.get_width()/2, height/2, label, ha="center", va="bottom", 
-                        color=self.config['stat_chart_text_color'], zorder=10)
+                        color=self.config['THEME']['stat_chart_text_color'], zorder=10)
 
         # add labels - total sum
         unlearned = self.second_chart_values - self.chart_values 
@@ -461,25 +469,25 @@ class progress_gui(stats):
             y = height-label/1.25
             label = '' if label == 0 else "{:.0f}".format(label)
             total_words_plot.text(x, y, label, ha="center", va="bottom", 
-                    color=self.config['stat_chart_text_color'], zorder=10)
+                    color=self.config['THEME']['stat_chart_text_color'], zorder=10)
         
         # add labels - repeated times
         for x, y in zip(self.formatted_dates, self.revision_count):
             # xytext - distance between points and text label
             revision_count_plot.annotate("#{:.0f}".format(y), (x, y), textcoords="offset points", xytext=(0,5), ha='center',
-                        color=self.config['stat_chart_text_color'])
+                        color=self.config['THEME']['stat_chart_text_color'])
                       
         # Style
-        self.figure.set_facecolor(self.config['stat_background_color'])
-        total_words_plot.set_facecolor(self.config['stat_chart_background_color'])
+        self.figure.set_facecolor(self.config['THEME']['stat_background_color'])
+        total_words_plot.set_facecolor(self.config['THEME']['stat_chart_background_color'])
         positives_plot.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-        total_words_plot.tick_params(colors=self.config['stat_chart_text_color'])
+        total_words_plot.tick_params(colors=self.config['THEME']['stat_chart_text_color'])
         self.figure.tight_layout(pad=0.1)
         positives_plot.get_yaxis().set_visible(False)
         revision_count_plot.get_yaxis().set_visible(False)
         positives_plot.get_xaxis().set_visible(False)
         title = lng_gist if lng_gist != '' else 'ALL'
-        self.figure.suptitle(title, fontsize=18, y=0.92, color=self.config['font_color'])
+        self.figure.suptitle(title, fontsize=18, y=0.92, color=self.config['THEME']['font_color'])
         self.figure.subplots_adjust(left=0.0, bottom=0.06, right=0.997, top=0.997)
 
         # synchronize axes
@@ -514,10 +522,10 @@ class config_gui():
         self.textbox_width = 275
 
         # Style
-        self.textbox_stylesheet = (self.config['textbox_style_sheet'])
-        self.button_style_sheet = self.config['button_style_sheet']
-        self.font = self.config['font']
-        self.font_button_size = int(self.config['font_button_size'])
+        self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
+        self.button_style_sheet = self.config['THEME']['button_style_sheet']
+        self.font = self.config['THEME']['font']
+        self.font_button_size = int(self.config['THEME']['font_button_size'])
         self.button_font = QtGui.QFont(self.font, self.font_button_size)
 
         # Elements
@@ -550,8 +558,12 @@ class config_gui():
         self.sod_fp_label = self.create_label('SOD Workbook')
         self.sod_sheetname_qline = self.create_config_qlineedit('sod_sheetname')
         self.sod_sheetname_label = self.create_label('SOD Sheet Name')
+        self.mistakes_buffer_qline = self.create_config_qlineedit('mistakes_buffer')
+        self.mistakes_buffer_label = self.create_label('Mistakes Buffer')
         self.theme_checkablecombobox = self.create_config_checkable_combobox('theme', self.themes_dict.keys())
         self.theme_label = self.create_label('Theme')
+        self.model_checkablecombobox = self.create_config_checkable_combobox('efc_model', self.get_available_efc_models())
+        self.model_label = self.create_label('EFC Model')
 
         # add widgets
         p = self.list_pos_gen()
@@ -571,8 +583,12 @@ class config_gui():
         self.options_layout.addWidget(self.sod_fp_qline, next(p), 1)
         self.options_layout.addWidget(self.sod_sheetname_label, next(p), 0)
         self.options_layout.addWidget(self.sod_sheetname_qline, next(p), 1)
+        self.options_layout.addWidget(self.mistakes_buffer_label, next(p), 0)
+        self.options_layout.addWidget(self.mistakes_buffer_qline, next(p), 1)
         self.options_layout.addWidget(self.theme_label, next(p), 0)
         self.options_layout.addWidget(self.theme_checkablecombobox, next(p), 1)
+        self.options_layout.addWidget(self.model_label, next(p), 0)
+        self.options_layout.addWidget(self.model_checkablecombobox, next(p), 1)
 
         self.options_layout.addWidget(self.create_blank_widget(),next(p)+1,0)
         self.options_layout.addWidget(self.confirm_and_close_button, next(p)+2, 0, 1, 2)
@@ -598,7 +614,7 @@ class config_gui():
 
     def create_config_qlineedit(self, key:str):
         qlineedit = widget.QLineEdit(self)
-        qlineedit.setText(self.config[key])
+        qlineedit.setText(str(self.config[key]))
         qlineedit.setFont(self.BUTTON_FONT)
         qlineedit.setStyleSheet(self.button_style_sheet)
         return qlineedit
@@ -629,9 +645,11 @@ class config_gui():
         modified_dict['sod_filepath'] = self.sod_fp_qline.text()
         modified_dict['sod_sheetname'] = self.sod_sheetname_qline.text()
         modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
+        modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]
+        modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
 
         if modified_dict['theme'] != self.config['theme']:
-            self.config.update(self.themes_dict[modified_dict['theme']])
+            self.config['THEME'].update(self.themes_dict[modified_dict['theme']])
             self.set_theme()
         if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
             self.toggle_primary_widgets_visibility(True)
@@ -647,10 +665,56 @@ class config_gui():
             yield int(i)
             i+=0.5
 
+
+    def get_available_efc_models(self):
+        models_path =  os.path.join(config['resources_path'], 'efc_models')
+        pickled_models = [f.split('.')[0] for f in os.listdir(models_path) if f.endswith('.pkl')]
+        return pickled_models
+
     
 
+class timer_gui():
+
+    def __init__(self):
+        self.config = Config()
+        self.data_getter = timer.Timespent_BE()
+        self.TIMER_FONT_SIZE = 12
+        self.EXTRA_WIDTH_TIMER = 200
+        self.timer_button = self.create_button('⏲', self.get_timer_sidewindow)
+        self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
+        self.TIMER_FONT = QtGui.QFont('Consolas', self.TIMER_FONT_SIZE)
+        self.add_shortcut('timespent', self.get_timer_sidewindow, 'main')
+
+
+    def get_timer_sidewindow(self):
+        self.create_timer_console()
+        self.arrange_timer_sidewindow()
+        self.show_data()
+        self.open_side_window(self.timer_layout, 'timer', self.EXTRA_WIDTH_TIMER)
+
+
+    def arrange_timer_sidewindow(self, width_=500):
+        self.timer_layout = widget.QGridLayout()
+        self.timer_layout.addWidget(self.timer_console, 0, 0)
+
+
+    def create_timer_console(self):
+        self.timer_console = widget.QTextEdit(self)
+        self.timer_console.setFont(self.TIMER_FONT)
+        self.timer_console.setStyleSheet(self.textbox_stylesheet)
+        self.timer_console.setReadOnly(True)
+
+
+    def show_data(self):
+        last_n = 12
+        interval = 'm'
+        res = self.data_getter.get_timespent_printout(last_n, interval)
+        self.timer_console.setText(res)
+
+
+
 class side_windows(fcc_gui, efc_gui, load_gui, 
-                mistakes_gui, stats_gui, progress_gui, config_gui):
+                mistakes_gui, stats_gui, progress_gui, config_gui, timer_gui):
     def __init__(self):
         fcc_gui.__init__(self)
         efc_gui.__init__(self)
@@ -659,6 +723,7 @@ class side_windows(fcc_gui, efc_gui, load_gui,
         stats_gui.__init__(self)
         progress_gui.__init__(self)
         config_gui.__init__(self)
+        timer_gui.__init__(self)
     
 
     def __del__(self):

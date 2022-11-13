@@ -32,6 +32,7 @@ config.update({
     'revs_path': os.path.join(T_PATH,'revisions'),
     'db_path': os.path.join(T_PATH, 'resources/rev_db.csv'),
     'sod_filepath':os.path.join(T_PATH,'languages/example.csv'),
+    'resources_path': os.path.join(T_PATH, 'resources'),
 })
 
 class Test_utils(unittest.TestCase):
@@ -126,7 +127,7 @@ class Test_db_api(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
         self.assertIn('SIGNATURE', df.columns)
 
-        
+
     def test_get_date_from_signature(self):
         correct_signature_example_1 = 'REV_RU11252021180131'
         invalid_signature_example_1 = 'wrongfilenametest'
@@ -189,8 +190,9 @@ class Test_db_api(unittest.TestCase):
 
     def test_get_last_positives(self):
         dbapi = db_api.db_interface()
-        rev_signature = 'JP_ANIME_60'
-        expected = 24
+        dbapi.refresh()
+        rev_signature = 'REV_EN10092021164327'
+        expected = 65
         self.assertEqual(dbapi.get_last_positives(rev_signature), expected)
 
 
@@ -277,18 +279,32 @@ class Test_FlashCards(unittest.TestCase):
             Mock.assert_not_called(mock_mtime)
             Mock.assert_not_called(self.gui.update_dataset)
 
-
+UNIQUE_SIGNATURES = {'REV_EN02242022161545', 'REV_EN01132022101926', 'REV_EN01212022204840', 'REV_EN12162021155733', 'REV_EN10182021195739', 'REV_EN11292021220523', 'REV_EN03072022120115', 'REV_EN10262021143320', 'REV_EN05042022003525', 'REV_EN11112021162252', 'REV_EN05162022142804', 'REV_EN10092021164327', 'REV_EN01032022213505', 'REV_EN06192022162707', 'REV_EN10172022195416', 'REV_EN02102022130427', 'REV_EN12082021002630', 'REV_EN11032021142640', 'REV_EN02012022213658', 'REV_EN03102022132455', 'REV_EN06062022170657', 'REV_EN03212022134723'} 
 
 class Test_EFC(unittest.TestCase):
 
     def test_is_it_time_for_something_new(self):
         efc_obj = efc.efc()
         reccommendations = efc_obj.is_it_time_for_something_new()
-
-        # adjust to the current state of DB
         self.assertIn('Oi mate, take a gander', reccommendations, reccommendations)
         self.assertNotIn('давай товарищ, двигаемся!', reccommendations, reccommendations)
 
+    def test_get_complete_efc_table(self):
+        efc_obj = efc.efc()
+        efc_obj.refresh_source_data()
+        register_log(efc_obj.get_complete_efc_table())
+
+    def test_get_efc_recommendations(self):
+        efc_obj = efc.efc()
+        efc_obj.refresh_source_data()
+        register_log(efc_obj.get_recommendations())
+
+    def test_efc_table_printout(self):
+        efc_obj = efc.efc()
+        efc_obj.refresh_source_data()
+        res = efc_obj.get_efc_table_printout(efc_obj.get_complete_efc_table())
+        register_log('\n' + res)
+        
 
 
 class Test_stats(unittest.TestCase):

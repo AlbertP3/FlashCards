@@ -1,14 +1,17 @@
 import db_api
 from utils import *
-from math import exp
+from math import exp, remainder
 from os import listdir
+import joblib
+
+
 
 class efc():
+    # based on Ebbinghaus Forgetting Curve
+    # function estimates the percentage of words in-memory for today
 
     def __init__(self):
         self.config = Config()
-        self.INITIAL_REPETITIONS = 2
-        self.EFC_THRESHOLD = 0.8
         self.paths_to_suggested_lngs = dict()
         self.reccommendation_texts = {'EN':'Oi mate, take a gander', 
                                         'RU':'давай товарищ, двигаемся!', 
@@ -17,34 +20,29 @@ class efc():
                                         'FR':'Mettons-nous au travail'}
         self.db_interface = db_api.db_interface()
         self.unique_signatures = set()
+        self.efc_model = Placeholder()
+        self.efc_model.name = None
+
 
     def refresh_source_data(self):
         if self.db_interface.refresh():
+            self.load_pickled_model()
             self.db_interface.filter_where_lng(lngs=self.config['languages'])
             self.unique_signatures = {s for s in self.db_interface.db['SIGNATURE'] 
                                     if s + '.csv' in listdir(self.config['revs_path'])}
 
 
-    def efc_function(self, last_datetime, total_words, last_positives, repeated_times):
-            # based on Ebbinghaus Forgetting Curve
-            # function estimates the percentage of words in-memory for today
-
-            diff_days_from_last = (make_todaytime() - last_datetime).total_seconds()/86400
-            
-            # employ forgetting curve
-            pos_share = last_positives/total_words if total_words != 0 else 0
-            x1, x2, x3, x4 = 2.039, -4.566, -12.495, -0.001
-            s = (repeated_times**x1 + pos_share*x2) - (x3*exp(total_words*x4))
-            initial_handicap = self.get_initial_handicap(repeated_times, diff_days_from_last)
-            efc = exp(-diff_days_from_last/s) + initial_handicap
-
-            return efc
+    def load_pickled_model(self):
+        new_model:str = self.config['efc_model']
+        if new_model != self.efc_model.name:
+            self.efc_model = joblib.load(os.path.join(self.config['resources_path'],'efc_models', f'{new_model}.pkl'))
 
 
     def get_initial_handicap(self, repeated_times, diff_days_from_last):
-        # force daily revision for the first 3 days in min. 12h intervals
-        if repeated_times==1: handicap = -0.21
-        elif repeated_times <= int(self.config['initial_repetitions']) and diff_days_from_last>=0.5: handicap = -0.21
+        # force daily revision for the first N days in min. 12h intervals
+        remainder_ = 101 - int(self.config['efc_threshold'])
+        if repeated_times==1: handicap = -remainder_
+        elif repeated_times <= int(self.config['initial_repetitions']) and diff_days_from_last>=0.5: handicap = -remainder_
         else: handicap = 0
         return handicap
 
@@ -57,7 +55,7 @@ class efc():
 
         # get parameters and efc_function result for each unique signature
         for rev in self.get_complete_efc_table():
-            efc_critera_met = rev[-1] < self.EFC_THRESHOLD
+            efc_critera_met = rev[-1] < int(self.config['efc_threshold'])
             if efc_critera_met:
                 reccommendations.append(rev[0])
         
@@ -66,16 +64,23 @@ class efc():
 
     def get_complete_efc_table(self) -> list[str, str, float]:
         rev_table_data = list()
+        self.db_interface.filter_for_efc_model()
+        unqs = self.db_interface.gather_efc_record_data()
 
-        for signature in self.unique_signatures:
-            last_datetime = self.db_interface.get_last_datetime(signature)
-            repeated_times = self.db_interface.get_sum_repeated(signature)
-            total = self.db_interface.get_total_words(signature)
-            last_positives = self.db_interface.get_last_positives(signature)
-            efc = self.efc_function(last_datetime, total, last_positives, repeated_times)
+        for s in self.unique_signatures:
+            # data: (TIMESTAMP, TOTAL, POSITIVES, SEC_SPENT)
+            data = unqs[s]   
+            total = data[-1][1]
+            prev_wpm = 60*data[-1][1]/data[-1][3] if data[-1][3] != 0 else 0
+            since_last_rev = (make_todaytime()-data[-1][0]).total_seconds()/3600
+            since_creation = (make_todaytime()-data[0][0]).total_seconds()/3600
+            cnt = len(data)+1
+            prev_score = int(100*(data[-1][2] / data[-1][1])) 
             
-            days_from_last_rev = (make_todaytime() - last_datetime).days
-            rev_table_data.append([signature, days_from_last_rev, round(efc, 2)])
+            rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
+            efc = self.efc_model.predict([rec])
+            handicap = self.get_initial_handicap(cnt, since_last_rev/24)
+            rev_table_data.append([s, round(since_last_rev/24,0), round(efc[0][0]+handicap,2)])
 
         return rev_table_data
 

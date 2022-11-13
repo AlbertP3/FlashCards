@@ -35,29 +35,30 @@ class dict_mock():
 
 
 PONS_EXAMPLES =  {
-         'przekazywać [perf przekazać]' : 'przekazywać',
-         'robotnik(-ica) m (f)' : 'robotnik(-ica)',
-         'zakład m zbrojeniowy' : 'zakład zbrojeniowy',
-         'cukrzyca f' : 'cukrzyca',
-         'czerwienić [perf za-] się' : 'czerwienić się',
-         'to go [or turn] red [in the face]' : 'to go [or turn] red [in the face]',
-         'zadłużać [perf zadłużyć] się nt' : 'zadłużać się',
-         '[automatyczna] sekretarka f': '[automatyczna] sekretarka',
-         'korzeń m': 'korzeń',
-         'dezodorant m /klej m w sztyfcie': 'dezodorant/klej w sztyfcie',
-         'przerzutki fpl' : 'przerzutki',
-         'trudności pl z uczeniem się' : 'trudności z uczeniem się',
-         'uczyć [perf na-] się': 'uczyć się',
-         'to masticate': 'to masticate',
-         '[niedźwiedź] grizzly m [lub grizli m ]' : '[niedźwiedź] grizzly',
-         'radio nt na baterie': 'radio na baterie',
-         'regent(ka) m (f)': 'regent(ka)',
-         'przypochlebiać się imperf': 'przypochlebiać się',
-         'salon m kosmetyczny [lub piękności]': 'salon kosmetyczny',
-         'bojkotować [perf z-]': 'bojkotować',
-         'red as a beetroot [or AM beet]': 'red as a beetroot',
-         'zaciągać [perf zaciągnąć] się papierosem ': 'zaciągać się papierosem',
-         ' upodobanie nt [lub słabość f ] do czegoś ': 'upodobanie do czegoś',
+        'przekazywać [perf przekazać]' : 'przekazywać',
+        'robotnik(-ica) m (f)' : 'robotnik(-ica)',
+        'zakład m zbrojeniowy' : 'zakład zbrojeniowy',
+        'cukrzyca f' : 'cukrzyca',
+        'czerwienić [perf za-] się' : 'czerwienić się',
+        'to go [or turn] red [in the face]' : 'to go [or turn] red [in the face]',
+        'zadłużać [perf zadłużyć] się nt' : 'zadłużać się',
+        '[automatyczna] sekretarka f': '[automatyczna] sekretarka',
+        'korzeń m': 'korzeń',
+        'dezodorant m /klej m w sztyfcie': 'dezodorant/klej w sztyfcie',
+        'przerzutki fpl' : 'przerzutki',
+        'trudności pl z uczeniem się' : 'trudności z uczeniem się',
+        'uczyć [perf na-] się': 'uczyć się',
+        'to masticate': 'to masticate',
+        '[niedźwiedź] grizzly m [lub grizli m ]' : '[niedźwiedź] grizzly',
+        'radio nt na baterie': 'radio na baterie',
+        'regent(ka) m (f)': 'regent(ka)',
+        'przypochlebiać się imperf': 'przypochlebiać się',
+        'salon m kosmetyczny [lub piękności]': 'salon kosmetyczny',
+        'bojkotować [perf z-]': 'bojkotować',
+        'red as a beetroot [or AM beet]': 'red as a beetroot',
+        'zaciągać [perf zaciągnąć] się papierosem ': 'zaciągać się papierosem',
+        'upodobanie nt [lub słabość f ] do czegoś': 'upodobanie do czegoś',
+        'skrętka f ELEC':'skrętka',
         }
 
 EXAMPLE_PHRASES = ('Mercury', 'Venus', 'Earth', 'Mars', 'Jupyter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Moon', 'Sun')
@@ -211,7 +212,7 @@ class Test_CLI(TestCase):
         output.console.setText = set_text_mock
         self.ss = sod_init.sod_spawn(adapter='fcc', stream_out=output)
 
-        self.ss.cli = sod_cli.CLI(output, './scripts/unittests/res/languages/example.xlsx', 'Sheet1')
+        self.ss.cli = sod_cli.CLI(output, './scripts/tests/res/languages/example.xlsx', 'Sheet1')
         self.ss.cli.d_api.dicts['mock'] = dict_mock()
         self.ss.cli.d_api.dict_service = 'mock'
 
@@ -258,7 +259,7 @@ class Test_CLI(TestCase):
         self.assertIn(f'🖫 hello world: witaj świEcie; domyślny serwis', self.cli_output_registry[-1])
 
 
-    def test_selection_cmd_pattern(self):
+    def test_verify_selection_pattern(self):
         self.ss.cli.translations = ['']*3
         self.ss.cli.SELECT_TRANSLATIONS_MODE = True
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['a']), True)
@@ -432,3 +433,32 @@ class Test_CLI(TestCase):
         self.assertIn(' ➲ [3/4]', self.get_console())
         self.assertIn([' manual-entry ', 'manual-phrase'], self.cli_saved_registry)
              
+
+    def test_simple_save(self):
+        self.run_cmd(['moon'])
+        self.run_cmd(['1', '3'])
+        self.assertIn(f'🖫 moon: witaj świEcie; czerwony', self.cli_output_registry[-1])
+
+
+    def test_res_edit_parse(self):
+        self.run_cmd(['moon'])
+        self.run_cmd(['a', 'e3', 'm', 'a'])
+
+        # append
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Add: ')
+        self.run_cmd(['sun'])
+        self.assertEqual(self.ss.cli.res_edit[-1], 'sun')
+
+        # edit 3rd item
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Edit: czerwony')
+        self.ss.sout.mw.CONSOLE_PROMPT = 'Edit: '
+        self.run_cmd(['neptune'])
+        self.assertEqual(self.ss.cli.res_edit[-1], 'neptune')
+
+        # modify phrase
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Modify: moon')
+        self.ss.sout.mw.CONSOLE_PROMPT = 'Modify: '
+        self.run_cmd(['earth'])
+        self.assertEqual(self.ss.cli.phrase, 'earth')
+        
+

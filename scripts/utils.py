@@ -47,6 +47,7 @@ class Config:
         self.config = dict(self.parser.items('PARAMETERS'))
         self.config['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
         self.config['GEOMETRY'] = dict(self.parser.items('GEOMETRY'))
+        self.config['THEME'] = dict(self.parser.items('THEME'))
         self.__parse_items()
 
     def save(self):
@@ -55,6 +56,7 @@ class Config:
         for k, v in self.config.items():
             if k=='KEYBOARD_SHORTCUTS': [self.parser.set('KEYBOARD_SHORTCUTS', k_, v_) for k_, v_ in v.items()]
             elif k=='GEOMETRY': [self.parser.set('GEOMETRY', k_, v_) for k_, v_ in v.items()]
+            elif k =='THEME': [self.parser.set('THEME', k_, v_) for k_, v_ in v.items()]
             else: self.parser.set('PARAMETERS', k, v)
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
@@ -67,7 +69,6 @@ class Config:
             self.config[field] = self.config[field].split('|')
         for window, geometry in self.config['GEOMETRY'].items():
             self.config['GEOMETRY'][window] = tuple(eval(geometry))
-        
 
 
 UTILS_STATUS_DICT = dict()
@@ -464,3 +465,7 @@ def in_str(sub_string, string, case_sensitive=True):
         return sub_string in string
     else:
         return sub_string.casefold() in string.casefold()
+
+
+class Placeholder:
+    pass

@@ -5,7 +5,6 @@ from utils import *
 
 config = Config()
 pd.options.mode.chained_assignment = None
-REV_DB_PATH = config['db_path'] 
 DBAPI_STATUS_DICT = dict()
 
 
@@ -22,12 +21,14 @@ class db_interface():
     # as long ago as possible e.g 1900-1-1, or was never revised
 
     def __init__(self):
+        self.config = Config()
         self.DEFAULT_DATE = datetime(1900, 1, 1)
         self.db = pd.DataFrame()
         self.filters = dict(
             POS_NOT_ZERO = False,
             BY_LNG = False,
             BY_SIGNATURE = False, 
+            EFC_MODEL = False,
         )
         self.last_update:float = 0
         self.last_load:float = -1
@@ -35,7 +36,7 @@ class db_interface():
 
     def create_record(self, signature, words_total, positives, seconds_spent):
         timestamp = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        with open(REV_DB_PATH, 'a') as fd:
+        with open(self.config['db_path'], 'a') as fd:
             fd.write(';'.join([timestamp, signature, str(words_total), 
                                 str(positives), str(seconds_spent)])+'\n')
         self.last_update = monotonic()
@@ -49,7 +50,7 @@ class db_interface():
 
     def __load_db(self):
         if self.last_load < self.last_update or any(self.filters): 
-            self.db = pd.read_csv(REV_DB_PATH, encoding='utf-8', sep=';')
+            self.db = pd.read_csv(self.config['db_path'], encoding='utf-8', sep=';')
             self.last_load = monotonic()
             return True
 
@@ -60,9 +61,75 @@ class db_interface():
             return True
 
 
+    def filter_for_efc_model(self):
+        # Remove mistakes, obsolete lngs and revs with POSITIVES=0
+        filtered = pd.DataFrame(columns=self.db.columns)
+        for lng in config['languages']:
+            l_df = self.db.loc[self.db.iloc[:, 1].str.contains(lng)]
+            l_df = l_df.loc[~l_df.iloc[:, 1].str.contains('_mistakes')]
+            filtered = filtered.append(l_df, ignore_index=True, sort=False)
+        self.db = filtered.loc[filtered['POSITIVES'] != 0]
+        self.filters['EFC_MODEL'] = True
+
+
+    def add_efc_metrics(self):
+        # expands db with efc metrics and returns a dict consisting of per signature data
+        self.db['TIMESTAMP'] = pd.to_datetime(self.db['TIMESTAMP'], format="%m/%d/%Y, %H:%M:%S")
+
+        sig = {k:list() for k in self.db['SIGNATURE'].unique()}
+        initial_reps = int(config['initial_repetitions'])
+        avg_wpsec = self.db['TOTAL'].sum() / self.db.loc[self.db['SEC_SPENT'] > 0]['SEC_SPENT'].sum()
+        rows_to_del = list()
+        self.db['PREV_WPM'] = 0
+        self.db['TIMEDELTA_SINCE_CREATION'] = 0
+        self.db['TIMEDELTA_LAST_REV'] = 0
+        self.db['CUM_CNT_REVS'] = 0
+        self.db['PREV_SCORE'] = 0
+        self.db['SCORE'] = 0
+
+        for i, r in self.db.iterrows():
+            s = r['SIGNATURE']
+            if int(r['SEC_SPENT']) == 0: 
+                self.db.loc[i, 'SEC_SPENT'] = int(int(r['TOTAL'] / avg_wpsec))
+                r['SEC_SPENT'] = int(int(r['TOTAL'] / avg_wpsec))
+                
+            sig[s].append((r['TIMESTAMP'], r['TOTAL'], r['POSITIVES'], r['SEC_SPENT']))
+            if len(sig[s]) <= initial_reps:
+                rows_to_del.append(i)
+                continue
+
+            # '-2' denotes previous revision
+            self.db.loc[i, 'PREV_WPM'] = 60*sig[s][-2][1]/sig[s][-2][3]
+            self.db.loc[i, 'CUM_CNT_REVS'] = len(sig[s])
+            self.db.loc[i, 'TIMEDELTA_LAST_REV'] = int((sig[s][-1][0] - sig[s][-2][0]).total_seconds()/3600)
+            self.db.loc[i, 'TIMEDELTA_SINCE_CREATION'] = int((sig[s][-1][0] - sig[s][0][0]).total_seconds()/3600)
+            self.db.loc[i, 'PREV_SCORE'] = int(100*(sig[s][-2][2] / sig[s][-2][1]))
+            self.db.loc[i, 'SCORE'] = int(100*sig[s][-1][2] / sig[s][-1][1])
+
+        self.db = self.db.drop(index=rows_to_del, axis=0)
+        self.filters['EFC_MODEL'] = True
+
+
+    def remove_cols_for_efc_model(self):
+        cols_to_remove = {'POSITIVES','TIMESTAMP','SIGNATURE','SEC_SPENT'}
+        self.db = self.db.drop(cols_to_remove, axis=1)
+        self.db = self.db.apply(pd.to_numeric, errors = 'coerce')
+        self.filters['EFC_MODEL'] = True
+
+
+    def gather_efc_record_data(self) -> dict:
+        # Create a dictionary, mapping signatures to tuples of all matching revs
+        self.db['TIMESTAMP'] = pd.to_datetime(self.db['TIMESTAMP'], format="%m/%d/%Y, %H:%M:%S")
+        sig = {k:list() for k in self.db['SIGNATURE'].unique()}
+        for i, r in self.db.iterrows():
+            s = r['SIGNATURE']
+            sig[s].append((r['TIMESTAMP'], r['TOTAL'], r['POSITIVES'], r['SEC_SPENT']))
+        return sig
+
+
     def rename_signature(self, old_signature, new_signature):
         self.db = self.db.replace(old_signature, new_signature)
-        self.db.to_csv(REV_DB_PATH, encoding='utf-8', sep=';', index=False)
+        self.db.to_csv(self.config['db_path'], encoding='utf-8', sep=';', index=False)
         
 
     def get_unique_signatures(self):
@@ -240,7 +307,6 @@ class db_interface():
         for l in lngs:
             l_df = self.db.loc[self.db.iloc[:, 1].str.contains(l)]
             res = res.append(l_df, ignore_index=True, sort=False)
-        
         return res
 
 

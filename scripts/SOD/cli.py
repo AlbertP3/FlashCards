@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from itertools import islice
+from itertools import islice, takewhile
 import re
 from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
@@ -93,6 +93,10 @@ class CLI():
 
 
     def insert_manual(self, parsed_cmd):
+        if parsed_cmd.count('$') == 2:
+            self.insert_manual_oneline(parsed_cmd)
+            return
+
         if not self.MANUAL_MODE:
             self.cls()
             self.set_output_prompt('Phrase: ')
@@ -118,6 +122,16 @@ class CLI():
             self.cls(self.SAVE_ABORTED)
         self.MANUAL_MODE = False
         self.set_output_prompt(self.PHRASE_PROMPT)
+
+
+    def insert_manual_oneline(self, parsed_cmd):
+        # if 2 delimiter signs are provided, treat the input
+        # as a complete card.
+        delim_index = parsed_cmd.index('$', 2)
+        self.phrase = ' '.join(parsed_cmd[1:delim_index])
+        self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
+        if self.phrase and self.transl:
+            self.save_to_db(self.phrase, [self.transl])
 
 
     def handle_single_entry(self, phrase):
@@ -369,12 +383,14 @@ class CLI():
 
     def res_edit_parse(self, parsed_cmd):
         if self.MODIFY_RES_EDIT_MODE[0] == 'm':
-            self.phrase = ' '.join(parsed_cmd)
+            c = self.output.console.toPlainText()
+            e_index = c.rfind(': ') + 2
+            self.phrase = c[e_index:]
         elif self.MODIFY_RES_EDIT_MODE[0] == 'a':
             self.res_edit.append(' '.join(parsed_cmd))
         elif self.MODIFY_RES_EDIT_MODE[0] == 'e':
             c = self.output.console.toPlainText()
-            e_index = c.rfind(' | ') + 3
+            e_index = c.rfind(': ') + 2
             self.res_edit.append(c[e_index:])
 
 
@@ -386,9 +402,9 @@ class CLI():
 
 
     def res_edit_set_prompt(self, r):
-        if r[0] == 'm': new_prompt = f'Modify: {self.phrase} | '
+        if r[0] == 'm': new_prompt = f'Modify: {self.phrase}' 
         elif r[0] == 'a': new_prompt = f'Add: '
-        elif r[0] == 'e': new_prompt = f'Edit:{str(r)[1:]} | {self.translations[int(r[1:])-1]}'
+        elif r[0] == 'e': new_prompt = f'Edit: {self.translations[int(r[1:])-1]}'
         else: new_prompt = self.PHRASE_PROMPT
         self.set_output_prompt(new_prompt)
 

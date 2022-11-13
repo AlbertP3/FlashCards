@@ -39,7 +39,7 @@ class summary_generator():
 
 
     def get_summary_text(self):
-            if self.last_positives in [0, None]:
+            if self.last_positives in {0, None}:
                 # revision not in DB
                 progress = self.__get_summary_first_rev()
             elif self.diff_to_record < 0:

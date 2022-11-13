@@ -2,9 +2,14 @@ from numpy import append
 from utils import *
 from random import shuffle
 import db_api
-from SOD.init import sod_spawn
-import time
 from operator import methodcaller
+
+# Optional modules
+try: from SOD.init import sod_spawn
+except ModuleNotFoundError: pass
+try: from EMO.init import emo_spawn
+except ModuleNotFoundError: pass
+
 
 
 
@@ -35,6 +40,7 @@ class fcc():
                     'pcc':'Pull Current Card - load the origin file and updates the currently displayed card',
                     'sfs':'Set Font Size - sets font for current card and returns info on width, height and text len',
                     'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
+                    'emo':'EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs',
                     'rgd':'Reset Geometry Defaults',
                     }
 
@@ -198,6 +204,10 @@ class fcc():
     
     def cfm(self, parsed_cmd):
         # Create Flashcards from Mistakes list
+
+        if self.mw.cards_seen == 0:
+            self.post_fcc('Unable to save an empty file')
+            return
 
         # Parse args - select path[rev/lng] and mode[append/write]
         mode = 'w' if 'w' in parsed_cmd[1:] else 'a'
@@ -433,5 +443,15 @@ class fcc():
 
     def sod(self, parsed_cmd:list):
         # Scrape Online Dictionaries
-        self.sod_object = sod_spawn(adapter='fcc', stream_out=self)
+        try:
+            self.sod_object = sod_spawn(adapter='fcc', stream_out=self)
+        except NameError:
+            self.post_fcc("SOD module is not installed")
 
+
+    def emo(self, parsed_cmd:list):
+        # EFC Model Optimizer
+        try:
+            self.emo_object = emo_spawn(stream_out=self)
+        except NameError:
+            self.post_fcc("EMO module is not installed")

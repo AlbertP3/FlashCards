@@ -158,8 +158,11 @@ class main_window_logic():
             self.signature = override_signature
 
         self.config.update({'onload_file_path': file_path})
+        self.reset_flashcards_parameters()
+        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
 
-        # reset flashcards parameters
+
+    def reset_flashcards_parameters(self):
         self.current_index = 0
         self.cards_seen = 0
         self.positives = 0
@@ -174,17 +177,24 @@ class main_window_logic():
         self.TIMER_KILLED_FLAG = False
         self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
         self.auto_cfm_offset = 0
-        self.change_revmode()
+        self.change_revmode(self.is_revision)
         
-        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
-
 
     def save_to_mistakes_list(self):
+        # auto_cfm_offset - avoid duplicating cards on multiple saves of the same dataset
         reversed_mistakes_list = [[x[1], x[0]] for x in self.mistakes_list]
         mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.dataset.columns[::-1])
         lng = get_lng_from_signature(self.signature).upper()
+
         full_path = self.config['lngs_path'] + lng + '_mistakes.csv'
-        mistakes_list.iloc[self.auto_cfm_offset:].to_csv(full_path, index=False, mode='a', header=False)
+        try:
+            buffer = load_dataset(full_path, do_shuffle=False)
+        except FileNotFoundError:
+            buffer = pd.DataFrame()
+        buffer = buffer.append(mistakes_list.iloc[self.auto_cfm_offset:], ignore_index=True)
+        overflow = int(self.config['mistakes_buffer'])
+        buffer.iloc[-overflow:].to_csv(full_path, index=False, mode='w', header=True)
+
         m_cnt = mistakes_list.shape[0] - self.auto_cfm_offset
         self.post_logic(f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes List')
         self.auto_cfm_offset = mistakes_list.shape[0]
@@ -201,6 +211,7 @@ class main_window_logic():
 
 
     def get_rating_message(self):
+        self.dbapi.refresh()
         last_positives = self.dbapi.get_last_positives(self.signature, req_pos=True)
         max_positives = self.dbapi.get_max_positives_count(self.signature)
         last_time_spent = self.dbapi.get_last_time_spent(self.signature, req_pos=True)

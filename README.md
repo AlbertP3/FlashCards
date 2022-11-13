@@ -84,19 +84,16 @@ All the commands are run via in-build console opened by pressing the 'c' key. Pr
 <li>NEW FEATURES</li>
 <li>Add LICENSE</li>
 <li>paced-repetition - specific time for each card</li>
-<li>EFC optimizer - ML based?</li>
 <br>
 <ol
 <li>FIXES AND UPGRADES</li>
-<li>SOD - make it easily detachable to a terminal (adapters, abstraction, ...)</li>
 </ol>
 <br>
 <ol>
 <li>OPTIMIZATION</li>
-<li>performance overhead - If word is a duplicate - show result from DB and only then prompt for online search</li>
-<li>change rev_db format to something faster - feather</li>
-<li>make saving to a file into a separate thread</li>
 </ol>
+<!--<li>EFC optimizer - ML based?</li>-->
+<!--<li>Change fcc confirmation key to CR</li>-->
 <!--<li>percentages on the chart instead of values</li>-->
 <!--<li>Save window sizes to config</li>-->
 <!--<li>error when trying to load stats for non-existing file</li>-->

@@ -1,64 +1,78 @@
-from PyQt5.QtCore import QTimer
 from utils import *
+import db_api
 
 
-
-class rev_timer:
+class Timespent_BE:
 
     def __init__(self):
-        pass
+        self.config = Config()
 
 
-    def initiate_timer(self):
-        self.seconds_spent = 0
-        self.TIMER_RUNNING_FLAG = False
-        self.timer=QTimer()
-        self.timer.timeout.connect(self.append_seconds_spent)
+    def get_timespent_printout(self, last_n, interval):
+        data = self._get_data_for_timespent(last_n, interval)
+        printout = self._format_timespent_data(data)
+        return printout
 
 
-    def start_timer(self):
-        if not self.TIMER_KILLED_FLAG:
-            self.timer.start(1000)
-            self.TIMER_RUNNING_FLAG = True
-    
+    def _get_data_for_timespent(self, last_n, interval):
+            db_interface = db_api.db_interface()
+            db_interface.refresh()
+            lngs = [l.upper() for l in self.config['languages']]
+            db = db_interface.get_filtered_by_lng(lngs)
 
-    def resume_timer(self):
-        if self.conditions_to_resume_timer_are_met():
-            self.start_timer()
+            date_format_dict = {
+                'm': '%m/%Y',
+                'd': '%d/%m/%Y',
+                'y': '%Y',
+            } 
+            date_format = date_format_dict[interval]
+            db['TIMESTAMP'] = pd.to_datetime(db['TIMESTAMP']).dt.strftime(date_format)
+
+            # create column with time for each lng in config
+            grand_total_time = list()
+            for l in lngs:  
+                db[l] = db.loc[db.iloc[:, 1].str.contains(l)]['SEC_SPENT']
+                grand_total_time.append(db[l].sum())
+
+            # group by selected interval - removes SIGNATURE
+            db = db.groupby(db['TIMESTAMP'], as_index=False, sort=False).sum()
+            
+            # cut db
+            db = db.iloc[-last_n:, :]
+            try:
+                db = db.loc[db.iloc[:, 4] != 0]
+            except IndexError:
+                self.post_fcc(f'DATE  {"  ".join([l.upper() for l in lngs])}{"  TOTAL" if len(lngs)>1 else ""}')
+                return
+
+            # format dates in time-containing columns
+            visible_total_time = list()
+            for l in lngs:
+                visible_total_time.append(db[l].sum())
+                db[l] = db[l].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
+            db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
+
+            self.visible_total_time = visible_total_time
+            self.grand_total_time = grand_total_time
+            return db
+            
+
+    def _format_timespent_data(self, db) -> str:
+            lngs = [l.upper() for l in self.config['languages']]
+            if len(lngs) > 1:
+                res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
+                self.visible_total_time.append(sum(self.visible_total_time))
+                self.grand_total_time.append(sum(self.grand_total_time))
+            else:
+                res = db.to_string(index=False, columns=['TIMESTAMP']+lngs, header=['DATE']+['TOTAL'])
+
+            # add row for Grand Total
+            self.visible_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in self.visible_total_time]
+            self.grand_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in self.grand_total_time]
+            res += '\n' + '-'*len(res.split('\n')[1])
+            res += '\n∑        ' + '  '.join(self.visible_total_time)
+            res += '\nTOTAL    ' + '  '.join(self.grand_total_time)
+            return res
 
 
-    def conditions_to_resume_timer_are_met(self):
-        if self.seconds_spent != 0 \
-            and self.is_saved is False \
-            and self.side_window_id == 'main':
-        self.timer.stop()
-        self.TIMER_RUNNING_FLAG = False
-        if not self.do_show_timer:
-            self.timer_button.setText('⏹')
-
-
-    def reset_timer(self, clear_indicator=True):
-        self.timer.stop()
-        self.seconds_spent = 0
-        self.TIMER_RUNNING_FLAG = False
-        if clear_indicator:
-            self.timer_button.setText('⏲')
-
-
-    def kill_timer(self):
-        self.stop_timer()
-        self.TIMER_KILLED_FLAG = True
-   
-
-    def append_seconds_spent(self):
-        self.seconds_spent+=1
-        if self.do_show_timer:
-            interval = 'minute' if self.seconds_spent < 3600 else 'hour'
-            self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
-        else:
-            self.timer_button.setText('⏲')
-
-
-    def get_seconds_spent(self):
-        return self.seconds_spent
 

@@ -38,6 +38,7 @@ class dict_pons(template_dict):
         self.re_patterns = OrderedDict([
             (r'\[(((or )?AM)|lub|perf|inf).*\]' , ' '),
             (r'( |\()+(f?pl|fig|m|\(?f\)?|nt|mpl|imperf)([^a-zA-Z0-9\(/]+|$)' , ' '),
+            (r'(ELEC)', ''),
             (r' ( |$)', ''),
             (r' /', '/')
         ])

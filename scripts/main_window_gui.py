@@ -38,16 +38,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.C_MG = 5  # Content Margin
         self.LEFT = 10
         self.TOP = 10
-        self.DEFAULT_WIDTH = int(self.config['default_width'])
-        self.DEFAULT_HEIGHT = int(self.config['default_height'])
-        self.TEXTBOX_HEIGHT = int(self.config['textbox_height'])
-        self.BUTTONS_HEIGHT = int(self.config['buttons_height'])
-        self.prev_width = self.DEFAULT_WIDTH
-        self.prev_height = self.DEFAULT_HEIGHT
+        self.TEXTBOX_HEIGHT = int(self.config['THEME']['textbox_height'])
+        self.BUTTONS_HEIGHT = int(self.config['THEME']['buttons_height'])
 
         # Set Window Parameters
         self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '/icon.ico'))
-        self.setGeometry(self.LEFT, self.TOP, self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT)
+        self.set_geometry(self.config['GEOMETRY']['main']) 
 
         # Initialize
         self.used_keybindings = set()
@@ -62,7 +58,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         # create dict[window_id][nagivation]=dummy_function
         # for managing keybindings calls dependent on context of the current side_window
         self.nav_mapping = dict()
-        sw_ids = {'main','load','efc','config','fcc','mistakes','stats','progress'}
+        sw_ids = {'main','load','efc','config','fcc','mistakes','stats','progress','timer'}
         for id in sw_ids:
             self.nav_mapping[id] = {k: lambda:'' for k in self.config['KEYBOARD_SHORTCUTS'].keys()} 
 
@@ -74,16 +70,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.setLayout(self.layout)
         # left, top, right, bottom
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
-        self.FONT = self.config['font']
-        self.FONT_BUTTON_SIZE = int(self.config['font_button_size'])
-        self.FONT_TEXTBOX_SIZE = int(self.config['font_textbox_size'])
+        self.FONT = self.config['THEME']['font']
+        self.FONT_BUTTON_SIZE = int(self.config['THEME']['font_button_size'])
+        self.FONT_TEXTBOX_SIZE = int(self.config['THEME']['font_textbox_size'])
         self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
         self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
 
         # Organize Layout
-        self.setStyleSheet(self.config['main_style_sheet'])
-        self.textbox_stylesheet = self.config['textbox_style_sheet']
-        self.button_style_sheet = self.config['button_style_sheet']
+        self.setStyleSheet(self.config['THEME']['main_style_sheet'])
+        self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
+        self.button_style_sheet = self.config['THEME']['button_style_sheet']
 
         self.layout_first_row = widget.QGridLayout()
         self.layout_second_row = widget.QGridLayout()
@@ -179,6 +175,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_save_button(self):
+        if self.cards_seen == 0:
+            self.post_logic('Unable to save an empty file')
+            return
+
         if self.is_revision:
            self.save_to_mistakes_list()
         else:
@@ -208,6 +208,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.update_backend_parameters(self.file_path, dataset)
         self.update_interface_parameters()
+        self.change_revmode(self.is_revision)
         self.reset_timer()
         self.start_file_update_timer()
 
@@ -297,7 +298,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def handle_revision_complete(self):
-
         if self.positives + self.negatives == self.total_words:
             self.revision_summary = self.get_rating_message()
             self.display_text(self.revision_summary)
@@ -367,6 +367,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def open_side_window(self, layout, name, extra_width):
+        self.config['GEOMETRY']['main'] = self.get_geometry()
         if 'side_by_side' in self.config['optional']:
             self.open_side_by_side(layout, name, extra_width)
         else:
@@ -412,7 +413,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def open_side_by_side(self, layout, name, extra_width):
         if self.side_window_id != name:
             if self.side_window_id != 'main': self.del_side_window_side_by_side()
-            else: self.update_width_and_height()
             self.add_window_to_side(layout, name, extra_width)
         else:
             self.del_side_window_side_by_side()
@@ -421,7 +421,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def add_window_to_side(self, layout, name, extra_width):
         self.side_window_layout = layout
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.prev_width+extra_width)
+        self.setFixedWidth(self.config['GEOMETRY']['main'][2]+extra_width)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
         self.side_window_id = name
@@ -433,10 +433,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def reset_window_size(self):
-        self.setFixedWidth(self.prev_width)
+        self.setFixedWidth(self.config['GEOMETRY']['main'][2])
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-        self.setFixedHeight(self.prev_height)
+        self.setFixedHeight(self.config['GEOMETRY']['main'][3])
         self.setMinimumHeight(0)
         self.setMaximumHeight(widget.QWIDGETSIZE_MAX)
 
@@ -464,6 +464,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if event.key() == Qt.Key_Escape:
             if self.side_window_id != 'main':
                 self.del_side_window()
+        elif event.key() == Qt.Key_Return:
+            self.nav_mapping[self.side_window_id]['run_command']()
 
 
     def center_window(self):
@@ -504,12 +506,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def excepthook(self, exc_type, exc_value, exc_tb):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
         self.notify_on_error(err_traceback, exc_value)
-
-
-    def update_width_and_height(self):
-        self.prev_width = self.frameGeometry().width()
-        # window changes height by 37 with every side window close. Why?
-        self.prev_height = self.frameGeometry().height()-37
 
 
     def get_geometry(self) -> tuple[int,int,int,int]:
@@ -573,12 +569,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.timer_prev_text = '⏲'
         self.timer=QTimer()
         self.timer.timeout.connect(self.append_seconds_spent)
-        self.create_timer_button()
 
-    def create_timer_button(self):
-        self.timer_button = self.create_button('⏲', self.show_timespent_sidewindow)
-        self.add_shortcut('timespent', self.show_timespent_sidewindow)
-        self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
 
     def start_timer(self):
         self.timer.start(1000)
@@ -623,14 +614,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             interval = 'minute' if self.seconds_spent < 3600 else 'hour'
             self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
-
-
-    def show_timespent_sidewindow(self):
-        # displays time spent table utilizing FCC interface
-        timespent_sidewindow_width = len(self.config['languages'])*120
-        self.get_fcc_sidewindow(width_=timespent_sidewindow_width, incognito=True)
-        self.fcc_inst.cls()
-        self.fcc_inst.execute_command(['tts', '12', 'm'], followup_prompt=False)
 
 
     # default methods overrides
