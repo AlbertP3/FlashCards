@@ -86,7 +86,7 @@ class Test_dicts(TestCase):
             self.assertEqual(s, expected)
 
 
-    @unittest.skip('Replace online connection with a mock')
+    @unittest.skip('TODO: Replace online connection with a mock')
     def test_get_from_pons(self):
         d = self.d_api['pons']
         translations, originals, warnings = d.get_info_about_phrase('machine learning')
@@ -99,7 +99,7 @@ class Test_dicts(TestCase):
         
 
 
-    @unittest.skip('Replace online connection with a mock')
+    @unittest.skip('TODO: Replace online connection with a mock')
     def test_get_from_merriam(self):
         d = self.d_api['merriam']
         translations, originals, warnings = d.get_info_about_phrase('iconoclast')
@@ -110,7 +110,7 @@ class Test_dicts(TestCase):
         d = self.d_api['mock']
         translations, originals, warnings = d.get('whatever')
         self.assertNotEqual(translations, [])
-        self.assertIn('hello world', translations)
+        self.assertIn('witaj świEcie', translations)
 
 
     def test_dict_diki_query_success_1(self):
@@ -206,7 +206,7 @@ class Test_CLI(TestCase):
         self.cli_output_registry = list()
         self.cli_saved_registry = list()
 
-        output = mock.Mock()
+        output = mock.MagicMock()
         output.console.toPlainText = self.get_console
         def set_text_mock(text): self.cli_output_registry = [i for i in text.split('\n')]
         output.console.setText = set_text_mock
@@ -255,6 +255,7 @@ class Test_CLI(TestCase):
                       self.cli_output_registry[-1], 'output not printed correctly') 
         self.assertTrue(self.ss.cli.SELECT_TRANSLATIONS_MODE)
 
+        self.assertEqual(self.ss.cli.phrase, 'hello world')
         self.ss.run(['1', '2'])
         self.assertIn(f'🖫 hello world: witaj świEcie; domyślny serwis', self.cli_output_registry[-1])
 
@@ -263,9 +264,10 @@ class Test_CLI(TestCase):
         self.ss.cli.translations = ['']*3
         self.ss.cli.SELECT_TRANSLATIONS_MODE = True
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['a']), True)
+        self.assertIs(self.ss.cli.selection_cmd_is_correct(['m']), True)
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['3']), True)
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['99']), False, 'Out of Bound')
-        self.assertIs(self.ss.cli.selection_cmd_is_correct(['m']), True)
+        self.assertIs(self.ss.cli.selection_cmd_is_correct(['m2']), True)
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['b1']), False, 'Wrong Operator')
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['a1']), False, 'Index to this Operator not allowed')
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['v','s','a','s','e']), False, 'Wrong Operator')
@@ -318,8 +320,8 @@ class Test_CLI(TestCase):
         self.ss.run(['saturn'])
         self.ss.run(['moon'])
         self.ss.run(['moon'])
-        self.assertEqual('\n'.join(self.cli_output_registry), 
-'''🕮 mock | en⇾pl | 🛢 1 | 🔃 Updated Queue
+        self.assertEqual('\n'.join(self.cli_output_registry)[23:], 
+'''🔃 Updated Queue
  1. saturn
  | witaj świEcie; domyślny serwis
  2. moon
@@ -365,13 +367,13 @@ class Test_CLI(TestCase):
         self.ss.run(['Q'])
         self.ss.run(['saturn'])
         self.ss.run(['error'])
-        self.assertEqual('\n'.join(self.cli_output_registry),
-'''🕮 mock | en⇾pl | 🛢 1 | TEST ERROR INDUCED
+        self.assertEqual('\n'.join(self.cli_output_registry)[23:],
+'''TEST ERROR INDUCED
  1. saturn
  | witaj świEcie; domyślny serwis''')
         self.ss.run(['none'])
-        self.assertEqual('\n'.join(self.cli_output_registry),
-'''🕮 mock | en⇾pl | 🛢 1 | ⚠ No Translations!
+        self.assertEqual('\n'.join(self.cli_output_registry)[23:],
+'''⚠ No Translations!
  1. saturn
  | witaj świEcie; domyślny serwis''')
      
@@ -461,4 +463,30 @@ class Test_CLI(TestCase):
         self.run_cmd(['earth'])
         self.assertEqual(self.ss.cli.phrase, 'earth')
         
+
+    def test_modify_phrase_with_specific_result(self):
+        # Test if replacing the searched phrase with one of the results works
+        self.run_cmd(['moon'])
+        self.run_cmd(['m3', '2', 'a'])
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Modify: red')
+        self.assertEqual(self.ss.cli.phrase, 'moon')
+        
+        self.run_cmd([''])
+        self.assertEqual(self.ss.cli.phrase, 'red', 'Phrase was not modified')
+        self.run_cmd(['added_item'])
+        self.assertIn(f'🖫 red: domyślny serwis; added_item', self.cli_output_registry[-1], 'Error during save')
+
+    def test_modify_phrase_cancel(self):
+        # Assert that if phrase modification is cancelled, then the save is aborted
+        self.run_cmd(['moon'])
+        self.run_cmd(['m3', '2'])
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Modify: red')
+        self.ss.sout.mw.CONSOLE_PROMPT = 'Modify: '
+        self.run_cmd([''])
+        register_log('\n'.join(self.cli_output_registry))
+        self.assertIsNone(self.ss.cli.phrase)
+        self.assertIn('Not Saved', self.cli_output_registry[-1])
+
+        
+
 

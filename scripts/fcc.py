@@ -21,6 +21,7 @@ class fcc():
         self.config = Config()
         self.console = self.mw.console
         self.DOCS = {
+                    'help':'Gets Help',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
@@ -135,7 +136,7 @@ class fcc():
                 self.mw.negatives+=1
                 self.post_fcc('Score modified to negative.')
       
-            self.refresh_interface()
+            self.mw.update_score_button() 
 
 
     def dcc(self, parsed_cmd):
@@ -253,8 +254,11 @@ class fcc():
         efc_obj = efc()
         efc_obj.refresh_source_data()
         reccommendations = efc_obj.get_complete_efc_table()
-        efc_table_printout = efc_obj.get_efc_table_printout(reccommendations)
-
+        if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
+            lim = int(parsed_cmd[1])
+        else:
+            lim = None
+        efc_table_printout = efc_obj.get_efc_table_printout(reccommendations, lim)
         self.post_fcc(efc_table_printout)
         
 
@@ -318,6 +322,7 @@ class fcc():
 
     def sah(self, parsed_cmd):
         # Show All (languages) History chart
+        self.mw.del_side_window()
         self.mw.get_progress_sidewindow(override_lng_gist=True)  
         self.post_fcc('Showing Progress Chart for all languages')
 
@@ -434,9 +439,9 @@ class fcc():
             for w in self.config['GEOMETRY']:
                 self.config['GEOMETRY'][w] = self.config['GEOMETRY']['default']
             self.post_fcc("All windows were resized to default")
-        elif parsed_cmd[1] in self.config['GEOMETRY'].keys():
-            self.config['GEOMETRY'][parsed_cmd[1]] = self.config['GEOMETRY']['default']
-            self.post_fcc(f"{parsed_cmd[1]} was resized to default")
+        elif parsed_cmd[1].lower() in self.config['GEOMETRY'].keys():
+            self.config['GEOMETRY'][parsed_cmd[1].lower()] = self.config['GEOMETRY']['default']
+            self.post_fcc(f"{parsed_cmd[1].lower()} window was resized to default")
         else:
             self.post_fcc('Specified window does not exist. See config to list of available windows')
 

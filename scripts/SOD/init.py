@@ -18,11 +18,16 @@ class sod_spawn:
         self.cli.cls()
         self.sout.mw.CONSOLE_PROMPT = self.cli.PHRASE_PROMPT
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
-        self.sout.mw.setWindowTitle('Search Online Dictionaries')
+        self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
+        self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
 
 
 # ======================= ADAPTER: FCC =======================
     def adapt_to_fcc(self):
+        self.HISTORY:str = self.sout.mw.console.toPlainText()
+        self.CMD_HISTORY:list = self.sout.mw.CMDS_LOG
+        self.sout.mw.CMDS_LOG = ['']
+        self.prev_window_title = self.sout.mw.side_window_titles['fcc']
         self.orig_post_method = self.sout.post_fcc
         self.orig_execute_method = self.sout.execute_command
         self.sout.post_fcc = self.monkey_patch_post_fcc
@@ -32,17 +37,21 @@ class sod_spawn:
     def monkey_patch_post_fcc(self, msg):
         if msg != self.sout.mw.CONSOLE_PROMPT:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
+            self.HISTORY+='\n'+msg
 
     def monkey_patch_execute_command_fcc(self, parsed_input:list, followup_prompt:bool=True):
-        if parsed_input[0] not in self.sout.DOCS.keys():
-            self.run(parsed_input)
+        if parsed_input[0] == 'cls':
+            self.cli.cls()
         else:
-            self.sout.console.setText('Command not allowed in SOD mode!')
+            self.run(parsed_input)
         if followup_prompt: self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
 
     def remove_adapter_fcc(self):
         self.sout.post_fcc = self.orig_post_method
+        self.sout.mw.side_window_titles['fcc'] = self.prev_window_title
         self.sout.execute_command = self.orig_execute_method
+        self.sout.mw.console.setText(self.HISTORY)
+        self.sout.mw.CMDS_LOG = self.CMD_HISTORY
 
 
 # ======================= ADAPTER: TERMINAL - WORK IN PROGRESS =======================
@@ -85,7 +94,7 @@ class sod_spawn:
                 self.sout.cls()
                 self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
                 self.cli.close_wb()
-                self.sout.mw.setWindowTitle(self.sout.mw.window_title)
+                self.sout.mw.setWindowTitle(self.prev_window_title)
                 self.remove_adapter()
                 del self
         else:

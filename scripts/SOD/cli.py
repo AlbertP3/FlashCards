@@ -10,7 +10,7 @@ class CLI():
     def __init__(self, output, wb_path, ws_sheet_name) -> None:
         self.config = Config()
         self.PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
-        self.PHRASE_PROMPT = 'Enter a phrase: '
+        self.PHRASE_PROMPT = 'Search: '
         self.SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
         self.NO_TRANSLATIONS = '⚠ No Translations!'
         self.WRONG_EDIT = '⚠ Wrong Edit!'
@@ -40,8 +40,9 @@ class CLI():
         self.QUEUE_SELECTION_MODE = False
 
 
-    def set_output_prompt(self, t):
+    def set_output_prompt(self, t, aval_lefts=0):
         self.output.mw.CONSOLE_PROMPT = t
+        self.output.mw.aval_lefts = aval_lefts
 
 
     def send_output(self, text:str):
@@ -284,8 +285,8 @@ class CLI():
         
 
     def save_to_db(self, phrase:str, translations:list):
-        translations:str= '; '.join(translations)
-        if len(translations) > 0:
+        translations:str= '; '.join([t for t in translations if t])
+        if len(translations) > 0 and self.phrase:
             # match columns order in the target file
             if self.config['sod_source_lng']==self.config['native_lng']:
                 phrase, translations = translations, phrase
@@ -369,7 +370,7 @@ class CLI():
 
     def selection_cmd_is_correct(self, parsed_cmd):
         result = True
-        pattern = re.compile(r'^(\d+|e\d+|[am])$')
+        pattern = re.compile(r'^(\d+|e\d+|a|m\d*)$')
         lim = len(self.translations)
         if (self.SELECT_TRANSLATIONS_MODE and str(self.MODIFY_RES_EDIT_MODE)[0] not in 'ea') \
             and not self.QUEUE_SELECTION_MODE:
@@ -395,18 +396,27 @@ class CLI():
 
 
     def safe_get(self, iterable, i, default=None):
-        if i < len(iterable):
+        try:
             return iterable[i]
-        else:
+        except:
             return default
 
 
     def res_edit_set_prompt(self, r):
-        if r[0] == 'm': new_prompt = f'Modify: {self.phrase}' 
-        elif r[0] == 'a': new_prompt = f'Add: '
-        elif r[0] == 'e': new_prompt = f'Edit: {self.translations[int(r[1:])-1]}'
-        else: new_prompt = self.PHRASE_PROMPT
-        self.set_output_prompt(new_prompt)
+        if r[0] == 'm':
+            phrase = self.originals[int(r[1:])-1] if len(r)>1 else self.phrase
+            new_prompt = f'Modify: {phrase}' 
+            aval_lefts = len(phrase)
+        elif r[0] == 'a':
+            new_prompt = f'Add: '
+            aval_lefts = 0
+        elif r[0] == 'e':
+            new_prompt = f'Edit: {self.translations[int(r[1:])-1]}'
+            aval_lefts = len(self.translations[int(r[1:])-1])
+        else: 
+            new_prompt = self.PHRASE_PROMPT
+            aval_lefts = 0
+        self.set_output_prompt(new_prompt, aval_lefts)
 
 
     def cls(self, msg=None, keep_content=False, keep_cmd=False):
@@ -434,14 +444,25 @@ class CLI():
 
 
     def show_help(self):
+        available_dicts = '\n    '.join([f'{i+1}. {v}' for i, v in enumerate(self.d_api.get_available_dicts())])
         msg = f'''
-                    Welcome to Search Online Dictionaries v1.0
--------------------------------------------------------------------
-X - look for phrase | dict X - set dict to X | $ - manual input |
-Q - enter queue mode
-search results modification: prepend with 'e' to edit; 'm' to modify
-phrase; 'a' to add new translation; empty to abort
-Available dicts: {self.d_api.get_available_dicts()}'''
+Commands:
+    1. dict <DICT_NAME>             --> change dictionary 
+    2. $ <PHRASE> $ <MEANING>       --> manual input
+    3. Q                            --> enter Queue mode
+    4. <SRC_LNG_ID> *<TGT_LNG_ID>   --> change source/target language           
+    5. <blank>                      --> exit SOD or finish the Queue mode
+
+Search results modification:
+    1. e<N>     --> edit the N-th translation
+    2. m*<N>    --> modify searched phrase
+    3. a        --> add a new translation
+    4. <blank>  --> abort
+
+Available dicts:
+    {available_dicts}
+    '''
+
         self.send_output(msg)
 
 

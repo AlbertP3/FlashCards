@@ -72,13 +72,14 @@ class db_interface():
         self.filters['EFC_MODEL'] = True
 
 
-    def add_efc_metrics(self):
+    def add_efc_metrics(self, fill_timespent=False):
         # expands db with efc metrics and returns a dict consisting of per signature data
         self.db['TIMESTAMP'] = pd.to_datetime(self.db['TIMESTAMP'], format="%m/%d/%Y, %H:%M:%S")
 
         sig = {k:list() for k in self.db['SIGNATURE'].unique()}
         initial_reps = int(config['initial_repetitions'])
-        avg_wpsec = self.db['TOTAL'].sum() / self.db.loc[self.db['SEC_SPENT'] > 0]['SEC_SPENT'].sum()
+        if fill_timespent: avg_wpsec = self.db['TOTAL'].sum() / self.db.loc[self.db['SEC_SPENT'] > 0]['SEC_SPENT'].sum()
+        else: avg_wpsec = 0
         rows_to_del = list()
         self.db['PREV_WPM'] = 0
         self.db['TIMEDELTA_SINCE_CREATION'] = 0
@@ -89,15 +90,19 @@ class db_interface():
 
         for i, r in self.db.iterrows():
             s = r['SIGNATURE']
+            # Tackle missing sec_spent
             if int(r['SEC_SPENT']) == 0: 
-                self.db.loc[i, 'SEC_SPENT'] = int(int(r['TOTAL'] / avg_wpsec))
-                r['SEC_SPENT'] = int(int(r['TOTAL'] / avg_wpsec))
-                
+                if fill_timespent:
+                    self.db.loc[i, 'SEC_SPENT'] = int(int(r['TOTAL'] / avg_wpsec))
+                    r['SEC_SPENT'] = int(int(r['TOTAL'] / avg_wpsec))
+                else:
+                    rows_to_del.append(i)
+                    continue
+            # Skip initial repetitions
             sig[s].append((r['TIMESTAMP'], r['TOTAL'], r['POSITIVES'], r['SEC_SPENT']))
             if len(sig[s]) <= initial_reps:
                 rows_to_del.append(i)
                 continue
-
             # '-2' denotes previous revision
             self.db.loc[i, 'PREV_WPM'] = 60*sig[s][-2][1]/sig[s][-2][3]
             self.db.loc[i, 'CUM_CNT_REVS'] = len(sig[s])
@@ -138,7 +143,7 @@ class db_interface():
 
     def get_sum_repeated(self, signature=None):
         repeated_times = self.get_filtered_db_if('SIGNATURE', signature)
-        repeated_times = repeated_times.count()[0]
+        repeated_times = repeated_times.count()[0]-1
         repeated_times = 0 if repeated_times is None else repeated_times
         return repeated_times
     

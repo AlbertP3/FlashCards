@@ -10,6 +10,9 @@ class emo_spawn:
         self.config = Config()
         self.sout = stream_out
         self.cli = CLI(sout=self.sout)
+        self.HISTORY = self.sout.mw.console.toPlainText()
+        self.CMD_HISTORY:list = self.sout.mw.CMDS_LOG
+        self.sout.mw.CMDS_LOG = ['']
         self.cli.cls()
         self.adapt_to_fcc()
         self.cli.STEP_RUN_EMO = True
@@ -26,19 +29,22 @@ class emo_spawn:
     def _patch_post_fcc(self, msg):
         if msg != self.sout.mw.CONSOLE_PROMPT:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
+            self.HISTORY+='\n'+msg
 
 
     def _patch_execute_command(self, parsed_input:list, followup_prompt:bool=True):
-        if parsed_input[0] not in self.sout.DOCS.keys():
-            self.run(parsed_input)
+        if parsed_input[0] == 'cls':
+            self.cli.cls()
         else:
-            self.sout.console.setText('Command not allowed in EMO mode!')
+            self.run(parsed_input)
         if followup_prompt: self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
 
 
     def remove_adapter_fcc(self):
         self.sout.post_fcc = self.orig_post_method
         self.sout.execute_command = self.orig_execute_method
+        self.sout.mw.console.setText(self.HISTORY)
+        self.sout.mw.CMDS_LOG = self.CMD_HISTORY
 
 
     def _exit(self):

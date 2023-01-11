@@ -8,7 +8,8 @@ class main_window_logic():
 
     def __init__(self):
         self.config = Config()
-        self.dataset = None
+        self.dataset = pd.DataFrame()
+        self.update_default_side()
         self.default_side = self.get_default_side()
         self.side = self.default_side
         self.file_path = self.config['onload_file_path']
@@ -44,26 +45,22 @@ class main_window_logic():
             
 
     def append_current_card_to_mistakes_list(self):
-        self.mistakes_list.append([self.get_current_card()[self.default_side], 
-                                    self.get_current_card()[1-self.default_side]])
+        cc = self.get_current_card()
+        self.mistakes_list.append([cc[self.default_side], cc[1-self.default_side]])
         
 
     def goto_next_card(self):
-        diff_words = self.total_words - self.current_index - 1
-        if diff_words >= 0:
+        if self.total_words >= self.current_index + 1:
             self.side = self.get_default_side()
             self.append_current_index()
 
 
     def append_current_index(self):
         self.current_index += 1
-        self.track_cards_seen()
-
-
-    def track_cards_seen(self):
+        # Track cards seen
         if self.current_index > self.cards_seen:
             self.cards_seen = self.current_index
-
+        
 
     def decrease_current_index(self, value=1):
         if self.current_index >= value:
@@ -182,18 +179,19 @@ class main_window_logic():
 
     def save_to_mistakes_list(self):
         # auto_cfm_offset - avoid duplicating cards on multiple saves of the same dataset
-        reversed_mistakes_list = [[x[1], x[0]] for x in self.mistakes_list]
-        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.dataset.columns[::-1])
+        mistakes_list = pd.DataFrame([[x[1], x[0]] for x in self.mistakes_list], columns=self.dataset.columns[::-1])
+        register_log(mistakes_list)
         lng = get_lng_from_signature(self.signature).upper()
-
-        full_path = self.config['lngs_path'] + lng + '_mistakes.csv'
+        full_path = os.path.join(self.config['lngs_path'], f'{lng}_mistakes.csv')
         try:
-            buffer = load_dataset(full_path, do_shuffle=False)
+            buffer:pd.DataFrame = load_dataset(full_path, do_shuffle=False)
         except FileNotFoundError:
             buffer = pd.DataFrame()
-        buffer = buffer.append(mistakes_list.iloc[self.auto_cfm_offset:], ignore_index=True)
+        buffer = pd.concat([buffer, mistakes_list.iloc[self.auto_cfm_offset:]], ignore_index=True)
         overflow = int(self.config['mistakes_buffer'])
         buffer.iloc[-overflow:].to_csv(full_path, index=False, mode='w', header=True)
+        register_log('BUFFER')
+        register_log(buffer.iloc[-overflow:])
 
         m_cnt = mistakes_list.shape[0] - self.auto_cfm_offset
         self.post_logic(f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes List')
@@ -204,7 +202,6 @@ class main_window_logic():
         self.TEMP_FILE_FLAG = True
         self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
         self.update_interface_parameters()
-        self.reset_timer()
 
         # allow instant save of a rev created from mistakes_list
         self.cards_seen = mistakes_list.shape[0]-1
@@ -224,12 +221,14 @@ class main_window_logic():
         return progress
 
 
-    def get_default_side(self):
+    def update_default_side(self):
+        # substitute get_default_side() via a first-class function
         default_side = self.config['card_default_side']
         if default_side.isnumeric():
-            return int(default_side)
-        elif default_side.lower().startswith('rand'):
-            return randint(0,1) 
+            default_side = int(default_side)
+            self.get_default_side =  lambda: default_side
+        else:
+            self.get_default_side = lambda: randint(0,1) 
 
 
     def get_current_card(self):

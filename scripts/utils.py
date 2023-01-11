@@ -222,7 +222,7 @@ def format_timedelta(timedelta):
     if time_value.startswith('0'): 
         time_value = time_value[1:]
 
-    suffix = 's' if time_value not in {'1','1.0'} else ''
+    suffix = '' if time_value.startswith('1.') else 's'
             
     return f'{time_value} {interval}{suffix}'
 
@@ -367,7 +367,7 @@ def validate_setup():
     post_utils(operation_status)
 
 
-def get_pretty_print(list_, extra_indent=1, separator='') -> str:
+def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False) -> str:
     printout = '' 
     longest_elements = list()
 
@@ -381,31 +381,20 @@ def get_pretty_print(list_, extra_indent=1, separator='') -> str:
     separator[-1] = ''
 
 
+    # find longest element for each sub-list
     for k in range(len(list_[0])):
-        # find longest element for each sub-list
         longest_elements.append(max([len(str(item[k])) for item in list_]))
 
     for item in list_:
         line = ''
         for sub_index, sub_item in enumerate(item):
-            indentation = get_indentation(longest_elements[sub_index], len(str(sub_item)), extra_indent, separator[sub_index])
-            line+=f'{sub_item}{indentation}'
-        # remove trailing indentation and append newline
+            i = longest_elements[sub_index]+extra_indent
+            if not i % 2: i+=1
+            line+=f'{sub_item:^{i}}|'
+        if not keep_last_border: line=line[:-1] 
         printout += line + '\n'
     
-    return printout[:-2]
-
-
-def get_indentation(max_len, sub_item_len, extra_indent, separator):
-    indent_len = max_len - sub_item_len + 2*extra_indent
-
-    # if max_len is even: allows putting separator in the middle
-    if max_len % 2 == 0:
-        indent_len+=1
-
-    indent = [' ' for _ in range(indent_len)]
-    indent[-extra_indent-1] = separator
-    return ''.join(indent)
+    return printout[:-1]
 
 
 def format_seconds_to(total_seconds, interval, include_remainder=True, null_format=None, max_len=0):

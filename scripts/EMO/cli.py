@@ -71,7 +71,7 @@ class CLI():
             self.send_output(f'Not enough records in database: {len(self.dbapi.db)}/100. Exiting...')
             return False
 
-        self.prt_res(self.dbapi.add_efc_metrics, 'Creating metrics... ')
+        self.prt_res(self.dbapi.add_efc_metrics, 'Creating metrics... ', fill_timespent=True)
         self.prt_res(self.dbapi.remove_cols_for_efc_model, 'Dropping obsolete columns... ')
         return True
 

@@ -1,6 +1,7 @@
 import PyQt5.QtWidgets as widget
 from PyQt5.QtCore import Qt, QModelIndex
 from PyQt5 import QtGui
+from pandas.core.frame import console
 from utils import * 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -19,11 +20,16 @@ import themes
 class fcc_gui():
 
     def __init__(self):
+        self.side_window_titles['fcc'] = 'Console'
         self.DEFAULT_PS1 = '$~> '
         self.CONSOLE_FONT_SIZE = 12
         self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
         self.CONSOLE_LOG = None
+        self.CMDS_LOG = ['']
+        self.CMDS_CURSOR = 0
+        self.aval_lefts = 0
+        self.aval_rights = 0
         self.console = None
         self.incognito = False # if True: forget content added within cur session
 
@@ -61,18 +67,74 @@ class fcc_gui():
         
     def create_console(self):
         self.console = widget.QTextEdit(self)
-        self.console.keyPressEvent = self.accept_with_enter_fcc
+        self.console.keyPressEvent = self.cli_shortcuts
         self.console.setFont(self.CONSOLE_FONT)
         self.console.setStyleSheet(self.textbox_stylesheet)
         self.fcc_inst.update_console_id(self.console)
        
 
-    def accept_with_enter_fcc(self, event):
-        if event.key() == Qt.Key_Return:
-            self.nav_mapping[self.side_window_id]['run_command']()
-        else:
+    def cli_shortcuts(self, event):
+
+        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
+            self.fcc_inst.execute_command(['cls'])
+        elif event.key() < 10_000_000:
             widget.QTextEdit.keyPressEvent(self.console, event) 
-            
+            self.aval_lefts+=1
+        elif event.key() == Qt.Key_Return:
+            self.nav_mapping[self.side_window_id]['run_command']()
+        elif event.key() == Qt.Key_Up:
+            self.CMDS_CURSOR -= 1 if -self.CMDS_CURSOR < len(self.CMDS_LOG) else 0
+            self.update_console_cmds_nav()
+        elif event.key() == Qt.Key_Down:
+            self.CMDS_CURSOR += 1 if -self.CMDS_CURSOR > 0 else 0
+            self.update_console_cmds_nav()
+        elif event.key() == Qt.Key_Left:
+            if self.aval_lefts > 0:
+                cur_pos_prev = self.console.textCursor().position()
+                widget.QTextEdit.keyPressEvent(self.console, event) 
+                cur_pos_post = self.console.textCursor().position()
+                self.aval_lefts-=cur_pos_prev-cur_pos_post
+                self.aval_rights+=cur_pos_prev-cur_pos_post
+        elif event.key() == Qt.Key_Right:
+            if self.aval_rights>0:
+                cur_pos_prev = self.console.textCursor().position()
+                widget.QTextEdit.keyPressEvent(self.console, event) 
+                cur_pos_post = self.console.textCursor().position()
+                self.aval_lefts-=cur_pos_prev-cur_pos_post
+                self.aval_rights+=cur_pos_prev-cur_pos_post
+        elif event.key() == Qt.Key_Backspace:
+            if self.aval_lefts > 0:
+                cur_pos_prev = self.console.textCursor().position()
+                widget.QTextEdit.keyPressEvent(self.console, event) 
+                cur_pos_post = self.console.textCursor().position()
+                self.aval_lefts+=cur_pos_post-cur_pos_prev
+        elif event.key() == Qt.Key_Delete:
+            if self.aval_rights > 0:
+                cur_pos_prev = self.console.textCursor().position()
+                widget.QTextEdit.keyPressEvent(self.console, event) 
+                cur_pos_post = self.console.textCursor().position()
+                self.aval_rights-=cur_pos_post-cur_pos_prev
+        else: 
+            widget.QTextEdit.keyPressEvent(self.console, event) 
+            if event.key() < 10_000_000: self.aval_lefts+=1
+
+
+    def update_console_cmds_nav(self):
+        console_content = self.console.toPlainText().split('\n')
+        mod_content, cur_cmd = console_content[:-1], console_content[-1][len(self.CONSOLE_PROMPT):]
+        mod_content.append(f'{self.CONSOLE_PROMPT}{self.CMDS_LOG[self.CMDS_CURSOR]}')
+        self.aval_lefts =len(self.CMDS_LOG[self.CMDS_CURSOR]) 
+        self.aval_rights = 0
+        self.console.setText('\n'.join(mod_content))
+        self.move_cursor_to_end()
+
+
+    def add_cmd_to_log(self, cmd:str):
+        if cmd: self.CMDS_LOG.append(cmd)
+        self.CMDS_CURSOR = 0
+        self.aval_lefts = 0
+        self.aval_rights = 0
+        
 
     def run_command(self):
         # format user input
@@ -80,6 +142,7 @@ class fcc_gui():
         
         # get command from last line
         trimmed_command = trimmed_command.split('\n')[-1][len(self.CONSOLE_PROMPT):].strip()
+        self.add_cmd_to_log(trimmed_command)
 
         # execute command
         parsed_command = [x for x in trimmed_command.split(' ')]
@@ -97,6 +160,7 @@ class efc_gui(efc):
 
     def __init__(self):
         efc.__init__(self)
+        self.side_window_titles['efc'] = 'EFC'
         self.EXTRA_WIDTH_EFC = 250
         self.cur_efc_index = 0
         # add button to main window
@@ -134,7 +198,9 @@ class efc_gui(efc):
         self.refresh_source_data()
         [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
         self.files_count = self.recommendation_list.count()
-        if self.files_count: self.recommendation_list.setCurrentRow(self.cur_efc_index)
+        if self.files_count: 
+            self.cur_efc_index = min(self.files_count-1, self.cur_efc_index)
+            self.recommendation_list.setCurrentRow(self.cur_efc_index)
 
 
     def create_recommendations_list(self):
@@ -166,6 +232,9 @@ class efc_gui(efc):
 
     def load_selected_efc(self):
         selected_path = self.get_path_from_selected_file()
+        if selected_path is None:
+            self.post_logic('File Not Found')
+            return
         self.initiate_flashcards(selected_path)
         self.del_side_window()
 
@@ -175,6 +244,7 @@ class load_gui(load):
 
     def __init__(self):
         load.__init__(self)
+        self.side_window_titles['load'] = 'Load'
         self.EXTRA_WIDTH_LOAD = 200
         self.cur_load_index = 0
         # add button to main window
@@ -261,6 +331,7 @@ class mistakes_gui():
 
     def __init__(self):
         self.EXTRA_WIDTH_MISTAKES = 400
+        self.side_window_titles['mistakes'] = 'Mistakes'
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'main')
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
 
@@ -286,7 +357,7 @@ class mistakes_gui():
         
         # Fill
         w = self.frameGeometry().width()/4  if 'side_by_side' in self.config['optional'] else self.frameGeometry().width()/2
-        lim = int(1.134 * w / self.CONSOLE_FONT_SIZE)
+        lim = int(1.834 * w / self.CONSOLE_FONT_SIZE)
         for m in self.mistakes_list:
             sparse_m1 = max(lim - len(m[self.default_side]), 0)
             m1 = m[self.default_side][:lim-1] + '…' if len(m[self.default_side]) > lim else m[self.default_side]
@@ -305,6 +376,7 @@ class stats_gui(stats):
 
     def __init__(self):
         self.EXTRA_WIDTH_STATS = 430
+        self.side_window_titles['stats'] = 'Statistics'
         stats.__init__(self)
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
@@ -350,10 +422,13 @@ class stats_gui(stats):
          # horizontal line at EFC predicate
         if rect and 'show_efc_line' in self.config['optional']:
             ax.axhline(y=self.total_words*0.8, color='#a0a0a0', linestyle='--', zorder=-3)
-            ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, '80%', va="bottom", color='#a0a0a0')
+            ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, f'{self.config["efc_threshold"]}%', va="bottom", color='#a0a0a0')
 
         # add labels - time spent
-        time_spent_labels = self.time_spent_minutes if 'show_cpm_stats' not in self.config['optional'] else [round(self.total_words/(x/60), 1) if x else '-' for x in self.time_spent_seconds]
+        if 'show_cpm_stats' in self.config['optional']:
+            time_spent_labels = ['{:.0f}'.format(self.total_words/(x/60)) if x else '-' for x in self.time_spent_seconds]
+        else:
+            time_spent_labels = self.time_spent_minutes
         for x, y in zip(self.formatted_dates, time_spent_labels):
             # xytext - distance between points and text label
             time_spent_plot.annotate(y, (x, y), textcoords="offset points", xytext=(0,5), ha='center',
@@ -409,6 +484,7 @@ class progress_gui(stats):
 
     def __init__(self):
         stats.__init__(self)
+        self.side_window_titles['progress'] = 'Progress'
         self.EXTRA_WIDTH_PROGRESS = 400
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
@@ -416,12 +492,7 @@ class progress_gui(stats):
     
 
     def get_progress_sidewindow(self, override_lng_gist=False):
-        if override_lng_gist:
-            # show data for all lngs
-            lng_gist = ''
-        else:
-            lng_gist = get_lng_from_signature(self.signature)
-
+        lng_gist = '' if override_lng_gist else get_lng_from_signature(self.signature)
         if not self.TEMP_FILE_FLAG:
             self.arrange_progress_sidewindow(lng_gist)
             self.open_side_window(self.progress_layout, 'progress', self.EXTRA_WIDTH_PROGRESS)
@@ -503,6 +574,7 @@ class progress_gui(stats):
 class config_gui():
 
     def __init__(self):
+        self.side_window_titles['config'] = 'Settings'
         self.EXTRA_WIDTH_CONFIG = 300
         self.config = Config()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
@@ -547,7 +619,7 @@ class config_gui():
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
         self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','reccommend_new','hide_timer','show_cpm_stats', 'revision_summary',
+            ['side_by_side','hide_timer','show_cpm_stats', 'revision_summary',
                 'show_efc_line', 'show_percent_stats', 'show_cpm_timer'])
         self.optional_label = self.create_label('Optional Features')
         self.init_rep_qline = self.create_config_qlineedit('initial_repetitions')
@@ -564,6 +636,8 @@ class config_gui():
         self.theme_label = self.create_label('Theme')
         self.model_checkablecombobox = self.create_config_checkable_combobox('efc_model', self.get_available_efc_models())
         self.model_label = self.create_label('EFC Model')
+        self.pace_card_qline = self.create_config_qlineedit('pace_card_interval')
+        self.pace_card_label = self.create_label('Card Pacing')
 
         # add widgets
         p = self.list_pos_gen()
@@ -589,8 +663,10 @@ class config_gui():
         self.options_layout.addWidget(self.theme_checkablecombobox, next(p), 1)
         self.options_layout.addWidget(self.model_label, next(p), 0)
         self.options_layout.addWidget(self.model_checkablecombobox, next(p), 1)
+        self.options_layout.addWidget(self.pace_card_label, next(p), 0)
+        self.options_layout.addWidget(self.pace_card_qline, next(p), 1)
 
-        self.options_layout.addWidget(self.create_blank_widget(),next(p)+1,0)
+        # self.options_layout.addWidget(self.create_blank_widget(),next(p)+1,0)
         self.options_layout.addWidget(self.confirm_and_close_button, next(p)+2, 0, 1, 2)
 
 
@@ -647,6 +723,7 @@ class config_gui():
         modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
         modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
+        modified_dict['pace_card_interval'] = self.pace_card_qline.text()
 
         if modified_dict['theme'] != self.config['theme']:
             self.config['THEME'].update(self.themes_dict[modified_dict['theme']])
@@ -655,6 +732,14 @@ class config_gui():
             self.toggle_primary_widgets_visibility(True)
 
         self.config.update(modified_dict)
+
+        # Manual updates
+        self.update_default_side()
+        self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
+        self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+        self.set_append_seconds_spent_function()
+        self.initiate_pace_timer()
+
         self.del_side_window()
 
 
@@ -677,6 +762,7 @@ class timer_gui():
 
     def __init__(self):
         self.config = Config()
+        self.side_window_titles['timer'] = 'Time Spent'
         self.data_getter = timer.Timespent_BE()
         self.TIMER_FONT_SIZE = 12
         self.EXTRA_WIDTH_TIMER = 200
@@ -706,7 +792,7 @@ class timer_gui():
 
 
     def show_data(self):
-        last_n = 12
+        last_n = int(self.config['timespent_len'])
         interval = 'm'
         res = self.data_getter.get_timespent_printout(last_n, interval)
         self.timer_console.setText(res)
@@ -716,6 +802,7 @@ class timer_gui():
 class side_windows(fcc_gui, efc_gui, load_gui, 
                 mistakes_gui, stats_gui, progress_gui, config_gui, timer_gui):
     def __init__(self):
+        self.side_window_titles = dict()
         fcc_gui.__init__(self)
         efc_gui.__init__(self)
         load_gui.__init__(self)

@@ -21,6 +21,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         main_window_logic.__init__(self)
         self.build_interface()      
         self.initiate_timer()
+        self.initiate_pace_timer()
         self.initiate_cyclic_file_update()
         self.initiate_flashcards(self.file_path)
         self.q_app.exec()
@@ -137,6 +138,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.display_text(self.get_current_card()[self.side])
         self.update_words_button()
 
+
+    def update_default_side(self):
+        super().update_default_side()
+
     
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
@@ -175,16 +180,17 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_save_button(self):
-        if self.cards_seen == 0:
-            self.post_logic('Unable to save an empty file')
-            return
-
         if self.is_revision:
-           self.save_to_mistakes_list()
+            if self.mistakes_list[self.auto_cfm_offset:]:
+                self.save_to_mistakes_list()
+            else:
+                self.post_logic('No mistakes to save')
         else:
-            super().handle_saving(seconds_spent=self.seconds_spent)
-            self.update_interface_parameters()
-            self.reset_timer()
+            if self.cards_seen != 0:
+                super().handle_saving(seconds_spent=self.seconds_spent)
+                self.update_interface_parameters()
+            else:
+                self.post_logic('Unable to save an empty file')
                 
 
     def delete_current_card(self):
@@ -198,10 +204,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.display_text(self.get_current_card()[self.side])
         if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
             self.start_timer()
+            if self.is_revision: self.start_pace_timer()
 
 
     def load_again_click(self):
-        if self.TEMP_FILE_FLAG:
+        if self.dataset.empty:
+            self.post_logic('Cannot reload an empty file')
+            return
+        elif self.TEMP_FILE_FLAG:
             dataset = shuffle_dataset(self.dataset)
         else:
             dataset = load_dataset(self.file_path)
@@ -209,7 +219,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.update_backend_parameters(self.file_path, dataset)
         self.update_interface_parameters()
         self.change_revmode(self.is_revision)
-        self.reset_timer()
         self.start_file_update_timer()
 
 
@@ -220,7 +229,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.update_backend_parameters(file_path, dataset)
             self.update_interface_parameters()
             self.del_side_window()
-            self.reset_timer()
             self.start_file_update_timer()
 
 
@@ -232,6 +240,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.display_text(self.get_current_card()[self.side])
         self.update_words_button()
         self.update_score_button()
+        self.reset_timer(clear_indicator=True)
+        self.reset_pace_timer(); self.stop_pace_timer()
 
 
     def append_current_index(self):
@@ -258,8 +268,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.display_text(self.get_current_card()[self.side])
             last_card_was_reached = self.cards_seen+1 == self.total_words
             conditions_to_stop_timer = last_card_was_reached and not self.is_revision and not self.is_mistakes_list
-            if not self.TIMER_RUNNING_FLAG and not self.is_saved: self.start_timer()
-            elif conditions_to_stop_timer: self.stop_timer()
+            self.reset_pace_timer()
+            if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
+                self.start_timer()
+                if self.is_revision: self.start_pace_timer()
+            elif conditions_to_stop_timer: 
+                self.stop_timer()
+                self.stop_pace_timer()
             self.update_score_button()
             if self.words_back_mode(): self.nav_buttons_visibility_control(True, True, False)
         elif self.is_complete_revision() and self.is_saved == False: 
@@ -270,12 +285,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.display_text(self.revision_summary)
         else:
             self.reset_timer()
+            self.stop_pace_timer()
             self.display_text("You have reached the world's edge, none but devils play past here")
         
 
     def save_revision(self):
         self.record_revision_to_db(self.seconds_spent)
         self.reset_timer()
+        self.stop_pace_timer()
         self.is_saved = True
 
 
@@ -299,6 +316,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def handle_revision_complete(self):
         if self.positives + self.negatives == self.total_words:
+            self.update_score_button()
             self.revision_summary = self.get_rating_message()
             self.display_text(self.revision_summary)
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
@@ -308,6 +326,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.is_saved = True
         self.change_revmode()
         self.reset_timer(clear_indicator=False)
+        self.stop_pace_timer()
         # if self.negatives != 0:
         #     self.get_mistakes_sidewindow()
 
@@ -372,7 +391,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.open_side_by_side(layout, name, extra_width)
         else:
             self.open_in_place(layout, name, extra_width)
+        self.setWindowTitle(self.side_window_titles[name])
         self.stop_timer()
+        self.stop_pace_timer()
         
 
     def del_side_window(self):
@@ -380,7 +401,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.del_side_window_side_by_side()
         else:
             self.del_side_window_in_place()
+        self.setWindowTitle(self.window_title)
         self.resume_timer()
+        self.resume_pace_timer()
 
 
     def open_in_place(self, layout, name, extra_width):
@@ -567,8 +590,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         self.timer_prev_text = '⏲'
-        self.timer=QTimer()
-        self.timer.timeout.connect(self.append_seconds_spent)
+        self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
+        self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+        self.set_append_seconds_spent_function()
 
 
     def start_timer(self):
@@ -576,8 +600,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = True
     
     def resume_timer(self):
-        self.timer_button.setText(self.timer_prev_text)
         if self.conditions_to_resume_timer_are_met():
+            self.timer_button.setText(self.timer_prev_text)
             self.start_timer()
 
     def conditions_to_resume_timer_are_met(self):
@@ -592,9 +616,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def stop_timer(self):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
-        if 'hide_timer' not in self.config['optional']:
+        if not self.revtimer_hide_timer:
             self.timer_prev_text = self.timer_button.text()
-            self.timer_button.setText('⏸')
+            self.timer_button.setText('⏸' if self.seconds_spent else '⏲')
 
     def reset_timer(self, clear_indicator=True):
         self.timer.stop()
@@ -602,26 +626,78 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = False
         if clear_indicator:
             self.timer_button.setText('⏲')
-   
 
-    def append_seconds_spent(self):
+    def set_append_seconds_spent_function(self):
+        self.timer = QTimer()
+        if self.revtimer_hide_timer: self.append_seconds_spent = self._revtimer_func_hidden
+        elif self.revtimer_show_cpm_timer: self.append_seconds_spent = self._revtimer_func_cpm
+        else: self.append_seconds_spent = self._revtimer_func_time
+        self.timer.timeout.connect(self.append_seconds_spent)
+
+    def _revtimer_func_hidden(self):
         self.seconds_spent+=1
-        if 'hide_timer' in self.config['optional']:
-            self.timer_button.setText('⏲')
-        elif 'show_cpm_timer' in self.config['optional']:
-            cpm = self.cards_seen/(self.seconds_spent/60)
-            self.timer_button.setText(f'{cpm:.0f}')
-        else:
-            interval = 'minute' if self.seconds_spent < 3600 else 'hour'
-            self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
+        self.timer_button.setText('⏲')
+        
+    def _revtimer_func_cpm(self):
+        self.seconds_spent+=1
+        cpm = self.cards_seen/(self.seconds_spent/60)
+        self.timer_button.setText(f'{cpm:.0f}')
 
+    def _revtimer_func_time(self):
+        self.seconds_spent+=1
+        interval = 'minute' if self.seconds_spent < 3600 else 'hour'
+        self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
+
+
+    ############### PACE TIMER ############### 
+    def initiate_pace_timer(self):
+        interval = int(self.config['pace_card_interval'])
+        self.pace_spent = 0
+        if interval > 0:
+            self.pace_timer = QTimer()
+            self.pace_timer_interval = interval
+            self.start_pace_timer = self._start_pace_timer
+            self.resume_pace_timer = self._resume_pace_timer
+            self.stop_pace_timer = self._stop_pace_timer
+            self.reset_pace_timer = self._reset_pace_timer
+        else:
+            self.pace_timer = None
+            self.start_pace_timer = lambda: None
+            self.resume_pace_timer = lambda: None
+            self.stop_pace_timer = lambda: None
+            self.reset_pace_timer = lambda: None
+
+    def _start_pace_timer(self):
+        self.pace_timer = QTimer()
+        self.pace_timer.timeout.connect(self.pace_timer_func)
+        self.pace_timer.start(1000)
+
+    def pace_timer_func(self):
+        if self.words_back > 0: return
+        self.pace_spent+=1
+        if self.pace_spent >= self.pace_timer_interval:
+            self.click_negative()
+
+    def _resume_pace_timer(self):
+        if not self.is_revision or self.is_saved or self.cards_seen==0 \
+            or self.side_window_id!='main': return
+        self.start_pace_timer()
+        
+    def _stop_pace_timer(self):
+        self.pace_timer.stop()
+
+    def _reset_pace_timer(self):
+        self.pace_spent = 0
+        
 
     # default methods overrides
     def eventFilter(self, source, event):
         if event.type() == QtCore.QEvent.FocusOut and type(source) == QtGui.QWindow:
             self.stop_timer()
+            self.stop_pace_timer()
         if event.type() == QtCore.QEvent.FocusIn and type(source) == QtGui.QWindow:
             self.resume_timer()
+            self.resume_pace_timer()
         return super(main_window_gui, self).eventFilter(source, event)
 
 

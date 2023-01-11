@@ -22,6 +22,7 @@ class efc():
         self.unique_signatures = set()
         self.efc_model = Placeholder()
         self.efc_model.name = None
+        self.efc_model.mtime = 0
 
 
     def refresh_source_data(self):
@@ -34,23 +35,17 @@ class efc():
 
     def load_pickled_model(self):
         new_model:str = self.config['efc_model']
-        if new_model != self.efc_model.name:
-            self.efc_model = joblib.load(os.path.join(self.config['resources_path'],'efc_models', f'{new_model}.pkl'))
-
-
-    def get_initial_handicap(self, repeated_times, diff_days_from_last):
-        # force daily revision for the first N days in min. 12h intervals
-        remainder_ = 101 - int(self.config['efc_threshold'])
-        if repeated_times==1: handicap = -remainder_
-        elif repeated_times <= int(self.config['initial_repetitions']) and diff_days_from_last>=0.5: handicap = -remainder_
-        else: handicap = 0
-        return handicap
+        new_model_path = os.path.join(self.config['resources_path'],'efc_models', f'{new_model}.pkl')
+        new_model_mtime = os.path.getmtime(new_model_path)
+        if new_model != self.efc_model.name or self.efc_model.mtime < new_model_mtime:
+            self.efc_model = joblib.load(new_model_path)
+            self.efc_model.mtime = new_model_mtime
 
 
     def get_recommendations(self):
         reccommendations = list()
 
-        if 'reccommend_new' in self.config['optional']:
+        if int(self.config['days_to_new_rev'])>0:
             reccommendations.extend(self.is_it_time_for_something_new())
 
         # get parameters and efc_function result for each unique signature
@@ -69,28 +64,35 @@ class efc():
 
         for s in self.unique_signatures:
             # data: (TIMESTAMP, TOTAL, POSITIVES, SEC_SPENT)
-            data = unqs[s]   
-            total = data[-1][1]
-            prev_wpm = 60*data[-1][1]/data[-1][3] if data[-1][3] != 0 else 0
-            since_last_rev = (make_todaytime()-data[-1][0]).total_seconds()/3600
-            since_creation = (make_todaytime()-data[0][0]).total_seconds()/3600
-            cnt = len(data)+1
-            prev_score = int(100*(data[-1][2] / data[-1][1])) 
-            
-            rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
-            efc = self.efc_model.predict([rec])
-            handicap = self.get_initial_handicap(cnt, since_last_rev/24)
-            rev_table_data.append([s, round(since_last_rev/24,0), round(efc[0][0]+handicap,2)])
+            data = unqs.get(s)
+            if data:
+                since_last_rev = (make_todaytime()-data[-1][0]).total_seconds()/3600
+                cnt = len(data)+1
+                if cnt <= int(self.config['initial_repetitions']):
+                    efc = [[0 if since_last_rev>=12 else 100]] 
+                else:
+                    total = data[-1][1]
+                    since_creation = (make_todaytime()-data[0][0]).total_seconds()/3600
+                    prev_wpm = 60*data[-1][1]/data[-1][3] if data[-1][3] != 0 else 0
+                    prev_score = int(100*(data[-1][2] / data[-1][1]))
+                    rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
+                    efc = self.efc_model.predict([rec])
+                s_efc = [s, since_last_rev/24, efc[0][0]]
+            else:
+                s_efc = [s, '∞', 0]
+            rev_table_data.append(s_efc)
 
         return rev_table_data
 
 
-    def get_efc_table_printout(self, efc_table_data):
+    def get_efc_table_printout(self, efc_table_data, lim=None):
         # sort revs by number of days ago since last revision
         efc_table_data.sort(key=lambda x: x[2])
+        if lim: efc_table_data=efc_table_data[:lim]
         efc_stats_list = [['REV NAME', 'ΔD', 'EFC']]
         for rev in efc_table_data:
-            efc_stats_list.append([rev[0], rev[1], rev[2]])
+            diff_days = '{:.1f}'.format(rev[1]) if isinstance(rev[1], float) else rev[1]
+            efc_stats_list.append([rev[0], diff_days, '{:.2f}'.format(rev[2])])
         printout = get_pretty_print(efc_stats_list, extra_indent=1, separator='|')
         return printout
 
@@ -109,7 +111,6 @@ class efc():
                                      
         except FileNotFoundError:
             path = None
-            print('Requested File Not Found')
     
         return path
 
