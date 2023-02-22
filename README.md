@@ -50,6 +50,13 @@
 ![EMO Window](scripts/resources/imgs/ss_emo.png)
 
 <p>EFC Model Enhancer employs regression models fitted on the Revision data and is used for fitting the EFC model to the user. EFC is meant to determine, after what time the predicted percentage of words still remembered falls below the defined threshold. First, statistics for each model are presented, then as selected, examples comparing True and Predicted values will be shown. If the model is accepted, it will be pickled and automatically set as the current model. Available models can be picked from the Settings menu</p>
+<p>Available Models:</p>
+<ol>
+<li>LAS - Lasso Regression</li>
+<li>SVM - Support Vector Machine</li>
+<li>RFR - Random Forest Regression</li>
+<li>CST - custom model adjusted to fit the original EFC curve</li>
+</ol>
 
 <h1>Time Spent</h1>
 
@@ -122,6 +129,8 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 <li>languages: determines list of languages in use, ignoring both data and files which does not have the LANGUAGE_ID matching</li>
 <li>efc_threshold: if number of words "in-memory" falls below this level (based on EFC model), a new revision is reccommended.</li>
 <li>timespent_len: count of months back that are shown on the TimeSpent window</li>
+<li>emo_use_discretizer: which discretization function should EMO use: yeo-johnson, decision-tree</li>
+<li>emo_cap_fold: determines the quantile cap on both sides of the data distribution</li>
 </ol>
 
 <h1>To-Do</h1>

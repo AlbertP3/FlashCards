@@ -12,13 +12,13 @@ from math import exp
 from utils import Config, register_log
 
 
+RECORD_COLS = ['TOTAL', 'PREV_WPM', 'TIMEDELTA_SINCE_CREATION', 'TIMEDELTA_LAST_REV', 'CUM_CNT_REVS', 'PREV_SCORE']
 m_eval = namedtuple('ModelEvaluation', ('Explained_Variance', 'Mean_Absolute_Error', 'Mean_Tweedie_Deviance',
                                         'Test_Data', 'Preds'))
 
 
 class Model:
     def __init__(self, model_name, model, **kwargs):
-        # record = ['TOTAL', 'PREV_WPM', 'TIMEDELTA_SINCE_CREATION', 'TIMEDELTA_LAST_REV', 'CUM_CNT_REVS', 'PREV_SCORE']
         self.name = model_name
         self.model = model
         self.anc = kwargs
@@ -26,16 +26,22 @@ class Model:
                                  'LAS': self._predict_las,
                                  'RFR': self._predict_rfr,
                                  'CST': Model._predict_cst}
+        self.discretizer = kwargs.get('discretizer')
         self.predict = self._methods_predict[model_name]
 
     def _predict_svm(self, record):
-        return self.anc['scy_svm'].inverse_transform(
-            self.model.predict(np.array(self.anc['scx_svm'].transform(record))).reshape(-1, 1)) 
+        if self.discretizer: 
+            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS))
+        return self.anc['scy_svm'].inverse_transform(self.model.predict(np.array(self.anc['scx_svm'].transform(record))).reshape(-1, 1)) 
 
     def _predict_las(self, record):
+        if self.discretizer: 
+            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS)).values.tolist()
         return [self.model.predict([p]) for p in record]
 
     def _predict_rfr(self, record):
+        if self.discretizer: 
+            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS))
         return self.model.predict(np.array(record)).reshape(-1, 1)
 
     @staticmethod
@@ -144,12 +150,12 @@ class Models:
         )
 
 
-    def save_model(self, model_name:str):
+    def save_model(self, model_name:str, **kwargs):
         # Use first-class function to save selected model to a file
         if model_name == 'SVM':
-            model = Model(model_name, self.models['SVM'], scx_svm=self.scx_svm, scy_svm=self.scy_svm)
+            model = Model(model_name, self.models['SVM'], scx_svm=self.scx_svm, scy_svm=self.scy_svm, **kwargs)
         elif model_name in {'LAS', 'RFR', 'CST'}:
-            model = Model(model_name, self.models[model_name])
+            model = Model(model_name, self.models[model_name], **kwargs)
         else:
             return False
         

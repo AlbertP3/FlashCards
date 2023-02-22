@@ -42,6 +42,9 @@ class Config:
     def __getitem__(self, key):
         return self.config[key]
 
+    def get(self, key, default):
+        return self.config.get(key, default)
+
     def __refresh(self):
         self.parser.read(self.PATH_TO_DICT)
         self.config = dict(self.parser.items('PARAMETERS'))
@@ -350,7 +353,7 @@ def validate_setup():
     # Database
     if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
         operation_status += 'Initializing new Database\n'
-        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES']).to_csv(config['db_path'], sep=';')
+        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES', 'SEC_SPENT']).to_csv(config['db_path'], sep=';')
 
     # Lngs folder
     lngs_dir_name = config['lngs_path'].split('/')[-2]
@@ -388,11 +391,10 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     for item in list_:
         line = ''
         for sub_index, sub_item in enumerate(item):
-            i = longest_elements[sub_index]+extra_indent
-            if not i % 2: i+=1
+            i = longest_elements[sub_index]+extra_indent+1
             line+=f'{sub_item:^{i}}|'
         if not keep_last_border: line=line[:-1] 
-        printout += line + '\n'
+        printout += line[1:] + '\n'
     
     return printout[:-1]
 
@@ -455,6 +457,9 @@ def in_str(sub_string, string, case_sensitive=True):
     else:
         return sub_string.casefold() in string.casefold()
 
+true_values = {'yes', '1', 'true', 'on', True}
+def boolinize(s:str):
+    return s.lower() in true_values
 
 class Placeholder:
     pass

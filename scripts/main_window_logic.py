@@ -180,7 +180,6 @@ class main_window_logic():
     def save_to_mistakes_list(self):
         # auto_cfm_offset - avoid duplicating cards on multiple saves of the same dataset
         mistakes_list = pd.DataFrame([[x[1], x[0]] for x in self.mistakes_list], columns=self.dataset.columns[::-1])
-        register_log(mistakes_list)
         lng = get_lng_from_signature(self.signature).upper()
         full_path = os.path.join(self.config['lngs_path'], f'{lng}_mistakes.csv')
         try:
@@ -190,8 +189,6 @@ class main_window_logic():
         buffer = pd.concat([buffer, mistakes_list.iloc[self.auto_cfm_offset:]], ignore_index=True)
         overflow = int(self.config['mistakes_buffer'])
         buffer.iloc[-overflow:].to_csv(full_path, index=False, mode='w', header=True)
-        register_log('BUFFER')
-        register_log(buffer.iloc[-overflow:])
 
         m_cnt = mistakes_list.shape[0] - self.auto_cfm_offset
         self.post_logic(f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes List')

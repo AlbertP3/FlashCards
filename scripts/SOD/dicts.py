@@ -1,4 +1,4 @@
-from utils import Config
+from utils import Config, register_log
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 import bs4
@@ -38,9 +38,9 @@ class dict_pons(template_dict):
         self.re_patterns = OrderedDict([
             (r'\[(((or )?AM)|lub|perf|inf).*\]' , ' '),
             (r'( |\()+(f?pl|fig|m|\(?f\)?|nt|mpl|imperf)([^a-zA-Z0-9\(/]+|$)' , ' '),
-            (r'(ELEC)', ''),
+            (r'(ELEC|Brit|HISTORY)', ''),
             (r' ( |$)', ''),
-            (r' /', '/')
+            (r' /', '/'),
         ])
 
 
@@ -76,7 +76,8 @@ class dict_pons(template_dict):
             if isinstance(row, bs4.element.Tag) and row.get('class')=='topic': 
                 continue
             text_ = ''.join([word.get_text() for word in row]).strip()
-            if text_ != lng: res.append(text_)
+            # Remove language tag, dicts list
+            if text_ != lng and '\n' not in text_: res.append(text_)
         return res
 
     

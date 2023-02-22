@@ -12,6 +12,9 @@ class CLI():
         self.sout = sout
         self.models_creator = models.Models()
         self.dbapi = db_interface()
+        self.discretizers = {'yeo-johnson': augmentation.transformation_yeo_johnson,
+                            'decision-tree': augmentation.decision_tree_discretizer}
+        self.discretizer = None
         self.STEP_RUN_EMO = False
         self.STEP_MODEL_SELECTION = False
         self.STEP_APPROVE_CHANGES = False
@@ -47,7 +50,7 @@ class CLI():
         data_prepare_success = self.prepare_data()
         if not data_prepare_success: return
 
-        # self.prepare_augmentation()
+        self.prepare_augmentation()
         self.prepare_models()
         self.available_models = self.models_creator.models.keys()
         self.cls()
@@ -77,8 +80,10 @@ class CLI():
 
 
     def prepare_augmentation(self):
-        self.dbapi.db = self.prt_res(augmentation.cap_quantiles, 'Capping quantiles... ', self.dbapi.db)
-        self.dbapi.db = self.prt_res(augmentation.decision_tree_discretizer, 'Applying decision tree discretizer... ', self.dbapi.db)
+        self.dbapi.db.iloc[:, :-1] = self.prt_res(augmentation.cap_quantiles, 'Capping quantiles... ', self.dbapi.db.iloc[:, :-1])
+        discretizer = self.discretizers.get(self.config['emo_discretizer'])
+        if discretizer:
+            self.dbapi.db.iloc[:, :-1], self.discretizer = self.prt_res(discretizer, f"Applying {self.config['emo_discretizer']} Discretization... ", self.dbapi.db.iloc[:, :-1])
 
 
     def prepare_models(self):
@@ -143,7 +148,7 @@ class CLI():
 
 
     def update_config_with_new_model(self):
-        self.STEP_SAVE_SUCCESS = self.models_creator.save_model(self.selected_model)
+        self.STEP_SAVE_SUCCESS = self.models_creator.save_model(self.selected_model, discretizer=self.discretizer)
         self.config.update({'efc_model': self.selected_model})
         self.send_output('CONFIG UPDATED WITH A NEW MODEL')
 
