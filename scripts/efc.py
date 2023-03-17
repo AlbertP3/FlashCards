@@ -1,6 +1,5 @@
 import db_api
 from utils import *
-from math import exp, remainder
 from os import listdir
 import joblib
 
@@ -50,14 +49,14 @@ class efc():
 
         # get parameters and efc_function result for each unique signature
         for rev in self.get_complete_efc_table():
-            efc_critera_met = rev[-1] < int(self.config['efc_threshold'])
+            efc_critera_met = rev[2] < int(self.config['efc_threshold'])
             if efc_critera_met:
                 reccommendations.append(rev[0])
         
         return reccommendations
 
 
-    def get_complete_efc_table(self) -> list[str, str, float]:
+    def get_complete_efc_table(self, preds:bool=False) -> list[str, str, float]:
         rev_table_data = list()
         self.db_interface.filter_for_efc_model()
         unqs = self.db_interface.gather_efc_record_data()
@@ -69,7 +68,8 @@ class efc():
                 since_last_rev = (make_todaytime()-data[-1][0]).total_seconds()/3600
                 cnt = len(data)+1
                 if cnt <= int(self.config['initial_repetitions']):
-                    efc = [[0 if since_last_rev>=12 else 100]] 
+                    efc = [[0 if since_last_rev>=12 else 100]]
+                    pred = 12 - since_last_rev if since_last_rev<=12 else 0
                 else:
                     total = data[-1][1]
                     since_creation = (make_todaytime()-data[0][0]).total_seconds()/3600
@@ -77,22 +77,49 @@ class efc():
                     prev_score = int(100*(data[-1][2] / data[-1][1]))
                     rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
                     efc = self.efc_model.predict([rec])
-                s_efc = [s, since_last_rev/24, efc[0][0]]
+                    pred = self.guess_when_due(rec.copy(), warm_start=efc[0][0], prog_resh=1.2) if preds else 0
+                s_efc = [s, since_last_rev/24, efc[0][0], pred]
             else:
-                s_efc = [s, '∞', 0]
+                s_efc = [s, '∞', 0, 0]
             rev_table_data.append(s_efc)
 
         return rev_table_data
+ 
+
+    def guess_when_due(self, record, resh=1, warm_start=1, max_cycles=84, prog_resh=1):
+        # returns #hours to efc falling below the threshold
+        # resh - step resolution in hours
+        # warm_start - initial efc value
+        # prog_resh - factor for adjusting resh
+        efc_ = warm_start or 1
+        res = 0
+        cycles = 0
+        while efc_ >= int(self.config['efc_threshold']):
+            res+=resh
+            record[3]+=int(resh)
+            efc_ = self.efc_model.predict([record])[0][0]
+            cycles+=1
+            resh*=prog_resh
+            if cycles > max_cycles:
+                res = 10000
+                break
+        return int(res)
 
 
     def get_efc_table_printout(self, efc_table_data, lim=None):
         # sort revs by number of days ago since last revision
-        efc_table_data.sort(key=lambda x: x[2])
+        efc_table_data.sort(key=lambda x: x[3])
         if lim: efc_table_data=efc_table_data[:lim]
-        efc_stats_list = [['REV NAME', 'ΔD', 'EFC']]
+        efc_stats_list = [['REV NAME', 'ΔD', 'EFC', 'DUE']]
         for rev in efc_table_data:
+            if rev[3] < 48:
+                pred = f"{format_seconds_to(rev[3]*3600, 'hour')}"
+            elif rev[3] < 10000:
+                pred = f"{format_seconds_to(rev[3]*3600, 'day', include_remainder=False)}"  
+            else:
+                pred = "Too Long"
             diff_days = '{:.1f}'.format(rev[1]) if isinstance(rev[1], float) else rev[1]
-            efc_stats_list.append([rev[0], diff_days, '{:.2f}'.format(rev[2])])
+            efc_stats_list.append([rev[0], diff_days, '{:.2f}'.format(rev[2]), pred])
         printout = get_pretty_print(efc_stats_list, extra_indent=1, separator='|')
         return printout
 

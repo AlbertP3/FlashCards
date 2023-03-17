@@ -47,6 +47,7 @@ class CLI():
 
     def send_output(self, text:str):
         self.output.console.append(text)
+        self.output.mw.CONSOLE_LOG.append(text)
 
 
     def execute_command(self, parsed_phrase:list):
@@ -216,6 +217,7 @@ class CLI():
             self.queue_dict[phrase] = [[translations.strip()], [phrase.strip()], ['MANUAL']]    
             cleaned_text = self.output.console.toPlainText().replace(' $ ', ' ').replace(translations,'')
             self.output.console.setText(cleaned_text)
+            self.output.mw.CONSOLE_LOG = cleaned_text
             transl = translations
             warnings = None
         else:  # Online Dictionary

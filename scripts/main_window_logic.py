@@ -126,7 +126,7 @@ class main_window_logic():
         self.dbapi.create_record(self.signature, self.cards_seen+1, self.positives, seconds_spent)
         
         # immediately load the revision
-        new_path = self.config['revs_path'] + self.signature + '.csv'
+        new_path = os.path.join(self.config['revs_path'], f'{self.signature}.csv')
         data = self.load_flashcards(new_path)
         self.update_backend_parameters(new_path, data)
 

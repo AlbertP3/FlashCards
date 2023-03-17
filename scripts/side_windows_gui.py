@@ -25,19 +25,18 @@ class fcc_gui():
         self.CONSOLE_FONT_SIZE = 12
         self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
-        self.CONSOLE_LOG = None
+        self.CONSOLE_LOG = []
         self.CMDS_LOG = ['']
+        self.TEMP_CMD = str()  # partial command typed before closing the console
         self.CMDS_CURSOR = 0
         self.aval_lefts = 0
         self.aval_rights = 0
         self.console = None
         self.incognito = False # if True: forget content added within cur session
-
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'main')
         self.add_shortcut('run_command', self.run_command, 'fcc')
-
         self.fcc_inst = fcc(self)
-        self.arrange_fcc_window()
+        self.create_console()
 
 
     def get_fcc_sidewindow(self, width_=500, incognito=False):
@@ -51,17 +50,16 @@ class fcc_gui():
     def arrange_fcc_window(self):
         self.fcc_layout = widget.QGridLayout()
 
-        if not self.console:
-            self.create_console()
-        elif not self.console.toPlainText().split('\n')[-1].startswith(self.CONSOLE_PROMPT): 
-            self.console.append(self.CONSOLE_PROMPT)
+        if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
+            cur_line = self.console.toPlainText().split('\n')[-1]
+            self.CONSOLE_LOG[-1] = cur_line
+        else:
+            self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
 
-        if self.incognito: 
-            self.CONSOLE_LOG = self.console.toPlainText()
-        elif self.CONSOLE_LOG:
-            self.console.setText(self.CONSOLE_LOG)
-            self.CONSOLE_LOG = None
-
+        if self.incognito:
+            self.console.setText()
+        else:
+            self.console.setText('\n'.join(self.CONSOLE_LOG))
         self.fcc_layout.addWidget(self.console, 0, 0)
 
         
@@ -69,17 +67,34 @@ class fcc_gui():
         self.console = widget.QTextEdit(self)
         self.console.keyPressEvent = self.cli_shortcuts
         self.console.setFont(self.CONSOLE_FONT)
+        self.console.setAcceptRichText(False)
         self.console.setStyleSheet(self.textbox_stylesheet)
         self.fcc_inst.update_console_id(self.console)
        
 
     def cli_shortcuts(self, event):
-
         if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
             self.fcc_inst.execute_command(['cls'])
+        elif (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_V:
+            cur_pos_prev = self.console.textCursor().position()
+            widget.QTextEdit.keyPressEvent(self.console, event)
+            print(str(event.text()))
+            cur_pos_post = self.console.textCursor().position()
+            self.aval_lefts-=cur_pos_prev-cur_pos_post
         elif event.key() < 10_000_000:
             widget.QTextEdit.keyPressEvent(self.console, event) 
             self.aval_lefts+=1
+        elif event.key() == Qt.Key_Home:
+            i = self.console.textCursor().position()-self.aval_lefts
+            cur = self.console.textCursor()
+            cur.setPosition(i)
+            self.console.setTextCursor(cur)
+            self.aval_rights+=self.aval_lefts
+            self.aval_lefts = 0
+        elif event.key() == Qt.Key_End:
+            widget.QTextEdit.keyPressEvent(self.console, event)
+            self.aval_lefts+=self.aval_rights
+            self.aval_rights = 0
         elif event.key() == Qt.Key_Return:
             self.nav_mapping[self.side_window_id]['run_command']()
         elif event.key() == Qt.Key_Up:
@@ -130,7 +145,9 @@ class fcc_gui():
 
 
     def add_cmd_to_log(self, cmd:str):
-        if cmd: self.CMDS_LOG.append(cmd)
+        if cmd: 
+            self.CMDS_LOG.append(cmd)
+            self.CONSOLE_LOG[-1]+=cmd
         self.CMDS_CURSOR = 0
         self.aval_lefts = 0
         self.aval_rights = 0
@@ -734,6 +751,7 @@ class config_gui():
         self.config.update(modified_dict)
 
         # Manual updates
+        set_csv_sniffer()
         self.update_default_side()
         self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
         self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']

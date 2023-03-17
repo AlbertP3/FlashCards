@@ -45,11 +45,11 @@
 
 <p>Search Online Dictionaries facilitates adding new words to the datasets via a command line interface - translation for the searched phrase are fetched from the online service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the "help" command. Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate</p>
 
-<h1>Enhance EFC Model</h1>
+<h1>EFC Model Optimizer</h1>
 
 ![EMO Window](scripts/resources/imgs/ss_emo.png)
 
-<p>EFC Model Enhancer employs regression models fitted on the Revision data and is used for fitting the EFC model to the user. EFC is meant to determine, after what time the predicted percentage of words still remembered falls below the defined threshold. First, statistics for each model are presented, then as selected, examples comparing True and Predicted values will be shown. If the model is accepted, it will be pickled and automatically set as the current model. Available models can be picked from the Settings menu</p>
+<p>EFC Model Optimizer employs regression models fitted on the Revision data and is used for fitting the EFC model to the user. EFC is meant to determine, after what time the predicted percentage of words still remembered falls below the defined threshold. First, statistics for each model are presented, then as selected, examples comparing True and Predicted values will be shown. If the model is accepted, it will be pickled and automatically set as the current model. Available models can be picked from the Settings menu</p>
 <p>Available Models:</p>
 <ol>
 <li>LAS - Lasso Regression</li>
@@ -76,7 +76,7 @@
 <li><b>PyQt5</b> - Graphical User Interface</li>
 <li><b>matplotlib</b> - statistics visualization</li>
 <li><b>beautifulsoup4</b> Search Online Dictionaries</li>
-<li><b>scikit-learn</b> Enhance EFC Model</li>
+<li><b>scikit-learn</b> EFC Model Optimizer</li>
 </ol>
 
 <h1>How to install?</h1>
@@ -94,7 +94,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
         <li><b>dcc</b>: Delete Current Card - deletes card both in current set and in the file</li>
         <li><b>lln</b>: Load Last N, loads N-number of words from the original file, starting from the end</li>
         <li><b>cfm</b>: Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file</li>
-        <li><b>efc</b>: Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals</li>
+        <li><b>efc</b>: Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals. Additionaly, shows predicted time until the next revision</li>
         <li><b>mcp</b>: Modify Config Parameter - allows modifications of config file</li>
         <li><b>sck</b>: Show Config Keys - list all available parameters in config file</li>
         <li><b>cls</b>: Clear Screen</li>
@@ -129,8 +129,9 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 <li>languages: determines list of languages in use, ignoring both data and files which does not have the LANGUAGE_ID matching</li>
 <li>efc_threshold: if number of words "in-memory" falls below this level (based on EFC model), a new revision is reccommended.</li>
 <li>timespent_len: count of months back that are shown on the TimeSpent window</li>
-<li>emo_use_discretizer: which discretization function should EMO use: yeo-johnson, decision-tree</li>
+<li>emo_discretizer: which discretization function should EMO use: yeo-johnson, decision-tree</li>
 <li>emo_cap_fold: determines the quantile cap on both sides of the data distribution</li>
+<li>csv_sniffer: allows use of custom separators eg. ';,'. Defaults to a comma if turned off</li>
 </ol>
 
 <h1>To-Do</h1>

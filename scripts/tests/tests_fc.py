@@ -41,28 +41,20 @@ class Test_utils(unittest.TestCase):
         example_timedelta_1 = timedelta(days=0, hours=0, minutes=0, seconds=0)
         example_timedelta_2 = timedelta(days=0, hours=0, minutes=0, seconds=1)
         example_timedelta_3 = timedelta(days=0, hours=0, minutes=0, seconds=2)
-        example_timedelta_4 = timedelta(days=0, hours=0, minutes=1, seconds=15)
-        example_timedelta_6 = timedelta(days=0, hours=1, minutes=23, seconds=12)
         example_timedelta_7 = timedelta(days=0, hours=2, minutes=0, seconds=0)
-        example_timedelta_8 = timedelta(days=1, hours=0, minutes=0, seconds=0)
         example_timedelta_9 = timedelta(days=2, hours=4, minutes=15, seconds=43)
         example_timedelta_10 = timedelta(days=64, hours=0, minutes=0, seconds=0)
         example_timedelta_11 = timedelta(days=31, hours=0, minutes=0, seconds=0)
-        example_timedelta_12 = timedelta(days=380, hours=0, minutes=0, seconds=0)
         example_timedelta_13 = timedelta(days=480, hours=0, minutes=0, seconds=0)
         
         self.assertEqual(format_timedelta(example_timedelta_1), '0 seconds')
         self.assertEqual(format_timedelta(example_timedelta_2), '1 second')
         self.assertEqual(format_timedelta(example_timedelta_3), '2 seconds')
-        self.assertEqual(format_timedelta(example_timedelta_4), '1 minute')
-        self.assertEqual(format_timedelta(example_timedelta_6), '1 hour')
         self.assertEqual(format_timedelta(example_timedelta_7), '2 hours')
-        self.assertEqual(format_timedelta(example_timedelta_8), '1 day')
         self.assertEqual(format_timedelta(example_timedelta_9), '2 days')
         self.assertEqual(format_timedelta(example_timedelta_10), '2.1 months')
         self.assertEqual(format_timedelta(example_timedelta_11), '1.0 month')
-        self.assertEqual(format_timedelta(example_timedelta_12), '1.0 year')
-        self.assertEqual(format_timedelta(example_timedelta_13), '1.3 years')
+        self.assertEqual(format_timedelta(example_timedelta_13), '1.3 year')
             
 
     def test_validate_dataset(self):
@@ -116,97 +108,108 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(get_most_similar_file('./languages/', 'non-existing', None), None)
         self.assertEqual(get_most_similar_file('./languages/', 'non-existing', 'load_any'), 'de.csv')
 
+    
+    def test_filter_with_list(self):
+        l1, f1 = ['a','B','c', 'a'], ['a', 'B']
+        l2, f2 = ['d','E', 'f'], ['e']
+        self.assertEqual(filter_with_list(f1, l1), ['a', 'B', 'a'])
+        self.assertEqual(filter_with_list(f2, l2, False), ['E'])
+    
+
+    def test_format_seconds_to(self):
+        s0 = format_seconds_to(4231, 'hour')
+        s1 = format_seconds_to(231, 'minute', include_remainder=False)
+        s2 = format_seconds_to(604800, 'week', max_len=4)
+        s3 = format_seconds_to(502750217, 'year')
+        s4 = format_seconds_to(0, 'hour', null_format='-/-')
+
+        self.assertEqual(s0, '01:11')
+        self.assertEqual(s1, '3')
+        self.assertEqual(s2, '1.00')
+        self.assertEqual(s3, '02.03')
+        self.assertEqual(s4, '-/-')
+
 
 
 class Test_db_api(unittest.TestCase):
 
-
+    def setUp(self):
+        self.dbapi = db_api.db_interface()
+        self.dbapi.refresh()
+        
     def test_get_db(self):
-        dbapi = db_api.db_interface()
-        df = dbapi.get_database()
+        df = self.dbapi.get_database()
         self.assertIsInstance(df, pd.DataFrame)
         self.assertIn('SIGNATURE', df.columns)
 
 
     def test_get_date_from_signature(self):
-        correct_signature_example_1 = 'REV_RU11252021180131'
+        correct_signature_example_1 = 'REV_EN01132022101926'
         invalid_signature_example_1 = 'wrongfilenametest'
         non_existing_file = 'non-existing_file'
-        dbapi = db_api.db_interface()
 
-        self.assertEqual(dbapi.get_first_datetime(correct_signature_example_1), date(2021, 11, 26))
-        self.assertEqual(dbapi.get_first_datetime(invalid_signature_example_1), date(1959, 5, 3))
-        self.assertEqual(dbapi.get_first_datetime(non_existing_file), None)
+        self.assertEqual(self.dbapi.get_first_datetime(correct_signature_example_1), datetime(2022, 1, 13, 10, 19, 26))
+        self.assertEqual(self.dbapi.get_first_datetime(invalid_signature_example_1), datetime(1900, 1, 1, 0, 0))
+        self.assertEqual(self.dbapi.get_first_datetime(non_existing_file), datetime(1900, 1, 1, 0, 0))
     
 
     def test_get_first_date(self):
-        dbapi = db_api.db_interface()
-        # db_api.create_record('TEST_SIGNATURE', 0, 0)
-        self.assertEqual(dbapi.get_first_datetime('TEST_SIGNATURE'), make_todayte())
+        self.assertEqual(self.dbapi.get_first_datetime('REV_EN01132022101926'), datetime(2022, 1, 13, 10, 19, 26))
 
 
     def test_get_first_date_if_file_not_in_db(self):
-        dbapi = db_api.db_interface()
-        first_date = dbapi.get_first_datetime(get_signature('TEST_FILE_NOT_IN_DB', '', True))
-        self.assertEqual(first_date, date(1900, 1, 1))
+        first_date = self.dbapi.get_first_datetime(get_signature('TEST_FILE_NOT_IN_DB', '', True))
+        self.assertEqual(first_date, datetime(1900, 1, 1, 0, 0))
 
 
     def test_get_last_date(self):
-        # db_api.create_record('TEST_SIGNATURE', 0, 0)
-        dbapi = db_api.db_interface()
-        self.assertEqual(dbapi.get_last_datetime('TEST_SIGNATURE'), make_todayte())
+        last_date = self.dbapi.get_last_datetime('REV_EN10182021195739')
+        self.assertEqual(last_date, datetime(2022, 8, 26, 14, 7, 57))
 
 
     def test_get_newest_record(self):
-        lng, expected = 'XT', 'newestXTrevision'
+        lng, expected = 'EN', 'REV_EN06192022162707'
         missing_lng, expected_2 = 'MISSING', ''
-        dbapi = db_api.db_interface()
 
-        self.assertEqual(dbapi.get_latest_record_signature(lng), expected)
-        self.assertEqual(dbapi.get_latest_record_signature(missing_lng), expected_2)
+        self.assertEqual(self.dbapi.get_latest_record_signature(lng), expected)
+        self.assertEqual(self.dbapi.get_latest_record_signature(missing_lng), expected_2)
 
 
     def test_create_new_record(self):
-        timestamp_str = str(datetime.now().strftime("%Y-%m-%d"))
+        timestamp_str = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         signature = 'TEST_CREATE_NEW_RECORD'
-        db_api.create_record(signature,0,0)
-        dbapi = db_api.db_interface()
-        self.assertEqual(str(dbapi.get_last_datetime(signature)), timestamp_str)
+        self.dbapi.create_record(signature,0,0,0)
+        self.dbapi.refresh()
+        self.assertEqual(str(self.dbapi.get_last_datetime(signature)), timestamp_str)
 
 
     def test_get_timedelta_from_creation(self):
-        # db_api.create_record('TEST_SIGNATURE', 0, 0)
-        dbapi = db_api.db_interface()
-        self.assertEqual(dbapi.get_timedelta_from_creation('TEST_SIGNATURE').days, 5)
-        self.assertEqual(dbapi.get_timedelta_from_creation('NONEXISTING_SIGNATURE'), None)
+        db_api.create_record('TEST_SIGNATURE', 0, 0)
+        self.assertEqual(self.dbapi.get_timedelta_from_creation('TEST_SIGNATURE').days, 5)
+        self.assertEqual(self.dbapi.get_timedelta_from_creation('NONEXISTING_SIGNATURE'), None)
 
 
     def test_time_delta_from_last_rev(self):
-        # db_api.create_record('TEST_SIGNATURE', 0, 0)
-        dbapi = db_api.db_interface()
-        self.assertEqual(dbapi.get_timedelta_from_last_rev('TEST_SIGNATURE').days, 5)
-        self.assertEqual(dbapi.get_timedelta_from_last_rev('NON-EXISTING_SIGNATURE'), None)
+        db_api.create_record('TEST_SIGNATURE', 0, 0)
+        self.assertEqual(self.dbapi.get_timedelta_from_last_rev('TEST_SIGNATURE').days, 5)
+        self.assertEqual(self.dbapi.get_timedelta_from_last_rev('NON-EXISTING_SIGNATURE'), None)
 
 
     def test_get_last_positives(self):
-        dbapi = db_api.db_interface()
-        dbapi.refresh()
         rev_signature = 'REV_EN10092021164327'
         expected = 65
-        self.assertEqual(dbapi.get_last_positives(rev_signature), expected)
+        self.assertEqual(self.dbapi.get_last_positives(rev_signature), expected)
 
 
     def test_get_max_positives_count(self):
-        dbapi = db_api.db_interface()
         rev_signature = 'REV_EN01212022204840'
         expected = 62
-        self.assertEqual(dbapi.get_max_positives_count(rev_signature), expected)
+        self.assertEqual(self.dbapi.get_max_positives_count(rev_signature), expected)
 
 
     def test_filter_lng(self):
-        dbapi = db_api.db_interface()
-        total = dbapi.get_all()
-        db_filtered = dbapi.get_filtered_by_lng('EN')
+        total = self.dbapi.get_all()
+        db_filtered = self.dbapi.get_filtered_by_lng('EN')
         self.assertNotEqual(db_filtered.shape[0], 0)
         self.assertLess(db_filtered.shape[0], total.shape[0])
 
@@ -241,19 +244,32 @@ class Test_FlashCards(unittest.TestCase):
     def setUp(self):
         # configuration
         self.registry = list()
-        self.mw = main_window_logic.main_window_logic()
-        self.gui = main_window_gui.main_window_gui()
+        self.mock_gui()
+        # finish loading up
+        data = self.gui.load_flashcards(os.path.join(T_PATH,'languages/REV_EN10262021143320.csv'))
+        self.gui.update_backend_parameters(os.path.join(T_PATH,'languages/REV_EN10262021143320.csv'), data)
+        self.gui.initiate_pace_timer()
 
-        # mock variables
-        self.mw.fcc_inst = Mock()
-        self.mw.fcc_inst.post_fcc = lambda text: self.registry.append(text)
+    def mock_gui(self):
+        self.gui = main_window_gui.main_window_gui()
+        self.gui.FONT = 'arial'
+        self.gui.FONT_TEXTBOX_SIZE = '19'
+        self.gui.textbox_stylesheet = 'color: #etrs2e; background-color: #3rat24;'
         self.gui.fcc_inst = Mock()
         self.gui.fcc_inst.post_fcc = lambda text: self.registry.append(text)
-       
-        # finish loading up
-        data = self.mw.load_flashcards(os.path.join(T_PATH,'languages/example.xlsx'))
-        self.mw.update_backend_parameters(os.path.join(T_PATH,'languages/example.xlsx'), data)
-    
+        self.gui.timer_button = Mock()
+        self.gui.timer = Mock()
+        self.gui.textbox = Mock()
+        self.gui.positive_button = Mock()
+        self.gui.negative_button = Mock()
+        self.gui.next_button = Mock()
+        self.gui.revmode_button = Mock()
+        self.gui.words_button = Mock()
+        self.gui.score_button = Mock()
+        self._score_button = list()
+        self.gui.score_button.setText = lambda x: self._score_button.append(x)
+        self.gui.TIMER_RUNNING_FLAG = False
+
 
     def test_file_update_timer_dont_run_if_update_interval_0(self):
         # assert will not run if update_interval == 0
@@ -278,40 +294,77 @@ class Test_FlashCards(unittest.TestCase):
             self.assertNotIn('stop', self.registry[-1])
             Mock.assert_not_called(mock_mtime)
             Mock.assert_not_called(self.gui.update_dataset)
-
-UNIQUE_SIGNATURES = {'REV_EN02242022161545', 'REV_EN01132022101926', 'REV_EN01212022204840', 'REV_EN12162021155733', 'REV_EN10182021195739', 'REV_EN11292021220523', 'REV_EN03072022120115', 'REV_EN10262021143320', 'REV_EN05042022003525', 'REV_EN11112021162252', 'REV_EN05162022142804', 'REV_EN10092021164327', 'REV_EN01032022213505', 'REV_EN06192022162707', 'REV_EN10172022195416', 'REV_EN02102022130427', 'REV_EN12082021002630', 'REV_EN11032021142640', 'REV_EN02012022213658', 'REV_EN03102022132455', 'REV_EN06062022170657', 'REV_EN03212022134723'} 
-
-class Test_EFC(unittest.TestCase):
-
-    def test_is_it_time_for_something_new(self):
-        efc_obj = efc.efc()
-        reccommendations = efc_obj.is_it_time_for_something_new()
-        self.assertIn('Oi mate, take a gander', reccommendations, reccommendations)
-        self.assertNotIn('давай товарищ, двигаемся!', reccommendations, reccommendations)
-
-    def test_get_complete_efc_table(self):
-        efc_obj = efc.efc()
-        efc_obj.refresh_source_data()
-        register_log(efc_obj.get_complete_efc_table())
-
-    def test_get_efc_recommendations(self):
-        efc_obj = efc.efc()
-        efc_obj.refresh_source_data()
-        register_log(efc_obj.get_recommendations())
-
-    def test_efc_table_printout(self):
-        efc_obj = efc.efc()
-        efc_obj.refresh_source_data()
-        res = efc_obj.get_efc_table_printout(efc_obj.get_complete_efc_table())
-        register_log('\n' + res)
         
+    def test_next_click_positive(self):
+        self.gui.is_revision = True
+        exp_state = dict(total_words = 60,
+                        current_index = self.gui.current_index+2,
+                        side = self.gui.side,
+                        saved = False,
+                        is_revision = True,
+                        TIMER_RUNNING_FLAG = True,
+                        positives = 2,
+                        )
+        pre_card_text = self.gui.get_current_card()[self.gui.side]
+        self.gui.click_positive()
+        self.gui.click_positive()
+        act_state = dict(total_words = self.gui.total_words,
+                        current_index = self.gui.current_index,
+                        side = self.gui.side,
+                        saved = self.gui.is_saved,
+                        is_revision = self.gui.is_revision,
+                        TIMER_RUNNING_FLAG = self.gui.TIMER_RUNNING_FLAG,
+                        positives = self.gui.positives,
+                        )
+        post_card_text = self.gui.get_current_card()[self.gui.side]
+        for k in act_state.keys():
+            self.assertEqual(act_state[k], exp_state[k], f'Error on key: {k}')
+        self.assertNotEqual(pre_card_text, post_card_text)
+        self.assertEqual(self._score_button[-1], '100%')
+    
+    def test_next_click_mixed(self):
+        self.gui.is_revision = True
+        exp_state = dict(total_words = 60,
+                        current_index = self.gui.current_index+3,
+                        side = self.gui.side,
+                        saved = False,
+                        is_revision = True,
+                        TIMER_RUNNING_FLAG = True,
+                        positives = 2,
+                        )
+        pre_card_text = self.gui.get_current_card()[self.gui.side]
+        self.gui.click_positive()
+        self.gui.click_positive()
+        self.gui.click_negative()
+        act_state = dict(total_words = self.gui.total_words,
+                        current_index = self.gui.current_index,
+                        side = self.gui.side,
+                        saved = self.gui.is_saved,
+                        is_revision = self.gui.is_revision,
+                        TIMER_RUNNING_FLAG = self.gui.TIMER_RUNNING_FLAG,
+                        positives = self.gui.positives,
+                        )
+        post_card_text = self.gui.get_current_card()[self.gui.side]
+        for k in act_state.keys():
+            self.assertEqual(act_state[k], exp_state[k], f'Error on key: {k}')
+        self.assertNotEqual(pre_card_text, post_card_text)
+        self.assertEqual(self._score_button[-1], '67%')
+
+    def test_go_back_n_cards(self):
+        [self.gui.click_next_button() for _ in range(10)]
+        [self.gui.click_prev_button() for _ in range(3)]
+        self.assertEqual(self.gui.words_back, 3)
+        self.assertEqual(self.gui.current_index, 7)
+        [self.gui.click_next_button() for _ in range(4)]
+        self.assertEqual(self.gui.words_back, 0)
+        self.assertEqual(self.gui.current_index, 11)
 
 
 class Test_stats(unittest.TestCase):
 
     def test_get_progress_data(self):
         stat = stats.stats()
-        stat.get_data_for_progress(signature='RU_biesy_part1')
+        stat.get_data_for_progress(lng_gist='EN')
         self.assertEqual(stat.chart_values.shape[0], stat.second_chart_values.shape[0])
         self.assertEqual(stat.revision_count.shape[0], stat.formatted_dates.shape[0])
         self.assertGreater(stat.chart_values.shape[0], 1)

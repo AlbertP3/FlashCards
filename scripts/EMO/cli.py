@@ -24,8 +24,11 @@ class CLI():
     def send_output(self, text:str, include_newline=True):
         if include_newline:
             self.sout.console.append(text)
+            self.sout.mw.CONSOLE_LOG.append(text)
         else:
-            self.sout.console.setText(self.sout.console.toPlainText()+text)
+            new_text = self.sout.console.toPlainText()+text
+            self.sout.console.setText(new_text)
+            self.sout.mw.CONSOLE_LOG = new_text.split('\n')
 
 
     def set_output_prompt(self, t):
@@ -50,6 +53,10 @@ class CLI():
         data_prepare_success = self.prepare_data()
         if not data_prepare_success: return
 
+        # CST model must be trained on raw data
+        self.prt_res(self.models_creator.prep_CST, 'Preparing CST model... ', self.dbapi.db)
+        self.prt_res(self.models_creator.eval_CST, 'Evaluating CST model... ')
+        
         self.prepare_augmentation()
         self.prepare_models()
         self.available_models = self.models_creator.models.keys()
@@ -93,8 +100,6 @@ class CLI():
         self.prt_res(self.models_creator.eval_SVM, 'Evaluating SVM model... ')
         self.prt_res(self.models_creator.prep_RFR, 'Preparing RFR model... ', self.dbapi.db)
         self.prt_res(self.models_creator.eval_RFR, 'Evaluating RFR model... ')
-        self.prt_res(self.models_creator.prep_CST, 'Preparing CST model... ', self.dbapi.db)
-        self.prt_res(self.models_creator.eval_CST, 'Evaluating CST model... ')
 
 
     def show_training_summary(self):

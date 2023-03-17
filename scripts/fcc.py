@@ -46,16 +46,14 @@ class fcc():
                     }
 
 
-    def execute_command(self, parsed_input:list, followup_prompt:bool=True):
+    def execute_command(self, parsed_input:list):
         if not parsed_input[-1]:
             return
         elif self.is_allowed_command(parsed_input[0]):
             methodcaller(parsed_input[0], parsed_input)(self)
         else:
             self.post_fcc('Permision Denied or Unknown Command. Type help for more info')
-        
-        if followup_prompt:
-            self.post_fcc(self.mw.CONSOLE_PROMPT)
+        self.post_fcc(self.mw.CONSOLE_PROMPT)
 
 
     def is_allowed_command(self, command):
@@ -67,9 +65,8 @@ class fcc():
 
 
     def post_fcc(self, text:str): 
-        if self.console.toPlainText().endswith(self.mw.CONSOLE_PROMPT):
-               self.console.setText(self.console.toPlainText()[:-len(self.mw.CONSOLE_PROMPT)-1])
         self.console.append(text)
+        self.mw.CONSOLE_LOG.append(text)
     
 
     def update_console_id(self, new_console):
@@ -253,7 +250,7 @@ class fcc():
         from efc import efc
         efc_obj = efc()
         efc_obj.refresh_source_data()
-        reccommendations = efc_obj.get_complete_efc_table()
+        reccommendations = efc_obj.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
             lim = int(parsed_cmd[1])
         else:
@@ -289,6 +286,7 @@ class fcc():
     def cls(self, parsed_cmd=None):
         # Clear console
         self.console.setText('')
+        self.mw.CONSOLE_LOG.clear()
 
 
     @decorator_require_nontemporary

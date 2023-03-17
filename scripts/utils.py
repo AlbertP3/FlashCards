@@ -225,8 +225,9 @@ def format_timedelta(timedelta):
     if time_value.startswith('0'): 
         time_value = time_value[1:]
 
-    suffix = '' if time_value.startswith('1.') else 's'
-            
+    try: t = time_value[1] in '.:'
+    except IndexError: t = True
+    suffix = '' if time_value.startswith('1') and t else 's'       
     return f'{time_value} {interval}{suffix}'
 
 
@@ -308,18 +309,28 @@ def shuffle_dataset(dataset:pd.DataFrame, seed=None):
     return dataset.sample(frac=1, random_state=pd_random_seed).reset_index(drop=True)
 
 
+CSV_SNIFFER = None
+def set_csv_sniffer():
+    global CSV_SNIFFER
+    CSV_SNIFFER = None if config['csv_sniffer'] == 'off' else config['csv_sniffer']
+set_csv_sniffer()
+
+
 def read_csv(file_path):
-    dataset = pd.read_csv(file_path, encoding='utf-8',sep=get_dialect(file_path))   
+    delim = get_dialect(file_path) if CSV_SNIFFER else ','
+    dataset = pd.read_csv(file_path, encoding='utf-8',sep=delim)   
     return dataset
 
 
-def get_dialect(dataset_path):
+def get_dialect(dataset_path, investigate_rows=10):
     data = list()
     with open(dataset_path, 'r', encoding='utf-8') as csvfile:
         csvreader = csv.reader(csvfile)
         for r in csvreader:
             data.append(r)
-    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=';,').delimiter
+            if len(data)>=investigate_rows:
+                break
+    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=CSV_SNIFFER).delimiter
 
 
 def read_excel(file_path):
