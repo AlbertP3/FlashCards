@@ -49,13 +49,15 @@ class fcc_gui():
         
     def arrange_fcc_window(self):
         self.fcc_layout = widget.QGridLayout()
-
-        if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
-            cur_line = self.console.toPlainText().split('\n')[-1]
-            self.CONSOLE_LOG[-1] = cur_line
+        if self.CONSOLE_LOG:
+            self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i!=self.CONSOLE_PROMPT]
+            if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
+                cur_line = self.console.toPlainText().split('\n')[-1]
+                self.CONSOLE_LOG[-1] = cur_line
+            else:
+                self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
-            self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
-
+            self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
         if self.incognito:
             self.console.setText()
         else:
@@ -74,7 +76,7 @@ class fcc_gui():
 
     def cli_shortcuts(self, event):
         if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
-            self.fcc_inst.execute_command(['cls'])
+            self.fcc_inst.execute_command(['cls'], followup_prompt=False)
         elif (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_V:
             cur_pos_prev = self.console.textCursor().position()
             widget.QTextEdit.keyPressEvent(self.console, event)

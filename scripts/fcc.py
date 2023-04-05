@@ -46,14 +46,17 @@ class fcc():
                     }
 
 
-    def execute_command(self, parsed_input:list):
+    def execute_command(self, parsed_input:list, followup_prompt:bool=True):
         if not parsed_input[-1]:
             return
         elif self.is_allowed_command(parsed_input[0]):
             methodcaller(parsed_input[0], parsed_input)(self)
         else:
             self.post_fcc('Permision Denied or Unknown Command. Type help for more info')
-        self.post_fcc(self.mw.CONSOLE_PROMPT)
+        if followup_prompt:
+            self.post_fcc(self.mw.CONSOLE_PROMPT)
+        else:
+            self.mw.move_cursor_to_end()
 
 
     def is_allowed_command(self, command):
@@ -284,9 +287,16 @@ class fcc():
     
 
     def cls(self, parsed_cmd=None):
-        # Clear console
-        self.console.setText('')
-        self.mw.CONSOLE_LOG.clear()
+        # Clear console - keep last line if is a command
+        last_line = self.console.toPlainText().split('\n')[-1]
+        if last_line.startswith(self.mw.CONSOLE_PROMPT):
+            new_console_log = [last_line]
+            new_text = last_line
+        else:
+            new_console_log = []
+            new_text = ''
+        self.console.setText(new_text)
+        self.mw.CONSOLE_LOG = new_console_log
 
 
     @decorator_require_nontemporary

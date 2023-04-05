@@ -39,7 +39,7 @@ class sod_spawn:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
             self.HISTORY.append(msg)
 
-    def monkey_patch_execute_command_fcc(self, parsed_input:list):
+    def monkey_patch_execute_command_fcc(self, parsed_input:list, followup_prompt:bool=True):
         if parsed_input[0] == 'cls':
             self.cli.cls()
         else:

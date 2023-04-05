@@ -18,7 +18,7 @@ def register_dict(name:str):
 class template_dict(ABC):
     @abstractmethod
     def get(self, word:str) -> tuple[list[str], list[str], list[str]]:
-        # returns (translations, originals, warnings)
+        '''returns (translations, originals, warnings)'''
         return
 
 
@@ -57,7 +57,7 @@ class dict_pons(template_dict):
         for r, s in self.re_patterns.items():
             translations = [re.sub(r, s, text_) for text_ in translations]
             originals = [re.sub(r, s, text_) for text_ in originals]
-
+        translations, originals = self.ensure_order(translations, originals)
         return translations, originals, warnings
     
 
@@ -90,6 +90,15 @@ class dict_pons(template_dict):
                 output.append('You are viewing results spelled similarly:')
                 output.append(' | '.join([word.get_text().strip() for word in sim_res]))
         return output
+
+    
+    def ensure_order(self, translations, originals):
+        '''Checks if translations were shown as source. If so, changes translations with originals.'''
+        w = self.word.lower()
+        if any([w in t.lower() for t in translations]):
+            translations, originals = originals, translations
+        return translations, originals
+
 
 
 @register_dict('merriam')

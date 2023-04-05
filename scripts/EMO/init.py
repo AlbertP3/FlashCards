@@ -35,7 +35,7 @@ class emo_spawn:
             self.HISTORY+='\n'+msg
 
 
-    def _patch_execute_command(self, parsed_input:list):
+    def _patch_execute_command(self, parsed_input:list, followup_prompt:bool=True):
         if parsed_input[0] == 'cls':
             self.cli.cls()
         else:

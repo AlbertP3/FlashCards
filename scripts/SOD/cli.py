@@ -346,6 +346,9 @@ class CLI():
                     break
                 elif v.isnumeric(): 
                     self.res_edit.append(self.translations[int(v)-1])
+                elif v[0] == 'r':
+                    i = int(v[1:])-1
+                    self.res_edit.append(self.originals[i])
                 else:
                     self.RES_EDIT_SELECTION_MODE = False
                     self.MODIFY_RES_EDIT_MODE = v
@@ -372,12 +375,12 @@ class CLI():
 
     def selection_cmd_is_correct(self, parsed_cmd):
         result = True
-        pattern = re.compile(r'^(\d+|e\d+|a|m\d*)$')
+        pattern = re.compile(r'^(\d+|e\d+|a|m\d*|r\d+)$')
         lim = len(self.translations)
         if (self.SELECT_TRANSLATIONS_MODE and str(self.MODIFY_RES_EDIT_MODE)[0] not in 'ea') \
             and not self.QUEUE_SELECTION_MODE:
             all_args_match = all({pattern.match(c) for c in parsed_cmd})
-            index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'am') if all_args_match else True
+            index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'amr') if all_args_match else True
             if not all_args_match or index_out_of_range:
                 result = False
                 self.cls(self.WRONG_EDIT, keep_content=True)
@@ -426,7 +429,8 @@ class CLI():
             content = self.output.console.toPlainText().split('\n')
             content = content[1:] if keep_cmd else content[1:-1]
             content = '\n'.join(content)
-        self.output.cls()
+        self.output.console.setText('')
+        self.output.mw.CONSOLE_LOG = []
         self.__post_status_bar(msg)
         if keep_content: 
             self.send_output(content)
@@ -459,7 +463,8 @@ Search results modification:
     1. e<N>     --> edit the N-th translation
     2. m*<N>    --> modify searched phrase
     3. a        --> add a new translation
-    4. <blank>  --> abort
+    4. r<N>     --> add a reversed translation
+    5. <blank>  --> abort
 
 Available dicts:
     {available_dicts}

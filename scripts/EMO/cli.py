@@ -36,7 +36,8 @@ class CLI():
 
 
     def cls(self):
-        self.sout.cls()
+        self.sout.console.setText('')
+        self.sout.mw.CONSOLE_LOG = []
 
 
     def prt_res(self, func, msg, *args, **kwargs):
