@@ -28,6 +28,7 @@ class dict_pons(template_dict):
 
     def __init__(self):
         self.config = Config()
+        self.timeout = int(self.config['sod_request_timeout'])
         self.dict_url = 'https://en.pons.com/translate/|ORIGINAL|-|TRANSLATION|/|PHRASE|'
         self.pons_mapping = dict(
             en = 'english',
@@ -65,7 +66,7 @@ class dict_pons(template_dict):
         url = self.dict_url.replace('|PHRASE|', self.word)
         url = url.replace('|ORIGINAL|', self.pons_mapping[self.source_lng])
         url = url.replace('|TRANSLATION|', self.pons_mapping[self.target_lng])
-        html = requests.get(url)
+        html = requests.get(url, timeout=self.timeout)
         return html
     
 
@@ -105,6 +106,8 @@ class dict_pons(template_dict):
 class dict_merriam(template_dict):
 
     def __init__(self):
+        self.config = Config()
+        self.timeout = int(self.config['sod_request_timeout'])
         self.dict_url = 'https://www.merriam-webster.com/dictionary/|PHRASE|'
 
     
@@ -120,7 +123,7 @@ class dict_merriam(template_dict):
 
     def get_page_content(self):
         url = self.dict_url.replace('|PHRASE|', self.word)
-        html = requests.get(url)
+        html = requests.get(url, timeout=self.timeout)
         return html
 
     
@@ -148,6 +151,7 @@ class dict_babla(template_dict):
 
     def __init__(self):
         self.config = Config()
+        self.timeout = int(self.config['sod_request_timeout'])
         self.dict_url = 'https://en.bab.la/dictionary/|ORIGINAL|-|TRANSLATION|/|PHRASE|'
         self.babla_mapping = dict(
             en = 'english',
@@ -177,7 +181,7 @@ class dict_babla(template_dict):
         url = url.replace('|ORIGINAL|', self.babla_mapping[self.source_lng])
         url = url.replace('|TRANSLATION|', self.babla_mapping[self.target_lng])
         agent = {"User-Agent":"Mozilla/5.0"}
-        html = requests.get(url, headers=agent)
+        html = requests.get(url, headers=agent, timeout=self.timeout)
         return html
 
 
@@ -218,6 +222,7 @@ class dict_babla(template_dict):
 class dict_diki(template_dict):
     def __init__(self):
         self.config = Config()
+        self.timeout = int(self.config['sod_request_timeout'])
         self.dict_url = 'https://www.diki.pl/slownik-|TRANSLATION|?q=|PHRASE|'
         self.diki_mapping = dict(
             en = 'angielskiego',
@@ -245,7 +250,7 @@ class dict_diki(template_dict):
         url = self.dict_url.replace('|PHRASE|', self.word)
         url = url.replace('|TRANSLATION|', self.diki_mapping.get(self.target_lng, self.diki_mapping['en']))
         agent = {"User-Agent":"Mozilla/5.0"}
-        html = requests.get(url, headers=agent)
+        html = requests.get(url, headers=agent, timeout=self.timeout)
         return html
 
 
@@ -381,7 +386,9 @@ class Dict_Services:
         try:
             trans, orig, warn = self.dicts[self.dict_service].get(word)
         except requests.exceptions.ConnectionError:
-            trans, orig, warn = [], [], ['No Internet Connection!']
+            trans, orig, warn = [], [], ['No Internet Connection']
+        except requests.exceptions.Timeout:
+            trans, orig, warn = [], [], ['Request Timed Out']
         return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn
 
 

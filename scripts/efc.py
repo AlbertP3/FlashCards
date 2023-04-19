@@ -77,33 +77,36 @@ class efc():
                     prev_score = int(100*(data[-1][2] / data[-1][1]))
                     rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
                     efc = self.efc_model.predict([rec])
-                    pred = self.guess_when_due(rec.copy(), warm_start=efc[0][0], prog_resh=1.2) if preds else 0
+                    pred = self.guess_when_due(rec.copy(), warm_start=efc[0][0]) if preds else 0
                 s_efc = [s, since_last_rev/24, efc[0][0], pred]
             else:
                 s_efc = [s, '∞', 0, 0]
             rev_table_data.append(s_efc)
-
+            
         return rev_table_data
  
 
-    def guess_when_due(self, record, resh=1, warm_start=1, max_cycles=84, prog_resh=1):
+    def guess_when_due(self, record, resh=800, warm_start=1, max_cycles=100, prog_resh=1.1, t_tol=0.01):
         # returns #hours to efc falling below the threshold
         # resh - step resolution in hours
         # warm_start - initial efc value
         # prog_resh - factor for adjusting resh
+        # t_tol - target diff tolerance in points
         efc_ = warm_start or 1
-        res = 0
+        t = int(self.config['efc_threshold'])
+        init = record[3]
         cycles = 0
-        while efc_ >= int(self.config['efc_threshold']):
-            res+=resh
-            record[3]+=int(resh)
-            efc_ = self.efc_model.predict([record])[0][0]
-            cycles+=1
-            resh*=prog_resh
-            if cycles > max_cycles:
-                res = 10000
+        while cycles < max_cycles:
+            if efc_ > t + t_tol:
+                record[3]+=resh
+            elif efc_ < t - t_tol:
+               record[3]-=resh
+            else:
                 break
-        return int(res)
+            efc_ = self.efc_model.predict([record])[0][0]
+            resh/=prog_resh
+            cycles+=1
+        return record[3]-init
 
 
     def get_efc_table_printout(self, efc_table_data, lim=None):
