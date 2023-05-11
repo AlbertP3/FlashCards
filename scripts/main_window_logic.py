@@ -240,5 +240,7 @@ class main_window_logic():
         else:
             text_to_post = traceback
 
-        self.get_fcc_sidewindow()
+        if self.side_window_id != 'fcc':
+            self.get_fcc_sidewindow()
+            
         self.fcc_inst.post_fcc(text_to_post)

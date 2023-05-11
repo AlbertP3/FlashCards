@@ -43,6 +43,7 @@ class fcc():
                     'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
                     'emo':'EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs',
                     'rgd':'Reset Geometry Defaults',
+                    'err':'Raises an Exception'
                     }
 
 
@@ -78,10 +79,10 @@ class fcc():
 
     def help(self, parsed_cmd):
         if len(parsed_cmd) == 1:
-           printout = get_pretty_print(self.DOCS, extra_indent=3)
+           printout = get_pretty_print(self.DOCS, extra_indent=3, alingment=['<', '<'])
         else:
             command = parsed_cmd[1]
-            printout =  get_pretty_print([[command, self.DOCS[command]]], extra_indent=3)
+            printout =  get_pretty_print([[command, self.DOCS[command]]], extra_indent=3, alingment=['<', '<'])
 
         self.post_fcc(printout)
 
@@ -468,3 +469,8 @@ class fcc():
             self.emo_object = emo_spawn(stream_out=self)
         except NameError:
             self.post_fcc("EMO module is not installed")
+
+
+    def err(self, parsed_cmd:list):
+        # Raise an Exception
+        raise Exception(f'{parsed_cmd}')

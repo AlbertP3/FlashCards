@@ -381,7 +381,7 @@ def validate_setup():
     post_utils(operation_status)
 
 
-def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False) -> str:
+def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False, alingment:list=list()) -> str:
     printout = '' 
     longest_elements = list()
 
@@ -399,18 +399,22 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     for k in range(len(list_[0])):
         longest_elements.append(max([len(str(item[k])) for item in list_]))
 
+    alingment += ['^'] * (len(list_) - len(alingment))
     for item in list_:
         line = ''
         for sub_index, sub_item in enumerate(item):
-            i = longest_elements[sub_index]+extra_indent+1
-            line+=f'{sub_item:^{i}}|'
+            i = longest_elements[sub_index]+extra_indent
+            a = alingment[sub_index]
+            rpad = ' ' if a=='>' else ''
+            lpad = ' ' if a=='<' else ''
+            line+=f'{lpad}{sub_item:{a}{i}}{rpad}|'
         if not keep_last_border: line=line[:-1] 
-        printout += line[1:] + '\n'
+        printout += line + '\n'
     
     return printout[:-1]
 
 
-def format_seconds_to(total_seconds, interval, include_remainder=True, null_format=None, max_len=0):
+def format_seconds_to(total_seconds, interval, include_remainder=True, null_format:str=None, max_len=0, fmt:str=None):
     if interval == 'hour':
         prev_interval = 60
         interval = 3600
@@ -444,7 +448,7 @@ def format_seconds_to(total_seconds, interval, include_remainder=True, null_form
     elif include_remainder:
         res = f'{round(total_intervals, 0):0>2.0f}{sep}{round(remaining_intervals,0):0>2.0f}'
     else:
-        res = str(round(total_intervals, 0))
+        res = f"{round(total_intervals, 0):.0f}"
     
     if max_len != 0 and len(res) > max_len and include_remainder:
         # remove remainder and the colon

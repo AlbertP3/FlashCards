@@ -32,17 +32,15 @@ class fcc_gui():
         self.aval_lefts = 0
         self.aval_rights = 0
         self.console = None
-        self.incognito = False # if True: forget content added within cur session
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'main')
         self.add_shortcut('run_command', self.run_command, 'fcc')
         self.fcc_inst = fcc(self)
         self.create_console()
 
 
-    def get_fcc_sidewindow(self, width_=500, incognito=False):
-        self.incognito = incognito
+    def get_fcc_sidewindow(self):
         self.arrange_fcc_window()
-        self.open_side_window(self.fcc_layout, 'fcc', width_ + self.LEFT)
+        self.open_side_window(self.fcc_layout, 'fcc', 500 + self.LEFT)
         self.console.setFocus()
         self.move_cursor_to_end()
         
@@ -58,10 +56,8 @@ class fcc_gui():
                 self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
             self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
-        if self.incognito:
-            self.console.setText()
-        else:
-            self.console.setText('\n'.join(self.CONSOLE_LOG))
+        
+        self.console.setText('\n'.join(self.CONSOLE_LOG))
         self.fcc_layout.addWidget(self.console, 0, 0)
 
         

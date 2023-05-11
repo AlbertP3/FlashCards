@@ -123,7 +123,8 @@ class efc():
                 pred = "Too Long"
             diff_days = '{:.1f}'.format(rev[1]) if isinstance(rev[1], float) else rev[1]
             efc_stats_list.append([rev[0], diff_days, '{:.2f}'.format(rev[2]), pred])
-        printout = get_pretty_print(efc_stats_list, extra_indent=1, separator='|')
+        printout = get_pretty_print(efc_stats_list, extra_indent=1, separator='|', 
+                    alingment=['^', '>', '>', '>'], keep_last_border=True)
         return printout
 
 
