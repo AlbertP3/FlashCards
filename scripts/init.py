@@ -1,6 +1,23 @@
 import os
-from utils import register_log
+import sys
+import logging
 
+CWD = os.path.dirname(os.path.abspath(__file__))
+
+# Configure logging
+logging.basicConfig(
+    filename=os.path.realpath(f'{CWD}/../fcs.log'),
+    filemode='a',
+    format='%(asctime)s.%(msecs)05d [%(name)s] %(levelname)s %(message)s <%(filename)s(%(lineno)d)>',
+    datefmt="%Y-%m-%dT%H:%M:%S", 
+    level='INFO'
+    )
+LOGGER = logging.getLogger('FCS')
+sys.stderr.write = LOGGER.critical
+log = logging.getLogger(__name__)
+
+
+# Continue setup
 setup_success = True
 CONFIG_NOT_FOUND_TEXT = "Config file was not found. Pleace follow the setup instructions: place the Launcher in the directory with scripts folder."
 
@@ -14,5 +31,4 @@ if setup_success:
     mw = main_window_gui()
     mw.launch_app()
 else:
-    register_log(CONFIG_NOT_FOUND_TEXT)
-
+    log.error(CONFIG_NOT_FOUND_TEXT)

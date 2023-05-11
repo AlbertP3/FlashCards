@@ -1,4 +1,4 @@
-from utils import Config, register_log
+from utils import Config
 from db_api import db_interface
 import EMO.models as models
 import EMO.augmentation as augmentation

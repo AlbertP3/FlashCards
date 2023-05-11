@@ -1,7 +1,10 @@
-from random import randint, shuffle
+import logging
+from random import randint
 import db_api
 from utils import *
 from rev_summary import summary_generator
+
+log = logging.getLogger(__name__)
 
 
 class main_window_logic():
@@ -114,8 +117,7 @@ class main_window_logic():
         return diff_words == 0 and self.is_revision
 
 
-    def handle_saving(self, seconds_spent=0):
-        
+    def handle_saving(self, seconds_spent=0):      
         # update timestamp
         self.signature = update_signature_timestamp(self.signature)
 
@@ -233,7 +235,7 @@ class main_window_logic():
 
 
     def notify_on_error(self, traceback, exc_value=None):
-        register_log(traceback)
+        log.error(traceback)
 
         if exc_value:  # is an error
             text_to_post = str(exc_value) + '. See log file for more details.'

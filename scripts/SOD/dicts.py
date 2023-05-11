@@ -1,4 +1,4 @@
-from utils import Config, register_log
+from utils import Config
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 import bs4

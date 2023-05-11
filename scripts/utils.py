@@ -8,6 +8,9 @@ import csv
 import inspect
 from time import perf_counter
 import inspect
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def timer(func):
@@ -16,7 +19,7 @@ def timer(func):
         t1 = perf_counter() 
         result = func(*args, **kwargs)
         t2 = perf_counter()
-        register_log(f'{func.__name__} called by {caller} took {(t2-t1)*1000:0.4f}ms')
+        log.info(f'{func.__name__} called by {caller} took {(t2-t1)*1000:0.4f}ms', stacklevel=2)
         return result
     return timed
         
@@ -80,11 +83,6 @@ config = Config()
 def post_utils(text):
     caller_function = inspect.stack()[1].function
     UTILS_STATUS_DICT[caller_function] = text
-
-
-def register_log(traceback):
-    with open('log.txt', 'a') as file:
-        file.write('\n@' + str(datetime.now()) + ' | ' + str(traceback))
 
 
 def get_abs_path_from_caller(file_name, abs_path=None):

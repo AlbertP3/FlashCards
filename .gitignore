@@ -6,6 +6,6 @@ languages
 rev_db.csv
 .vscode
 desktop.ini
-log.txt
+fcs.log
 scripts/tests/res/
 build/

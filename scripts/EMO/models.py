@@ -9,7 +9,7 @@ from sklearn import linear_model, svm, ensemble
 import joblib
 from sklearn.metrics import explained_variance_score, mean_absolute_error, mean_tweedie_deviance
 from math import exp
-from utils import Config, register_log
+from utils import Config
 
 
 RECORD_COLS = ['TOTAL', 'PREV_WPM', 'TIMEDELTA_SINCE_CREATION', 'TIMEDELTA_LAST_REV', 'CUM_CNT_REVS', 'PREV_SCORE']

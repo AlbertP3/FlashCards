@@ -473,4 +473,4 @@ class fcc():
 
     def err(self, parsed_cmd:list):
         # Raise an Exception
-        raise Exception(f'{parsed_cmd}')
+        raise Exception(f"{' '.join(parsed_cmd[1:])}")
