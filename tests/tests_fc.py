@@ -2,13 +2,7 @@ import sys
 import os
 from PyQt5.QtCore import Qt, QTimer
 from threading import Thread
-
 from pandas.core.dtypes.missing import partial
-
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-sys.path.append(parent)
-
 import unittest
 from unittest.mock import patch, Mock
 import pandas as pd

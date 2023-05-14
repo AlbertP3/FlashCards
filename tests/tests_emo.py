@@ -4,17 +4,15 @@ import numpy as np
 import os
 import sys
 
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-sys.path.append(parent)
 import joblib
-from utils import Config, register_log
+import logging
+from utils import Config
 from db_api import db_interface
 import EMO.models as models
 import EMO.augmentation as augmentation
 import EMO.cli as emo_cli
 
-
+log = logging.getLogger(__name__)
 config = Config()
 T_PATH = './scripts/tests/res'
 config.update({
@@ -92,22 +90,22 @@ class Test_models_creator(TestCase):
     def test_model_svm(self):
         self.models_creator.prep_SVM(self.dbapi.db)
         self.models_creator.eval_SVM()
-        # register_log(self.models_creator.models['SVM'])
+        # log.info(self.models_creator.models['SVM'])
 
     def test_model_las(self):
         self.models_creator.prep_LASSO(self.dbapi.db)
         self.models_creator.eval_LASSO()
-        register_log(self.models_creator.evaluation['LAS'])
+        log.info(self.models_creator.evaluation['LAS'])
 
     def test_model_cst(self):
         self.models_creator.prep_CST(self.dbapi.db)
         self.models_creator.eval_CST()
-        register_log(self.models_creator.evaluation['CST'][:3])
+        log.info(self.models_creator.evaluation['CST'][:3])
 
     def test_model_rfr(self):
         self.models_creator.prep_RFR(self.dbapi.db)
         self.models_creator.eval_RFR()
-        register_log(self.models_creator.evaluation['RFR'])
+        log.info(self.models_creator.evaluation['RFR'])
 
     def test_aug_cap(self):
         augmentation.cap_quantiles(self.dbapi.db)
@@ -143,18 +141,18 @@ class Test_CLI(TestCase):
 
     def test_prepare_data(self):
         self.cli.prepare_data()
-        register_log(self.registry)
+        log.info(self.registry)
 
     def test_augment_data(self):
         self._prepare_data()
         self.cli.prepare_augmentation()
-        register_log(self.registry)
+        log.info(self.registry)
     
     def test_prep_models(self):
         self._prepare_data()
         self.cli.prepare_models()
         self.cli.prepare_models()
-        register_log(self.registry)
+        log.info(self.registry)
 
     def test_show_training_summary(self):
         self._prepare_data()
@@ -167,7 +165,7 @@ class Test_CLI(TestCase):
         self.cli.models_creator.eval_CST()
         self.cli.models_creator.eval_LASSO()
         self.cli.show_training_summary()
-        register_log('\n' + '\n'.join(self.registry))
+        log.info('\n' + '\n'.join(self.registry))
 
     def test_show_examples(self):
         self._prepare_data()
@@ -175,7 +173,7 @@ class Test_CLI(TestCase):
         self.cli.models_creator.eval_SVM()
         self.cli.selected_model = 'SVM'
         self.cli.show_examples()
-        register_log('\n' + '\n'.join(self.registry))
+        log.info('\n' + '\n'.join(self.registry))
 
     def test_save_model_CST(self):
         self._prepare_data()
@@ -184,8 +182,8 @@ class Test_CLI(TestCase):
         model = joblib.load(os.path.join(config['resources_path'],'efc_models', 'CST.pkl'))
         results = model.predict([[100, 15, 24*30, 24*7, 3, 65],
                                 [98, 15, 24*30, 24, 5, 80]])
-        register_log(model.name)
-        register_log(results)
+        log.info(model.name)
+        log.info(results)
 
     def test_save_model_SVM(self):
         self._prepare_data()
@@ -194,8 +192,8 @@ class Test_CLI(TestCase):
         model = joblib.load(os.path.join(config['resources_path'],'efc_models', 'SVM.pkl'))
         results = model.predict([[100, 15, 24*30, 24*7, 3, 65],
                                 [98, 15, 24*30, 24, 5, 80]])
-        register_log(model.name)
-        register_log(results)
+        log.info(model.name)
+        log.info(results)
 
     def test_save_model_LAS(self):
         self._prepare_data()
@@ -203,8 +201,8 @@ class Test_CLI(TestCase):
         self.cli.models_creator.save_model('LAS')
         model = joblib.load(os.path.join(config['resources_path'],'efc_models', 'LAS.pkl'))
         results = model.predict(EXAMPLE_RECORDS)
-        register_log(model.name)
-        register_log(results)
+        log.info(model.name)
+        log.info(results)
         self.assertEqual(len(EXAMPLE_RECORDS), len(results))
 
     def test_save_model_RFR(self):
@@ -213,11 +211,11 @@ class Test_CLI(TestCase):
         self.cli.models_creator.save_model('RFR')
         model = joblib.load(os.path.join(config['resources_path'],'efc_models', 'RFR.pkl'))
         results = model.predict(EXAMPLE_RECORDS)
-        register_log(model.name)
-        register_log(results)
+        log.info(model.name)
+        log.info(results)
         self.assertEqual(len(EXAMPLE_RECORDS), len(results))
 
     def test_run_emo(self):
         self._prepare_data()
         self.cli.run_emo([])
-        register_log(self.registry)
+        log.info(self.registry)

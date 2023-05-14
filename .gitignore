@@ -7,5 +7,5 @@ rev_db.csv
 .vscode
 desktop.ini
 fcs.log
-scripts/tests/res/
+tests/res/
 build/

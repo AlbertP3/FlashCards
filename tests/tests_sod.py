@@ -1,21 +1,23 @@
 import sys
 import os
 from unittest import TestCase, mock
+import pytest
 import re
 import unittest
 import requests
 from functools import partial
 from itertools import zip_longest
+import logging
+from dataclasses import fields
 
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-sys.path.append(parent)
 import SOD.dicts as sod_dicts
 import SOD.cli as sod_cli
 import SOD.init as sod_init
-from utils import *
-import tests.tools as tools
+from utils import Config
+import tools
 
+CWD = os.path.dirname(os.path.abspath(__file__))
+log = logging.getLogger(__name__)
 
 
 class dict_mock():
@@ -73,7 +75,7 @@ class Test_dicts(TestCase):
     def mock_connection_html(self, file_name):
         requests_session = requests.session()
         requests_session.mount(f'file://', tools.LocalFileAdapter())
-        html = requests_session.get(f"file://{os.getcwd()}/scripts/tests/res/dicts/{file_name}")
+        html = requests_session.get(f"file://{CWD}/res/dicts/{file_name}")
         return html
 
 
@@ -191,8 +193,6 @@ class Test_dicts(TestCase):
         t, o, w = d.get('affilication')
         self.assertEqual('Czy chodziło ci o: affiliation, affliction, affrication', w[0])
 
-
-
     @unittest.skip("TODO")
     def test_get_from_cambridge(self):
         d = self.d_api['cambridge']
@@ -212,23 +212,30 @@ class Test_CLI(TestCase):
         output.console.setText = set_text_mock
         self.ss = sod_init.sod_spawn(adapter='fcc', stream_out=output)
 
-        self.ss.cli = sod_cli.CLI(output, './scripts/tests/res/languages/example.xlsx', 'Sheet1')
+        self.ss.cli = sod_cli.CLI(output, f'{CWD}/res/languages/example.xlsx', 'Sheet1')
         self.ss.cli.d_api.dicts['mock'] = dict_mock()
         self.ss.cli.d_api.dict_service = 'mock'
+            
+        self.ss.cli.fh.append_content = self.mock_saving_to_db
+        self.ss.cli.fh.is_duplicate = self.mock_is_duplicate
+        self.ss.cli.output.cls = self.cls_mock
+        self.ss.cli.send_output = self.send_output_mock
+        self.ss.cli.get_char_limit = self.get_char_lim_mock
+        self.ss.cli.get_lines_limit = self.get_lines_lim_mock
 
-        def send_output_mock(msg=None, *args, **kwargs): self.cli_output_registry.append(msg)
-        def get_char_lim_mock(*args, **kwargs): return 99
-        def get_lines_lim_mock(*args, **kwargs): return 99
-        def mock_saving_to_db(phrase:str, trans:list): 
+
+    def mock_saving_to_db(self, phrase:str, trans:list): 
             t = '; '.join(trans) if isinstance(trans, list) else trans
             self.cli_saved_registry.append([phrase, t])
             return True, ''
-            
-        self.ss.cli.fh.append_content = mock_saving_to_db 
-        self.ss.cli.output.cls = self.cls_mock
-        self.ss.cli.send_output = send_output_mock
-        self.ss.cli.get_char_limit = get_char_lim_mock
-        self.ss.cli.get_lines_limit = get_lines_lim_mock
+    def send_output_mock(self, msg=None, *args, **kwargs): self.cli_output_registry.append(msg)
+    def get_char_lim_mock(self, *args, **kwargs): return 99
+    def get_lines_lim_mock(self, *args, **kwargs): return 99
+    def mock_is_duplicate(self, phrase):
+        for p in self.cli_saved_registry:
+            if p[0] == phrase:
+                return True
+        return False
 
 
     def get_console(self):
@@ -248,21 +255,106 @@ class Test_CLI(TestCase):
         if msg: self.cli_output_registry.append(msg)
         if keep_content: self.cli_output_registry.extend(content)
 
+    
+    def assert_state_reset(self, state=None):
+        state = state or self.ss.cli.state
+        for field in fields(state):
+            self.assertFalse(getattr(sod_cli.State, field.name))
 
-    def test_basic_inquiry_to_mock(self):
-        self.ss.run(['hello world']) 
+
+    def test_basic_inquiry_1(self):
+        self.run_cmd(['hello world']) 
         self.assertIn('1. witaj świEcie                                  | hello world                                   \n2. domyślny serw',
                       self.cli_output_registry[-1], 'output not printed correctly') 
-        self.assertTrue(self.ss.cli.SELECT_TRANSLATIONS_MODE)
+        self.assertTrue(self.ss.cli.state.SELECT_TRANSLATIONS_MODE)
 
         self.assertEqual(self.ss.cli.phrase, 'hello world')
-        self.ss.run(['1', '2'])
+        self.assertTrue(self.ss.cli.state.SELECT_TRANSLATIONS_MODE)
+        self.run_cmd(['1', '2'])
         self.assertIn(f'🖫 hello world: witaj świEcie; domyślny serwis', self.cli_output_registry[-1])
+
+    
+    def test_basic_inquiry_2(self):
+        self.run_cmd(['hello world']) 
+        self.run_cmd(['e1', 'm2', 'r3', 'a'])
+        self.assertTrue(self.ss.cli.state.MODIFY_RES_EDIT_MODE)
+        self.run_cmd(['edited_record'])
+        self.run_cmd([''])
+        self.assertEqual(self.ss.cli.phrase, 'default dict service for tests')
+        self.run_cmd(['added_new'])
+        self.assertEqual([['default dict service for tests', 'witaj świEcieedited_record; red; added_new']], self.cli_saved_registry)
+
+
+    def test_basic_inquiry_3(self):
+        self.run_cmd(['hello world'])
+        self.run_cmd(['m'])
+        self.run_cmd(['modified'])
+        self.assertEqual(self.cli_saved_registry, [])
+
+
+    def test_basic_inquiry_manual_1(self):
+        self.run_cmd(['$'])
+        self.assertTrue(self.ss.cli.state.MANUAL_MODE)
+        self.run_cmd(['Newphrase'])
+        self.assertTrue(self.cli_output_registry[-1], 'Phrase: Newphrase')
+        self.run_cmd(['manual entry'])
+        self.assertTrue(self.cli_output_registry[-1], 'manual entry')
+        self.assertIn(['Newphrase', 'manual entry'], self.cli_saved_registry)
+        self.assert_state_reset()
+
+
+    def test_basic_inquiry_manual_2(self):
+        self.run_cmd(['$', 'Newphrase', '$', 'manual entry'])
+        self.assertIn(['Newphrase', 'manual entry'], self.cli_saved_registry)
+        self.assert_state_reset()
+
+    
+    def test_basic_inquiry_manual_duplicate(self):
+        self.run_cmd(['$', 'Newphrase', '$', 'manual entry'])
+        self.assertIn(['Newphrase', 'manual entry'], self.cli_saved_registry)
+        self.run_cmd(['$', 'Newphrase', '$', 'manual entry'])
+        self.assertEqual(len(self.cli_saved_registry), 1, self.cli_saved_registry)
+        self.run_cmd(['$'])
+        self.run_cmd(['Newphrase'])
+        self.assertTrue(self.cli_output_registry[-1].endswith(self.ss.cli.msg.PHRASE_EXISTS_IN_DB))
+        self.assertEqual(len(self.cli_saved_registry), 1, self.cli_saved_registry)
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Search: ')
+        self.assert_state_reset()
+
+        
+    def test_basic_inquiry_manual_abort(self):
+        '''Check if both manual entry modes work properly when aborted'''
+        self.run_cmd(['$', 'Newphrase', '$', ''])
+        self.assertEqual(self.cli_saved_registry, [])
+        self.assertTrue(self.cli_output_registry[-1].endswith(self.ss.cli.msg.SAVE_ABORTED))
+        self.run_cmd(['$'])
+        self.run_cmd(['Newphrase'])
+        self.run_cmd([''])
+        self.assertTrue(self.cli_output_registry[-1].endswith(self.ss.cli.msg.SAVE_ABORTED))
+        self.assertEqual(self.cli_saved_registry, [])
+        self.assert_state_reset()
+
+    
+    def test_multiple_single_inquiries(self):
+        self.run_cmd(['hello world'])
+        self.run_cmd(['e1', 'a'])
+        self.assertTrue(self.ss.cli.state.MODIFY_RES_EDIT_MODE)
+        self.run_cmd(['_edited'])
+        self.assertTrue(self.ss.cli.state.MODIFY_RES_EDIT_MODE)
+        self.run_cmd(['added_new'])
+
+        self.assert_state_reset()
+        self.run_cmd(['mooning'])
+        self.run_cmd(['m', '2'])
+        self.run_cmd(['modded'])
+
+        self.assertEqual(self.cli_saved_registry, [['hello world', 'witaj świEcie_edited; added_new'],
+                                                     ['mooningmodded', 'domyślny serwis']])
 
 
     def test_verify_selection_pattern(self):
         self.ss.cli.translations = ['']*3
-        self.ss.cli.SELECT_TRANSLATIONS_MODE = True
+        self.ss.cli.state.SELECT_TRANSLATIONS_MODE = True
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['a']), True)
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['m']), True)
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['3']), True)
@@ -273,7 +365,8 @@ class Test_CLI(TestCase):
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['v','s','a','s','e']), False, 'Wrong Operator')
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['e3']), True)
         self.assertIs(self.ss.cli.selection_cmd_is_correct(['2e']), False, 'Wrong Order')
-        self.assertTrue(self.cli_output_registry[-2].endswith(self.ss.cli.WRONG_EDIT))
+        self.assertIs(self.ss.cli.selection_cmd_is_correct(['r3']), True)
+        self.assertTrue(self.cli_output_registry[-2].endswith(self.ss.cli.msg.WRONG_EDIT))
 
 
     def test_queue_handling_on_internet_connection_loss(self):
@@ -282,30 +375,68 @@ class Test_CLI(TestCase):
         # 3. normal course of work can be continued
 
         # Begin queue
-        self.ss.run(['Q'])
-        self.ss.run(['neptune'])
+        self.run_cmd(['Q'])
+        self.run_cmd(['neptune'])
 
         # Drop Connection
         def get_page_content_mock(*args, **kwargs): raise requests.exceptions.ConnectionError
         orig_get = self.ss.cli.d_api.dicts['mock'].get
         self.ss.cli.d_api.dicts['mock'].get = get_page_content_mock       
-        self.ss.run(['moon'])
-        self.assertIn('No Internet Connection!', self.cli_output_registry[-2]) 
+        self.run_cmd(['moon'])
+        self.assertIn('No Internet Connection', self.cli_output_registry[-2]) 
         
         # continue
         self.ss.cli.d_api.dicts['mock'].get = orig_get
-        self.ss.run(['mars'])
+        self.run_cmd(['mars'])
         self.assertIn('mars', self.ss.cli.queue_dict.keys())
-        self.assertNotIn('moon', self.cli_output_registry, 'SOD did not clean after Connection Error!')
+        self.assertNotIn('moon', self.cli_output_registry, 'SOD did not clean after Connection Error')
         self.assertEqual(self.ss.cli.queue_index-1, len(self.ss.cli.queue_dict.keys()))
     
  
     def test_delete_from_queue(self):
-        self.ss.run(['Q'])
-        self.ss.run(['saturn'])
-        self.ss.run(['moon'])
-        self.ss.run(['venus'])
-        self.ss.run(['del', '2'])
+        self.run_cmd(['Q'])
+        self.run_cmd(['saturn'])
+        self.run_cmd(['moon'])
+        self.run_cmd(['venus'])
+        self.run_cmd(['del', '2'])
+
+        self.assertNotIn('moon', self.ss.cli.queue_dict)
+        self.assertEqual(3, self.ss.cli.queue_index)
+        self.assertEqual(2, len(self.ss.cli.queue_dict.keys()))
+        self.assertTrue(self.cli_output_registry[-1].startswith(' 2. venus'))
+        self.assertTrue(self.cli_output_registry[-2].startswith(' 1. saturn'))
+
+
+    def test_queue_handling_on_internet_connection_loss(self):
+        # while in queue mode, drop internet connection and assert
+        # that: 1. SOD does not fail; 2. notification in top bar is displayed;
+        # 3. normal course of work can be continued
+
+        # Begin queue
+        self.run_cmd(['Q'])
+        self.run_cmd(['neptune'])
+
+        # Drop Connection
+        def get_page_content_mock(*args, **kwargs): raise requests.exceptions.ConnectionError
+        orig_get = self.ss.cli.d_api.dicts['mock'].get
+        self.ss.cli.d_api.dicts['mock'].get = get_page_content_mock       
+        self.run_cmd(['moon'])
+        self.assertIn('No Internet Connection', self.cli_output_registry[-2]) 
+        
+        # continue
+        self.ss.cli.d_api.dicts['mock'].get = orig_get
+        self.run_cmd(['mars'])
+        self.assertIn('mars', self.ss.cli.queue_dict.keys())
+        self.assertNotIn('moon', self.cli_output_registry, 'SOD did not clean after Connection Error')
+        self.assertEqual(self.ss.cli.queue_index-1, len(self.ss.cli.queue_dict.keys()))
+    
+ 
+    def test_delete_from_queue(self):
+        self.run_cmd(['Q'])
+        self.run_cmd(['saturn'])
+        self.run_cmd(['moon'])
+        self.run_cmd(['venus'])
+        self.run_cmd(['del', '2'])
 
         self.assertNotIn('moon', self.ss.cli.queue_dict)
         self.assertEqual(3, self.ss.cli.queue_index)
@@ -316,12 +447,26 @@ class Test_CLI(TestCase):
 
     def test_delete_from_queue_duplicate(self):
         # Ensure that duplicates are updated 
-        self.ss.run(['Q'])
-        self.ss.run(['saturn'])
-        self.ss.run(['moon'])
-        self.ss.run(['moon'])
+        self.run_cmd(['Q'])
+        self.run_cmd(['saturn'])
+        self.run_cmd(['moon'])
+        self.run_cmd(['moon'])
         self.assertEqual('\n'.join(self.cli_output_registry)[23:], 
-'''🔃 Updated Queue
+''' 🔃 Updated Queue
+ 1. saturn
+ | witaj świEcie; domyślny serwis
+ 2. moon
+ | witaj świEcie; domyślny serwis''')
+
+
+    def test_delete_from_queue_duplicate(self):
+        # Ensure that duplicates are updated 
+        self.run_cmd(['Q'])
+        self.run_cmd(['saturn'])
+        self.run_cmd(['moon'])
+        self.run_cmd(['moon'])
+        self.assertEqual('\n'.join(self.cli_output_registry)[23:], 
+''' 🔃 Updated Queue
  1. saturn
  | witaj świEcie; domyślny serwis
  2. moon
@@ -332,7 +477,7 @@ class Test_CLI(TestCase):
         # test if SOD cli displays only last N items, matching the window height
         # 4 lines: status + Queue mark, divided by 2 in the calcs; then 2 lines per each item
         bloats = (y for y in EXAMPLE_PHRASES)
-        self.ss.run(['Q'])
+        self.run_cmd(['Q'])
 
         # only last 2 should be visible
         self.ss.cli.get_lines_limit = mock.Mock(return_value=2*2+4)
@@ -364,16 +509,16 @@ class Test_CLI(TestCase):
 
     def test_delete_from_queue_on_warning(self):
         # Ensure translations with warnings are ommited
-        self.ss.run(['Q'])
-        self.ss.run(['saturn'])
-        self.ss.run(['error'])
+        self.run_cmd(['Q'])
+        self.run_cmd(['saturn'])
+        self.run_cmd(['error'])
         self.assertEqual('\n'.join(self.cli_output_registry)[23:],
-'''TEST ERROR INDUCED
+''' TEST ERROR INDUCED
  1. saturn
  | witaj świEcie; domyślny serwis''')
-        self.ss.run(['none'])
+        self.run_cmd(['none'])
         self.assertEqual('\n'.join(self.cli_output_registry)[23:],
-'''⚠ No Translations!
+''' ⚠ No Translations!
  1. saturn
  | witaj świEcie; domyślny serwis''')
      
@@ -407,19 +552,22 @@ class Test_CLI(TestCase):
         self.run_cmd(['Q']) 
         self.run_cmd([next(bloats)]) 
         self.run_cmd(['duplicate_1']) 
+        self.run_cmd(['duplicate_1']) 
         self.run_cmd([next(bloats)]) 
-        self.run_cmd(['duplicate_2']) 
-        self.run_cmd(['']) 
+        self.assertEqual(list(self.ss.cli.queue_dict.keys()), ['Mercury', 'duplicate_1', 'Venus']), 
 
         # execute the queue
+        self.run_cmd(['']) 
         self.run_cmd(['']) # skip saving
-        self.assertIn(' ➲ [3/4]', self.get_console())
-        self.run_cmd(['']) # skip saving
+        self.assertIn(' ➲ [2/3]', self.get_console())
+        self.run_cmd(['1'])
+        self.run_cmd([''])
         self.assertIn('Not Saved', self.get_console())
+        self.assertEqual(len(self.cli_saved_registry), 1)
         
 
     def test_queue_skip_manual_entries(self):
-        # test if selecting from queue auto-saves the manual entries
+        '''test if selecting from queue auto-saves the manual entries'''
         bloats = (y for y in EXAMPLE_PHRASES)
 
         self.run_cmd(['Q']) 
@@ -440,6 +588,13 @@ class Test_CLI(TestCase):
         self.run_cmd(['moon'])
         self.run_cmd(['1', '3'])
         self.assertIn(f'🖫 moon: witaj świEcie; czerwony', self.cli_output_registry[-1])
+
+
+    def test_save_reverse(self):
+        '''Check if entries are saved properly when reversed'''
+        self.run_cmd(['moon'])
+        self.run_cmd(['r1', '3'])
+        self.assertIn(f'🖫 moon: hello world; czerwony', self.cli_output_registry[-1])
 
 
     def test_res_edit_parse(self):
@@ -476,6 +631,7 @@ class Test_CLI(TestCase):
         self.run_cmd(['added_item'])
         self.assertIn(f'🖫 red: domyślny serwis; added_item', self.cli_output_registry[-1], 'Error during save')
 
+
     def test_modify_phrase_cancel(self):
         # Assert that if phrase modification is cancelled, then the save is aborted
         self.run_cmd(['moon'])
@@ -483,10 +639,48 @@ class Test_CLI(TestCase):
         self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Modify: red')
         self.ss.sout.mw.CONSOLE_PROMPT = 'Modify: '
         self.run_cmd([''])
-        register_log('\n'.join(self.cli_output_registry))
         self.assertIsNone(self.ss.cli.phrase)
         self.assertIn('Not Saved', self.cli_output_registry[-1])
 
+
+    def test_query_simple_run(self):
+        '''Test if query is built and executed properly'''
+        bloats = (y for y in EXAMPLE_PHRASES)
+        self.run_cmd(['Q']) 
+        self.assertTrue(self.ss.cli.state.QUEUE_MODE)
+        self.run_cmd([next(bloats)])
+        self.run_cmd([next(bloats)])
+        self.run_cmd([next(bloats)])
+        self.assertEqual(set(self.ss.cli.queue_dict.keys()), {'Mercury', 'Venus', 'Earth'})
+        self.run_cmd([''])
+
+        self.assertTrue(self.ss.cli.state.QUEUE_SELECTION_MODE)
+        self.run_cmd(['e1', 'a'])
+        self.run_cmd(['_edited'])
+        self.run_cmd(['added_new'])
+
+        self.run_cmd(['m', '1'])
+        self.run_cmd(['_modified'])
+
+        self.run_cmd(['r3'])
+
+        self.assertEqual(self.cli_saved_registry, [['Mercury', 'witaj świEcie_edited; added_new'], 
+                                                ['Venus_modified', 'witaj świEcie'], ['Earth', 'red']])
+        self.assert_state_reset(self.ss.cli.state)
+
+
+    def test_check_if_duplicate_before_query(self):
+        '''assert phrase is checked before a connection is made'''
         
 
+    def test_duplicate_prompt(self):
+        '''Manage the duplicate process'''
+        # TODO
 
+        # check if duplicate before running query
+
+        # show that record and prompt to search online
+
+        # search online and show both local and online results
+
+        # modify existing record
