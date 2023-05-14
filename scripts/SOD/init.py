@@ -16,7 +16,7 @@ class sod_spawn:
                         wb_path=self.config['sod_filepath'], 
                         ws_sheet_name=self.config['sod_sheetname'])
         self.cli.cls()
-        self.sout.mw.CONSOLE_PROMPT = self.cli.PHRASE_PROMPT
+        self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
@@ -81,16 +81,16 @@ class sod_spawn:
 
 # ======================= SOD MAIN LOOP ======================= 
     def run(self, cmd:list):
-        if cmd == [''] and not self.cli.MODIFY_RES_EDIT_MODE \
-            and not self.cli.QUEUE_SELECTION_MODE:
+        if cmd == [''] and not self.cli.state.MODIFY_RES_EDIT_MODE \
+            and not self.cli.state.QUEUE_SELECTION_MODE:
             # exit from modes
-            if self.cli.SELECT_TRANSLATIONS_MODE \
-                or self.cli.MODIFY_RES_EDIT_MODE \
-                or self.cli.MANUAL_MODE:
-                self.cli.reset_flags()
-                self.cli.cls(self.cli.SAVE_ABORTED)
-                self.sout.mw.CONSOLE_PROMPT = self.cli.PHRASE_PROMPT
-            elif self.cli.QUEUE_MODE:
+            if self.cli.state.SELECT_TRANSLATIONS_MODE \
+                or self.cli.state.MODIFY_RES_EDIT_MODE \
+                or self.cli.state.MANUAL_MODE:
+                self.cli.reset_state()
+                self.cli.cls(self.cli.msg.SAVE_ABORTED)
+                self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
+            elif self.cli.state.QUEUE_MODE:
                 self.cli.setup_queue_unpacking()
             else: # Exit SOD
                 self.sout.cls()
@@ -106,14 +106,14 @@ class sod_spawn:
     def manage_modes(self, cmd:list):
         if cmd[0] == 'cls':
             self.cli.cls()
-        elif self.cli.SELECT_TRANSLATIONS_MODE or self.cli.RES_EDIT_SELECTION_MODE \
-                or self.cli.MODIFY_RES_EDIT_MODE:
+        elif self.cli.state.SELECT_TRANSLATIONS_MODE or self.cli.state.RES_EDIT_SELECTION_MODE \
+                or self.cli.state.MODIFY_RES_EDIT_MODE:
             self.cli.select_translations(cmd)
-        elif self.cli.MANUAL_MODE:
+        elif self.cli.state.MANUAL_MODE:
             self.cli.insert_manual(cmd)
-        elif self.cli.QUEUE_MODE:
+        elif self.cli.state.QUEUE_MODE:
             self.cli.manage_queue(cmd)
-        elif self.cli.QUEUE_SELECTION_MODE:
+        elif self.cli.state.QUEUE_SELECTION_MODE:
             self.cli.unpack_translations_from_queue(cmd)
         else:
             self.cli.execute_command(cmd)

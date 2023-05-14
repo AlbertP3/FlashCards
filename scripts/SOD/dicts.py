@@ -390,8 +390,3 @@ class Dict_Services:
         except requests.exceptions.Timeout:
             trans, orig, warn = [], [], ['Request Timed Out']
         return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn
-
-
-
-    
-

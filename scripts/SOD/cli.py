@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from collections import OrderedDict
 from itertools import islice, takewhile
 import re
@@ -5,22 +6,41 @@ from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
 from utils import Config
 
+
+
+@dataclass
+class State:
+    SELECT_TRANSLATIONS_MODE = False
+    RES_EDIT_SELECTION_MODE = False
+    MODIFY_RES_EDIT_MODE = False
+    MANUAL_MODE = False
+    QUEUE_MODE = False
+    QUEUE_SELECTION_MODE = False
+    DUPLICATE_MODE = False
+
+@dataclass
+class Message:
+    PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
+    SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
+    NO_TRANSLATIONS = '⚠ No Translations!'
+    WRONG_EDIT = '⚠ Wrong Edit!'
+    OK = '✅ OK'
+    QUERY_UPDATE = "🔃 Updated Queue"
+
+@dataclass
+class Prompt:
+    PHRASE = 'Search: '
+    SELECT = 'Select for {}: '
+
+
+
 class CLI():
 
     def __init__(self, output, wb_path, ws_sheet_name) -> None:
         self.config = Config()
-        self.PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
-        self.PHRASE_PROMPT = 'Search: '
-        self.SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
-        self.NO_TRANSLATIONS = '⚠ No Translations!'
-        self.WRONG_EDIT = '⚠ Wrong Edit!'
-        self.PROBLEM_OCCURRED = '❕ Error'
-        self.SELECT_TRANSLATIONS_MODE = False
-        self.RES_EDIT_SELECTION_MODE = False
-        self.MODIFY_RES_EDIT_MODE = False
-        self.MANUAL_MODE = False
-        self.QUEUE_MODE = False
-        self.QUEUE_SELECTION_MODE = False
+        self.state = State()
+        self.prompt = Prompt()
+        self.msg = Message()
         self.transl = str()
         self.phrase = str()
         self.queue_dict = OrderedDict()
@@ -31,13 +51,8 @@ class CLI():
         self.status_message = str()
 
 
-    def reset_flags(self):
-        self.SELECT_TRANSLATIONS_MODE = False
-        self.RES_EDIT_SELECTION_MODE = False
-        self.MODIFY_RES_EDIT_MODE = False
-        self.MANUAL_MODE = False
-        self.QUEUE_MODE = False
-        self.QUEUE_SELECTION_MODE = False
+    def reset_state(self):
+        self.state = State()
 
 
     def set_output_prompt(self, t, aval_lefts=0):
@@ -89,9 +104,9 @@ class CLI():
     def set_dict(self, new_dict):
         if new_dict in self.d_api.get_available_dicts():
             self.d_api.set_dict_service(new_dict)
-            self.cls(keep_content=self.QUEUE_MODE, keep_cmd=self.QUEUE_MODE)
+            self.cls(keep_content=self.state.QUEUE_MODE, keep_cmd=self.state.QUEUE_MODE)
         else:
-            self.cls(f'⚠ Wrong Dict!', keep_content=True, keep_cmd = self.QUEUE_MODE)
+            self.cls(f'⚠ Wrong Dict!', keep_content=True, keep_cmd = self.state.QUEUE_MODE)
 
 
     def insert_manual(self, parsed_cmd):
@@ -99,41 +114,51 @@ class CLI():
             self.insert_manual_oneline(parsed_cmd)
             return
 
-        if not self.MANUAL_MODE:
+        if not self.state.MANUAL_MODE:
             self.cls()
             self.set_output_prompt('Phrase: ')
-            self.MANUAL_MODE = 'phrase'
+            self.state.MANUAL_MODE = 'phrase'
             return
-        elif self.MANUAL_MODE == 'phrase':
+        elif self.state.MANUAL_MODE == 'phrase':
             self.phrase = ' '.join(parsed_cmd)
             if not self.fh.is_duplicate(self.phrase):
                  self.set_output_prompt('Transl: ')
-                 self.MANUAL_MODE = 'transl'
+                 self.state.MANUAL_MODE = 'transl'
             else:
-                self.MANUAL_MODE = False
-                self.set_output_prompt(self.PHRASE_PROMPT)
-                self.cls(self.PHRASE_EXISTS_IN_DB)
+                self.state.MANUAL_MODE = False
+                self.set_output_prompt(self.prompt.PHRASE)
+                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
             return
-        elif self.MANUAL_MODE == 'transl':
+        elif self.state.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
 
         # Finalize
         if self.phrase and self.transl:
+            if self.fh.is_duplicate(self.phrase):
+                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
+            else:
                 self.save_to_db(self.phrase, [self.transl])
         else:
-            self.cls(self.SAVE_ABORTED)
-        self.MANUAL_MODE = False
-        self.set_output_prompt(self.PHRASE_PROMPT)
+            self.cls(self.msg.SAVE_ABORTED)
+        self.state.MANUAL_MODE = False
+        self.set_output_prompt(self.prompt.PHRASE)
 
 
     def insert_manual_oneline(self, parsed_cmd):
         # if 2 delimiter signs are provided, treat the input
         # as a complete card.
+        self.state.MANUAL_MODE = True
         delim_index = parsed_cmd.index('$', 2)
         self.phrase = ' '.join(parsed_cmd[1:delim_index])
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
-            self.save_to_db(self.phrase, [self.transl])
+            if self.fh.is_duplicate(self.phrase):
+                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
+            else:
+                self.save_to_db(self.phrase, [self.transl])
+        else:
+            self.cls(self.msg.SAVE_ABORTED)
+        self.state.MANUAL_MODE = False
 
 
     def handle_single_entry(self, phrase):
@@ -142,13 +167,13 @@ class CLI():
         self.cls()
         if self.translations:
             if self.fh.is_duplicate(self.phrase):
-                self.cls(self.PHRASE_EXISTS_IN_DB)
+                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
             else:
-                self.SELECT_TRANSLATIONS_MODE = True
+                self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
             self.print_translations_table(self.translations, self.originals)
         else:
-            self.cls(self.NO_TRANSLATIONS)
+            self.cls(self.msg.NO_TRANSLATIONS)
         if self.warnings: self.send_output('\n'.join(self.warnings)+'\n')
 
 
@@ -158,7 +183,7 @@ class CLI():
         self.queue_page_counter = 0
         self.queue_visible_items = 0
         self.cls()
-        self.QUEUE_MODE = True
+        self.state.QUEUE_MODE = True
         self.phrase = None
         self.translations = None
         self.set_output_prompt(f'{self.queue_index:>2d}. ')
@@ -166,13 +191,13 @@ class CLI():
 
     def setup_queue_unpacking(self):
         if self.queue_dict:
-            self.QUEUE_MODE = False
-            self.QUEUE_SELECTION_MODE = True
+            self.state.QUEUE_MODE = False
+            self.state.QUEUE_SELECTION_MODE = True
             self.unpack_translations_from_queue()
         else:
-            self.reset_flags()
+            self.reset_state()
             self.cls()
-            self.set_output_prompt(self.PHRASE_PROMPT)
+            self.set_output_prompt(self.prompt.PHRASE)
 
 
     def manage_queue(self, parsed_cmd:list):
@@ -185,21 +210,22 @@ class CLI():
             p, rs = self.queue_dict.popitem(last=False)
             self.queue_page_counter+=1
             if 'DUPLICATE' not in rs[2]:
+                self.phrase = p
                 if 'MANUAL' in rs[2]: 
                     self.save_to_db(p, rs[0])
-                    continue
-                self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1}]:')
-                self.print_translations_table(rs[0], rs[1])
-                self.phrase = p
-                self.translations = rs[0]
-                self.set_output_prompt(f'Select for {p}: ')
-                self.SELECT_TRANSLATIONS_MODE = True
-                break
+                else:
+                    self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1}]:')
+                    self.print_translations_table(rs[0], rs[1])
+                    self.translations = rs[0]
+                    self.originals = rs[1]
+                    self.set_output_prompt(self.prompt.SELECT.format(p))
+                    self.state.SELECT_TRANSLATIONS_MODE = True
+                    break
 
         if not self.queue_dict:
             if 'DUPLICATE' not in rs[2]: 
-                self.set_output_prompt(self.PHRASE_PROMPT)
-            self.QUEUE_SELECTION_MODE = False
+                self.set_output_prompt(self.prompt.PHRASE)
+            self.state.QUEUE_SELECTION_MODE = False
 
 
     def queue_builder(self, parsed_cmd:list):
@@ -228,10 +254,10 @@ class CLI():
                 transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
             else:
                 transl = ''
-                warnings = warnings if warnings else [self.NO_TRANSLATIONS]
+                warnings = warnings if warnings else [self.msg.NO_TRANSLATIONS]
         
         if exists_in_queue:
-            self.cls(msg="🔃 Updated Queue")
+            self.cls(msg=self.msg.QUERY_UPDATE)
             self.print_queue()
         elif warnings:
             msg = warnings[0]
@@ -239,15 +265,15 @@ class CLI():
             self.print_queue()  
         else: 
             if self.fh.is_duplicate(phrase):
-                msg = self.PHRASE_EXISTS_IN_DB
+                msg = self.msg.PHRASE_EXISTS_IN_DB
                 self.queue_dict[phrase][2] = ['DUPLICATE']
             else:
-                msg = '✅ OK'
+                msg = self.msg.OK
 
             lim_items = int(self.get_lines_limit()/2)-2
             if self.queue_visible_items+1 > lim_items:
                 self.cls(msg, keep_content=False, keep_cmd=True)
-                self.print_queue(slice=[len(self.queue_dict)-lim_items, 0])
+                self.print_queue(slice_=[len(self.queue_dict)-lim_items, 0])
             else:
                 self.cls(msg, keep_content=True, keep_cmd=True )
                 self.send_output(f' | {transl}')
@@ -270,13 +296,13 @@ class CLI():
         self.set_output_prompt(f'{self.queue_index:>2d}. ')
             
     
-    def print_queue(self, slice:list=[0, 0]):
+    def print_queue(self, slice_:list=[0, 0]):
         c_lim = self.get_char_limit() - 3
-        if slice[0]<0: slice[0] = len(self.queue_dict) + slice[0] 
-        if slice[1]==0: slice[1] = len(self.queue_dict)
-        self.queue_index = slice[0]+1
+        if slice_[0]<0: slice_[0] = len(self.queue_dict) + slice_[0] 
+        if slice_[1]==0: slice_[1] = len(self.queue_dict)
+        self.queue_index = slice_[0]+1
         self.queue_visible_items = 0
-        for phrase, info in islice(self.queue_dict.items(), slice[0], slice[1]):
+        for phrase, info in islice(self.queue_dict.items(), slice_[0], slice_[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
             transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
@@ -298,7 +324,7 @@ class CLI():
             else:
                 self.cls(errs)
         else:
-            self.cls(self.SAVE_ABORTED)
+            self.cls(self.msg.SAVE_ABORTED)
 
         self.phrase = None
         self.res_edit = None
@@ -333,68 +359,68 @@ class CLI():
     def select_translations(self, parsed_cmd):
         if not self.selection_cmd_is_correct(parsed_cmd): return
         
-        if self.SELECT_TRANSLATIONS_MODE:
+        if self.state.SELECT_TRANSLATIONS_MODE:
             self.selection_queue = parsed_cmd
             self.res_edit = list()
-            self.SELECT_TRANSLATIONS_MODE = False
-            self.RES_EDIT_SELECTION_MODE = True
+            self.state.SELECT_TRANSLATIONS_MODE = False
+            self.state.RES_EDIT_SELECTION_MODE = True
         
-        if self.RES_EDIT_SELECTION_MODE:
+        if self.state.RES_EDIT_SELECTION_MODE:
             for _ in range(len(self.selection_queue)):
                 v : str = self.selection_queue.pop(0)
                 if not v:
                     break
-                elif v.isnumeric(): 
+                elif v.isnumeric():
                     self.res_edit.append(self.translations[int(v)-1])
                 elif v[0] == 'r':
                     i = int(v[1:])-1
                     self.res_edit.append(self.originals[i])
                 else:
-                    self.RES_EDIT_SELECTION_MODE = False
-                    self.MODIFY_RES_EDIT_MODE = v
+                    self.state.RES_EDIT_SELECTION_MODE = False
+                    self.state.MODIFY_RES_EDIT_MODE = v
                     self.res_edit_set_prompt(v)
                     return
-        elif self.MODIFY_RES_EDIT_MODE:
+        elif self.state.MODIFY_RES_EDIT_MODE:
             self.res_edit_parse(parsed_cmd)
-            self.MODIFY_RES_EDIT_MODE = False
-            self.RES_EDIT_SELECTION_MODE = True
+            self.state.MODIFY_RES_EDIT_MODE = False
+            self.state.RES_EDIT_SELECTION_MODE = True
             if self.selection_queue:
                 self.select_translations(None)
                 return
 
         if not self.selection_queue:
             self.save_to_db(self.phrase, self.res_edit)
-            self.RES_EDIT_SELECTION_MODE = False
-            self.MODIFY_RES_EDIT_MODE = False
+            self.state.RES_EDIT_SELECTION_MODE = False
+            self.state.MODIFY_RES_EDIT_MODE = False
                  
-        if self.QUEUE_SELECTION_MODE:
+        if self.state.QUEUE_SELECTION_MODE:
             self.unpack_translations_from_queue()
         else:
-            self.set_output_prompt(self.PHRASE_PROMPT)
+            self.set_output_prompt(self.prompt.PHRASE)
 
 
     def selection_cmd_is_correct(self, parsed_cmd):
         result = True
         pattern = re.compile(r'^(\d+|e\d+|a|m\d*|r\d+)$')
         lim = len(self.translations)
-        if (self.SELECT_TRANSLATIONS_MODE and str(self.MODIFY_RES_EDIT_MODE)[0] not in 'ea') \
-            and not self.QUEUE_SELECTION_MODE:
+        if (self.state.SELECT_TRANSLATIONS_MODE and str(self.state.MODIFY_RES_EDIT_MODE)[0] not in 'ea') \
+            and not self.state.QUEUE_SELECTION_MODE:
             all_args_match = all({pattern.match(c) for c in parsed_cmd})
             index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'amr') if all_args_match else True
             if not all_args_match or index_out_of_range:
                 result = False
-                self.cls(self.WRONG_EDIT, keep_content=True)
+                self.cls(self.msg.WRONG_EDIT, keep_content=True)
         return result
 
 
     def res_edit_parse(self, parsed_cmd):
-        if self.MODIFY_RES_EDIT_MODE[0] == 'm':
+        if self.state.MODIFY_RES_EDIT_MODE[0] == 'm':
             c = self.output.console.toPlainText()
             e_index = c.rfind(': ') + 2
             self.phrase = c[e_index:]
-        elif self.MODIFY_RES_EDIT_MODE[0] == 'a':
+        elif self.state.MODIFY_RES_EDIT_MODE[0] == 'a':
             self.res_edit.append(' '.join(parsed_cmd))
-        elif self.MODIFY_RES_EDIT_MODE[0] == 'e':
+        elif self.state.MODIFY_RES_EDIT_MODE[0] == 'e':
             c = self.output.console.toPlainText()
             e_index = c.rfind(': ') + 2
             self.res_edit.append(c[e_index:])
@@ -419,7 +445,7 @@ class CLI():
             new_prompt = f'Edit: {self.translations[int(r[1:])-1]}'
             aval_lefts = len(self.translations[int(r[1:])-1])
         else: 
-            new_prompt = self.PHRASE_PROMPT
+            new_prompt = self.prompt.PHRASE
             aval_lefts = 0
         self.set_output_prompt(new_prompt, aval_lefts)
 
