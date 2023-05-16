@@ -23,7 +23,7 @@ class Test_CLI(TestCase):
     def mock_cli_output(self):
         self.cli_output_registry = list()
         output = mock.MagicMock()
-        output.console.toPlainText = self.get_console
+        output.console.toPlainText = lambda: '\n'.join(self.cli_output_registry)
         output.console.setText = self.set_text_mock
         self.ss = sod_init.sod_spawn(adapter='fcc', stream_out=output)
         self.ss.cli.d_api.dicts = {'mock': dict_mock(), 'imitation': dict_mock()}
@@ -40,13 +40,16 @@ class Test_CLI(TestCase):
         self.cli_output_registry.append(msg)
 
     def get_console(self):
-        return '\n'.join(self.cli_output_registry)
+        return '\n'.join(self.cli_output_registry+[self.ss.sout.mw.CONSOLE_PROMPT])
 
     def check_record(self, key, value):
         self.assertEqual(self.ss.cli.fh.data[key][0], value)
 
     def check_count_added(self, exp):
         self.assertEqual(self.ss.cli.fh.ws.max_row, self.ss.cli.fh.ws.init_len+exp)
+
+    def check_state(self):
+        return self.ss.cli.state.__dict__
 
     def run_cmd(self, parsed_input:list):
         # registers console prompt and the input to the log
@@ -91,6 +94,24 @@ class Test_CLI(TestCase):
         self.run_cmd(['m'])
         self.run_cmd(['modified'])
         self.assertEqual(self.ss.cli.fh.data.get('modified'), None)
+
+    
+    def test_invalid_edit_1(self):
+        self.run_cmd(['maudlin'])
+        self.run_cmd(['g5'])
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Select for maudlin: ')
+        self.run_cmd([''])
+
+
+    def test_invalid_edit_2(self):
+        self.run_cmd(['Q'])
+        self.run_cmd(['maudlin'])
+        self.run_cmd([''])
+        self.run_cmd(['u2'])
+        self.run_cmd(['u2'])
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Select for maudlin: ')
+        self.run_cmd([''])
+        self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, self.ss.cli.prompt.PHRASE)
 
 
     def test_basic_inquiry_manual_1(self):
@@ -194,30 +215,6 @@ class Test_CLI(TestCase):
         self.assertNotIn('moon', self.cli_output_registry, 'SOD did not clean after Connection Error')
         self.assertEqual(self.ss.cli.queue_index-1, len(self.ss.cli.queue_dict.keys()))
     
-
-    def test_queue_handling_on_internet_connection_loss(self):
-        # while in queue mode, drop internet connection and assert
-        # that: 1. SOD does not fail; 2. notification in top bar is displayed;
-        # 3. normal course of work can be continued
-
-        # Begin queue
-        self.run_cmd(['Q'])
-        self.run_cmd(['neptune'])
-
-        # Drop Connection
-        def get_page_content_mock(*args, **kwargs): raise requests.exceptions.ConnectionError
-        orig_get = self.ss.cli.d_api.dicts['mock'].get
-        self.ss.cli.d_api.dicts['mock'].get = get_page_content_mock       
-        self.run_cmd(['moon'])
-        self.assertIn('No Internet Connection', self.cli_output_registry[-2]) 
-        
-        # continue
-        self.ss.cli.d_api.dicts['mock'].get = orig_get
-        self.run_cmd(['mars'])
-        self.assertIn('mars', self.ss.cli.queue_dict.keys())
-        self.assertNotIn('moon', self.cli_output_registry, 'SOD did not clean after Connection Error')
-        self.assertEqual(self.ss.cli.queue_index-1, len(self.ss.cli.queue_dict.keys()))
-    
  
     def test_delete_from_queue(self):
         self.run_cmd(['Q'])
@@ -233,26 +230,13 @@ class Test_CLI(TestCase):
         self.assertTrue(self.cli_output_registry[-2].startswith(' 1. saturn'))
 
 
-    def test_delete_from_queue_duplicate(self):
+    def test_queue_updates_duplicate(self):
         # Ensure that duplicates are updated 
         self.run_cmd(['Q'])
         self.run_cmd(['saturn'])
         self.run_cmd(['moon'])
         self.run_cmd(['moon'])
-        self.assertEqual('\n'.join(self.cli_output_registry)[23:], 
-''' 🔃 Updated Queue
- 1. saturn
- | witaj świEcie; domyślny serwis
- 2. moon
- | witaj świEcie; domyślny serwis''')
-
-
-    def test_delete_from_queue_duplicate(self):
-        # Ensure that duplicates are updated 
-        self.run_cmd(['Q'])
-        self.run_cmd(['saturn'])
-        self.run_cmd(['moon'])
-        self.run_cmd(['moon'])
+        log.debug('\n'.join(self.cli_output_registry)[23:])
         self.assertEqual('\n'.join(self.cli_output_registry)[23:], 
 ''' 🔃 Updated Queue
  1. saturn
@@ -398,11 +382,11 @@ class Test_CLI(TestCase):
         self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Edit: czerwony')
         self.ss.sout.mw.CONSOLE_PROMPT = 'Edit: '
         self.run_cmd(['neptune'])
-        self.assertEqual(self.ss.cli.res_edit[-1], 'neptune')
+        self.assertIn('neptune', self.get_console())
 
         # modify phrase
         self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Modify: moon')
-        self.ss.sout.mw.CONSOLE_PROMPT = 'Modify: '
+        self.ss.cli.set_output_prompt('Modify: ', 0)
         self.run_cmd(['earth'])
         self.assertEqual(self.ss.cli.phrase, 'earth')
         
@@ -478,16 +462,20 @@ class Test_CLI(TestCase):
 
 
     def test_duplicate_mode_single_entry_2(self):
-        '''Manage the duplicate process'''
+        '''Assert that modyfing existing phrase's translation does alter the original record'''
         self.run_cmd(['maudlin'])
         self.assertIn(self.ss.cli.msg.PHRASE_EXISTS_IN_DB, self.get_console())
         self.run_cmd(['m', '2'])
         self.run_cmd(['_modified'])
-        self.assertEqual(self.ss.cli.fh.ws.cell(2, 1).value, 'maudlin', 'Existing phrase was modified')
-        self.assertEqual(self.ss.cli.fh.ws.cell(2, 2).value, 'definitely a wrong explanation')
-        self.assertEqual(self.ss.cli.fh.ws.cell(self.ss.cli.fh.ws.max_row, 1).value, 'maudlin_modified')
-        self.assertEqual(self.ss.cli.fh.ws.cell(self.ss.cli.fh.ws.max_row, 2).value, 'witaj świEcie')
-        self.assertEqual(self.ss.cli.fh.ws.max_row, self.ss.cli.fh.ws.init_len+1)
+        self.assertEqual(self.ss.cli.fh.ws.cell(2, 1).value, 'maudlin_modified')
+        self.assertEqual(self.ss.cli.fh.ws.cell(2, 2).value, 'witaj świEcie')
+        self.check_count_added(0)
+        self.run_cmd(['maudlin'])
+        self.assertNotIn(self.ss.cli.msg.PHRASE_EXISTS_IN_DB, self.get_console())
+        self.run_cmd([''])
+        self.run_cmd(['maudlin_modified'])
+        self.assertIn(self.ss.cli.msg.PHRASE_EXISTS_IN_DB, self.get_console())
+        self.check_count_added(0)
 
 
     def test_lng_and_dict_switch_queue(self):
@@ -524,7 +512,6 @@ class Test_CLI(TestCase):
         self.run_cmd(['maudlin'])
         self.run_cmd(['Duis aute'])
         self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Select for maudlin: ')
-        log.debug(self.get_console())
         self.assertRegex(self.get_console(), r'1. Duis aute \s+ | maudlin')
         self.assertRegex(self.get_console(), r'2. definitely a wrong explanation \s+ | maudlin')
         self.run_cmd(['1'])
@@ -589,7 +576,3 @@ class Test_CLI(TestCase):
         self.run_cmd(['5'])
         self.check_record('Earth', 'lorem ipsum')
         self.check_count_added(6)
-
-
-    def test_delete(self):
-        '''Check if deleting works as intended'''

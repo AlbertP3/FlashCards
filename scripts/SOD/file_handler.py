@@ -26,6 +26,7 @@ class file_handler:
             s, msg = self.__edit_existing(foreign_word, domestic_word)
         else:
             s, msg = self.__append_new(foreign_word, domestic_word)
+        self.wb.save(self.path)
         return s, msg
 
 
@@ -35,7 +36,6 @@ class file_handler:
             self.ws.cell(row=target_row, column=1, value=foreign_word)
             self.ws.cell(row=target_row, column=2, value=domestic_word)
             self.data[foreign_word] = (domestic_word, target_row)
-            self.wb.save(self.path)
             return True, ''
         else:
             return False, '[WARNING] Target Cell is not empty!'

@@ -386,7 +386,7 @@ class Dict_Services:
         try:
             trans, orig, warn = self.dicts[self.dict_service].get(word)
         except requests.exceptions.ConnectionError:
-            trans, orig, warn = [], [], ['No Internet Connection']
+            trans, orig, warn = [], [], ['🌐 No Internet Connection']
         except requests.exceptions.Timeout:
-            trans, orig, warn = [], [], ['Request Timed Out']
+            trans, orig, warn = [], [], ['⏲ Request Timed Out']
         return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn

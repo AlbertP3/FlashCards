@@ -186,8 +186,11 @@ class CLI():
             self.set_output_prompt(f'Select for {self.phrase}: ')
             self.print_translations_table(self.translations, self.originals)
         else:
-            self.cls(self.msg.NO_TRANSLATIONS)
-        if self.warnings: self.send_output('\n'.join(self.warnings)+'\n')
+            if self.warnings: 
+                self.cls(self.warnings[0])
+            else:
+                self.cls(self.msg.NO_TRANSLATIONS)
+        
 
 
     def setup_queue(self):
@@ -219,6 +222,14 @@ class CLI():
 
             
     def unpack_translations_from_queue(self, parsed_cmd=None):
+        if self.queue_dict or self.state.MODIFY_RES_EDIT_MODE:
+            self.__unpack_translations_from_queue()
+        else:
+            self.set_output_prompt(self.prompt.PHRASE)
+            self.state.QUEUE_SELECTION_MODE = False
+
+
+    def __unpack_translations_from_queue(self):
         while self.queue_dict:
             p, rs = self.queue_dict.popitem(last=False)
             self.queue_page_counter+=1
@@ -233,10 +244,6 @@ class CLI():
                 self.set_output_prompt(self.prompt.SELECT.format(p))
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 break
-
-        if not self.queue_dict:
-            self.set_output_prompt(self.prompt.PHRASE)
-            self.state.QUEUE_SELECTION_MODE = False
 
 
     def queue_builder(self, parsed_cmd:list):
@@ -418,10 +425,9 @@ class CLI():
 
     def selection_cmd_is_correct(self, parsed_cmd):
         result = True
-        pattern = re.compile(r'^(\d+|e\d+|a|m\d*|r\d+)$')
+        pattern = re.compile(r'^(\d+|e\d+|a|m\d*|r\d+|)$')
         lim = len(self.translations)
-        if (self.state.SELECT_TRANSLATIONS_MODE and str(self.state.MODIFY_RES_EDIT_MODE)[0] not in 'ea') \
-            and not self.state.QUEUE_SELECTION_MODE:
+        if (self.state.SELECT_TRANSLATIONS_MODE and str(self.state.MODIFY_RES_EDIT_MODE)[0] not in 'ea'):
             all_args_match = all({pattern.match(c) for c in parsed_cmd})
             index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'amr') if all_args_match else True
             if not all_args_match or index_out_of_range:
@@ -434,7 +440,12 @@ class CLI():
         if self.state.MODIFY_RES_EDIT_MODE[0] == 'm':
             c = self.output.console.toPlainText()
             e_index = c.rfind(': ') + 2
-            self.phrase = c[e_index:]
+            phrase = c[e_index:]
+            if self.fh.data.get(self.phrase):
+                self.fh.data[phrase] = self.fh.data[self.phrase]
+                self.fh.marked_duplicates.add(phrase)
+                del self.fh.data[self.phrase]
+            self.phrase = phrase
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'a':
             self.res_edit.append(' '.join(parsed_cmd))
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'e':
@@ -462,7 +473,7 @@ class CLI():
             new_prompt = f'Edit: {self.translations[int(r[1:])-1]}'
             aval_lefts = len(self.translations[int(r[1:])-1])
         else: 
-            new_prompt = self.prompt.PHRASE
+            new_prompt = self.output.mw.CONSOLE_PROMPT
             aval_lefts = 0
         self.set_output_prompt(new_prompt, aval_lefts)
 
