@@ -1,8 +1,6 @@
 import sys
 import os
 from PyQt5.QtCore import Qt, QTimer
-from threading import Thread
-from pandas.core.dtypes.missing import partial
 import unittest
 from unittest.mock import patch, Mock
 import pandas as pd
@@ -20,7 +18,7 @@ import time
 
 
 config = Config()
-T_PATH = './scripts/tests/res'
+T_PATH = './tests/res'
 config.update({
     'lngs_path': os.path.join(T_PATH, 'languages'),
     'revs_path': os.path.join(T_PATH,'revisions'),
