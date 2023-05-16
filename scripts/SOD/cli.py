@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from collections import OrderedDict
 from itertools import islice, takewhile
 import re
@@ -8,29 +7,31 @@ from utils import Config
 
 
 
-@dataclass
 class State:
-    SELECT_TRANSLATIONS_MODE = False
-    RES_EDIT_SELECTION_MODE = False
-    MODIFY_RES_EDIT_MODE = False
-    MANUAL_MODE = False
-    QUEUE_MODE = False
-    QUEUE_SELECTION_MODE = False
-    DUPLICATE_MODE = False
+    def __init__(self) -> None:
+        self.SELECT_TRANSLATIONS_MODE = False
+        self.RES_EDIT_SELECTION_MODE = False
+        self.MODIFY_RES_EDIT_MODE = False
+        self.MANUAL_MODE = False
+        self.QUEUE_MODE = False
+        self.QUEUE_SELECTION_MODE = False
+        self.DUPLICATE_MODE = False
 
-@dataclass
 class Message:
-    PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
-    SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
-    NO_TRANSLATIONS = '⚠ No Translations!'
-    WRONG_EDIT = '⚠ Wrong Edit!'
-    OK = '✅ OK'
-    QUERY_UPDATE = "🔃 Updated Queue"
+    def __init__(self) -> None:
+        self.PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
+        self.SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
+        self.NO_TRANSLATIONS = '⚠ No Translations!'
+        self.WRONG_EDIT = '⚠ Wrong Edit!'
+        self.OK = '✅ OK'
+        self.QUERY_UPDATE = "🔃 Updated Queue"
 
-@dataclass
 class Prompt:
-    PHRASE = 'Search: '
-    SELECT = 'Select for {}: '
+    def __init__(self) -> None:
+        self.PHRASE = 'Search: '
+        self.SELECT = 'Select for {}: '
+        self.MANUAL_PH = 'Phrase: '
+        self.MANUAL_TR = 'Transl: '
 
 
 
@@ -116,22 +117,26 @@ class CLI():
 
         if not self.state.MANUAL_MODE:
             self.cls()
-            self.set_output_prompt('Phrase: ')
+            self.set_output_prompt(self.prompt.MANUAL_PH)
             self.state.MANUAL_MODE = 'phrase'
             return
         elif self.state.MANUAL_MODE == 'phrase':
             self.phrase = ' '.join(parsed_cmd)
-            if not self.fh.is_duplicate(self.phrase):
-                 self.set_output_prompt('Transl: ')
-                 self.state.MANUAL_MODE = 'transl'
-            else:
-                self.state.MANUAL_MODE = False
-                self.set_output_prompt(self.prompt.PHRASE)
-                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
+            if self.fh.is_duplicate(self.phrase):
+                self.cls(self.msg.PHRASE_EXISTS_IN_DB, keep_content=True)
+                self.fh.marked_duplicates.add(self.phrase)
+            self.set_output_prompt(self.prompt.MANUAL_TR)
+            self.state.MANUAL_MODE = 'transl'
             return
         elif self.state.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
-
+            if self.phrase in self.fh.marked_duplicates:
+                self.translations = [self.transl, self.fh.get_translations(self.phrase)]
+                self.originals = [self.phrase, self.phrase]
+                self.state.SELECT_TRANSLATIONS_MODE = True
+                self.set_output_prompt(f'Select for {self.phrase}: ')
+                self.print_translations_table(self.translations, self.originals)
+                return
         # Finalize
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase):
@@ -153,7 +158,13 @@ class CLI():
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase):
+                self.fh.marked_duplicates.add(self.phrase)
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
+                self.translations = [self.transl, self.fh.get_translations(self.phrase)]
+                self.originals = [self.phrase, self.phrase]
+                self.state.SELECT_TRANSLATIONS_MODE = True
+                self.set_output_prompt(f'Select for {self.phrase}: ')
+                self.print_translations_table(self.translations, self.originals)
             else:
                 self.save_to_db(self.phrase, [self.transl])
         else:
@@ -168,9 +179,11 @@ class CLI():
         if self.translations:
             if self.fh.is_duplicate(self.phrase):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
-            else:
-                self.state.SELECT_TRANSLATIONS_MODE = True
-                self.set_output_prompt(f'Select for {self.phrase}: ')
+                self.originals.insert(0, self.phrase)
+                self.translations.insert(0, self.fh.get_translations(self.phrase))
+                self.fh.marked_duplicates.add(self.phrase)
+            self.state.SELECT_TRANSLATIONS_MODE = True
+            self.set_output_prompt(f'Select for {self.phrase}: ')
             self.print_translations_table(self.translations, self.originals)
         else:
             self.cls(self.msg.NO_TRANSLATIONS)
@@ -209,28 +222,29 @@ class CLI():
         while self.queue_dict:
             p, rs = self.queue_dict.popitem(last=False)
             self.queue_page_counter+=1
-            if 'DUPLICATE' not in rs[2]:
-                self.phrase = p
-                if 'MANUAL' in rs[2]: 
-                    self.save_to_db(p, rs[0])
-                else:
-                    self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1}]:')
-                    self.print_translations_table(rs[0], rs[1])
-                    self.translations = rs[0]
-                    self.originals = rs[1]
-                    self.set_output_prompt(self.prompt.SELECT.format(p))
-                    self.state.SELECT_TRANSLATIONS_MODE = True
-                    break
+            self.phrase = p
+            if 'MANUAL' in rs[2]: 
+                self.save_to_db(p, rs[0])
+            else:
+                self.cls(f'➲ [{self.queue_page_counter}/{self.queue_index-1}]:')
+                self.print_translations_table(rs[0], rs[1])
+                self.translations = rs[0]
+                self.originals = rs[1]
+                self.set_output_prompt(self.prompt.SELECT.format(p))
+                self.state.SELECT_TRANSLATIONS_MODE = True
+                break
 
         if not self.queue_dict:
-            if 'DUPLICATE' not in rs[2]: 
-                self.set_output_prompt(self.prompt.PHRASE)
+            self.set_output_prompt(self.prompt.PHRASE)
             self.state.QUEUE_SELECTION_MODE = False
 
 
     def queue_builder(self, parsed_cmd:list):
         if parsed_cmd[0] == 'del': 
             self.del_from_queue(parsed_cmd[1:])
+            return
+        elif parsed_cmd[0] == 'dict':
+            self.set_dict(parsed_cmd[1])
             return
 
         c_lim = self.get_char_limit() - 3
@@ -239,8 +253,8 @@ class CLI():
         if phrase.startswith('$'):  # Manual Mode for Queue
             l2 = ['']*3; l1 = phrase.split('$')
             l2[:len(l1)] = l1
-            phrase, translations = l2[1], l2[2]
-            self.queue_dict[phrase] = [[translations.strip()], [phrase.strip()], ['MANUAL']]    
+            phrase, translations = l2[1].strip(), l2[2].strip()
+            self.queue_dict[phrase] = [[translations], [phrase], ['MANUAL']]    
             cleaned_text = self.output.console.toPlainText().replace(' $ ', ' ').replace(translations,'')
             self.output.console.setText(cleaned_text)
             self.output.mw.CONSOLE_LOG = cleaned_text
@@ -266,7 +280,10 @@ class CLI():
         else: 
             if self.fh.is_duplicate(phrase):
                 msg = self.msg.PHRASE_EXISTS_IN_DB
-                self.queue_dict[phrase][2] = ['DUPLICATE']
+                self.fh.marked_duplicates.add(phrase)
+                self.queue_dict[phrase][0].insert(0, phrase)
+                self.queue_dict[phrase][1].insert(0, self.fh.get_translations(phrase))
+                self.queue_dict[phrase][2].append('DUPLICATE')
             else:
                 msg = self.msg.OK
 
