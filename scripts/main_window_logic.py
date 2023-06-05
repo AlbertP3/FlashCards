@@ -245,4 +245,5 @@ class main_window_logic():
         if self.side_window_id != 'fcc':
             self.get_fcc_sidewindow()
             
+        text_to_post+='\n'+self.CONSOLE_PROMPT
         self.fcc_inst.post_fcc(text_to_post)

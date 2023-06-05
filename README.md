@@ -96,7 +96,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
         <li><b>cfm</b>: Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file</li>
         <li><b>efc</b>: Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals. Additionaly, shows predicted time until the next revision</li>
         <li><b>mcp</b>: Modify Config Parameter - allows modifications of config file</li>
-        <li><b>sck</b>: Show Config Keys - list all available parameters in config file</li>
+        <li><b>sck</b>: Set Config Key - edit configs key. If no value provided then shows current one</li>
         <li><b>cls</b>: Clear Screen</li>
         <li><b>cfn</b>: Change File Name - changes currently loaded file_path, filename and all records in DB for this signature</li>
         <li><b>sah</b>: Show Progress Chart for all languages</li>

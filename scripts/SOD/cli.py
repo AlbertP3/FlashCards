@@ -486,7 +486,7 @@ class CLI():
         self.output.console.setText('')
         self.output.mw.CONSOLE_LOG = []
         self.__post_status_bar(msg)
-        if keep_content: 
+        if keep_content and content: 
             self.send_output(content)
 
 

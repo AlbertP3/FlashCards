@@ -36,7 +36,7 @@ class sod_spawn:
     
     def monkey_patch_post_fcc(self, msg):
         if msg != self.sout.mw.CONSOLE_PROMPT:
-            self.cli.cls(msg, keep_content=True, keep_cmd=True)
+            self.cli.cls(msg, keep_content=True, keep_cmd=False)
             self.HISTORY.append(msg)
 
     def monkey_patch_execute_command_fcc(self, parsed_input:list, followup_prompt:bool=True):

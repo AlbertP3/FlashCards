@@ -1,4 +1,3 @@
-from numpy import append
 from utils import *
 from random import shuffle
 import db_api
@@ -29,7 +28,7 @@ class fcc():
                     'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
                     'efc':'Ebbinghaus Forgetting Curve - shows table with revs, days from last rev and efc score',
                     'mcp':'Modify Config Parameter - allows modifications of config file',
-                    'sck':'Show Config Keys - list all available parameters in config file',
+                    'sck':'Set Config Key - edit configs key. If no value provided then shows current one',
                     'cls':'Clear Screen',
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     'sah':'Show Progress Chart for all languages',
@@ -161,7 +160,7 @@ class fcc():
         # modify file if exists
         file_mod_msg = ''
         if dataset_ordered.shape[0] > 0:
-            dataset_ordered.drop(dataset_ordered.loc[dataset_ordered[dataset_ordered.columns[current_side]]==current_word].index, inplace=True)
+            dataset_ordered.drop(dataset_ordered.loc[dataset_ordered[dataset_ordered.columns[self.mw.side]]==current_word].index, inplace=True)
             save_revision(dataset_ordered, self.mw.signature)
             file_mod_msg = ' and from the file as well'
 
@@ -282,9 +281,21 @@ class fcc():
 
     
     def sck(self, parsed_cmd):
-        # Show Config Keys
-        keys_printout = '\n'.join(list(self.config.keys()))
-        self.post_fcc(keys_printout)
+        # Set Config Key
+        if len(parsed_cmd) == 1:
+            msg = '\n'.join(list(self.config.keys()))
+        elif len(parsed_cmd) == 2:
+            msg = self.config.get(parsed_cmd[1], 'N/A')
+        elif len(parsed_cmd) > 2:
+            if not self.config.get(parsed_cmd[1]): 
+                msg = f"Key {parsed_cmd[1]} does not exist"
+            else:
+                new_val = ' '.join(parsed_cmd[2:])
+                self.config[parsed_cmd[1]] = new_val
+                msg = f"Key {parsed_cmd[1]} set to {new_val}"
+        else:
+            msg = 'Invalid syntax'
+        self.post_fcc(msg)
     
 
     def cls(self, parsed_cmd=None):

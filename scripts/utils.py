@@ -1,4 +1,5 @@
 import random
+from collections import UserDict
 from datetime import datetime, date
 import os
 import pandas as pd
@@ -34,7 +35,7 @@ def singleton(cls):
 
 
 @singleton
-class Config:
+class Config(UserDict):
 
     def __init__(self):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
@@ -42,24 +43,18 @@ class Config:
         self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
         self.__refresh()
     
-    def __getitem__(self, key):
-        return self.config[key]
-
-    def get(self, key, default):
-        return self.config.get(key, default)
-
     def __refresh(self):
         self.parser.read(self.PATH_TO_DICT)
-        self.config = dict(self.parser.items('PARAMETERS'))
-        self.config['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
-        self.config['GEOMETRY'] = dict(self.parser.items('GEOMETRY'))
-        self.config['THEME'] = dict(self.parser.items('THEME'))
+        self.data = dict(self.parser.items('PARAMETERS'))
+        self.data['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
+        self.data['GEOMETRY'] = dict(self.parser.items('GEOMETRY'))
+        self.data['THEME'] = dict(self.parser.items('THEME'))
         self.__parse_items()
 
     def save(self):
         for field in self.iterable_fields:
-            self.config[field] = '|'.join(self.config[field])
-        for k, v in self.config.items():
+            self.data[field] = '|'.join(self.data[field])
+        for k, v in self.data.items():
             if k=='KEYBOARD_SHORTCUTS': [self.parser.set('KEYBOARD_SHORTCUTS', k_, v_) for k_, v_ in v.items()]
             elif k=='GEOMETRY': [self.parser.set('GEOMETRY', k_, v_) for k_, v_ in v.items()]
             elif k =='THEME': [self.parser.set('THEME', k_, v_) for k_, v_ in v.items()]
@@ -67,14 +62,11 @@ class Config:
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
 
-    def update(self, modified_dict:dict):
-        self.config.update(modified_dict)
-
     def __parse_items(self):
         for field in self.iterable_fields:
-            self.config[field] = self.config[field].split('|')
-        for window, geometry in self.config['GEOMETRY'].items():
-            self.config['GEOMETRY'][window] = tuple(eval(geometry))
+            self.data[field] = self.data[field].split('|')
+        for window, geometry in self.data['GEOMETRY'].items():
+            self.data['GEOMETRY'][window] = tuple(eval(geometry))
 
 
 UTILS_STATUS_DICT = dict()
