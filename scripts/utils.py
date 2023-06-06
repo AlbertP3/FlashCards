@@ -49,7 +49,7 @@ class Config(UserDict):
         self.data['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
         self.data['GEOMETRY'] = dict(self.parser.items('GEOMETRY'))
         self.data['THEME'] = dict(self.parser.items('THEME'))
-        self.__parse_items()
+        self.parse_items()
 
     def save(self):
         for field in self.iterable_fields:
@@ -62,11 +62,13 @@ class Config(UserDict):
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
 
-    def __parse_items(self):
+    def parse_items(self):
         for field in self.iterable_fields:
-            self.data[field] = self.data[field].split('|')
+            if not isinstance(self.data[field], list):
+                self.data[field] = self.data[field].split('|')
         for window, geometry in self.data['GEOMETRY'].items():
-            self.data['GEOMETRY'][window] = tuple(eval(geometry))
+            if not isinstance(geometry, tuple):
+                self.data['GEOMETRY'][window] = tuple(eval(geometry))
 
 
 UTILS_STATUS_DICT = dict()
@@ -379,12 +381,6 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     if isinstance(list_, dict):
         list_ = [[k, v] for k, v in list_.items()]
 
-    # preprocess separator
-    if not isinstance(separator, list):
-        separator = [separator for _ in range(len(list_[0]))]
-    separator[-1] = ''
-
-
     # find longest element for each sub-list
     for k in range(len(list_[0])):
         longest_elements.append(max([len(str(item[k])) for item in list_]))
@@ -397,8 +393,8 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
             a = alingment[sub_index]
             rpad = ' ' if a=='>' else ''
             lpad = ' ' if a=='<' else ''
-            line+=f'{lpad}{sub_item:{a}{i}}{rpad}|'
-        if not keep_last_border: line=line[:-1] 
+            line+=f'{lpad}{sub_item:{a}{i}}{rpad}{separator}'
+        if not keep_last_border: line=line[:-len(separator)] 
         printout += line + '\n'
     
     return printout[:-1]

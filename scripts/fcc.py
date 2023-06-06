@@ -283,16 +283,36 @@ class fcc():
     def sck(self, parsed_cmd):
         # Set Config Key
         if len(parsed_cmd) == 1:
-            msg = '\n'.join(list(self.config.keys()))
+            c = [['Key', 'Value']]
+            c.extend(list([k, str(v)[:50]] for k, v in self.config.items()))
+            msg = get_pretty_print(c, separator='|', 
+                    alingment=['<', '^'], keep_last_border=True)
         elif len(parsed_cmd) == 2:
-            msg = self.config.get(parsed_cmd[1], 'N/A')
-        elif len(parsed_cmd) > 2:
-            if not self.config.get(parsed_cmd[1]): 
-                msg = f"Key {parsed_cmd[1]} does not exist"
+            if parsed_cmd[1] in (k for k, v in self.config.items() if isinstance(v, dict)):
+                c = [['Key', 'Value']]
+                c.extend(list([k, str(v)[:50]] for k, v in self.config[parsed_cmd[1]].items()))
+                msg = get_pretty_print(c, separator='|', 
+                    alingment=['<', '^'], keep_last_border=True)
             else:
-                new_val = ' '.join(parsed_cmd[2:])
-                self.config[parsed_cmd[1]] = new_val
-                msg = f"Key {parsed_cmd[1]} set to {new_val}"
+                msg = self.config.get(parsed_cmd[1], 'N/A')
+                if isinstance(msg, list): msg = '|'.join(msg)
+        elif len(parsed_cmd) > 2:
+            if parsed_cmd[1] in (k for k, v in self.config.items() if isinstance(v, dict)):
+                if not self.config[parsed_cmd[1]].get(parsed_cmd[2]): 
+                    msg = f"Key {parsed_cmd[2]} does not exist"
+                else:
+                    new_val = ' '.join(parsed_cmd[3:])
+                    self.config[parsed_cmd[1]][parsed_cmd[2]] = new_val
+                    self.config.parse_items()
+                    msg = f"Key {parsed_cmd[2]} set to {new_val}"
+            else:
+                if not self.config.get(parsed_cmd[1]): 
+                    msg = f"Key {parsed_cmd[1]} does not exist"
+                else:
+                    new_val = ' '.join(parsed_cmd[2:])
+                    self.config[parsed_cmd[1]] = new_val
+                    self.config.parse_items()
+                    msg = f"Key {parsed_cmd[1]} set to {new_val}"
         else:
             msg = 'Invalid syntax'
         self.post_fcc(msg)
