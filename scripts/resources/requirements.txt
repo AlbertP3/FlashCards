@@ -7,7 +7,7 @@ openpyxl
 
 # SOD
 beautifulsoup4==4.11.1
-requests==2.28.1
+requests==2.31.0
 html5lib==1.1
 
 # EMO
