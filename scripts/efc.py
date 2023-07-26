@@ -115,9 +115,9 @@ class efc():
         if lim: efc_table_data=efc_table_data[:lim]
         efc_stats_list = [['REV NAME', 'ΔD', 'EFC', 'DUE']]
         for rev in efc_table_data:
-            if rev[3] < 48:
+            if abs(rev[3]) < 48:
                 pred = f"{format_seconds_to(rev[3]*3600, 'hour')}"
-            elif rev[3] < 10000:
+            elif abs(rev[3]) < 10000:
                 pred = f"{format_seconds_to(rev[3]*3600, 'day', include_remainder=False)}"  
             else:
                 pred = "Too Long"

@@ -257,11 +257,12 @@ def update_signature_timestamp(signature):
 
 
 def get_lng_from_signature(signature):
-    lngs = config['languages']
-    matched_lng = 'UNKNOWN'
-    for lng in lngs:
+    for lng in config['languages']:
         if lng in signature:
             matched_lng = lng
+            break
+    else:
+        matched_lng = 'UNKNOWN'
     return matched_lng
 
 
@@ -400,7 +401,7 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     return printout[:-1]
 
 
-def format_seconds_to(total_seconds, interval, include_remainder=True, null_format:str=None, max_len=0, fmt:str=None):
+def format_seconds_to(total_seconds:int, interval:str, include_remainder=True, null_format:str=None, max_len=0, fmt:str=None) -> str:
     if interval == 'hour':
         prev_interval = 60
         interval = 3600
@@ -427,7 +428,7 @@ def format_seconds_to(total_seconds, interval, include_remainder=True, null_form
         sep = '.'
     
     total_intervals = total_seconds // interval
-    remaining_intervals = (total_seconds % interval)/prev_interval
+    remaining_intervals = (abs(total_seconds) % interval)/prev_interval
     
     if null_format is not None and total_intervals + remaining_intervals == 0:
         res = null_format

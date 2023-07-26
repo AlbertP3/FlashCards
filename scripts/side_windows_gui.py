@@ -508,7 +508,7 @@ class progress_gui(stats):
 
     def get_progress_sidewindow(self, override_lng_gist=False):
         lng_gist = '' if override_lng_gist else get_lng_from_signature(self.signature)
-        if not self.TEMP_FILE_FLAG:
+        if lng_gist != 'UNKNOWN':
             self.arrange_progress_sidewindow(lng_gist)
             self.open_side_window(self.progress_layout, 'progress', self.EXTRA_WIDTH_PROGRESS)
         else:
