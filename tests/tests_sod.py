@@ -395,6 +395,7 @@ class Test_CLI(TestCase):
         # Test if replacing the searched phrase with one of the results works
         self.run_cmd(['moon'])
         self.run_cmd(['m3', '2', 'a'])
+        self.assertEqual(self.ss.sout.mw.aval_lefts, 3)
         self.assertEqual(self.ss.sout.mw.CONSOLE_PROMPT, 'Modify: red')
         self.assertEqual(self.ss.cli.phrase, 'moon')
         

@@ -439,7 +439,7 @@ class CLI():
     def res_edit_parse(self, parsed_cmd):
         if self.state.MODIFY_RES_EDIT_MODE[0] == 'm':
             c = self.output.console.toPlainText()
-            e_index = c.rfind(': ') + 2
+            e_index = c.rfind('Modify: ') + 8
             phrase = c[e_index:]
             if self.fh.data.get(self.phrase):
                 self.fh.data[phrase] = self.fh.data[self.phrase]
@@ -450,7 +450,7 @@ class CLI():
             self.res_edit.append(' '.join(parsed_cmd))
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'e':
             c = self.output.console.toPlainText()
-            e_index = c.rfind(': ') + 2
+            e_index = c.rfind('Edit: ') + 6
             self.res_edit.append(c[e_index:])
 
 
