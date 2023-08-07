@@ -31,7 +31,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.build_layout()   
         self.add_shortcuts()
         side_windows.__init__(self)
-        self.config['GEOMETRY']['main'] = self.get_geometry()
 
 
     def configure_window(self):
@@ -386,7 +385,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def open_side_window(self, layout, name, extra_width):
-        self.config['GEOMETRY']['main'] = self.get_geometry()
         if 'side_by_side' in self.config['optional']:
             self.open_side_by_side(layout, name, extra_width)
         else:
@@ -419,18 +417,15 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.toggle_primary_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 1, 5, 1)
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
-        self.config['GEOMETRY']['main'] = self.get_geometry()
-        self.set_geometry(self.config['GEOMETRY'][name])
         self.side_window_id = name
+        self.set_geometry(self.config['GEOMETRY'][name])
     
     def del_side_window_in_place(self):
-        self.config['GEOMETRY'][self.side_window_id] = self.get_geometry()
         remove_layout(self.side_window_layout)
         self.toggle_primary_widgets_visibility(True)
-        self.reset_window_size()
+        self.side_window_id = 'main'
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
         self.set_geometry(self.config['GEOMETRY']['main'])
-        self.side_window_id = 'main'
 
 
     def open_side_by_side(self, layout, name, extra_width):
@@ -443,25 +438,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def add_window_to_side(self, layout, name, extra_width):
         self.side_window_layout = layout
+        self.side_window_id = name
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
         self.setFixedWidth(self.config['GEOMETRY']['main'][2]+extra_width)
         self.setMinimumWidth(0)
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-        self.side_window_id = name
     
     def del_side_window_side_by_side(self): 
         remove_layout(self.side_window_layout)
-        self.reset_window_size()
         self.side_window_id = 'main'
-
-
-    def reset_window_size(self):
-        self.setFixedWidth(self.config['GEOMETRY']['main'][2])
-        self.setMinimumWidth(0)
-        self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-        self.setFixedHeight(self.config['GEOMETRY']['main'][3])
-        self.setMinimumHeight(0)
-        self.setMaximumHeight(widget.QWIDGETSIZE_MAX)
+        self.set_geometry(self.config['GEOMETRY']['main'])
 
 
     def toggle_primary_widgets_visibility(self, target_mode):
@@ -531,13 +517,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.notify_on_error(err_traceback, exc_value)
 
 
-    def get_geometry(self) -> tuple[int,int,int,int]:
-        return self.geometry().getRect()
-
-
     def set_geometry(self, rect:tuple[int,int,int,int]):
         # Change widht and height only
-        cur_geo = self.get_geometry()
+        cur_geo = self.geometry().getRect()
         self.setGeometry(cur_geo[0], cur_geo[1], rect[2], rect[3])
 
 
@@ -705,6 +687,5 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.config.save()
 
 
-    # def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-    #     if abs(self.frameGeometry().width() - self.prev_width) > 25:
-    #         print('resize with condition')
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()

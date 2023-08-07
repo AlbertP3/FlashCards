@@ -180,11 +180,21 @@ class efc_gui(efc):
         # add button to main window
         self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
+        self.init_shortcuts_efc()
         
+
+    def init_shortcuts_efc(self):
         self.add_shortcut('efc', self.get_efc_sidewindow, 'main')
         self.add_shortcut('run_command', self.load_selected_efc, 'efc')
         self.add_shortcut('negative', lambda: self.nagivate_efc_list(1), 'efc')
         self.add_shortcut('reverse', lambda: self.nagivate_efc_list(-1), 'efc')
+        self.add_shortcut('load', self.get_load_sidewindow, 'efc')
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'efc')
+        self.add_shortcut('timespent', self.get_timer_sidewindow, 'efc')
+        self.add_shortcut('config', self.get_config_sidewindow, 'efc')
+        self.add_shortcut('stats', self.get_stats_sidewindow, 'efc')
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'efc')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'efc')
 
 
     def get_efc_sidewindow(self):
@@ -264,11 +274,21 @@ class load_gui(load):
         # add button to main window
         self.load_button = self.create_button('Load', self.get_load_sidewindow)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
+        self.init_shortcuts_load()
 
+
+    def init_shortcuts_load(self):
         self.add_shortcut('load', self.get_load_sidewindow, 'main')
         self.add_shortcut('run_command', self.load_selected_file, 'load')
         self.add_shortcut('negative', lambda: self.nagivate_load_list(1), 'load')
         self.add_shortcut('reverse', lambda: self.nagivate_load_list(-1), 'load')
+        self.add_shortcut('efc', self.get_efc_sidewindow, 'load')
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'load')
+        self.add_shortcut('timespent', self.get_timer_sidewindow, 'load')
+        self.add_shortcut('config', self.get_config_sidewindow, 'load')
+        self.add_shortcut('stats', self.get_stats_sidewindow, 'load')
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'load')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'load')
     
 
     def get_load_sidewindow(self):
@@ -346,9 +366,19 @@ class mistakes_gui():
     def __init__(self):
         self.EXTRA_WIDTH_MISTAKES = 400
         self.side_window_titles['mistakes'] = 'Mistakes'
-        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'main')
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
+        self.init_shortcuts_mistakes()
 
+
+    def init_shortcuts_mistakes(self):
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'main')
+        self.add_shortcut('efc', self.get_efc_sidewindow, 'mistakes')
+        self.add_shortcut('load', self.get_load_sidewindow, 'mistakes')
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'mistakes')
+        self.add_shortcut('timespent', self.get_timer_sidewindow, 'mistakes')
+        self.add_shortcut('config', self.get_config_sidewindow, 'mistakes')
+        self.add_shortcut('stats', self.get_stats_sidewindow, 'mistakes')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'mistakes')
     
     def get_mistakes_sidewindow(self):
         if self.is_revision:
@@ -395,7 +425,18 @@ class stats_gui(stats):
         stats.__init__(self)
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
+        self.init_shortcuts_stats()
+
+
+    def init_shortcuts_stats(self):
         self.add_shortcut('stats', self.get_stats_sidewindow, 'main')
+        self.add_shortcut('efc', self.get_efc_sidewindow, 'stats')
+        self.add_shortcut('load', self.get_load_sidewindow, 'stats')
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'stats')
+        self.add_shortcut('timespent', self.get_timer_sidewindow, 'stats')
+        self.add_shortcut('config', self.get_config_sidewindow, 'stats')
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'stats')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'stats')
 
 
     def get_stats_sidewindow(self):
@@ -503,8 +544,19 @@ class progress_gui(stats):
         self.EXTRA_WIDTH_PROGRESS = 400
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
-        self.add_shortcut('progress', self.get_progress_sidewindow, 'main')
+        self.init_shortcuts_progress()
     
+
+    def init_shortcuts_progress(self):
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'main')
+        self.add_shortcut('stats', self.get_stats_sidewindow, 'progress')
+        self.add_shortcut('efc', self.get_efc_sidewindow, 'progress')
+        self.add_shortcut('load', self.get_load_sidewindow, 'progress')
+        self.add_shortcut('timespent', self.get_timer_sidewindow, 'progress')
+        self.add_shortcut('config', self.get_config_sidewindow, 'progress')
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'progress')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'progress')
+
 
     def get_progress_sidewindow(self, override_lng_gist=False):
         lng_gist = '' if override_lng_gist else get_lng_from_signature(self.signature)
@@ -596,7 +648,7 @@ class config_gui():
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         self.add_shortcut('config', self.get_config_sidewindow, 'main')
 
-    
+
     def get_config_sidewindow(self):
         self.themes_dict = themes.load_themes()
         self.arrange_config_sidewindow()
@@ -785,7 +837,18 @@ class timer_gui():
         self.timer_button = self.create_button('⏲', self.get_timer_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
         self.TIMER_FONT = QtGui.QFont('Consolas', self.TIMER_FONT_SIZE)
+        self.init_shortcuts_timer()
+
+
+    def init_shortcuts_timer(self):
         self.add_shortcut('timespent', self.get_timer_sidewindow, 'main')
+        self.add_shortcut('progress', self.get_progress_sidewindow, 'timer')
+        self.add_shortcut('stats', self.get_stats_sidewindow, 'timer')
+        self.add_shortcut('efc', self.get_efc_sidewindow, 'timer')
+        self.add_shortcut('load', self.get_load_sidewindow, 'timer')
+        self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'timer')
+        self.add_shortcut('config', self.get_config_sidewindow, 'timer')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'timer')
 
 
     def get_timer_sidewindow(self):
