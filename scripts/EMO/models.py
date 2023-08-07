@@ -71,7 +71,7 @@ class Models:
         x_train_svm, self.x_test_svm, y_train_svm, self.y_test_svm = train_test_split(x, y, test_size=self.size_test, random_state=self.random_state)
         self.scx_svm = StandardScaler()
         self.scy_svm = StandardScaler()
-        x_train_svm = self.scx_svm.fit_transform(x_train_svm.values)
+        x_train_svm = self.scx_svm.fit_transform(x_train_svm)
         y_train_svm = self.scy_svm.fit_transform(y_train_svm)
         svm_model = svm.SVR(kernel='rbf', C=12, epsilon=0.5)
         svm_model.fit(x_train_svm, y_train_svm.ravel())
@@ -80,7 +80,7 @@ class Models:
 
 
     def eval_SVM(self):
-        transformed_xs = self.scx_svm.transform(self.x_test_svm.values)
+        transformed_xs = self.scx_svm.transform(self.x_test_svm)
         predictions = self.scy_svm.inverse_transform(self.models['SVM'].predict(np.array(transformed_xs)).reshape(-1, 1))
         self.evaluation['SVM'] = m_eval(
             explained_variance_score(self.y_test_svm, predictions),
