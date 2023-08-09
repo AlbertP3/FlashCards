@@ -26,7 +26,7 @@ def decision_tree_discretizer(df, scoring='r2'):
 
 def transformation_yeo_johnson(df, cols=RECORD_COLS):
     yj_transformation = fet.YeoJohnsonTransformer(variables=cols)
-    yj_transformation.fit(df)
-    df = yj_transformation.transform(df)
+    yj_transformation.fit(df.iloc[:, :-1])
+    df.iloc[:, :-1] = yj_transformation.transform(df.iloc[:, :-1])
     return df, yj_transformation
 

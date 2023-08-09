@@ -35,7 +35,7 @@ class CLI():
         self.sout.mw.CONSOLE_PROMPT = t
 
 
-    def cls(self):
+    def cls(self, *args, **kwargs):
         self.sout.console.setText('')
         self.sout.mw.CONSOLE_LOG = []
 
@@ -91,14 +91,14 @@ class CLI():
         self.dbapi.db.iloc[:, :-1] = self.prt_res(augmentation.cap_quantiles, 'Capping quantiles... ', self.dbapi.db.iloc[:, :-1])
         discretizer = self.discretizers.get(self.config['emo_discretizer'])
         if discretizer:
-            self.dbapi.db.iloc[:, :-1], self.discretizer = self.prt_res(discretizer, f"Applying {self.config['emo_discretizer']} Discretization... ", self.dbapi.db.iloc[:, :-1])
+            self.dbapi.db, self.discretizer = self.prt_res(discretizer, f"Applying {self.config['emo_discretizer']} Discretization... ", self.dbapi.db)
 
 
     def prepare_models(self):
         self.prt_res(self.models_creator.prep_LASSO, 'Preparing LASSO model... ', self.dbapi.db)
         self.prt_res(self.models_creator.eval_LASSO, 'Evaluating LASSO model... ')
-        self.prt_res(self.models_creator.prep_SVM, 'Preparing SVM model... ', self.dbapi.db)
-        self.prt_res(self.models_creator.eval_SVM, 'Evaluating SVM model... ')
+        self.prt_res(self.models_creator.prep_SVR, 'Preparing SVR model... ', self.dbapi.db)
+        self.prt_res(self.models_creator.eval_SVR, 'Evaluating SVR model... ')
         self.prt_res(self.models_creator.prep_RFR, 'Preparing RFR model... ', self.dbapi.db)
         self.prt_res(self.models_creator.eval_RFR, 'Evaluating RFR model... ')
 

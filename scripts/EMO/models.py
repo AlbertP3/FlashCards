@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from collections import namedtuple
-from pandas.core.common import random_state
+from random import randint
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn import linear_model, svm, ensemble
@@ -22,21 +22,21 @@ class Model:
         self.name = model_name
         self.model = model
         self.anc = kwargs
-        self._methods_predict = {'SVM': self._predict_svm,
+        self._methods_predict = {'SVR': self._predict_svr,
                                  'LAS': self._predict_las,
                                  'RFR': self._predict_rfr,
                                  'CST': Model._predict_cst}
         self.discretizer = kwargs.get('discretizer')
         self.predict = self._methods_predict[model_name]
 
-    def _predict_svm(self, record):
+    def _predict_svr(self, record):
         if self.discretizer: 
-            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS))
-        return self.anc['scy_svm'].inverse_transform(self.model.predict(np.array(self.anc['scx_svm'].transform(record))).reshape(-1, 1)) 
+            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS)).values
+        return self.anc['scy_svr'].inverse_transform(self.model.predict(np.array(self.anc['scx_svr'].transform(record))).reshape(-1, 1)) 
 
     def _predict_las(self, record):
         if self.discretizer: 
-            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS)).values.tolist()
+            record = self.discretizer.transform(pd.DataFrame(data=record, columns=RECORD_COLS)).values
         return [self.model.predict([p]) for p in record]
 
     def _predict_rfr(self, record):
@@ -61,41 +61,41 @@ class Models:
     def __init__(self):
         self.config = Config()
         self.size_test = 0.2
-        self.random_state = 42
+        self.random_state = randint(0, 2137)
         self.models = dict()     # model: model object
         self.evaluation = dict() # model: m_eval
 
 
-    def prep_SVM(self, data:pd.DataFrame):
+    def prep_SVR(self, data:pd.DataFrame):
         x, y = data.iloc[:, :-1], data.iloc[:, -1:]
-        x_train_svm, self.x_test_svm, y_train_svm, self.y_test_svm = train_test_split(x, y, test_size=self.size_test, random_state=self.random_state)
-        self.scx_svm = StandardScaler()
-        self.scy_svm = StandardScaler()
-        x_train_svm = self.scx_svm.fit_transform(x_train_svm)
-        y_train_svm = self.scy_svm.fit_transform(y_train_svm)
-        svm_model = svm.SVR(kernel='rbf', C=12, epsilon=0.5)
-        svm_model.fit(x_train_svm, y_train_svm.ravel())
-        self.y_test_svm = np.array(self.y_test_svm).reshape(-1, 1)
-        self.models['SVM'] = svm_model
+        x_train_svr, self.x_test_svr, y_train_svr, self.y_test_svr = train_test_split(x.values, y.values, test_size=self.size_test, random_state=self.random_state)
+        self.scx_svr = StandardScaler()
+        self.scy_svr = StandardScaler()
+        x_train_svr = self.scx_svr.fit_transform(x_train_svr)
+        y_train_svr = self.scy_svr.fit_transform(y_train_svr)
+        svr_model = svm.SVR(kernel='rbf')
+        svr_model.fit(x_train_svr, y_train_svr.ravel())
+        self.y_test_svr = np.array(self.y_test_svr).reshape(-1, 1)
+        self.models['SVR'] = svr_model
 
 
-    def eval_SVM(self):
-        transformed_xs = self.scx_svm.transform(self.x_test_svm)
-        predictions = self.scy_svm.inverse_transform(self.models['SVM'].predict(np.array(transformed_xs)).reshape(-1, 1))
-        self.evaluation['SVM'] = m_eval(
-            explained_variance_score(self.y_test_svm, predictions),
-            mean_absolute_error(self.y_test_svm, predictions),
-            mean_tweedie_deviance(self.y_test_svm, predictions),
-            self.y_test_svm,
+    def eval_SVR(self):
+        transformed_xs = self.scx_svr.transform(self.x_test_svr)
+        predictions = self.scy_svr.inverse_transform(self.models['SVR'].predict(np.array(transformed_xs)).reshape(-1, 1))
+        self.evaluation['SVR'] = m_eval(
+            explained_variance_score(self.y_test_svr, predictions),
+            mean_absolute_error(self.y_test_svr, predictions),
+            mean_tweedie_deviance(self.y_test_svr, predictions),
+            self.y_test_svr,
             predictions
         )
 
             
     def prep_LASSO(self, data:pd.DataFrame):
         x, y = data.iloc[:, :-1], data.iloc[:, -1:]
-        x_train_las, self.x_test_las, y_train_las, self.y_test_las = train_test_split(x, y, test_size=self.size_test, random_state=self.random_state)
+        x_train_las, self.x_test_las, y_train_las, self.y_test_las = train_test_split(x.values, y.values, test_size=self.size_test, random_state=self.random_state)
         lasso_model = linear_model.Lasso(alpha=0.1)
-        lasso_model.fit(x_train_las.values, y_train_las.values)
+        lasso_model.fit(x_train_las, y_train_las)
         self.y_test_las = np.array(self.y_test_las).reshape(-1, 1)
         self.x_test_las = np.array(self.x_test_las)
         self.models['LAS'] = lasso_model
@@ -114,10 +114,10 @@ class Models:
 
     def prep_RFR(self, data:pd.DataFrame):
         x, y = data.iloc[:, :-1], data.iloc[:, -1:]
-        x_train_rfr, self.x_test_rfr, y_train_rfr, self.y_test_rfr = train_test_split(x, y, test_size=self.size_test, random_state=self.random_state)
+        x_train_rfr, self.x_test_rfr, y_train_rfr, self.y_test_rfr = train_test_split(x.values, y.values, test_size=self.size_test, random_state=self.random_state)
         regressor_rfr = ensemble.RandomForestRegressor(n_estimators=12, random_state=42, max_depth=8,
                                               min_samples_leaf=3)
-        regressor_rfr.fit(x_train_rfr.values, y_train_rfr.values.ravel())
+        regressor_rfr.fit(x_train_rfr, y_train_rfr.ravel())
         self.y_test_rfr = np.array(self.y_test_rfr).reshape(-1, 1)
         self.models['RFR'] = regressor_rfr
 
@@ -135,12 +135,12 @@ class Models:
 
     def prep_CST(self, data:pd.DataFrame):
         x, y = data.iloc[:, :-1], data.iloc[:, -1:]
-        _, self.x_test_cst, _, self.y_test_cst = train_test_split(x, y, test_size=self.size_test, random_state=self.random_state)
+        _, self.x_test_cst, _, self.y_test_cst = train_test_split(x.values, y.values, test_size=self.size_test, random_state=self.random_state)
         self.models['CST'] = Model._predict_cst
 
 
     def eval_CST(self):
-        predictions = Model._predict_cst(self.x_test_cst.values)
+        predictions = Model._predict_cst(self.x_test_cst)
         self.evaluation['CST'] = m_eval(
             explained_variance_score(self.y_test_cst, predictions),
             mean_absolute_error(self.y_test_cst, predictions),
@@ -152,8 +152,8 @@ class Models:
 
     def save_model(self, model_name:str, **kwargs):
         # Use first-class function to save selected model to a file
-        if model_name == 'SVM':
-            model = Model(model_name, self.models['SVM'], scx_svm=self.scx_svm, scy_svm=self.scy_svm, **kwargs)
+        if model_name == 'SVR':
+            model = Model(model_name, self.models['SVR'], scx_svr=self.scx_svr, scy_svr=self.scy_svr, **kwargs)
         elif model_name in {'LAS', 'RFR', 'CST'}:
             model = Model(model_name, self.models[model_name], **kwargs)
         else:

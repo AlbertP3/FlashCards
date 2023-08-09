@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import matplotlib
 
 CWD = os.path.dirname(os.path.abspath(__file__))
 
@@ -10,11 +11,12 @@ logging.basicConfig(
     filemode='a',
     format='%(asctime)s.%(msecs)05d [%(name)s] %(levelname)s %(message)s <%(filename)s(%(lineno)d)>',
     datefmt="%Y-%m-%dT%H:%M:%S", 
-    level='INFO'
+    level='ERROR'
     )
 LOGGER = logging.getLogger('FCS')
 sys.stderr.write = LOGGER.critical
 log = logging.getLogger(__name__)
+matplotlib.set_loglevel('error')
 
 
 # Continue setup
