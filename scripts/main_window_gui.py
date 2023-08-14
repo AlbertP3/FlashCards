@@ -268,11 +268,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             last_card_was_reached = self.cards_seen+1 == self.total_words
             conditions_to_stop_timer = last_card_was_reached and not self.is_revision and not self.is_mistakes_list
             self.reset_pace_timer()
-            if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
+            if not self.TIMER_RUNNING_FLAG and not self.is_saved and not last_card_was_reached: 
                 self.start_timer()
                 if self.is_revision: self.start_pace_timer()
             elif conditions_to_stop_timer: 
-                self.stop_timer()
+                self.stop_timer(for_good=True)
                 self.stop_pace_timer()
             self.update_score_button()
             if self.words_back_mode(): self.nav_buttons_visibility_control(True, True, False)
@@ -283,7 +283,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         elif self.is_revision:
             self.display_text(self.revision_summary)
         else:
-            self.reset_timer()
             self.stop_pace_timer()
             self.display_text("You have reached the world's edge, none but devils play past here")
         
@@ -595,12 +594,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             conditions_met = False
         return conditions_met
 
-    def stop_timer(self):
+    def stop_timer(self, for_good=False):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
         if not self.revtimer_hide_timer:
             self.timer_prev_text = self.timer_button.text()
-            self.timer_button.setText('⏸' if self.seconds_spent else '⏲')
+            self.timer_button.setText('⏲' if for_good or not self.seconds_spent else '⏸')
 
     def reset_timer(self, clear_indicator=True):
         self.timer.stop()

@@ -395,7 +395,7 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
             rpad = ' ' if a=='>' else ''
             lpad = ' ' if a=='<' else ''
             line+=f'{lpad}{sub_item:{a}{i}}{rpad}{separator}'
-        if not keep_last_border: line=line[:-len(separator)] 
+        if not keep_last_border and separator: line=line[:-len(separator)] 
         printout += line + '\n'
     
     return printout[:-1]

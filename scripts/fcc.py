@@ -1,3 +1,4 @@
+import re 
 from utils import *
 from random import shuffle
 import db_api
@@ -78,15 +79,15 @@ class fcc():
 
     def help(self, parsed_cmd):
         if len(parsed_cmd) == 1:
-           printout = get_pretty_print(self.DOCS, extra_indent=3, alingment=['<', '<'])
+           printout = get_pretty_print(self.DOCS, alingment=['<', '<'], separator='-')
         else:
             command = parsed_cmd[1]
-            printout =  get_pretty_print([[command, self.DOCS[command]]], extra_indent=3, alingment=['<', '<'])
+            printout =  get_pretty_print([[command, self.DOCS[command]]], alingment=['<', '<'], separator='-')
 
         self.post_fcc(printout)
 
 
-    def decorator_require_nontemporary(func):
+    def require_nontemporary(func):
         def verify_conditions(self, *args, **kwargs):
             if not self.mw.TEMP_FILE_FLAG:
                 func(self, *args, **kwargs)
@@ -168,7 +169,7 @@ class fcc():
         self.post_fcc(f'Card removed from the set{file_mod_msg}.')
 
 
-    @decorator_require_nontemporary
+    @require_nontemporary
     def lln(self, parsed_cmd):
         # load last N cards from dataset
 
@@ -178,8 +179,10 @@ class fcc():
         
         # get last N records from the file -> shuffle only the part
         n_cards = abs(int(parsed_cmd[1]))
-        try: l_cards = abs(int(parsed_cmd[2]))
-        except IndexError: l_cards = 0
+        try: 
+            l_cards = abs(int(parsed_cmd[2]))
+        except IndexError: 
+            l_cards = 0
 
         file_path = self.mw.file_path
         if l_cards == 0:
@@ -192,7 +195,7 @@ class fcc():
 
         # point to non-existing file in case user modified cards
         filename = file_path.split('/')[-1].split('.')[0]
-        new_path = self.config['lngs_path'] + filename + str(n_cards) + '.csv'
+        new_path = self.config['lngs_path'] + filename + str(len(data)) + '.csv'
         
         self.mw.TEMP_FILE_FLAG = True
         self.mw.del_side_window()
@@ -200,7 +203,7 @@ class fcc():
         self.refresh_interface()
         self.mw.reset_timer()
         self.mw.start_file_update_timer()
-        self.post_fcc(f'Loaded last {n_cards} cards.')
+        self.post_fcc(f'Loaded last {len(data)} cards.')
 
     
     def cfm(self, parsed_cmd):
@@ -288,9 +291,11 @@ class fcc():
             msg = get_pretty_print(c, separator='|', 
                     alingment=['<', '^'], keep_last_border=True)
         elif len(parsed_cmd) == 2:
-            if parsed_cmd[1] in (k for k, v in self.config.items() if isinstance(v, dict)):
+            p = re.compile(parsed_cmd[1])
+            matching = {k:v for k, v in self.config.items() if p.search(k)}
+            if matching:
                 c = [['Key', 'Value']]
-                c.extend(list([k, str(v)[:50]] for k, v in self.config[parsed_cmd[1]].items()))
+                c.extend(list([k, str(v)[:50]] for k, v in matching.items()))
                 msg = get_pretty_print(c, separator='|', 
                     alingment=['<', '^'], keep_last_border=True)
             else:
@@ -331,7 +336,7 @@ class fcc():
         self.mw.CONSOLE_LOG = new_console_log
 
 
-    @decorator_require_nontemporary
+    @require_nontemporary
     def cfn(self, parsed_cmd):
         # Change File Name
        
