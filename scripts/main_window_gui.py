@@ -383,11 +383,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.next_button.hide()
 
 
-    def open_side_window(self, layout, name, extra_width):
+    def open_side_window(self, layout, name):
         if 'side_by_side' in self.config['optional']:
-            self.open_side_by_side(layout, name, extra_width)
+            self.open_side_by_side(layout, name)
         else:
-            self.open_in_place(layout, name, extra_width)
+            self.open_in_place(layout, name)
         self.setWindowTitle(self.side_window_titles[name])
         self.stop_timer()
         self.stop_pace_timer()
@@ -403,7 +403,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.resume_pace_timer()
 
 
-    def open_in_place(self, layout, name, extra_width):
+    def open_in_place(self, layout, name):
         if self.side_window_id != name:
             if self.side_window_id != 'main': self.del_side_window_in_place()
             self.add_window_in_place(layout, name)
@@ -427,26 +427,37 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.set_geometry(self.config['GEOMETRY']['main'])
 
 
-    def open_side_by_side(self, layout, name, extra_width):
+    def open_side_by_side(self, layout, name):
         if self.side_window_id != name:
             if self.side_window_id != 'main': self.del_side_window_side_by_side()
-            self.add_window_to_side(layout, name, extra_width)
+            self.add_window_to_side(layout, name)
         else:
             self.del_side_window_side_by_side()
-        self.move(self.pos()) 
 
-    def add_window_to_side(self, layout, name, extra_width):
+    def add_window_to_side(self, layout, name):
         self.side_window_layout = layout
         self.side_window_id = name
+        self.textbox.setFixedWidth(self.textbox.width())
+        self.textbox.setFixedHeight(self.textbox.height())
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.config['GEOMETRY']['main'][2]+extra_width)
-        self.setMinimumWidth(0)
+        self.setFixedWidth(self.config['GEOMETRY'][name][2])
+        self.setFixedHeight(self.config['GEOMETRY']['main'][3])
+        self.setMinimumWidth(self.config['GEOMETRY']['main'][2])
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
     
     def del_side_window_side_by_side(self): 
+        self.unfix_size(self)
+        self.unfix_size(self.textbox)
         remove_layout(self.side_window_layout)
         self.side_window_id = 'main'
         self.set_geometry(self.config['GEOMETRY']['main'])
+    
+
+    def unfix_size(self, obj):
+        obj.setMinimumWidth(0)
+        obj.setMaximumWidth(widget.QWIDGETSIZE_MAX)
+        obj.setMinimumHeight(0)
+        obj.setMaximumHeight(widget.QWIDGETSIZE_MAX)
 
 
     def toggle_primary_widgets_visibility(self, target_mode):

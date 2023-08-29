@@ -39,7 +39,7 @@ class fcc_gui():
 
     def get_fcc_sidewindow(self):
         self.arrange_fcc_window()
-        self.open_side_window(self.fcc_layout, 'fcc', 500 + self.LEFT)
+        self.open_side_window(self.fcc_layout, 'fcc')
         self.console.setFocus()
         self.move_cursor_to_end()
         
@@ -133,7 +133,7 @@ class fcc_gui():
 
     def update_console_cmds_nav(self):
         console_content = self.console.toPlainText().split('\n')
-        mod_content, cur_cmd = console_content[:-1], console_content[-1][len(self.CONSOLE_PROMPT):]
+        mod_content = console_content[:-1]
         mod_content.append(f'{self.CONSOLE_PROMPT}{self.CMDS_LOG[self.CMDS_CURSOR]}')
         self.aval_lefts =len(self.CMDS_LOG[self.CMDS_CURSOR]) 
         self.aval_rights = 0
@@ -142,8 +142,9 @@ class fcc_gui():
 
 
     def add_cmd_to_log(self, cmd:str):
-        if cmd: 
-            self.CMDS_LOG.append(cmd)
+        if cmd:
+            if self.CMDS_LOG[-1] != cmd:
+                self.CMDS_LOG.append(cmd)
             self.CONSOLE_LOG[-1]+=cmd
         self.CMDS_CURSOR = 0
         self.aval_lefts = 0
@@ -175,7 +176,6 @@ class efc_gui(efc):
     def __init__(self):
         efc.__init__(self)
         self.side_window_titles['efc'] = 'EFC'
-        self.EXTRA_WIDTH_EFC = 250
         self.cur_efc_index = 0
         # add button to main window
         self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
@@ -199,7 +199,7 @@ class efc_gui(efc):
 
     def get_efc_sidewindow(self):
         self.arrange_efc_window()
-        self.open_side_window(self.efc_layout, 'efc', self.EXTRA_WIDTH_EFC)
+        self.open_side_window(self.efc_layout, 'efc')
         
 
     def arrange_efc_window(self):
@@ -269,7 +269,6 @@ class load_gui(load):
     def __init__(self):
         load.__init__(self)
         self.side_window_titles['load'] = 'Load'
-        self.EXTRA_WIDTH_LOAD = 200
         self.cur_load_index = 0
         # add button to main window
         self.load_button = self.create_button('Load', self.get_load_sidewindow)
@@ -293,7 +292,7 @@ class load_gui(load):
 
     def get_load_sidewindow(self):
         self.arrange_load_window()
-        self.open_side_window(self.load_layout, 'load', self.EXTRA_WIDTH_LOAD)
+        self.open_side_window(self.load_layout, 'load')
 
 
     def arrange_load_window(self):
@@ -364,7 +363,6 @@ class mistakes_gui():
     # no logic module for this side window
 
     def __init__(self):
-        self.EXTRA_WIDTH_MISTAKES = 400
         self.side_window_titles['mistakes'] = 'Mistakes'
         self.score_button.clicked.connect(self.get_mistakes_sidewindow)
         self.init_shortcuts_mistakes()
@@ -383,7 +381,7 @@ class mistakes_gui():
     def get_mistakes_sidewindow(self):
         if self.is_revision:
             self.arrange_mistakes_window()
-            self.open_side_window(self.mistakes_layout, 'mistakes', self.EXTRA_WIDTH_MISTAKES)
+            self.open_side_window(self.mistakes_layout, 'mistakes')
         else:
             self.fcc_inst.post_fcc('Mistakes are unavailable for a Language.')
 
@@ -420,7 +418,6 @@ class mistakes_gui():
 class stats_gui(stats):
 
     def __init__(self):
-        self.EXTRA_WIDTH_STATS = 430
         self.side_window_titles['stats'] = 'Statistics'
         stats.__init__(self)
         self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
@@ -442,7 +439,7 @@ class stats_gui(stats):
     def get_stats_sidewindow(self):
         if self.is_revision:
             self.arrange_stats_sidewindow()
-            self.open_side_window(self.stats_layout, 'stats', self.EXTRA_WIDTH_STATS)
+            self.open_side_window(self.stats_layout, 'stats')
         else:
             self.fcc_inst.post_fcc('Statistics are not available for a Language')
 
@@ -541,7 +538,6 @@ class progress_gui(stats):
     def __init__(self):
         stats.__init__(self)
         self.side_window_titles['progress'] = 'Progress'
-        self.EXTRA_WIDTH_PROGRESS = 400
         self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
         self.init_shortcuts_progress()
@@ -562,7 +558,7 @@ class progress_gui(stats):
         lng_gist = '' if override_lng_gist else get_lng_from_signature(self.signature)
         if lng_gist != 'UNKNOWN':
             self.arrange_progress_sidewindow(lng_gist)
-            self.open_side_window(self.progress_layout, 'progress', self.EXTRA_WIDTH_PROGRESS)
+            self.open_side_window(self.progress_layout, 'progress')
         else:
             self.post_logic('Progress not available')
 
@@ -642,7 +638,6 @@ class config_gui():
 
     def __init__(self):
         self.side_window_titles['config'] = 'Settings'
-        self.EXTRA_WIDTH_CONFIG = 300
         self.config = Config()
         self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
@@ -652,7 +647,7 @@ class config_gui():
     def get_config_sidewindow(self):
         self.themes_dict = themes.load_themes()
         self.arrange_config_sidewindow()
-        self.open_side_window(self.config_layout, 'config', self.EXTRA_WIDTH_CONFIG)
+        self.open_side_window(self.config_layout, 'config')
 
 
     def arrange_config_sidewindow(self):
@@ -797,6 +792,9 @@ class config_gui():
             self.set_theme()
         if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
             self.toggle_primary_widgets_visibility(True)
+        else:
+            self.unfix_size(self)
+            self.unfix_size(self.textbox)
 
         self.config.update(modified_dict)
 
@@ -833,7 +831,6 @@ class timer_gui():
         self.side_window_titles['timer'] = 'Time Spent'
         self.data_getter = timer.Timespent_BE()
         self.TIMER_FONT_SIZE = 12
-        self.EXTRA_WIDTH_TIMER = 200
         self.timer_button = self.create_button('⏲', self.get_timer_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
         self.TIMER_FONT = QtGui.QFont('Consolas', self.TIMER_FONT_SIZE)
@@ -855,7 +852,7 @@ class timer_gui():
         self.create_timer_console()
         self.arrange_timer_sidewindow()
         self.show_data()
-        self.open_side_window(self.timer_layout, 'timer', self.EXTRA_WIDTH_TIMER)
+        self.open_side_window(self.timer_layout, 'timer')
 
 
     def arrange_timer_sidewindow(self, width_=500):
