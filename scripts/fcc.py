@@ -5,11 +5,9 @@ import db_api
 from operator import methodcaller
 
 # Optional modules
-try: from SOD.init import sod_spawn
-except ModuleNotFoundError: pass
-try: from EMO.init import emo_spawn
-except ModuleNotFoundError: pass
-
+from SOD.init import sod_spawn
+from EMO.init import emo_spawn
+from CMG.init import cmg_spawn
 
 
 
@@ -23,6 +21,7 @@ class fcc():
         self.DOCS = {
                     'help':'Gets Help',
                     'mct':'Modify Cards Text - edits current side of the card both in current set and in the original file',
+                    'rcc':'Reverse Current Card - changes sides of currently displayed card and updates the source file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
@@ -97,22 +96,15 @@ class fcc():
 
 
     def mct(self, parsed_cmd):
-        # Modify current card text - both in app and in the file
-        if len(parsed_cmd) < 2:
-            self.post_fcc('mct function require at least 2 arguments')
-            return
-            
-        # change text on the card
-        new_text = ' '.join(parsed_cmd[1:])
-        self.mw.dataset.iloc[self.mw.current_index, self.mw.side] = new_text
+        '''Modify Current Card'''
+        cmg = cmg_spawn(stream_out=self)
+        cmg.modify_current_card(parsed_cmd)
+    
 
-        # change text in the file
-        notification_file_mod = ''
-        if not self.mw.TEMP_FILE_FLAG:
-            save_revision(self.mw.dataset, self.mw.signature)
-            notification_file_mod = ' Original file updated.'
-
-        self.post_fcc('Card content successfully modified.' + notification_file_mod)
+    def rcc(self, parsed_cmd):
+        '''Reverse Current Card'''
+        cmg = cmg_spawn(stream_out=self)
+        cmg.reverse_current_card(parsed_cmd)
 
 
     def mcr(self, parsed_cmd):
@@ -493,18 +485,12 @@ class fcc():
 
     def sod(self, parsed_cmd:list):
         # Scrape Online Dictionaries
-        try:
-            self.sod_object = sod_spawn(adapter='fcc', stream_out=self)
-        except NameError:
-            self.post_fcc("SOD module is not installed")
+        self.sod_object = sod_spawn(stream_out=self)
 
 
     def emo(self, parsed_cmd:list):
         # EFC Model Optimizer
-        try:
-            self.emo_object = emo_spawn(stream_out=self)
-        except NameError:
-            self.post_fcc("EMO module is not installed")
+        self.emo_object = emo_spawn(stream_out=self)
 
 
     def err(self, parsed_cmd:list):

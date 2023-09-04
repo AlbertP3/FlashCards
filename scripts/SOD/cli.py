@@ -192,7 +192,6 @@ class CLI():
                 self.cls(self.msg.NO_TRANSLATIONS)
         
 
-
     def setup_queue(self):
         self.queue_dict = OrderedDict()
         self.queue_index = 1

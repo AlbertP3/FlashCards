@@ -25,7 +25,7 @@ class Test_CLI(TestCase):
         output = mock.MagicMock()
         output.console.toPlainText = lambda: '\n'.join(self.cli_output_registry)
         output.console.setText = self.set_text_mock
-        self.ss = sod_init.sod_spawn(adapter='fcc', stream_out=output)
+        self.ss = sod_init.sod_spawn(stream_out=output)
         self.ss.cli.d_api.dicts = {'mock': dict_mock(), 'imitation': dict_mock()}
         self.ss.cli.d_api.dict_service = 'mock'
         self.ss.cli.output.cls = self.cls_mock

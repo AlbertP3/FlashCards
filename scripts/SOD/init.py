@@ -5,13 +5,10 @@ from SOD.cli import CLI
 
 class sod_spawn:
 
-    def __init__(self, adapter:str, stream_out):
+    def __init__(self, stream_out):
         self.config = Config()
-        self.adapters = dict(fcc=self.adapt_to_fcc,
-                             tui=self.adapt_to_terminal) 
-
         self.sout = stream_out
-        self.adapters[adapter]()
+        self.adapt()
         self.cli = CLI(output=self.sout,
                         wb_path=self.config['sod_filepath'], 
                         ws_sheet_name=self.config['sod_sheetname'])
@@ -21,32 +18,29 @@ class sod_spawn:
         self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
 
-
-# ======================= ADAPTER: FCC =======================
-    def adapt_to_fcc(self):
+    def adapt(self):
         self.HISTORY:list = self.sout.mw.CONSOLE_LOG.copy()
         self.CMD_HISTORY:list = self.sout.mw.CMDS_LOG.copy()
         self.sout.mw.CMDS_LOG = ['']
         self.prev_window_title = self.sout.mw.side_window_titles['fcc']
         self.orig_post_method = self.sout.post_fcc
         self.orig_execute_method = self.sout.execute_command
-        self.sout.post_fcc = self.monkey_patch_post_fcc
-        self.sout.execute_command = self.monkey_patch_execute_command_fcc
-        self.remove_adapter = self.remove_adapter_fcc
+        self.sout.post_fcc = self.monkey_patch_post
+        self.sout.execute_command = self.monkey_patch_execute_command
     
-    def monkey_patch_post_fcc(self, msg):
+    def monkey_patch_post(self, msg):
         if msg != self.sout.mw.CONSOLE_PROMPT:
             self.cli.cls(msg, keep_content=True, keep_cmd=False)
             self.HISTORY.append(msg)
 
-    def monkey_patch_execute_command_fcc(self, parsed_input:list, followup_prompt:bool=True):
+    def monkey_patch_execute_command(self, parsed_input:list, followup_prompt:bool=True):
         if parsed_input[0] == 'cls':
             self.cli.cls()
         else:
             self.run(parsed_input)
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
 
-    def remove_adapter_fcc(self):
+    def remove_adapter(self):
         self.sout.post_fcc = self.orig_post_method
         self.sout.mw.side_window_titles['fcc'] = self.prev_window_title
         self.sout.execute_command = self.orig_execute_method
@@ -55,31 +49,6 @@ class sod_spawn:
         self.sout.mw.CONSOLE_LOG.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.CMDS_LOG = self.CMD_HISTORY
 
-
-# ======================= ADAPTER: TERMINAL - WORK IN PROGRESS =======================
-    def adapt_to_terminal(self):
-        self.post_fcc = self.monkey_patch_post_terminal
-
-    def monkey_patch_post_terminal(self, msg):
-        if msg != self.sout.mw.CONSOLE_PROMPT:
-            self.cli.cls(msg, keep_content=True, keep_cmd=True)
-
-    def monkey_patch_execute_command_terminal(self, parsed_input:list):
-        # TODO
-        if parsed_input[0] not in self.sout.DOCS.keys():
-            self.run(parsed_input)
-        else:
-            self.sout.console.setText('Command not allowed in SOD mode!')
-        self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
-    
-    def monkey_patch_cls_terminal(self, msg, keep_content=True, keep_cmd=True):
-        ...
-
-    def remove_adapter_terminal(self):
-        ...
-
-
-# ======================= SOD MAIN LOOP ======================= 
     def run(self, cmd:list):
         if cmd == [''] and not self.cli.state.MODIFY_RES_EDIT_MODE \
             and not self.cli.state.QUEUE_SELECTION_MODE:
