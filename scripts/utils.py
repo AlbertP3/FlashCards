@@ -129,8 +129,7 @@ def make_todayte():
 
 def save_revision(dataset:pd.DataFrame(), signature):
     try:
-        file_name = signature
-        dataset.to_csv(config['revs_path'] + file_name + '.csv', index=False)
+        dataset.to_csv(os.path.join(config['revs_path'], f"{signature}.csv"), index=False)
         save_success = True
         post_utils(f'{signature} successfully saved')
     except PermissionError:
@@ -369,13 +368,13 @@ def validate_setup():
         pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES', 'SEC_SPENT']).to_csv(config['db_path'], sep=';')
 
     # Lngs folder
-    lngs_dir_name = config['lngs_path'].split('/')[-2]
+    lngs_dir_name = os.path.normpath(config['lngs_path'])
     if lngs_dir_name not in [f for f in os.listdir('.')]:
         operation_status += 'Creating Lngs dir\n'
         os.mkdir('./' + lngs_dir_name)
 
     # Revs folder
-    revs_dir_name = config['revs_path'].split('/')[-2]
+    revs_dir_name = os.path.normpath(config['revs_path'])
     if revs_dir_name not in [f for f in os.listdir('.')]:
         operation_status += 'Creating revs dir\n'
         os.mkdir('./' + revs_dir_name)

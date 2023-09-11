@@ -42,7 +42,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.BUTTONS_HEIGHT = int(self.config['THEME']['buttons_height'])
 
         # Set Window Parameters
-        self.setWindowIcon(QtGui.QIcon(self.config['resources_path'] + '/icon.ico'))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(self.config['resources_path'],'icon.ico')))
         self.set_geometry(self.config['GEOMETRY']['main']) 
 
         # Initialize

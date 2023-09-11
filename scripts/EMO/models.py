@@ -159,7 +159,7 @@ class Models:
         else:
             return False
         
-        joblib.dump(model, os.path.join(self.config['resources_path'],'efc_models', model_name+'.pkl'))
+        joblib.dump(model, os.path.join(self.config['resources_path'],'efc_models', f"{model_name}.pkl"))
         return True
             
 

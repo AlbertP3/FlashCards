@@ -143,13 +143,10 @@ class main_window_logic():
 
     
     def update_backend_parameters(self, file_path, data, override_signature=None):
-        file_path_parts = file_path.split('/')
-        self.filename = file_path_parts[-1].split('.')[0]
-        dir_name = file_path_parts[-2]
-        
+        self.filename = file_path.split('/')[-1].split('.')[0]
         self.file_path = file_path
         self.dataset = data
-        self.is_revision = True if dir_name == self.config['revs_path'][2:-1] else False
+        self.is_revision = os.path.normpath(os.path.dirname(file_path)) == os.path.normpath(self.config['revs_path'])
 
         if override_signature is None:
             self.signature = get_signature(self.filename, str(data.columns[0])[:2], self.is_revision)
@@ -197,7 +194,7 @@ class main_window_logic():
         self.auto_cfm_offset = mistakes_list.shape[0]
 
         # show only the current mistakes as flashcards
-        fake_path = self.config['lngs_path'] + f'{lng} Mistakes.csv'
+        fake_path = os.path.join(self.config['lngs_path'], f'{lng} Mistakes.csv')
         self.TEMP_FILE_FLAG = True
         self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
         self.update_interface_parameters()

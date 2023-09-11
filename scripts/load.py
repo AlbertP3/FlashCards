@@ -38,7 +38,7 @@ class load():
             corresponing_path = self.config['revs_path']
 
         concatenated_lists = self.lng_files_list + self.rev_files_list
-        file_path = corresponing_path + concatenated_lists[selected_index]
+        file_path = os.path.join(corresponing_path, concatenated_lists[selected_index])
         
         return file_path
 

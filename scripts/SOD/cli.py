@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from itertools import islice
 import re
+import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
 from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex
@@ -68,7 +69,7 @@ class CLI():
         else:
             if '.' not in filename: filename+='.'
             f = get_most_similar_file_startswith(self.config['lngs_path'], filename)
-        fh = file_handler(f"{self.config['lngs_path']}{f}")
+        fh = file_handler(os.path.join(self.config['lngs_path'], f))
         self.d_api.available_lngs = (fh.native_lng, fh.foreign_lng)
         if hasattr(self, 'fh'):
             self.fh.close()

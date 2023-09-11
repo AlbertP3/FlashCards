@@ -136,9 +136,9 @@ class efc():
         try:
             # Check if selected item is a suggestion to create a new revision
             if selected_li in self.paths_to_suggested_lngs.keys():
-                path = self.config['lngs_path'] + self.paths_to_suggested_lngs[selected_li]
+                path = os.path.join(self.config['lngs_path'], self.paths_to_suggested_lngs[selected_li])
             else:
-                path = self.config['revs_path'] + str(selected_li) + '.csv'
+                path = os.path.join(self.config['revs_path'], f"{selected_li}.csv")
                                      
         except FileNotFoundError:
             path = None

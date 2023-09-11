@@ -195,7 +195,7 @@ class fcc():
 
         # point to non-existing file in case user modified cards
         filename = file_path.split('/')[-1].split('.')[0]
-        new_path = self.config['lngs_path'] + filename + str(len(data)) + '.csv'
+        new_path = os.path.join(self.config['lngs_path'], f"{filename}{str(len(data))}.csv")
         
         self.mw.TEMP_FILE_FLAG = True
         self.mw.del_side_window()
@@ -226,15 +226,15 @@ class fcc():
         # [write/append] to a mistakes_list file
         lng = get_lng_from_signature(self.mw.signature).upper()
         if do_save:
-            full_path = path + lng + '_mistakes.csv'
-            file_exists = lng + '_mistakes.csv' in get_files_in_dir(path)
+            full_path = os.path.join(path, f"{lng}_mistakes.csv")
+            file_exists = f"{lng}_mistakes.csv" in get_files_in_dir(path)
             keep_headers = True if mode == 'w' or not file_exists else False
             mistakes_list.to_csv(full_path, index=False, mode=mode, header=keep_headers)
 
         # shows only current mistakes
         # fake path secures original mistakes file from 
         # being overwritten by other commands such as mct or dc
-        fake_path = self.config['lngs_path'] + f'{lng} Mistakes.csv'
+        fake_path = os.path.join(self.config['lngs_path'], f'{lng} Mistakes.csv')
         self.mw.TEMP_FILE_FLAG = True
 
         self.mw.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
