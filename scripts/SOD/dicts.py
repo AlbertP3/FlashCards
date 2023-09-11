@@ -4,13 +4,26 @@ from collections import OrderedDict
 import bs4
 import re
 import requests
+import itertools
+import string
+import logging
 
+log = logging.getLogger('dicts')
 
 
 dict_services = dict()
-def register_dict(name:str):
+def get_unique_shortname(name:str):
+    fallbacks = itertools.chain([name.capitalize(), *string.ascii_letters])
+    while name in {v['shortname'] for v in dict_services.values()}:
+        name = fallbacks.__next__()
+    return name
+
+def register_dict(name:str, shortname:str=None):
     def add_dict(d):
-        dict_services[name] = d()
+        dict_services[name] = {
+            'service': d(),
+            'shortname': get_unique_shortname(shortname or name[0])
+        }
         return d
     return add_dict
 
@@ -20,6 +33,10 @@ class template_dict(ABC):
     def get(self, word:str) -> tuple[list[str], list[str], list[str]]:
         '''returns (translations, originals, warnings)'''
         return
+    
+    def set_languages(self, src:str, tgt:str):
+        self.source_lng = src
+        self.target_lng = tgt
 
 
 
@@ -35,6 +52,7 @@ class dict_pons(template_dict):
             pl = 'polish',
             ru = 'russian',
             de = 'german',
+            jp = 'japanese',
         )
         self.re_patterns = OrderedDict([
             (r'\[(((or )?AM)|lub|perf|inf).*\]' , ' '),
@@ -47,8 +65,6 @@ class dict_pons(template_dict):
 
     def get(self, word:str):
         self.word = word
-        self.target_lng = self.config['sod_target_lng']
-        self.source_lng = self.config['sod_source_lng']
         warnings = list()
         content = self.get_page_content()
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
@@ -156,12 +172,13 @@ class dict_babla(template_dict):
         self.babla_mapping = dict(
             en = 'english',
             pl = 'polish',
+            jp = 'japanese',
+            de = 'german',
+            ru = 'russian',
         )
 
     def get(self, word:str):
         self.word = word
-        self.target_lng = self.config['sod_target_lng']
-        self.source_lng = self.config['sod_source_lng']
         warnings = list()
         re_patterns = OrderedDict()
         content = self.get_page_content()
@@ -231,8 +248,6 @@ class dict_diki(template_dict):
 
     def get(self, word:str):
         self.word = word
-        self.target_lng = self.config['sod_target_lng']
-        self.source_lng = self.config['sod_source_lng']
         warnings = list()
         content = self.get_page_content()
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
@@ -339,29 +354,31 @@ class Dict_Services:
     def __init__(self):
         self.config = Config()
         self.dicts:dict = dict_services
+        self.available_dicts = list(self.dicts.keys())
+        self.available_dicts_short = set(v['shortname'] for v in self.dicts.values())
         self.dict_service:str = self.config['sod_dict_service']
-        self.DEFAULT_SOURCE_LNG = self.config['sod_source_lng']
-        self.DEFAULT_TARGET_LNG = self.config['sod_target_lng']
+        self.AVAILABLE_LNGS = {'pl','en','ru','de','jp','fr','it','es','pt','fin'}
         self.WORDS_LIMIT = 8
         self.word = None
         self.mute_warning = False
-        self.source_lng = self.DEFAULT_SOURCE_LNG
-        self.target_lng = self.DEFAULT_TARGET_LNG
+        self.source_lng = None
+        self.target_lng = None
 
 
     def __getitem__(self, key):
-        return self.dicts[key]
+        return self.dicts[key]['service']
 
-
-    def get_available_dicts(self):
-        return self.dicts.keys()
-    
 
     def set_dict_service(self, dict_service):
-        if dict_service in self.get_available_dicts():
+        if dict_service in self.available_dicts:
             self.dict_service = dict_service
             self.config.update({'sod_dict_service':dict_service})
             
+
+    def set_languages(self, src, tgt):
+        self.set_source_language(src)
+        self.set_target_language(tgt)
+
 
     def switch_languages(self, src_lng:str=None, tgt_lng:str=None):
         if src_lng == self.target_lng:
@@ -373,20 +390,21 @@ class Dict_Services:
 
 
     def set_source_language(self, src_lng=None):
-        self.source_lng = src_lng or self.DEFAULT_SOURCE_LNG
-        self.config.update({'sod_source_lng': self.source_lng})
+        if src_lng: self.source_lng = src_lng
 
 
     def set_target_language(self, tgt_lng=None):
-        self.target_lng = tgt_lng or self.DEFAULT_TARGET_LNG
-        self.config.update({'sod_target_lng': self.target_lng})
+        if tgt_lng: self.target_lng = tgt_lng
 
 
     def get_info_about_phrase(self, word:str) -> tuple[list, list, list]:
         try:
-            trans, orig, warn = self.dicts[self.dict_service].get(word)
+            self.dicts[self.dict_service]['service'].set_languages(self.source_lng, self.target_lng)
+            trans, orig, warn = self.dicts[self.dict_service]['service'].get(word)
         except requests.exceptions.ConnectionError:
             trans, orig, warn = [], [], ['🌐 No Internet Connection']
         except requests.exceptions.Timeout:
             trans, orig, warn = [], [], ['⏲ Request Timed Out']
+        except AttributeError:
+            trans, orig, warn = [], [], ['⎙ Scraping Error']
         return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn

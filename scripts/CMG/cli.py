@@ -34,15 +34,15 @@ class CLI:
             self.sout.mw.dataset.iloc[ci, 1-side], self.sout.mw.dataset.iloc[ci, side]
         msg = 'Reversed current card'
         if not self.sout.mw.TEMP_FILE_FLAG:
+            i = fh.unshuffle_index(ci, self.config['pd_random_seed'], self.sout.mw.dataset.shape[0])
             if any(path.endswith(ext) for ext in {'.xlsx','.xlsm','.xltx','.xltm'}):
                 s_name = parsed_cmd[1] if len(parsed_cmd)>=2 else None
                 fh = file_handler(path=path, sheet_name=s_name)
-                i = fh.unshuffle_index(ci, self.config['pd_random_seed'], self.sout.mw.dataset.shape[0])
                 s, m = fh.reverse_card(i, self.sout.mw.dataset.iloc[ci, side], side)
                 msg+=f' and updated the source file [{i+2}]' if s else '\n'+m
             elif path.endswith('.csv'):
                 file_handler.unshuffle_dataframe(self.sout.mw.dataset, seed=self.config['pd_random_seed']).to_csv(path, index=False)
-                msg+=' and updated the source file'
+                msg+=f' and updated the source file [{i+2}]'
             else:
                 msg = 'Aborted - invalid filetype'
         self.send_output(msg)
@@ -88,14 +88,14 @@ class CLI:
         path = self.sout.mw.file_path
         msg = 'Modified current card'
         if not self.sout.mw.TEMP_FILE_FLAG:
+            i = fh.unshuffle_index(ci, self.config['pd_random_seed'], self.sout.mw.dataset.shape[0])
             if any(path.endswith(ext) for ext in {'.xlsx','.xlsm','.xltx','.xltm'}):
                 fh = file_handler(path=path, sheet_name=self.mcc_sheet_name)
-                i = fh.unshuffle_index(ci, self.config['pd_random_seed'], self.sout.mw.dataset.shape[0])
                 s, m = fh.modify_card(i, self.mod_card, old_card)
                 msg+=f' and updated the source file [{i+2}]' if s else '\n'+m
             elif path.endswith('.csv'):
                 file_handler.unshuffle_dataframe(self.sout.mw.dataset, seed=self.config['pd_random_seed']).to_csv(path, index=False)
-                msg+=' and updated the source file'
+                msg+=f' and updated the source file [{i+2}]'
             else:
                 msg = 'Aborted - invalid filetype'
         return msg

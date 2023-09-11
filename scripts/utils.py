@@ -10,6 +10,7 @@ import inspect
 from time import perf_counter
 import inspect
 import logging
+from ntpath import basename
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +94,6 @@ def get_relative_path_from_abs_path(abs_path):
 
 
 def get_filename_from_path(path, include_extension=False):
-    from ntpath import basename
     if include_extension:
         filename = basename(path)
     else:
@@ -141,7 +141,7 @@ def save_revision(dataset:pd.DataFrame(), signature):
     return save_success
      
 
-def get_most_similar_file(path, lookup_file, if_nothing_found='load_any'):
+def get_most_similar_file_regex(path, lookup_file, if_nothing_found='load_any'):
     files = get_files_in_dir(path)
     for file in files:
         if re.match(lookup_file.lower(), file.lower()) is not None:
@@ -149,6 +149,17 @@ def get_most_similar_file(path, lookup_file, if_nothing_found='load_any'):
             
     if if_nothing_found == 'load_any':
         return files[0] 
+    
+
+def get_most_similar_file_startswith(path, lookup_file, if_nothing_found='load_any'):
+    files = sorted(get_files_in_dir(path, include_extension=True), reverse=True)
+    for file in files:
+        if file.lower().startswith(lookup_file.lower()):
+            return file
+            
+    if if_nothing_found == 'load_any':
+        return files[0] 
+
 
 
 def remove_layout(layout):

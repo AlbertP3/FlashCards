@@ -1,24 +1,29 @@
 import openpyxl
 from collections import OrderedDict
-from utils import Config
+from utils import Config, get_filename_from_path
 
 
 
 class file_handler:
 
-    def __init__(self, path, ws):
+    def __init__(self, path):
         self.config = Config()
         self.marked_duplicates = set()
         self.path = path
+        self.filename = get_filename_from_path(path, include_extension=True)
         self.wb = openpyxl.load_workbook(self.path)
-        self.ws = self.wb[ws]
+        self.ws = self.wb[self.wb.sheetnames[0]]
         self.data = OrderedDict()  # phrase: (translation, row_index)
         for r in range(1, self.ws.max_row+1):
             self.data[self.ws.cell(r, 1).value] = (self.ws.cell(r, 2).value, r)
+        self.config['sod_last_file'] = self.filename
 
-    @property
-    def is_from_native(self) -> bool:
-        return self.config['sod_source_lng']==self.config['native_lng']
+    
+    def get_languages(self) -> tuple[str]:
+        '''returns values from header rows indicating languages used'''
+        src = self.ws.cell(row=1, column=2).value
+        tgt = self.ws.cell(row=1, column=1).value
+        return src.lower(), tgt.lower()
     
 
     def append_content(self, foreign_word, domestic_word) -> tuple[bool, str]:  
@@ -49,16 +54,16 @@ class file_handler:
         return True, ''
 
 
-    def is_duplicate(self, word) -> bool:
+    def is_duplicate(self, word, is_from_native:bool) -> bool:
         '''find duplicate, matching source_lng or native_lng'''
-        if self.is_from_native:
+        if is_from_native:
             return word in {r[0] for r in self.data.values()}
         else:
             return word in self.data.keys()
 
     
-    def get_translations(self, phrase:str) -> str:
-        if self.is_from_native:
+    def get_translations(self, phrase:str, is_from_native:bool) -> str:
+        if is_from_native:
             for k, v in self.data.items():
                 if v[0] == phrase:
                     return k

@@ -96,9 +96,9 @@ class Test_utils(unittest.TestCase):
 
 
     def test_get_most_similar_file(self):
-        self.assertEqual(get_most_similar_file('./languages/', 'en'), 'en.xlsx')
-        self.assertEqual(get_most_similar_file('./languages/', 'non-existing', None), None)
-        self.assertEqual(get_most_similar_file('./languages/', 'non-existing', 'load_any'), 'de.csv')
+        self.assertEqual(get_most_similar_file_regex('./languages/', 'en'), 'en.xlsx')
+        self.assertEqual(get_most_similar_file_regex('./languages/', 'non-existing', None), None)
+        self.assertEqual(get_most_similar_file_regex('./languages/', 'non-existing', 'load_any'), 'de.csv')
 
     
     def test_filter_with_list(self):

@@ -9,9 +9,7 @@ class sod_spawn:
         self.config = Config()
         self.sout = stream_out
         self.adapt()
-        self.cli = CLI(output=self.sout,
-                        wb_path=self.config['sod_filepath'], 
-                        ws_sheet_name=self.config['sod_sheetname'])
+        self.cli = CLI(output=self.sout)
         self.cli.cls()
         self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)

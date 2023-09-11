@@ -52,7 +52,7 @@ class fcc():
         elif self.is_allowed_command(parsed_input[0]):
             methodcaller(parsed_input[0], parsed_input)(self)
         else:
-            self.post_fcc('Permision Denied or Unknown Command. Type help for more info')
+            self.post_fcc(f'{parsed_input[0]}: command not found...')
         if followup_prompt:
             self.post_fcc(self.mw.CONSOLE_PROMPT)
         else:
@@ -81,7 +81,15 @@ class fcc():
            printout = get_pretty_print(self.DOCS, alingment=['<', '<'], separator='-')
         else:
             command = parsed_cmd[1]
-            printout =  get_pretty_print([[command, self.DOCS[command]]], alingment=['<', '<'], separator='-')
+            if command in self.DOCS.keys():
+                printout =  get_pretty_print([[command, self.DOCS[command]]], alingment=['<', '<'], separator='-')
+            else: # regex search command descriptions
+                rp = re.compile(parsed_cmd[1])
+                matching = {}
+                for k, v in self.DOCS.items():
+                    if rp.search(v):
+                        matching[k] = v
+                printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
 
         self.post_fcc(printout)
 
@@ -108,7 +116,7 @@ class fcc():
 
 
     def mcr(self, parsed_cmd):
-        # Modify Card Result - allows modification of current score
+        '''Modify Card Result - allows modification of current score'''
 
         mistakes_one_side = [x[1-self.mw.side] for x in self.mw.mistakes_list]
         is_mistake = self.mw.get_current_card()[self.mw.side] in mistakes_one_side
@@ -133,7 +141,7 @@ class fcc():
 
 
     def dcc(self, parsed_cmd):
-        # Delete current card - from set and from the file
+        '''Delete current card - from set and from the file'''
 
         # check preconditions
         if len(parsed_cmd) != 2:
@@ -163,7 +171,7 @@ class fcc():
 
     @require_nontemporary
     def lln(self, parsed_cmd):
-        # load last N cards from dataset
+        '''load last N cards from dataset'''
 
         if not parsed_cmd[1].isnumeric():
             self.post_fcc('number of cards must be a number')
@@ -199,7 +207,7 @@ class fcc():
 
     
     def cfm(self, parsed_cmd):
-        # Create Flashcards from Mistakes list
+        '''Create Flashcards from Mistakes list'''
 
         if self.mw.cards_seen == 0:
             self.post_fcc('Unable to save an empty file')
@@ -244,7 +252,7 @@ class fcc():
         
     
     def efc(self, parsed_cmd):
-        # show efc table
+        '''Show EFC Table'''
         from efc import efc
         efc_obj = efc()
         efc_obj.refresh_source_data()
@@ -258,7 +266,7 @@ class fcc():
         
 
     def mcp(self, parsed_cmd):
-        # Modify Config Parameter
+        '''Modify Config Parameter'''
          
         # check preconditions
         if len(parsed_cmd) < 3:
@@ -276,7 +284,7 @@ class fcc():
 
     
     def sck(self, parsed_cmd):
-        # Set Config Key
+        '''Set Config Key'''
         if len(parsed_cmd) == 1:
             c = [['Key', 'Value']]
             c.extend(list([k, str(v)[:50]] for k, v in self.config.items()))
@@ -316,7 +324,7 @@ class fcc():
     
 
     def cls(self, parsed_cmd=None):
-        # Clear console - keep last line if is a command
+        '''Clear Console'''
         last_line = self.console.toPlainText().split('\n')[-1]
         if last_line.startswith(self.mw.CONSOLE_PROMPT):
             new_console_log = [last_line]
@@ -330,7 +338,7 @@ class fcc():
 
     @require_nontemporary
     def cfn(self, parsed_cmd):
-        # Change File Name
+        '''Change File Name'''
        
         # preconditions
         if len(parsed_cmd) < 2:
@@ -358,14 +366,14 @@ class fcc():
     
 
     def sah(self, parsed_cmd):
-        # Show All (languages) History chart
+        '''Show All (languages) History chart'''
         self.mw.del_side_window()
         self.mw.get_progress_sidewindow(override_lng_gist=True)  
         self.post_fcc('Showing Progress Chart for all languages')
 
 
     def tts(self, parsed_cmd):
-        # total time spent
+        '''Total Time Spent'''
 
         # parse user input
         last_n = 1 if len(parsed_cmd) < 2 else int(parsed_cmd[1])
@@ -427,11 +435,12 @@ class fcc():
 
 
     def scs(self, parsed_cmd):
+        '''Show Current Signature'''
         self.post_fcc(self.mw.signature)
 
 
     def lor(self, parsed_cmd):
-        # list obsolete revisions
+        '''Pist Obsolete Revisions'''
         db_interface = db_api.db_interface()
 
         unique_signatures = db_interface.get_unique_signatures().values.tolist()
@@ -445,21 +454,21 @@ class fcc():
 
 
     def gwd(self, parsed_cmd):
-        # get window dimensions
+        '''Get Window Dimensions'''
         w = self.mw.frameGeometry().width()
         h = self.mw.frameGeometry().height()
         self.post_fcc(f"W:{int(w)} H:{int(h)}")
     
 
     def pcc(self, parsed_cmd):
-        # pull current card
+        '''Pull Current Card'''
         new_data = load_dataset(self.mw.file_path, seed=self.config['pd_random_seed'])
         self.mw.dataset.iloc[self.mw.current_index, :2] = new_data.iloc[self.mw.current_index, :2]
         self.mw.display_text(self.mw.get_current_card()[self.mw.side])
 
 
     def sfs(self, parsed_cmd):
-        # Set Font Size 
+        '''Set Font Size'''
         if len(parsed_cmd)<2 or not parsed_cmd[1].isnumeric():
             self.post_fcc('SFS requires at least one, numeric argument')
             return
@@ -471,7 +480,7 @@ class fcc():
     
 
     def rgd(self, parsed_cmd):
-        # Reset Geometry Default
+        '''Reset Geometry Default'''
         if len(parsed_cmd)==1:
             for w in self.config['GEOMETRY']:
                 self.config['GEOMETRY'][w] = self.config['GEOMETRY']['default']
@@ -484,15 +493,15 @@ class fcc():
 
 
     def sod(self, parsed_cmd:list):
-        # Scrape Online Dictionaries
+        '''Scrape Online Dictionaries'''
         self.sod_object = sod_spawn(stream_out=self)
 
 
     def emo(self, parsed_cmd:list):
-        # EFC Model Optimizer
+        '''EFC Model Optimizer'''
         self.emo_object = emo_spawn(stream_out=self)
 
 
     def err(self, parsed_cmd:list):
-        # Raise an Exception
+        '''Raise an Exception'''
         raise Exception(f"{' '.join(parsed_cmd[1:])}")

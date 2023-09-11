@@ -75,7 +75,6 @@ class fcc_gui():
         elif (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_V:
             cur_pos_prev = self.console.textCursor().position()
             widget.QTextEdit.keyPressEvent(self.console, event)
-            print(str(event.text()))
             cur_pos_post = self.console.textCursor().position()
             self.aval_lefts-=cur_pos_prev-cur_pos_post
         elif event.key() < 10_000_000:
@@ -688,10 +687,6 @@ class config_gui():
         self.init_rep_label = self.create_label("Initial Repetitions")
         self.check_for_file_updates_combobox = self.create_config_qlineedit('file_update_interval')
         self.check_for_file_updates_label = self.create_label('Check file udpates')
-        self.sod_fp_qline = self.create_config_qlineedit('sod_filepath')
-        self.sod_fp_label = self.create_label('SOD Workbook')
-        self.sod_sheetname_qline = self.create_config_qlineedit('sod_sheetname')
-        self.sod_sheetname_label = self.create_label('SOD Sheet Name')
         self.mistakes_buffer_qline = self.create_config_qlineedit('mistakes_buffer')
         self.mistakes_buffer_label = self.create_label('Mistakes Buffer')
         self.theme_checkablecombobox = self.create_config_checkable_combobox('theme', self.themes_dict.keys())
@@ -715,10 +710,6 @@ class config_gui():
         self.options_layout.addWidget(self.init_rep_qline, next(p), 1)
         self.options_layout.addWidget(self.check_for_file_updates_label, next(p), 0)
         self.options_layout.addWidget(self.check_for_file_updates_combobox, next(p), 1)
-        self.options_layout.addWidget(self.sod_fp_label, next(p), 0)
-        self.options_layout.addWidget(self.sod_fp_qline, next(p), 1)
-        self.options_layout.addWidget(self.sod_sheetname_label, next(p), 0)
-        self.options_layout.addWidget(self.sod_sheetname_qline, next(p), 1)
         self.options_layout.addWidget(self.mistakes_buffer_label, next(p), 0)
         self.options_layout.addWidget(self.mistakes_buffer_qline, next(p), 1)
         self.options_layout.addWidget(self.theme_label, next(p), 0)
@@ -728,7 +719,8 @@ class config_gui():
         self.options_layout.addWidget(self.pace_card_label, next(p), 0)
         self.options_layout.addWidget(self.pace_card_qline, next(p), 1)
 
-        # self.options_layout.addWidget(self.create_blank_widget(),next(p)+1,0)
+        self.options_layout.addWidget(self.create_blank_widget(),next(p),0)
+        self.options_layout.addWidget(self.create_blank_widget(),next(p),1)
         self.options_layout.addWidget(self.confirm_and_close_button, next(p)+2, 0, 1, 2)
 
 
@@ -780,8 +772,6 @@ class config_gui():
         modified_dict['optional'] = self.optional_checkablecombobox.currentData()
         modified_dict['initial_repetitions'] = self.init_rep_qline.text()
         modified_dict['file_update_interval'] = self.check_for_file_updates_combobox.text()
-        modified_dict['sod_filepath'] = self.sod_fp_qline.text()
-        modified_dict['sod_sheetname'] = self.sod_sheetname_qline.text()
         modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
         modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))

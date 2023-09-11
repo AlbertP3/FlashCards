@@ -172,6 +172,6 @@ class efc():
         else:
             text = f"It's time for {lng}"     
         
-        self.paths_to_suggested_lngs[text] = get_most_similar_file(config['lngs_path'], lng)
+        self.paths_to_suggested_lngs[text] = get_most_similar_file_regex(config['lngs_path'], lng)
         return text
     

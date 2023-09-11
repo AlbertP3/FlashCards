@@ -1,9 +1,9 @@
 from collections import OrderedDict
-from itertools import islice, takewhile
+from itertools import islice
 import re
 from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
-from utils import Config
+from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex
 
 
 
@@ -37,7 +37,7 @@ class Prompt:
 
 class CLI():
 
-    def __init__(self, output, wb_path, ws_sheet_name) -> None:
+    def __init__(self, output) -> None:
         self.config = Config()
         self.state = State()
         self.prompt = Prompt()
@@ -46,10 +46,25 @@ class CLI():
         self.phrase = str()
         self.queue_dict = OrderedDict()
         self.output = output
+        self.fh = self.get_file_handler(self.config['sod_last_file'])
         self.d_api = Dict_Services()
-        self.fh = file_handler(wb_path, ws_sheet_name)
+        self.d_api.set_languages(*self.fh.get_languages())
         self.selection_queue = list()
         self.status_message = str()
+
+
+    @property
+    def is_from_native(self) -> bool:
+        return self.d_api.source_lng==self.config['native_lng']
+
+
+    def get_file_handler(self, filename:str) -> file_handler:
+        if any(c in "*+?\\" for c in filename):
+            f = get_most_similar_file_regex(self.config['lngs_path'], filename)
+        else:
+            if '.' not in filename: filename+='.'
+            f = get_most_similar_file_startswith(self.config['lngs_path'], filename) 
+        return file_handler(f"{self.config['lngs_path']}{f}")
 
 
     def reset_state(self):
@@ -88,22 +103,26 @@ class CLI():
     def handle_prefix(self, parsed_cmd:list):
         src_lng, tgt_lng = None, None
         for i in parsed_cmd:
-            if i == 'p': self.set_dict('pons')
-            elif i == 'm': self.set_dict('merriam')
-            elif i == 'b': self.set_dict('babla')
-            elif i == 'd': self.set_dict('diki')
-            elif i in ['PL', 'EN']:
+            if i in self.d_api.available_dicts_short:
+                target_dict = {k for k, v in self.d_api.dicts.items() if v['shortname'] == i}.pop()
+                self.set_dict(target_dict)
+            elif i in self.d_api.AVAILABLE_LNGS:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
+            elif i.startswith('\\'):
+                self.fh = self.get_file_handler(i[1:])
+                src_lng, tgt_lng = self.fh.get_languages()
             else: break
             parsed_cmd = parsed_cmd[1:]
-            if src_lng or tgt_lng: 
+            if bool(src_lng) ^ bool(tgt_lng):
                 self.d_api.switch_languages(src_lng, tgt_lng)
+            elif src_lng and tgt_lng:
+                self.d_api.set_languages(src_lng, tgt_lng)
         return parsed_cmd
 
 
     def set_dict(self, new_dict):
-        if new_dict in self.d_api.get_available_dicts():
+        if new_dict in self.d_api.available_dicts:
             self.d_api.set_dict_service(new_dict)
             self.cls(keep_content=self.state.QUEUE_MODE, keep_cmd=self.state.QUEUE_MODE)
         else:
@@ -122,7 +141,7 @@ class CLI():
             return
         elif self.state.MANUAL_MODE == 'phrase':
             self.phrase = ' '.join(parsed_cmd)
-            if self.fh.is_duplicate(self.phrase):
+            if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB, keep_content=True)
                 self.fh.marked_duplicates.add(self.phrase)
             self.set_output_prompt(self.prompt.MANUAL_TR)
@@ -131,7 +150,7 @@ class CLI():
         elif self.state.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
             if self.phrase in self.fh.marked_duplicates:
-                self.translations = [self.transl, self.fh.get_translations(self.phrase)]
+                self.translations = [self.transl, self.fh.get_translations(self.phrase, self.is_from_native)]
                 self.originals = [self.phrase, self.phrase]
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
@@ -139,7 +158,7 @@ class CLI():
                 return
         # Finalize
         if self.phrase and self.transl:
-            if self.fh.is_duplicate(self.phrase):
+            if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
             else:
                 self.save_to_db(self.phrase, [self.transl])
@@ -157,10 +176,10 @@ class CLI():
         self.phrase = ' '.join(parsed_cmd[1:delim_index])
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
-            if self.fh.is_duplicate(self.phrase):
+            if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.fh.marked_duplicates.add(self.phrase)
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
-                self.translations = [self.transl, self.fh.get_translations(self.phrase)]
+                self.translations = [self.transl, self.fh.get_translations(self.phrase, self.is_from_native)]
                 self.originals = [self.phrase, self.phrase]
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
@@ -177,10 +196,10 @@ class CLI():
         self.translations, self.originals, self.warnings = self.d_api.get_info_about_phrase(self.phrase)
         self.cls()
         if self.translations:
-            if self.fh.is_duplicate(self.phrase):
+            if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
                 self.originals.insert(0, self.phrase)
-                self.translations.insert(0, self.fh.get_translations(self.phrase))
+                self.translations.insert(0, self.fh.get_translations(self.phrase, self.is_from_native))
                 self.fh.marked_duplicates.add(self.phrase)
             self.state.SELECT_TRANSLATIONS_MODE = True
             self.set_output_prompt(f'Select for {self.phrase}: ')
@@ -284,11 +303,11 @@ class CLI():
             self.cls(msg, keep_content=False, keep_cmd=True)
             self.print_queue()  
         else: 
-            if self.fh.is_duplicate(phrase):
+            if self.fh.is_duplicate(phrase, self.is_from_native):
                 msg = self.msg.PHRASE_EXISTS_IN_DB
                 self.fh.marked_duplicates.add(phrase)
                 self.queue_dict[phrase][0].insert(0, phrase)
-                self.queue_dict[phrase][1].insert(0, self.fh.get_translations(phrase))
+                self.queue_dict[phrase][1].insert(0, self.fh.get_translations(phrase, self.is_from_native))
                 self.queue_dict[phrase][2].append('DUPLICATE')
             else:
                 msg = self.msg.OK
@@ -339,7 +358,7 @@ class CLI():
         translations:str= '; '.join([t for t in translations if t])
         if len(translations) > 0 and self.phrase:
             # match columns order in the target file
-            if self.config['sod_source_lng']==self.config['native_lng']:
+            if self.d_api.source_lng == self.d_api.target_lng:
                 phrase, translations = translations, phrase
             success, errs = self.fh.append_content(phrase, translations)    
             if success: 
@@ -494,7 +513,7 @@ class CLI():
         source_lng = self.d_api.source_lng
         target_lng = self.d_api.target_lng
         len_db = self.fh.ws.max_row - 1
-        status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {len_db} | "
+        status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | "
 
         if msg:
             remaining_len = self.get_char_limit() - len(status)
@@ -503,7 +522,7 @@ class CLI():
 
 
     def show_help(self):
-        available_dicts = '\n    '.join([f'{i+1}. {v}' for i, v in enumerate(self.d_api.get_available_dicts())])
+        available_dicts = '\n    '.join([f"{i+1}. {kv[0]:<10} {kv[1]['shortname']}" for i, kv in enumerate(self.d_api.dicts.items())])
         msg = f'''
 Commands:
     1. dict <DICT_NAME>             --> change dictionary 
