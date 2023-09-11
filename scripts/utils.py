@@ -42,23 +42,21 @@ class Config(UserDict):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
         self.iterable_fields:set= {'languages', 'optional'}
         self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
+        self.sectors = ('KEYBOARD_SHORTCUTS', 'GEOMETRY', 'THEME', 'SOD')
         self.__refresh()
     
     def __refresh(self):
         self.parser.read(self.PATH_TO_DICT)
         self.data = dict(self.parser.items('PARAMETERS'))
-        self.data['KEYBOARD_SHORTCUTS'] = dict(self.parser.items('KEYBOARD_SHORTCUTS'))
-        self.data['GEOMETRY'] = dict(self.parser.items('GEOMETRY'))
-        self.data['THEME'] = dict(self.parser.items('THEME'))
+        for s in self.sectors:
+            self.data[s] = dict(self.parser.items(s))
         self.parse_items()
 
     def save(self):
         for field in self.iterable_fields:
             self.data[field] = '|'.join(self.data[field])
         for k, v in self.data.items():
-            if k=='KEYBOARD_SHORTCUTS': [self.parser.set('KEYBOARD_SHORTCUTS', k_, v_) for k_, v_ in v.items()]
-            elif k=='GEOMETRY': [self.parser.set('GEOMETRY', k_, v_) for k_, v_ in v.items()]
-            elif k =='THEME': [self.parser.set('THEME', k_, v_) for k_, v_ in v.items()]
+            if k in self.sectors: [self.parser.set(k, k_, v_) for k_, v_ in v.items()]
             else: self.parser.set('PARAMETERS', k, v)
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)

@@ -46,8 +46,8 @@ class CLI():
         self.phrase = str()
         self.queue_dict = OrderedDict()
         self.output = output
-        self.fh = self.get_file_handler(self.config['sod_last_file'])
         self.d_api = Dict_Services()
+        self.fh = self.get_file_handler(self.config['SOD']['last_file'])
         self.d_api.set_languages(*self.fh.get_languages())
         self.selection_queue = list()
         self.status_message = str()
@@ -55,7 +55,11 @@ class CLI():
 
     @property
     def is_from_native(self) -> bool:
-        return self.d_api.source_lng==self.config['native_lng']
+        return self.d_api.source_lng==self.fh.native_lng
+
+    @property
+    def using_local_db(self) -> bool:
+        return self.d_api.dict_service == 'local'
 
 
     def get_file_handler(self, filename:str) -> file_handler:
@@ -63,8 +67,12 @@ class CLI():
             f = get_most_similar_file_regex(self.config['lngs_path'], filename)
         else:
             if '.' not in filename: filename+='.'
-            f = get_most_similar_file_startswith(self.config['lngs_path'], filename) 
-        return file_handler(f"{self.config['lngs_path']}{f}")
+            f = get_most_similar_file_startswith(self.config['lngs_path'], filename)
+        fh = file_handler(f"{self.config['lngs_path']}{f}")
+        self.d_api.available_lngs = (fh.native_lng, fh.foreign_lng)
+        if hasattr(self, 'fh'):
+            self.fh.close()
+        return fh
 
 
     def reset_state(self):
@@ -90,7 +98,7 @@ class CLI():
             self.cls()
         elif parsed_phrase[0] == 'dict':
             self.set_dict(parsed_phrase[1])
-        elif parsed_phrase[0] == '$':
+        elif parsed_phrase[0] == self.config['SOD']['manual_mode_seq']:
             self.insert_manual(parsed_phrase)
         elif parsed_phrase[0] == 'Q':
             self.setup_queue()
@@ -106,7 +114,7 @@ class CLI():
             if i in self.d_api.available_dicts_short:
                 target_dict = {k for k, v in self.d_api.dicts.items() if v['shortname'] == i}.pop()
                 self.set_dict(target_dict)
-            elif i in self.d_api.AVAILABLE_LNGS:
+            elif i in self.d_api.available_lngs:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
             elif i.startswith('\\'):
@@ -130,7 +138,7 @@ class CLI():
 
 
     def insert_manual(self, parsed_cmd):
-        if parsed_cmd.count('$') == 2:
+        if parsed_cmd.count(self.config['SOD']['manual_mode_sep']) == 2:
             self.insert_manual_oneline(parsed_cmd)
             return
 
@@ -198,8 +206,9 @@ class CLI():
         if self.translations:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
-                self.originals.insert(0, self.phrase)
-                self.translations.insert(0, self.fh.get_translations(self.phrase, self.is_from_native))
+                if not self.using_local_db:
+                    self.originals.insert(0, self.phrase)
+                    self.translations.insert(0, self.fh.get_translations(self.phrase, self.is_from_native))
                 self.fh.marked_duplicates.add(self.phrase)
             self.state.SELECT_TRANSLATIONS_MODE = True
             self.set_output_prompt(f'Select for {self.phrase}: ')
@@ -306,8 +315,9 @@ class CLI():
             if self.fh.is_duplicate(phrase, self.is_from_native):
                 msg = self.msg.PHRASE_EXISTS_IN_DB
                 self.fh.marked_duplicates.add(phrase)
-                self.queue_dict[phrase][0].insert(0, phrase)
-                self.queue_dict[phrase][1].insert(0, self.fh.get_translations(phrase, self.is_from_native))
+                if not self.using_local_db:
+                    self.queue_dict[phrase][0].insert(0, phrase)
+                    self.queue_dict[phrase][1].insert(0, self.fh.get_translations(phrase, self.is_from_native))
                 self.queue_dict[phrase][2].append('DUPLICATE')
             else:
                 msg = self.msg.OK

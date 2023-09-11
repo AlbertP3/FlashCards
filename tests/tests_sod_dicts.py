@@ -27,7 +27,7 @@ class Test_dicts(TestCase):
 
 
     def test_pons_regex(self):
-        re_patterns = sod_dicts.dict_pons().re_patterns
+        re_patterns = sod_dicts.DictPons().re_patterns
         for raw, expected in PONS_EXAMPLES.items():
             s = raw
             for p, r in re_patterns.items():

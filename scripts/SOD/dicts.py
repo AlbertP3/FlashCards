@@ -1,12 +1,14 @@
 from utils import Config
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import OrderedDict
 import bs4
+import os
 import re
 import requests
 import itertools
 import string
 import logging
+from SOD.file_handler import fhs
 
 log = logging.getLogger('dicts')
 
@@ -28,7 +30,12 @@ def register_dict(name:str, shortname:str=None):
     return add_dict
 
 
-class template_dict(ABC):
+class TemplateDict():
+
+    def __init__(self):
+        self.config = Config()
+        self.timeout = int(self.config['SOD']['request_timeout'])
+
     @abstractmethod
     def get(self, word:str) -> tuple[list[str], list[str], list[str]]:
         '''returns (translations, originals, warnings)'''
@@ -41,11 +48,10 @@ class template_dict(ABC):
 
 
 @register_dict('pons')
-class dict_pons(template_dict):
+class DictPons(TemplateDict):
 
     def __init__(self):
-        self.config = Config()
-        self.timeout = int(self.config['sod_request_timeout'])
+        super().__init__()
         self.dict_url = 'https://en.pons.com/translate/|ORIGINAL|-|TRANSLATION|/|PHRASE|'
         self.pons_mapping = dict(
             en = 'english',
@@ -119,11 +125,10 @@ class dict_pons(template_dict):
 
 
 @register_dict('merriam')
-class dict_merriam(template_dict):
+class DictMerriam(TemplateDict):
 
     def __init__(self):
-        self.config = Config()
-        self.timeout = int(self.config['sod_request_timeout'])
+        super().__init__()
         self.dict_url = 'https://www.merriam-webster.com/dictionary/|PHRASE|'
 
     
@@ -163,11 +168,10 @@ class dict_merriam(template_dict):
 
 
 @register_dict('babla')
-class dict_babla(template_dict):
+class DictBabla(TemplateDict):
 
     def __init__(self):
-        self.config = Config()
-        self.timeout = int(self.config['sod_request_timeout'])
+        super().__init__()
         self.dict_url = 'https://en.bab.la/dictionary/|ORIGINAL|-|TRANSLATION|/|PHRASE|'
         self.babla_mapping = dict(
             en = 'english',
@@ -236,10 +240,10 @@ class dict_babla(template_dict):
 
 
 @register_dict('diki')
-class dict_diki(template_dict):
+class DictDiki(TemplateDict):
+
     def __init__(self):
-        self.config = Config()
-        self.timeout = int(self.config['sod_request_timeout'])
+        super().__init__()
         self.dict_url = 'https://www.diki.pl/slownik-|TRANSLATION|?q=|PHRASE|'
         self.diki_mapping = dict(
             en = 'angielskiego',
@@ -344,8 +348,29 @@ class dict_diki(template_dict):
         warn = bs.find('div', class_='dictionarySuggestions')
         if warn: return [warn.text.replace('\n','').strip()]
         else: return list()
-        
 
+
+
+@register_dict('local')
+class DictLocal(TemplateDict):
+
+    def __init__(self):
+        super().__init__()
+
+
+    def get(self, word:str):
+        fh = fhs[os.path.join(self.config['lngs_path'], self.config['SOD']['last_file'])]
+        try:
+            transl = fh.get_translations(word, self.source_lng==fh.native_lng)
+            if transl:
+                transl, orig, err = [transl], [word], []
+            else:
+                raise KeyError
+        except KeyError:
+            transl, orig, err =  [], [], ['Nothing Found!']
+        return transl, orig, err
+
+    
 
 class Dict_Services:
     # source_lng - from which language user wants to translate -->> target_lng - to which lng ...
@@ -356,8 +381,8 @@ class Dict_Services:
         self.dicts:dict = dict_services
         self.available_dicts = list(self.dicts.keys())
         self.available_dicts_short = set(v['shortname'] for v in self.dicts.values())
-        self.dict_service:str = self.config['sod_dict_service']
-        self.AVAILABLE_LNGS = {'pl','en','ru','de','jp','fr','it','es','pt','fin'}
+        self.dict_service:str = self.config['SOD']['dict_service']
+        self.available_lngs = set()
         self.WORDS_LIMIT = 8
         self.word = None
         self.mute_warning = False
@@ -372,7 +397,7 @@ class Dict_Services:
     def set_dict_service(self, dict_service):
         if dict_service in self.available_dicts:
             self.dict_service = dict_service
-            self.config.update({'sod_dict_service':dict_service})
+            self.config['SOD'].update({'dict_service':dict_service})
             
 
     def set_languages(self, src, tgt):
@@ -405,6 +430,7 @@ class Dict_Services:
             trans, orig, warn = [], [], ['🌐 No Internet Connection']
         except requests.exceptions.Timeout:
             trans, orig, warn = [], [], ['⏲ Request Timed Out']
-        except AttributeError:
+        except AttributeError as e:
             trans, orig, warn = [], [], ['⎙ Scraping Error']
+            log.error(e, exc_info=True)
         return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn

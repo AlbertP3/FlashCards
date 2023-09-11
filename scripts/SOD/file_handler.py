@@ -2,7 +2,7 @@ import openpyxl
 from collections import OrderedDict
 from utils import Config, get_filename_from_path
 
-
+fhs = dict()
 
 class file_handler:
 
@@ -16,15 +16,16 @@ class file_handler:
         self.data = OrderedDict()  # phrase: (translation, row_index)
         for r in range(1, self.ws.max_row+1):
             self.data[self.ws.cell(r, 1).value] = (self.ws.cell(r, 2).value, r)
-        self.config['sod_last_file'] = self.filename
+        self.config['SOD']['last_file'] = self.filename
+        self.native_lng = self.ws.cell(1, 2).value.lower()
+        self.foreign_lng = self.ws.cell(1, 1).value.lower()
+        fhs[path] = self
 
     
     def get_languages(self) -> tuple[str]:
         '''returns values from header rows indicating languages used'''
-        src = self.ws.cell(row=1, column=2).value
-        tgt = self.ws.cell(row=1, column=1).value
-        return src.lower(), tgt.lower()
-    
+        return self.native_lng, self.foreign_lng
+
 
     def append_content(self, foreign_word, domestic_word) -> tuple[bool, str]:  
         if foreign_word in self.marked_duplicates:
@@ -73,3 +74,4 @@ class file_handler:
 
     def close(self):
         self.wb.close()
+        del fhs[self.path]
