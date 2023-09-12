@@ -1,3 +1,4 @@
+import re
 import openpyxl
 from collections import OrderedDict
 from utils import Config, get_filename_from_path
@@ -58,19 +59,38 @@ class file_handler:
     def is_duplicate(self, word, is_from_native:bool) -> bool:
         '''find duplicate, matching source_lng or native_lng'''
         if is_from_native:
-            return word in {r[0] for r in self.data.values()}
+            res = word in {r[0] for r in self.data.values()}
         else:
-            return word in self.data.keys()
+            res = word in self.data.keys()
+
+        if res: self.marked_duplicates.add(word)
+        return res
 
     
-    def get_translations(self, phrase:str, is_from_native:bool) -> str:
+    def get_translations(self, phrase:str, is_from_native:bool) -> tuple[list]:
+        tran, orig = list(), list()
         if is_from_native:
             for k, v in self.data.items():
                 if v[0] == phrase:
-                    return k
+                    tran.append(k), orig.append(v[0])
         else:
-            return self.data[phrase][0]
-        
+            tran.append(self.data[phrase][0]), orig.append(phrase)
+        return tran, orig
+
+
+    def get_translations_with_regex(self, phrase:str, is_from_native:bool) -> tuple[list]:
+        pattern = re.compile(phrase)
+        tran, orig = list(), list()
+        if is_from_native:
+            for k, v in self.data.items():
+                if pattern.search(v[0]):
+                    tran.append(k), orig.append(v[0])
+        else:
+            for k, v in self.data.items():
+                if pattern.search(k):
+                    tran.append(v[0]), orig.append(k)
+        return tran, orig
+
 
     def close(self):
         self.wb.close()

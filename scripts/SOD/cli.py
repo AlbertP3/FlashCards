@@ -152,15 +152,15 @@ class CLI():
             self.phrase = ' '.join(parsed_cmd)
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB, keep_content=True)
-                self.fh.marked_duplicates.add(self.phrase)
             self.set_output_prompt(self.prompt.MANUAL_TR)
             self.state.MANUAL_MODE = 'transl'
             return
         elif self.state.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
             if self.phrase in self.fh.marked_duplicates:
-                self.translations = [self.transl, self.fh.get_translations(self.phrase, self.is_from_native)]
-                self.originals = [self.phrase, self.phrase]
+                tran, orig  = self.fh.get_translations(self.phrase, self.is_from_native)
+                self.translations = [self.transl].extend(tran)
+                self.originals = [self.phrase].extend(orig)
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
                 self.print_translations_table(self.translations, self.originals)
@@ -186,10 +186,10 @@ class CLI():
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
-                self.fh.marked_duplicates.add(self.phrase)
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
-                self.translations = [self.transl, self.fh.get_translations(self.phrase, self.is_from_native)]
-                self.originals = [self.phrase, self.phrase]
+                tran, orig = self.fh.get_translations(self.phrase, self.is_from_native)
+                self.translations = [self.transl].extend(tran)
+                self.originals = [self.phrase].extend(orig)
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
                 self.print_translations_table(self.translations, self.originals)
@@ -208,9 +208,10 @@ class CLI():
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
                 if not self.using_local_db:
-                    self.originals.insert(0, self.phrase)
-                    self.translations.insert(0, self.fh.get_translations(self.phrase, self.is_from_native))
-                self.fh.marked_duplicates.add(self.phrase)
+                    tran, orig = self.fh.get_translations(self.phrase, self.is_from_native)
+                    for i in range(len(tran)):
+                        self.originals.insert(0, orig[i])
+                        self.translations.insert(0, tran[i])
             self.state.SELECT_TRANSLATIONS_MODE = True
             self.set_output_prompt(f'Select for {self.phrase}: ')
             self.print_translations_table(self.translations, self.originals)
@@ -315,10 +316,11 @@ class CLI():
         else: 
             if self.fh.is_duplicate(phrase, self.is_from_native):
                 msg = self.msg.PHRASE_EXISTS_IN_DB
-                self.fh.marked_duplicates.add(phrase)
                 if not self.using_local_db:
-                    self.queue_dict[phrase][0].insert(0, phrase)
-                    self.queue_dict[phrase][1].insert(0, self.fh.get_translations(phrase, self.is_from_native))
+                    tran, orig = self.fh.get_translations(phrase, self.is_from_native)
+                    for i in range(len(tran)):
+                        self.queue_dict[phrase][0].insert(0, orig[i])
+                        self.queue_dict[phrase][1].insert(0, tran[i])
                 self.queue_dict[phrase][2].append('DUPLICATE')
             else:
                 msg = self.msg.OK
@@ -369,7 +371,7 @@ class CLI():
         translations:str= '; '.join([t for t in translations if t])
         if len(translations) > 0 and self.phrase:
             # match columns order in the target file
-            if self.d_api.source_lng == self.d_api.target_lng:
+            if self.d_api.source_lng == self.fh.native_lng:
                 phrase, translations = translations, phrase
             success, errs = self.fh.append_content(phrase, translations)    
             if success: 
@@ -470,9 +472,8 @@ class CLI():
             c = self.output.console.toPlainText()
             e_index = c.rfind('Modify: ') + 8
             phrase = c[e_index:]
-            if self.fh.data.get(self.phrase):
+            if self.fh.is_duplicate(self.phrase, is_from_native=False):
                 self.fh.data[phrase] = self.fh.data[self.phrase]
-                self.fh.marked_duplicates.add(phrase)
                 del self.fh.data[self.phrase]
             self.phrase = phrase
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'a':
