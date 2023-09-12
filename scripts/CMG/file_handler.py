@@ -8,7 +8,6 @@ class file_handler:
 
     def __init__(self, path, sheet_name:str = None):
         self.config = Config()
-        self.marked_duplicates = set()
         self.path = path
         self.wb = openpyxl.load_workbook(self.path)
         self.ws = self.wb[sheet_name or self.wb.sheetnames[0]]

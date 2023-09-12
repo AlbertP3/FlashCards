@@ -28,6 +28,6 @@ PONS_EXAMPLES =  {
 
 EXAMPLE_PHRASES = ('Mercury', 'Venus', 'Earth', 'Mars', 'Jupyter', 'Saturn', 'Uranus', 'Neptune', 'Pluto', 'Moon', 'Sun')
 
-WORKBOOK_DATA = [['hello world INITIAL', 'greetings to the planet'],
+WORKBOOK_DATA = [['FL', 'NP'], ['hello world INITIAL', 'greetings to the planet'],
                 ['maudlin', 'definitely a wrong explanation'],
                 ['gimcrack', 'cheap; shoddy']]

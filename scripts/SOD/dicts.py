@@ -379,7 +379,7 @@ class Dict_Services:
     def __init__(self):
         self.config = Config()
         self.dicts:dict = dict_services
-        self.available_dicts = list(self.dicts.keys())
+        self.available_dicts = set(self.dicts.keys())
         self.available_dicts_short = set(v['shortname'] for v in self.dicts.values())
         self.dict_service:str = self.config['SOD']['dict_service']
         self.available_lngs = set()

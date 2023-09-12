@@ -1,6 +1,7 @@
 import requests
 import os, sys
 from urllib.request import url2pathname
+from SOD.dicts import TemplateDict
  
 
 
@@ -55,7 +56,7 @@ class LocalFileAdapter(requests.adapters.BaseAdapter):
 
 
 
-class dict_mock():
+class dict_mock(TemplateDict):
     def get(self, word):
         translations = ['witaj świEcie', 'domyślny serwis', 'czerwony', 'traktować kogoś z honorami', 'lorem ipsum']
         originals = ['hello world', 'default dict service for tests', 'red', 'to roll out the red carpet for sb [or to give sb the red carpet treatment]', 'dolor sit amet']
@@ -77,7 +78,7 @@ class cell_mock:
         self.value = value
 
 class xlsx_mock:
-    def __init__(self, data:list, rows=10) -> None:
+    def __init__(self, data:list, rows=50) -> None:
         self.data = [[None]*3 for _ in range(rows)]
         self.init_len = len(data)
         for i, r in enumerate(data):
@@ -100,6 +101,7 @@ class xlsx_mock:
 class workbook_mock:
     def __init__(self, ws:dict) -> None:
         self.ws = ws  # worksheets = {name: data}
+        self.sheetnames = [s for s in self.ws.keys()]
 
     def __getitem__(self, ws):
         return xlsx_mock(self.ws[ws])

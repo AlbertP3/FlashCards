@@ -52,6 +52,7 @@ class CLI():
         self.d_api.set_languages(*self.fh.get_languages())
         self.selection_queue = list()
         self.status_message = str()
+        self.sep_manual = self.config['SOD']['manual_mode_sep']
 
 
     @property
@@ -101,6 +102,8 @@ class CLI():
             self.set_dict(parsed_phrase[1])
         elif parsed_phrase[0] == self.config['SOD']['manual_mode_seq']:
             self.insert_manual(parsed_phrase)
+        elif parsed_phrase.count(self.config['SOD']['manual_mode_sep']) == 2:
+            self.insert_manual_oneline(parsed_phrase)
         elif parsed_phrase[0] == 'Q':
             self.setup_queue()
         elif parsed_phrase[0] == 'help':
@@ -139,10 +142,6 @@ class CLI():
 
 
     def insert_manual(self, parsed_cmd):
-        if parsed_cmd.count(self.config['SOD']['manual_mode_sep']) == 2:
-            self.insert_manual_oneline(parsed_cmd)
-            return
-
         if not self.state.MANUAL_MODE:
             self.cls()
             self.set_output_prompt(self.prompt.MANUAL_PH)
@@ -157,10 +156,10 @@ class CLI():
             return
         elif self.state.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
-            if self.phrase in self.fh.marked_duplicates:
+            if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 tran, orig  = self.fh.get_translations(self.phrase, self.is_from_native)
-                self.translations = [self.transl].extend(tran)
-                self.originals = [self.phrase].extend(orig)
+                self.translations = [self.transl, *tran]
+                self.originals = [self.phrase, *orig]
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
                 self.print_translations_table(self.translations, self.originals)
@@ -178,18 +177,17 @@ class CLI():
 
 
     def insert_manual_oneline(self, parsed_cmd):
-        # if 2 delimiter signs are provided, treat the input
-        # as a complete card.
+        # if 2 delimiter signs are provided, treat the input as a complete card.
         self.state.MANUAL_MODE = True
-        delim_index = parsed_cmd.index('$', 2)
+        delim_index = parsed_cmd.index(self.sep_manual, 2)
         self.phrase = ' '.join(parsed_cmd[1:delim_index])
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
                 tran, orig = self.fh.get_translations(self.phrase, self.is_from_native)
-                self.translations = [self.transl].extend(tran)
-                self.originals = [self.phrase].extend(orig)
+                self.translations = [self.transl, *tran]
+                self.originals = [self.phrase, *orig]
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
                 self.print_translations_table(self.translations, self.originals)
@@ -286,12 +284,12 @@ class CLI():
         c_lim = self.get_char_limit() - 3
         phrase:str = ' '.join(self.handle_prefix(parsed_cmd))
         exists_in_queue = phrase in self.queue_dict.keys()
-        if phrase.startswith('$'):  # Manual Mode for Queue
-            l2 = ['']*3; l1 = phrase.split('$')
+        if phrase.startswith(self.sep_manual):  # Manual Mode for Queue
+            l2 = ['']*3; l1 = phrase.split(self.sep_manual)
             l2[:len(l1)] = l1
             phrase, translations = l2[1].strip(), l2[2].strip()
             self.queue_dict[phrase] = [[translations], [phrase], ['MANUAL']]    
-            cleaned_text = self.output.console.toPlainText().replace(' $ ', ' ').replace(translations,'')
+            cleaned_text = self.output.console.toPlainText().replace(f' {self.sep_manual} ', ' ').replace(translations,'')
             self.output.console.setText(cleaned_text)
             self.output.mw.CONSOLE_LOG = cleaned_text
             transl = translations
@@ -370,10 +368,16 @@ class CLI():
     def save_to_db(self, phrase:str, translations:list):
         translations:str= '; '.join([t for t in translations if t])
         if len(translations) > 0 and self.phrase:
-            # match columns order in the target file
-            if self.d_api.source_lng == self.fh.native_lng:
+            is_duplicate = self.fh.is_duplicate(phrase, self.is_from_native)
+            
+            if self.is_from_native:
                 phrase, translations = translations, phrase
-            success, errs = self.fh.append_content(phrase, translations)    
+
+            if is_duplicate:
+                success, errs = self.fh.edit_content(phrase, translations)
+            else:
+                success, errs = self.fh.append_content(phrase, translations)
+
             if success: 
                 self.notify_on_save(phrase, translations)
             else:
@@ -538,7 +542,7 @@ class CLI():
         msg = f'''
 Commands:
     1. dict <DICT_NAME>             --> change dictionary 
-    2. $ <PHRASE> $ <MEANING>       --> manual input
+    2. {self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>       --> manual input
     3. Q                            --> enter Queue mode
     4. <SRC_LNG_ID> *<TGT_LNG_ID>   --> change source/target language           
     5. <blank>                      --> exit SOD or finish the Queue mode
