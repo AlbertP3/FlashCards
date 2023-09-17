@@ -4,7 +4,7 @@ import re
 import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import file_handler
-from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex
+from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print
 
 
 
@@ -581,25 +581,25 @@ class CLI():
 
 
     def show_help(self):
-        available_dicts = '\n    '.join([f"{i+1}. {kv[0]:<10} {kv[1]['shortname']}" for i, kv in enumerate(self.d_api.dicts.items())])
-        msg = f'''
-Commands:
-    1. dict <DICT_NAME>             --> change dictionary 
-    2. {self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>       --> manual input
-    3. Q                            --> enter Queue mode
-    4. <SRC_LNG_ID> *<TGT_LNG_ID>   --> change source/target language           
-    5. <blank>                      --> exit SOD or finish the Queue mode
-
-Search results modification:
-    1. e<N>     --> edit the N-th translation
-    2. m*<N>    --> modify searched phrase
-    3. a        --> add a new translation
-    4. r<N>     --> add a reversed translation
-    5. <blank>  --> abort
-
-Available dicts:
-    {available_dicts}
-    '''
+        available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.d_api.dicts.items()])
+        cmds = get_pretty_print([
+            ['\tdict <DICT_NAME>', 'change dictionary'], 
+            [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'Enter the manual input mode'],
+            [f"\t{self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"], 
+            ['\tQ', 'enter Queue mode'], 
+            ["\t(<SRC_LNG_ID>^<TGT_LNG_ID>)", "change source/target language "], 
+            ["\t<blank>", "exit SOD or finish the Queue mode"]
+            ],
+            separator='-->', alingment=['<', '<'])
+        mods = get_pretty_print([
+            ["\te<N>", 'edit the N-th translation'],
+            ["\tm*<N>", 'modify searched phrase'],
+            ["\ta", 'add a new translation'],
+            ["\tr<N>", 'add a reversed translation'],
+            ["\t<blank>", 'abort']
+            ],
+            separator='-->', alingment=['<', '<'])
+        msg = f'''Commands:\n{cmds}\nSearch results modification:\n{mods}\nAvailable dicts:\n{available_dicts}'''
 
         self.send_output(msg)
 

@@ -26,7 +26,7 @@ class fcc():
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
                     'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
-                    'efc':'Ebbinghaus Forgetting Curve - shows table with revs, days from last rev and efc score',
+                    'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals. Additionaly, shows predicted time until the next revision',
                     'mcp':'Modify Config Parameter - allows modifications of config file',
                     'sck':'Set Config Key - edit configs key. If no value provided then shows current one',
                     'cls':'Clear Screen',
