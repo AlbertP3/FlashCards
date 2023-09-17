@@ -1,7 +1,7 @@
 import PyQt5.QtWidgets as widget
-from PyQt5.QtCore import Qt, QModelIndex
+from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
-from pandas.core.frame import console
+import re
 from utils import * 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -11,6 +11,7 @@ from efc import efc
 from load import load
 from stats import stats
 import timer
+from copy import deepcopy
 from checkable_combobox import CheckableComboBox
 import themes
 
@@ -26,15 +27,23 @@ class fcc_gui():
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
         self.CONSOLE_LOG = []
         self.CMDS_LOG = ['']
-        self.TEMP_CMD = str()  # partial command typed before closing the console
+        self.tmp_cmd = str()  # partial command typed before closing the console
         self.CMDS_CURSOR = 0
-        self.aval_lefts = 0
-        self.aval_rights = 0
+        self.rt_re = re.compile('[^\u0000-\uFFFF]')
         self.console = None
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'main')
         self.add_shortcut('run_command', self.run_command, 'fcc')
         self.fcc_inst = fcc(self)
         self.create_console()
+
+
+    @property
+    def curpos(self) -> int:
+        return self.console.textCursor().position()
+    
+    @property
+    def promptend(self):
+        return self.rt_re.sub('  ', self.console.toPlainText()).rfind(self.CONSOLE_PROMPT)+len(self.CONSOLE_PROMPT)
 
 
     def get_fcc_sidewindow(self):
@@ -72,70 +81,37 @@ class fcc_gui():
     def cli_shortcuts(self, event):
         if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
             self.fcc_inst.execute_command(['cls'], followup_prompt=False)
-        elif (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_V:
-            cur_pos_prev = self.console.textCursor().position()
-            widget.QTextEdit.keyPressEvent(self.console, event)
-            cur_pos_post = self.console.textCursor().position()
-            self.aval_lefts-=cur_pos_prev-cur_pos_post
-        elif event.key() < 10_000_000:
-            widget.QTextEdit.keyPressEvent(self.console, event) 
-            self.aval_lefts+=1
         elif event.key() == Qt.Key_Home:
-            i = self.console.textCursor().position()-self.aval_lefts
             cur = self.console.textCursor()
-            cur.setPosition(i)
+            cur.setPosition(self.promptend)
             self.console.setTextCursor(cur)
-            self.aval_rights+=self.aval_lefts
-            self.aval_lefts = 0
-        elif event.key() == Qt.Key_End:
-            widget.QTextEdit.keyPressEvent(self.console, event)
-            self.aval_lefts+=self.aval_rights
-            self.aval_rights = 0
         elif event.key() == Qt.Key_Return:
             self.nav_mapping[self.side_window_id]['run_command']()
         elif event.key() == Qt.Key_Up:
+            if self.CMDS_CURSOR == 0: 
+                self.tmp_cmd = self.console.toPlainText()[self.promptend:]
             self.CMDS_CURSOR -= 1 if -self.CMDS_CURSOR < len(self.CMDS_LOG) else 0
             self.update_console_cmds_nav()
         elif event.key() == Qt.Key_Down:
-            self.CMDS_CURSOR += 1 if -self.CMDS_CURSOR > 0 else 0
-            self.update_console_cmds_nav()
-        elif event.key() == Qt.Key_Left:
-            if self.aval_lefts > 0:
-                cur_pos_prev = self.console.textCursor().position()
+            if self.CMDS_CURSOR != 0:
+                self.CMDS_CURSOR += 1
+                self.update_console_cmds_nav()
+        elif event.key() in {Qt.Key_Left, Qt.Key_Backspace}:
+            if self.curpos > self.promptend:
                 widget.QTextEdit.keyPressEvent(self.console, event) 
-                cur_pos_post = self.console.textCursor().position()
-                self.aval_lefts-=cur_pos_prev-cur_pos_post
-                self.aval_rights+=cur_pos_prev-cur_pos_post
-        elif event.key() == Qt.Key_Right:
-            if self.aval_rights>0:
-                cur_pos_prev = self.console.textCursor().position()
-                widget.QTextEdit.keyPressEvent(self.console, event) 
-                cur_pos_post = self.console.textCursor().position()
-                self.aval_lefts-=cur_pos_prev-cur_pos_post
-                self.aval_rights+=cur_pos_prev-cur_pos_post
-        elif event.key() == Qt.Key_Backspace:
-            if self.aval_lefts > 0:
-                cur_pos_prev = self.console.textCursor().position()
-                widget.QTextEdit.keyPressEvent(self.console, event) 
-                cur_pos_post = self.console.textCursor().position()
-                self.aval_lefts+=cur_pos_post-cur_pos_prev
-        elif event.key() == Qt.Key_Delete:
-            if self.aval_rights > 0:
-                cur_pos_prev = self.console.textCursor().position()
-                widget.QTextEdit.keyPressEvent(self.console, event) 
-                cur_pos_post = self.console.textCursor().position()
-                self.aval_rights-=cur_pos_post-cur_pos_prev
         else: 
             widget.QTextEdit.keyPressEvent(self.console, event) 
-            if event.key() < 10_000_000: self.aval_lefts+=1
 
 
     def update_console_cmds_nav(self):
         console_content = self.console.toPlainText().split('\n')
         mod_content = console_content[:-1]
-        mod_content.append(f'{self.CONSOLE_PROMPT}{self.CMDS_LOG[self.CMDS_CURSOR]}')
-        self.aval_lefts =len(self.CMDS_LOG[self.CMDS_CURSOR]) 
-        self.aval_rights = 0
+        if self.tmp_cmd and self.CMDS_CURSOR==0:
+            c = self.tmp_cmd
+            self.tmp_cmd = ''
+        else:
+            c = self.CMDS_LOG[self.CMDS_CURSOR]
+        mod_content.append(f'{self.CONSOLE_PROMPT}{c}')
         self.console.setText('\n'.join(mod_content))
         self.move_cursor_to_end()
 
@@ -146,8 +122,6 @@ class fcc_gui():
                 self.CMDS_LOG.append(cmd)
             self.CONSOLE_LOG[-1]+=cmd
         self.CMDS_CURSOR = 0
-        self.aval_lefts = 0
-        self.aval_rights = 0
         
 
     def run_command(self):
@@ -695,6 +669,9 @@ class config_gui():
         self.model_label = self.create_label('EFC Model')
         self.pace_card_qline = self.create_config_qlineedit('pace_card_interval')
         self.pace_card_label = self.create_label('Card Pacing')
+        self.initial_language_checkablecombobox = self.create_config_checkable_combobox('initial_language', 
+                                                                ['auto', 'native', 'foreign'],subdict='SOD')
+        self.initial_language_label = self.create_label('SOD: Initial Language')
 
         # add widgets
         p = self.list_pos_gen()
@@ -718,9 +695,10 @@ class config_gui():
         self.options_layout.addWidget(self.model_checkablecombobox, next(p), 1)
         self.options_layout.addWidget(self.pace_card_label, next(p), 0)
         self.options_layout.addWidget(self.pace_card_qline, next(p), 1)
+        self.options_layout.addWidget(self.initial_language_label, next(p), 0)
+        self.options_layout.addWidget(self.initial_language_checkablecombobox, next(p), 1)
 
         self.options_layout.addWidget(self.create_blank_widget(),next(p),0)
-        self.options_layout.addWidget(self.create_blank_widget(),next(p),1)
         self.options_layout.addWidget(self.confirm_and_close_button, next(p)+2, 0, 1, 2)
 
 
@@ -733,18 +711,22 @@ class config_gui():
         return combobox
     
 
-    def create_config_checkable_combobox(self, key:str, content:list):
+    def create_config_checkable_combobox(self, key:str, content:list, subdict:str=None):
         checkable_cb = CheckableComboBox(self)
+        k = self.config[subdict][key] if subdict else self.config[key]
         for i in content:
-            checkable_cb.addItem(i, is_checked= i in self.config[key])
+            checkable_cb.addItem(i, is_checked= i in k)
         checkable_cb.setFont(self.BUTTON_FONT)
         checkable_cb.setStyleSheet(self.button_style_sheet)
         return checkable_cb
 
 
-    def create_config_qlineedit(self, key:str):
+    def create_config_qlineedit(self, key:str, subdict:str=None):
         qlineedit = widget.QLineEdit(self)
-        qlineedit.setText(str(self.config[key]))
+        if subdict:
+            qlineedit.setText(str(self.config[subdict][key]))
+        else:
+            qlineedit.setText(str(self.config[key]))
         qlineedit.setFont(self.BUTTON_FONT)
         qlineedit.setStyleSheet(self.button_style_sheet)
         return qlineedit
@@ -765,7 +747,7 @@ class config_gui():
 
 
     def commit_config_update(self):
-        modified_dict = dict()
+        modified_dict = deepcopy(self.config)
         modified_dict['card_default_side'] = self.card_default_combobox.currentText()
         modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
         modified_dict['days_to_new_rev'] = self.days_to_new_rev_qlineedit.text()
@@ -776,6 +758,7 @@ class config_gui():
         modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
         modified_dict['pace_card_interval'] = self.pace_card_qline.text()
+        modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentData()[0]
 
         if modified_dict['theme'] != self.config['theme']:
             self.config['THEME'].update(self.themes_dict[modified_dict['theme']])

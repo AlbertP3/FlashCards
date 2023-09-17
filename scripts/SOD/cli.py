@@ -26,6 +26,7 @@ class Message:
         self.WRONG_EDIT = '⚠ Wrong Edit!'
         self.OK = '✅ OK'
         self.QUERY_UPDATE = "🔃 Updated Queue"
+        self.RE_ERROR = '⚠ Regex Error!'
 
 class Prompt:
     def __init__(self) -> None:
@@ -49,10 +50,21 @@ class CLI():
         self.output = output
         self.d_api = Dict_Services()
         self.fh = self.get_file_handler(self.config['SOD']['last_file'])
-        self.d_api.set_languages(*self.fh.get_languages())
+        self.__init_set_languages()
         self.selection_queue = list()
         self.status_message = str()
         self.sep_manual = self.config['SOD']['manual_mode_sep']
+
+
+    def __init_set_languages(self):
+        if self.config['SOD']['initial_language'] == 'auto':
+            ref = self.config['SOD']['last_src_lng']
+        else:
+            ref = self.config['SOD']['initial_language']
+        r = 1 if ref=='native' else -1
+        native, foreign = self.fh.get_languages()[::r]
+        self.d_api.set_languages(native, foreign)
+        self.config['SOD']['last_src_lng'] = ref
 
 
     @property
@@ -66,7 +78,11 @@ class CLI():
 
     def get_file_handler(self, filename:str) -> file_handler:
         if any(c in "*+?\\" for c in filename):
-            f = get_most_similar_file_regex(self.config['lngs_path'], filename)
+            try:
+                f = get_most_similar_file_regex(self.config['lngs_path'], filename)
+            except re.error:
+                self.cls(self.msg.RE_ERROR, keep_cmd=True, keep_content=True)
+                return
         else:
             if '.' not in filename: filename+='.'
             f = get_most_similar_file_startswith(self.config['lngs_path'], filename)
@@ -81,9 +97,8 @@ class CLI():
         self.state = State()
 
 
-    def set_output_prompt(self, t, aval_lefts=0):
+    def set_output_prompt(self, t):
         self.output.mw.CONSOLE_PROMPT = t
-        self.output.mw.aval_lefts = aval_lefts
 
 
     def send_output(self, text:str):
@@ -128,8 +143,10 @@ class CLI():
             parsed_cmd = parsed_cmd[1:]
             if bool(src_lng) ^ bool(tgt_lng):
                 self.d_api.switch_languages(src_lng, tgt_lng)
+                self.update_last_source_lng()
             elif src_lng and tgt_lng:
                 self.d_api.set_languages(src_lng, tgt_lng)
+                self.update_last_source_lng()
         return parsed_cmd
 
 
@@ -141,6 +158,11 @@ class CLI():
             self.cls(f'⚠ Wrong Dict!', keep_content=True, keep_cmd = self.state.QUEUE_MODE)
 
 
+    def update_last_source_lng(self):
+        lng = 'native' if self.d_api.source_lng == self.fh.native_lng else 'foreign'
+        self.config['SOD']['last_src_lng'] = lng
+
+
     def insert_manual(self, parsed_cmd):
         if not self.state.MANUAL_MODE:
             self.cls()
@@ -150,30 +172,33 @@ class CLI():
         elif self.state.MANUAL_MODE == 'phrase':
             self.phrase = ' '.join(parsed_cmd)
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
-                self.cls(self.msg.PHRASE_EXISTS_IN_DB, keep_content=True)
+                self.manual_duplicate_show()
+                return
             self.set_output_prompt(self.prompt.MANUAL_TR)
             self.state.MANUAL_MODE = 'transl'
             return
         elif self.state.MANUAL_MODE == 'transl':
             self.transl = ' '.join(parsed_cmd)
-            if self.fh.is_duplicate(self.phrase, self.is_from_native):
-                tran, orig  = self.fh.get_translations(self.phrase, self.is_from_native)
-                self.translations = [self.transl, *tran]
-                self.originals = [self.phrase, *orig]
-                self.state.SELECT_TRANSLATIONS_MODE = True
-                self.set_output_prompt(f'Select for {self.phrase}: ')
-                self.print_translations_table(self.translations, self.originals)
-                return
         # Finalize
         if self.phrase and self.transl:
-            if self.fh.is_duplicate(self.phrase, self.is_from_native):
-                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
-            else:
-                self.save_to_db(self.phrase, [self.transl])
+            self.save_to_db(self.phrase, [self.transl])
         else:
             self.cls(self.msg.SAVE_ABORTED)
         self.state.MANUAL_MODE = False
         self.set_output_prompt(self.prompt.PHRASE)
+
+
+    def manual_duplicate_show(self):
+        '''If manually entered phrase exists in db then print results from source'''
+        prev_dict = self.d_api.dict_service
+        self.d_api.dict_service = 'local'
+        self.translations, self.originals, _ = self.d_api.get_info_about_phrase(self.phrase)
+        self.state.MANUAL_MODE = False
+        self.state.SELECT_TRANSLATIONS_MODE = True
+        self.set_output_prompt(f'Select for {self.phrase}: ')
+        self.cls(self.msg.PHRASE_EXISTS_IN_DB)
+        self.print_translations_table(self.translations, self.originals)
+        self.d_api.dict_service = prev_dict
 
 
     def insert_manual_oneline(self, parsed_cmd):
@@ -184,13 +209,15 @@ class CLI():
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
-                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
-                tran, orig = self.fh.get_translations(self.phrase, self.is_from_native)
-                self.translations = [self.transl, *tran]
-                self.originals = [self.phrase, *orig]
+                prev_dict = self.d_api.dict_service
+                self.d_api.dict_service = 'local'
+                tran, orig, _ = self.d_api.get_info_about_phrase(self.phrase)
+                self.translations, self.originals = [self.transl, *tran], [self.phrase, *orig]
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
+                self.cls(self.msg.PHRASE_EXISTS_IN_DB)
                 self.print_translations_table(self.translations, self.originals)
+                self.d_api.dict_service = prev_dict
             else:
                 self.save_to_db(self.phrase, [self.transl])
         else:
@@ -379,7 +406,7 @@ class CLI():
                 success, errs = self.fh.append_content(phrase, translations)
 
             if success: 
-                self.notify_on_save(phrase, translations)
+                self.notify_on_save(phrase, translations, is_duplicate)
             else:
                 self.cls(errs)
         else:
@@ -389,23 +416,36 @@ class CLI():
         self.res_edit = None
     
 
-    def notify_on_save(self, phrase, res_edit):
+    def notify_on_save(self, phrase, res_edit, is_duplicate):
         lim = self.get_char_limit()
-        msg = f'🖫 {phrase}: {res_edit}'
+        icon = '🖉' if is_duplicate else '🖫'
+        msg = f'{icon} {phrase}: {res_edit}'
         self.cls(msg[:lim]+'…' if len(msg)>lim else msg)
 
 
-    def print_translations_table(self, trans, origs):
-        output = str()
+    def print_translations_table(self, trans, origs, mode='flex'):
         lim = self.get_char_limit()
         if ''.join(origs)!='': lim = int(lim/2) - 3; sep=' | '
         else: lim = lim-1; sep=''
+        func = {'flex':self.__ptt_flex, 'fix':self.__ptt_fix}[mode]
+        output = func(trans, origs, lim, sep) 
+        self.send_output(output[:-1])
+
+    def __ptt_flex(self, trans, origs, lim, sep) -> str:
+        output = str()
         for i in range(len(trans)):
             t = trans[i][:lim-1] + '…' if len(trans[i]) > lim else trans[i].ljust(lim, ' ')
             o = origs[i][:lim-1] + '…' if len(origs[i]) > lim else origs[i].ljust(lim, ' ')
             output+=f'{i+1}. {t}{sep}{o}' + '\n'
-        self.send_output(output[:-1])
-        
+        return output
+    
+    def __ptt_fix(self, trans, origs, lim, sep) -> str:
+        output = str()
+        for i in range(len(trans)):
+            t = trans[i][:lim-1] + ('…' if len(trans[i]) > lim else '')
+            o = origs[i][:lim-1] + ('…' if len(origs[i]) > lim else '')
+            output+=f'{i+1}. {t:{lim}}{sep}{o:{lim}}' + '\n'
+        return output
 
     def get_char_limit(self):
         return int(1.184 * self.output.console.width() / self.output.mw.CONSOLE_FONT_SIZE)
@@ -459,12 +499,15 @@ class CLI():
 
 
     def selection_cmd_is_correct(self, parsed_cmd):
-        result = True
+        result, all_args_match, index_out_of_range = True, False, False
         pattern = re.compile(r'^(\d+|e\d+|a|m\d*|r\d+|)$')
         lim = len(self.translations)
         if (self.state.SELECT_TRANSLATIONS_MODE and str(self.state.MODIFY_RES_EDIT_MODE)[0] not in 'ea'):
-            all_args_match = all({pattern.match(c) for c in parsed_cmd})
-            index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'amr') if all_args_match else True
+            if len(parsed_cmd)==1 and parsed_cmd[0].startswith('m'):
+                all_args_match = False
+            else:
+                all_args_match = all({pattern.match(c) for c in parsed_cmd})
+                index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'amr') if all_args_match else True
             if not all_args_match or index_out_of_range:
                 result = False
                 self.cls(self.msg.WRONG_EDIT, keep_content=True)
@@ -497,19 +540,19 @@ class CLI():
 
     def res_edit_set_prompt(self, r):
         if r[0] == 'm':
-            phrase = self.originals[int(r[1:])-1] if len(r)>1 else self.phrase
-            new_prompt = f'Modify: {phrase}' 
-            aval_lefts = len(phrase)
+            new_prompt = 'Modify: ' 
+            extra = self.originals[int(r[1:])-1] if len(r)>1 else self.phrase
         elif r[0] == 'a':
             new_prompt = f'Add: '
-            aval_lefts = 0
+            extra = ''
         elif r[0] == 'e':
-            new_prompt = f'Edit: {self.translations[int(r[1:])-1]}'
-            aval_lefts = len(self.translations[int(r[1:])-1])
+            new_prompt = f'Edit: '
+            extra = self.translations[int(r[1:])-1]
         else: 
             new_prompt = self.output.mw.CONSOLE_PROMPT
-            aval_lefts = 0
-        self.set_output_prompt(new_prompt, aval_lefts)
+            extra = ''
+        self.set_output_prompt(new_prompt)
+        self.output.editable_output = extra
 
 
     def cls(self, msg=None, keep_content=False, keep_cmd=False):

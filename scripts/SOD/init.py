@@ -12,6 +12,7 @@ class sod_spawn:
         self.cli = CLI(output=self.sout)
         self.cli.cls()
         self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
+        self.sout.editable_output = ''
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
@@ -36,7 +37,8 @@ class sod_spawn:
             self.cli.cls()
         else:
             self.run(parsed_input)
-        self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
+        self.sout.console.append(self.sout.mw.CONSOLE_PROMPT + self.sout.editable_output)
+        self.sout.editable_output = ''
 
     def remove_adapter(self):
         self.sout.post_fcc = self.orig_post_method

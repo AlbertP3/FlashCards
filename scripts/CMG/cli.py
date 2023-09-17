@@ -18,9 +18,8 @@ class CLI:
         self.sout.console.append(text)
         self.sout.mw.CONSOLE_LOG.append(text)
 
-    def set_output_prompt(self, t:str, aval_lefts=0):
+    def set_output_prompt(self, t:str):
         self.sout.mw.CONSOLE_PROMPT = t
-        self.sout.mw.aval_lefts = aval_lefts
 
     def get_card_prompt(self, side:int):
         prefix = 'First' if side==0 else 'Second'
@@ -73,9 +72,8 @@ class CLI:
     
     def print_orig_card(self, side:int):
         text = self.sout.mw.dataset.iloc[self.sout.mw.current_index, side]
-        self.sout.mw.aval_lefts = len(text)
         new_prompt = self.get_card_prompt(side)
-        self.set_output_prompt(new_prompt, aval_lefts=len(text))
+        self.set_output_prompt(new_prompt)
         self.send_output(f"{new_prompt} {text}")
     
     def mcc_apply_changes(self, parsed_cmd:list) -> str:

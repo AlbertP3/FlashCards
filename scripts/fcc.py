@@ -89,7 +89,10 @@ class fcc():
                 for k, v in self.DOCS.items():
                     if rp.search(v):
                         matching[k] = v
-                printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
+                try:
+                    printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
+                except IndexError:
+                    printout = 'Nothing matches the given phrase!'
 
         self.post_fcc(printout)
 

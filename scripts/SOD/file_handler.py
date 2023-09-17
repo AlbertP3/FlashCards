@@ -84,7 +84,7 @@ class file_handler:
 
 
     def get_translations_with_regex(self, phrase:str, is_from_native:bool) -> tuple[list]:
-        pattern = re.compile(phrase)
+        pattern = re.compile(phrase, re.IGNORECASE)
         tran, orig = list(), list()
         if is_from_native:
             for k, v in self.data.items():
