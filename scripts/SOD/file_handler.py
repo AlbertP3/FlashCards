@@ -16,7 +16,7 @@ class file_handler:
         self.ws = self.wb[self.wb.sheetnames[0]]
         self.data = OrderedDict()  # phrase: (translation, row_index)
         for r in range(1, self.ws.max_row+1):
-            self.data[self.ws.cell(r, 1).value] = (self.ws.cell(r, 2).value, r)
+            self.data[str(self.ws.cell(r, 1).value)] = (str(self.ws.cell(r, 2).value), r)
         self.config['SOD']['last_file'] = self.filename
         self.native_lng = self.ws.cell(1, 2).value.lower()
         self.foreign_lng = self.ws.cell(1, 1).value.lower()
