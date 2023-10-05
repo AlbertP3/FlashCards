@@ -134,7 +134,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.build_layout()
         self.initiate_timer()
         side_windows.__init__(self)
-        self.display_text(self.get_current_card()[self.side])
+        self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
 
 
@@ -163,7 +163,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def display_text(self, text=None, forced_size=None):
-        if not text: text = self.get_current_card()[self.side]
+        if not text: text = self.get_current_card().iloc[self.side]
         if not forced_size:
             min_font_size = 18
             len_factor = int(len(str(text))/30)
@@ -195,12 +195,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def delete_current_card(self):
         super().delete_current_card()
         self.update_words_button()
-        self.display_text(self.get_current_card()[self.side])
+        self.display_text(self.get_current_card().iloc[self.side])
 
 
     def reverse_side(self):
         super().reverse_side()
-        self.display_text(self.get_current_card()[self.side])
+        self.display_text(self.get_current_card().iloc[self.side])
         if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
             self.start_timer()
             if self.is_revision: self.start_pace_timer()
@@ -236,7 +236,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.window_title = self.signature if self.is_revision else filename
         self.setWindowTitle(self.window_title)
             
-        self.display_text(self.get_current_card()[self.side])
+        self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
         self.update_score_button()
         self.reset_timer(clear_indicator=True)
@@ -257,14 +257,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.current_index >= 1:
             super().goto_prev_card()
             self.nav_buttons_visibility_control(False, False, True)
-            self.display_text(self.get_current_card()[self.side])
+            self.display_text(self.get_current_card().iloc[self.side])
 
 
     def click_next_button(self):
         diff_words = self.total_words - self.current_index - 1
         if diff_words > 0:
             super().goto_next_card()
-            self.display_text(self.get_current_card()[self.side])
+            self.display_text(self.get_current_card().iloc[self.side])
             last_card_was_reached = self.cards_seen+1 == self.total_words
             conditions_to_stop_timer = last_card_was_reached and not self.is_revision and not self.is_mistakes_list
             self.reset_pace_timer()
@@ -573,7 +573,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def update_dataset(self):
             self.dataset = load_dataset(self.file_path, seed=self.config['pd_random_seed'])
-            self.display_text(self.get_current_card()[self.side])
+            self.display_text(self.get_current_card().iloc[self.side])
 
 
     #  ============= REVISION TIMER ==================

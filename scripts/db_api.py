@@ -67,7 +67,7 @@ class db_interface():
         for lng in config['languages']:
             l_df = self.db.loc[self.db.iloc[:, 1].str.contains(lng)]
             l_df = l_df.loc[~l_df.iloc[:, 1].str.contains('_mistakes')]
-            filtered = filtered.append(l_df, ignore_index=True, sort=False)
+            filtered = pd.concat([filtered, l_df], ignore_index=True, sort=False)
         self.db = filtered.loc[filtered['POSITIVES'] != 0]
         self.filters['EFC_MODEL'] = True
 
@@ -81,7 +81,7 @@ class db_interface():
         if fill_timespent: avg_wpsec = self.db['TOTAL'].sum() / self.db.loc[self.db['SEC_SPENT'] > 0]['SEC_SPENT'].sum()
         else: avg_wpsec = 0
         rows_to_del = list()
-        self.db['PREV_WPM'] = 0
+        self.db['PREV_WPM'] = float(0)
         self.db['TIMEDELTA_SINCE_CREATION'] = 0
         self.db['TIMEDELTA_LAST_REV'] = 0
         self.db['CUM_CNT_REVS'] = 0
@@ -143,7 +143,7 @@ class db_interface():
 
     def get_sum_repeated(self, signature=None):
         repeated_times = self.get_filtered_db_if('SIGNATURE', signature)
-        repeated_times = repeated_times.count()[0]-1
+        repeated_times = repeated_times.count().iloc[0]-1
         repeated_times = 0 if repeated_times is None else repeated_times
         return repeated_times
     
@@ -241,8 +241,7 @@ class db_interface():
     def get_timedelta_from_creation(self, signature=None):
         try:
             first_date = self.get_first_datetime(signature)
-            today = make_todaytime()
-            return today - first_date
+            return datetime.now() - first_date
         except:
             return 0
 
@@ -250,8 +249,7 @@ class db_interface():
     def get_timedelta_from_last_rev(self, signature=None):
         try:
             last_date = self.get_last_datetime(signature)
-            today = make_todaytime()
-            return today - last_date
+            return datetime.now() - last_date
         except:
             return 0
 
@@ -311,7 +309,7 @@ class db_interface():
         res = pd.DataFrame(columns=self.db.columns)
         for l in lngs:
             l_df = self.db.loc[self.db.iloc[:, 1].str.contains(l)]
-            res = res.append(l_df, ignore_index=True, sort=False)
+            res = pd.concat([res, l_df], ignore_index=True, sort=False)
         return res
 
 

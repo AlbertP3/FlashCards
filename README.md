@@ -72,7 +72,7 @@
 
 <h1>Tech Stack</h1>
 <ol>
-<li><b>Python3.10</b></li>
+<li><b>Python3.11</b></li>
 <li><b>PyQt5</b> - Graphical User Interface</li>
 <li><b>matplotlib</b> - statistics visualization</li>
 <li><b>beautifulsoup4</b> Search Online Dictionaries</li>

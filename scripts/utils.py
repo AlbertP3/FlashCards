@@ -1,6 +1,6 @@
 import random
 from collections import UserDict
-from datetime import datetime, date
+from datetime import datetime, timedelta
 import os
 import pandas as pd
 import re
@@ -12,6 +12,7 @@ import inspect
 import logging
 from ntpath import basename
 
+UTILS_STATUS_DICT = dict()
 log = logging.getLogger(__name__)
 
 
@@ -69,8 +70,6 @@ class Config(UserDict):
             if not isinstance(geometry, tuple):
                 self.data['GEOMETRY'][window] = tuple(eval(geometry))
 
-
-UTILS_STATUS_DICT = dict()
 config = Config()
 
 def post_utils(text):
@@ -85,10 +84,6 @@ def get_abs_path_from_caller(file_name, abs_path=None):
         abs_path = path.abspath((stack()[1])[1])
         abs_path = path.join(path.dirname(abs_path), file_name)
     return abs_path
-
-
-def get_relative_path_from_abs_path(abs_path):
-    return '.\\' + os.path.relpath(abs_path)
 
 
 def get_filename_from_path(path, include_extension=False):
@@ -109,22 +104,7 @@ def get_sign(num, plus_sign='+', neg_sign='-'):
 
 
 def make_datetime(d):
-    # transforms date-like string from database to datetime format
-    return datetime(int(d[6:10]), int(d[:2]), int(d[3:5]), int(d[12:14]), int(d[15:17]), int(d[18:20]))
-
-
-def make_date(d):
-    # transforms date-like string from database to a datetime format
-    return date(int(d[6:10]), int(d[:2]), int(d[3:5]))
-
-
-def make_todaytime():
-    return datetime(datetime.now().year, datetime.now().month, datetime.now().day, 
-                    datetime.now().hour, datetime.now().minute, datetime.now().second)
-
-
-def make_todayte():
-    return date(datetime.now().year, datetime.now().month, datetime.now().day)
+    return datetime.strptime(d, '%m/%d/%Y, %H:%M:%S')
 
 
 def save_revision(dataset:pd.DataFrame(), signature):
@@ -201,26 +181,26 @@ def get_files_in_dir(path, include_extension = True, exclude_open=True):
     return files_list
 
 
-def format_timedelta(timedelta):
-    if ',' in str(timedelta): # timedelta is more than 1 day
-        if timedelta.days < 31 :
-            time_value = str(timedelta.days)
+def format_timedelta(tmd:timedelta): 
+    if ',' in str(tmd): # timedelta is more than 1 day
+        if tmd.days < 31 :
+            time_value = str(tmd.days)
             interval = 'day'
-        elif timedelta.days < 365:
-            time_value = str(round(timedelta.days/30.437, 1))
+        elif tmd.days < 365:
+            time_value = str(round(tmd.days/30.437, 1))
             interval = 'month'
         else:
-            time_value = str(round(timedelta.days/365.25, 1))
+            time_value = str(round(tmd.days/365.25, 1))
             interval = 'year'
     else:
-        timedelta = str(timedelta).split(':')
-        if timedelta[0] != '0':
-            interval, id = 'hour', 0
-        elif timedelta[1] != '00':
-            interval, id = 'minute', 1
+        tmd = str(tmd).split(':')
+        if tmd[0] != '0':
+            interval, _id = 'hour', 0
+        elif tmd[1] != '00':
+            interval, _id = 'minute', 1
         else:
-            interval, id = 'second', 2
-        time_value =  str(timedelta[id])
+            interval, _id = 'second', 2
+        time_value =  str(tmd[_id])
 
     if time_value.startswith('0'): 
         time_value = time_value[1:]

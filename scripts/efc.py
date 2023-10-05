@@ -65,14 +65,14 @@ class efc():
             # data: (TIMESTAMP, TOTAL, POSITIVES, SEC_SPENT)
             data = unqs.get(s)
             if data:
-                since_last_rev = (make_todaytime()-data[-1][0]).total_seconds()/3600
+                since_last_rev = (datetime.now()-data[-1][0]).total_seconds()/3600
                 cnt = len(data)+1
                 if cnt <= int(self.config['initial_repetitions']):
                     efc = [[0 if since_last_rev>=12 else 100]]
                     pred = 12 - since_last_rev if since_last_rev<=12 else 0
                 else:
                     total = data[-1][1]
-                    since_creation = (make_todaytime()-data[0][0]).total_seconds()/3600
+                    since_creation = (datetime.now()-data[0][0]).total_seconds()/3600
                     prev_wpm = 60*data[-1][1]/data[-1][3] if data[-1][3] != 0 else 0
                     prev_score = int(100*(data[-1][2] / data[-1][1]))
                     rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
@@ -155,7 +155,7 @@ class efc():
             for signature in sorted(list(self.unique_signatures), key=self.db_interface.get_first_datetime, reverse=True):  
                 if lng in signature:
                     initial_date = self.db_interface.get_first_datetime(signature)
-                    time_delta = (make_todaytime() - initial_date).days
+                    time_delta = (datetime.now() - initial_date).days
                     if time_delta >= int(self.config['days_to_new_rev']):
                         new_reccommendations.append(self.get_reccommendation_text(lng))
                     break
