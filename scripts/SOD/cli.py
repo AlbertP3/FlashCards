@@ -3,7 +3,7 @@ from itertools import islice
 import re
 import os
 from SOD.dicts import Dict_Services
-from SOD.file_handler import file_handler
+from SOD.file_handler import get_filehandler, FileHandler
 from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print
 
 
@@ -76,7 +76,7 @@ class CLI():
         return self.d_api.dict_service == 'local'
 
 
-    def get_file_handler(self, filename:str) -> file_handler:
+    def get_file_handler(self, filename:str) -> FileHandler:
         if any(c in "*+?\\" for c in filename):
             try:
                 f = get_most_similar_file_regex(self.config['lngs_path'], filename)
@@ -86,7 +86,7 @@ class CLI():
         else:
             if '.' not in filename: filename+='.'
             f = get_most_similar_file_startswith(self.config['lngs_path'], filename)
-        fh = file_handler(os.path.join(self.config['lngs_path'], f))
+        fh = get_filehandler(os.path.join(self.config['lngs_path'], f))
         self.d_api.available_lngs = (fh.native_lng, fh.foreign_lng)
         if hasattr(self, 'fh'):
             self.fh.close()
@@ -571,7 +571,7 @@ class CLI():
         active_dict = self.d_api.dict_service
         source_lng = self.d_api.source_lng
         target_lng = self.d_api.target_lng
-        len_db = self.fh.ws.max_row - 1
+        len_db = self.fh.total_rows
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | "
 
         if msg:

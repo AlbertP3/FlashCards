@@ -8,7 +8,7 @@ import requests
 import itertools
 import string
 import logging
-from SOD.file_handler import fhs, file_handler
+from SOD.file_handler import fhs, FileHandler
 
 log = logging.getLogger('dicts')
 
@@ -359,7 +359,7 @@ class DictLocal(TemplateDict):
 
 
     def get(self, word:str):
-        fh:file_handler = fhs[os.path.join(self.config['lngs_path'], self.config['SOD']['last_file'])]
+        fh:FileHandler = fhs[os.path.join(self.config['lngs_path'], self.config['SOD']['last_file'])]
         try:
             transl, orig = fh.get_translations_with_regex(word, self.source_lng==fh.native_lng)
             if transl:
