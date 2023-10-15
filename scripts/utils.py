@@ -362,7 +362,7 @@ def validate_setup():
     post_utils(operation_status)
 
 
-def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False, alingment:list=list()) -> str:
+def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False, alingment:list=list(), headers:list=None) -> str:
     printout = '' 
     longest_elements = list()
 
@@ -370,6 +370,9 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     if isinstance(list_, dict):
         list_ = [[k, v] for k, v in list_.items()]
 
+    if headers:
+        list_.insert(0, headers)
+        
     # find longest element for each sub-list
     for k in range(len(list_[0])):
         longest_elements.append(max([len(str(item[k])) for item in list_]))
@@ -453,3 +456,13 @@ def boolinize(s:str):
 
 class Placeholder:
     pass
+
+
+def flatten_dict(d:dict, root:str='BASE', lim_chars:int=None) -> list:
+    res = list([root, k, str(v)] for k, v in d.items() if not isinstance(v, dict))
+    for k, v in d.items():
+        if isinstance(v, dict):
+            res.extend(flatten_dict(v, root=k))
+    if lim_chars:
+        res = [[str(x)[:lim_chars] for x in i] for i in res]
+    return res

@@ -27,8 +27,8 @@ class fcc():
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
                     'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
                     'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals. Additionaly, shows predicted time until the next revision',
-                    'mcp':'Modify Config Parameter - allows modifications of config file',
-                    'sck':'Set Config Key - edit configs key. If no value provided then shows current one',
+                    'mcp':'Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>',
+                    'sck':'Show Config Key: Syntax: sck *<sub_dict> <key>',
                     'cls':'Clear Screen',
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     'sah':'Show Progress Chart for all languages',
@@ -270,59 +270,50 @@ class fcc():
 
     def mcp(self, parsed_cmd):
         '''Modify Config Parameter'''
-         
-        # check preconditions
-        if len(parsed_cmd) < 3:
-            self.post_fcc('mcp function expected following syntax: mcp dict_key dict new value')
-            return
-
-        config_key = parsed_cmd[1]  
-        config_new_value = ' '.join(parsed_cmd[2:])
-
-        # check if input key exists in dict
-        if config_key not in self.config.keys():
-            self.post_fcc('mcp function takes only existing dict keys. Use "sck" to show all available keys.')
-            return
-        self.config.update({config_key: config_new_value})
+        if len(parsed_cmd)==3:
+            key, new_val = parsed_cmd[1], parsed_cmd[2]
+            if key in self.config.keys():
+                if new_val.isnumeric(): 
+                    new_val = float(new_val)
+                self.config[key] = new_val
+                self.post_fcc(f"{key} set to {new_val}")
+            else:
+                self.post_fcc(f"{key} not found in the config. Use 'sck' to list all available keys")
+        elif len(parsed_cmd) == 4:
+            subdict, key, new_val = parsed_cmd[1], parsed_cmd[2], parsed_cmd[3]
+            if isinstance(self.config.get(subdict), dict) and key in self.config[subdict].keys():
+                if new_val.isnumeric(): 
+                    new_val = float(new_val)
+                self.config[subdict][key] = new_val
+                self.post_fcc(f"{key} of {subdict} set to {new_val}")
+            else:
+                self.post_fcc(f"{subdict} not found in the config. Use 'sck' to list all available keys")
+        else:
+            self.post_fcc('mcp function expected following syntax: mcp *<dict> <key> <new_value>')
 
     
     def sck(self, parsed_cmd):
-        '''Set Config Key'''
+        '''Show Config Key'''
+        headers = ['Dict', 'Key', 'Value']
+        c = flatten_dict(self.config, lim_chars=30)
         if len(parsed_cmd) == 1:
-            c = [['Key', 'Value']]
-            c.extend(list([k, str(v)[:50]] for k, v in self.config.items()))
             msg = get_pretty_print(c, separator='|', 
-                    alingment=['<', '^'], keep_last_border=True)
-        elif len(parsed_cmd) == 2:
-            p = re.compile(parsed_cmd[1])
-            matching = {k:v for k, v in self.config.items() if p.search(k)}
-            if matching:
-                c = [['Key', 'Value']]
-                c.extend(list([k, str(v)[:50]] for k, v in matching.items()))
-                msg = get_pretty_print(c, separator='|', 
-                    alingment=['<', '^'], keep_last_border=True)
+                    alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
+        elif len(parsed_cmd) in (2,3):
+            if isinstance(self.config.get(parsed_cmd[1]), dict):
+                c = [i for i in c if re.search(parsed_cmd[1], i[0], re.IGNORECASE)]
+                if len(parsed_cmd) == 3:
+                    c = [i for i in c if re.search(parsed_cmd[2], i[1], re.IGNORECASE)]
             else:
-                msg = self.config.get(parsed_cmd[1], 'N/A')
-                if isinstance(msg, list): msg = '|'.join(msg)
-        elif len(parsed_cmd) > 2:
-            if parsed_cmd[1] in (k for k, v in self.config.items() if isinstance(v, dict)):
-                if not self.config[parsed_cmd[1]].get(parsed_cmd[2]): 
-                    msg = f"Key {parsed_cmd[2]} does not exist"
-                else:
-                    new_val = ' '.join(parsed_cmd[3:])
-                    self.config[parsed_cmd[1]][parsed_cmd[2]] = new_val
-                    self.config.parse_items()
-                    msg = f"Key {parsed_cmd[2]} set to {new_val}"
+                c = [i for i in c if re.search(parsed_cmd[1], i[1], re.IGNORECASE)]
+            if c:
+               msg = get_pretty_print(c, separator='|', 
+                    alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
             else:
-                if not self.config.get(parsed_cmd[1]): 
-                    msg = f"Key {parsed_cmd[1]} does not exist"
-                else:
-                    new_val = ' '.join(parsed_cmd[2:])
-                    self.config[parsed_cmd[1]] = new_val
-                    self.config.parse_items()
-                    msg = f"Key {parsed_cmd[1]} set to {new_val}"
+                suffix = f' in dict {parsed_cmd[1]}' if len(parsed_cmd) == 3 else ''
+                msg = f"Key {parsed_cmd[-1]} does not exist{suffix}"
         else:
-            msg = 'Invalid syntax'
+            msg = 'Invalid syntax. Expected: sck *<dict> <key>'
         self.post_fcc(msg)
     
 
