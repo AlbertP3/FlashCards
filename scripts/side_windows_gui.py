@@ -12,6 +12,7 @@ from load import load
 from stats import stats
 import timer
 from copy import deepcopy
+from functools import cache
 from checkable_combobox import CheckableComboBox
 import themes
 
@@ -24,6 +25,7 @@ class fcc_gui():
         self.DEFAULT_PS1 = '$~> '
         self.CONSOLE_FONT_SIZE = 12
         self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
+        self.fmetrics = QtGui.QFontMetricsF(self.CONSOLE_FONT)
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
         self.CONSOLE_LOG = []
         self.CMDS_LOG = ['']
@@ -36,6 +38,11 @@ class fcc_gui():
         self.fcc_inst = fcc(self)
         self.create_console()
 
+
+    @cache
+    def charslim(self) -> int:
+        '''Returns amount of standard glyphs that fit in one line'''
+        return int(self.console.width() / self.fmetrics.widthChar('a'))
 
     @property
     def curpos(self) -> int:

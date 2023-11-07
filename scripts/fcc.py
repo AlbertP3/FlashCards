@@ -84,15 +84,18 @@ class fcc():
             if command in self.DOCS.keys():
                 printout =  get_pretty_print([[command, self.DOCS[command]]], alingment=['<', '<'], separator='-')
             else: # regex search command descriptions
-                rp = re.compile(parsed_cmd[1])
-                matching = {}
-                for k, v in self.DOCS.items():
-                    if rp.search(v):
-                        matching[k] = v
                 try:
-                    printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
-                except IndexError:
-                    printout = 'Nothing matches the given phrase!'
+                    rp = re.compile(parsed_cmd[1], re.IGNORECASE)
+                    matching = {}
+                    for k, v in self.DOCS.items():
+                        if rp.search(v) or rp.search(k):
+                            matching[k] = v
+                    try:
+                        printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
+                    except IndexError:
+                        printout = 'Nothing matches the given phrase!'
+                except re.error as e:
+                    printout = f'Regex Error: {e}'
 
         self.post_fcc(printout)
 
@@ -175,17 +178,22 @@ class fcc():
     @require_nontemporary
     def lln(self, parsed_cmd):
         '''load last N cards from dataset'''
-
-        if not parsed_cmd[1].isnumeric():
-            self.post_fcc('number of cards must be a number')
+        if len(parsed_cmd) in (2,3):
+            for i in parsed_cmd[1:]:
+                try:
+                    if abs(int(i)) < 1:
+                        self.post_fcc('Number of cards must be a number greater than 0')
+                        return
+                except ValueError:
+                    self.post_fcc(f'Invalid Syntax! Expected: {type(1)}, but got {type(i)}')
+                    return
+        else:
+            self.post_fcc('Invalid Syntax! Expected: lln <num_of_cards> *<last_cards>')
             return
         
         # get last N records from the file -> shuffle only the part
         n_cards = abs(int(parsed_cmd[1]))
-        try: 
-            l_cards = abs(int(parsed_cmd[2]))
-        except IndexError: 
-            l_cards = 0
+        l_cards = abs(int(parsed_cmd[2])) if len(parsed_cmd)==3 else 0
 
         file_path = self.mw.file_path
         if l_cards == 0:
@@ -274,7 +282,9 @@ class fcc():
             key, new_val = parsed_cmd[1], parsed_cmd[2]
             if key in self.config.keys():
                 if new_val.isnumeric(): 
-                    new_val = float(new_val)
+                    new_val = float(new_val) if '.' in new_val else int(new_val)
+                elif isinstance(self.config[key], (list, set, tuple)):
+                    new_val = self.config[key].__class__(new_val.split(' '))
                 self.config[key] = new_val
                 self.post_fcc(f"{key} set to {new_val}")
             else:
@@ -283,7 +293,9 @@ class fcc():
             subdict, key, new_val = parsed_cmd[1], parsed_cmd[2], parsed_cmd[3]
             if isinstance(self.config.get(subdict), dict) and key in self.config[subdict].keys():
                 if new_val.isnumeric(): 
-                    new_val = float(new_val)
+                    new_val = float(new_val) if '.' in new_val else int(new_val)
+                elif isinstance(self.config[subdict][key], (list, set, tuple)):
+                    new_val = self.config[subdict][key].__class__(new_val.split(' '))
                 self.config[subdict][key] = new_val
                 self.post_fcc(f"{key} of {subdict} set to {new_val}")
             else:

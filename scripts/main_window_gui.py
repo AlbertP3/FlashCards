@@ -176,7 +176,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         padding = max(0, 90 - len(str(text))*0.7)
         self.textbox.setStyleSheet('''{} padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
-
+        self.is_afterface = False
+        if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
+            self.start_timer()
+            self.start_pace_timer()
+    
 
     def click_save_button(self):
         if self.is_revision:
@@ -201,9 +205,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def reverse_side(self):
         super().reverse_side()
         self.display_text(self.get_current_card().iloc[self.side])
-        if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
-            self.start_timer()
-            if self.is_revision: self.start_pace_timer()
 
 
     def load_again_click(self):
@@ -254,6 +255,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_prev_button(self):
+        if self.is_afterface:
+            self.current_index+=1
         if self.current_index >= 1:
             super().goto_prev_card()
             self.nav_buttons_visibility_control(False, False, True)
@@ -265,15 +268,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if diff_words > 0:
             super().goto_next_card()
             self.display_text(self.get_current_card().iloc[self.side])
-            last_card_was_reached = self.cards_seen+1 == self.total_words
-            conditions_to_stop_timer = last_card_was_reached and not self.is_revision and not self.is_mistakes_list
             self.reset_pace_timer()
-            if not self.TIMER_RUNNING_FLAG and not self.is_saved and not last_card_was_reached: 
-                self.start_timer()
-                if self.is_revision: self.start_pace_timer()
-            elif conditions_to_stop_timer: 
-                self.stop_timer(for_good=True)
-                self.stop_pace_timer()
             self.update_score_button()
             if self.words_back_mode(): self.nav_buttons_visibility_control(True, True, False)
         elif self.is_complete_revision() and self.is_saved == False: 
@@ -283,8 +278,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         elif self.is_revision:
             self.display_text(self.revision_summary)
         else:
+            self.display_text(self.config['after_face'])
+            self.is_afterface = True
+            self.stop_timer()
             self.stop_pace_timer()
-            self.display_text("You have reached the world's edge, none but devils play past here")
         
 
     def save_revision(self):
@@ -605,12 +602,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             conditions_met = False
         return conditions_met
 
-    def stop_timer(self, for_good=False):
+    def stop_timer(self):
         self.timer.stop()
         self.TIMER_RUNNING_FLAG = False
         if not self.revtimer_hide_timer:
             self.timer_prev_text = self.timer_button.text()
-            self.timer_button.setText('⏲' if for_good or not self.seconds_spent else '⏸')
+            self.timer_button.setText('⏲' if self.is_saved or not self.seconds_spent else '⏸')
 
     def reset_timer(self, clear_indicator=True):
         self.timer.stop()
@@ -671,9 +668,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.click_negative()
 
     def _resume_pace_timer(self):
-        if not self.is_revision or self.is_saved or self.cards_seen==0 \
-            or self.side_window_id!='main': return
-        self.start_pace_timer()
+        if not self.is_saved and self.cards_seen!=0 and self.side_window_id=='main':
+            self.start_pace_timer()
         
     def _stop_pace_timer(self):
         self.pace_timer.stop()
@@ -688,8 +684,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.stop_timer()
             self.stop_pace_timer()
         if event.type() == QtCore.QEvent.FocusIn and type(source) == QtGui.QWindow:
-            self.resume_timer()
-            self.resume_pace_timer()
+            if not self.is_afterface:
+                self.resume_timer()
+                self.resume_pace_timer()
         return super(main_window_gui, self).eventFilter(source, event)
 
 
@@ -699,3 +696,4 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
         self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()
+        self.charslim.cache_clear()

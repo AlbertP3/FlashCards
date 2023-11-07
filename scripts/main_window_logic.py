@@ -22,7 +22,6 @@ class main_window_logic():
         self.cards_seen = 0
         self.signature = ''
         self.revision_summary = None
-        self.TIMER_KILLED_FLAG = False
         self.TEMP_FILE_FLAG = False
         self.is_revision = False
         self.is_mistakes_list = False
@@ -30,6 +29,7 @@ class main_window_logic():
         self.is_saved = False
         self.dbapi = db_api.db_interface()
         self.auto_cfm_offset = 0
+        self.is_afterface = False
 
         
     def post_logic(self, text):
@@ -170,7 +170,6 @@ class main_window_logic():
         self.total_words = self.dataset.shape[0]
         self.is_mistakes_list = 'mistakes' in self.filename.lower()
         self.revision_summary = None
-        self.TIMER_KILLED_FLAG = False
         self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
         self.auto_cfm_offset = 0
         self.change_revmode(self.is_revision)
@@ -235,12 +234,12 @@ class main_window_logic():
         log.error(traceback)
 
         if exc_value:  # is an error
-            text_to_post = str(exc_value) + '. See log file for more details.'
+            err_msg = str(exc_value) + '. See log file for more details.'
         else:
-            text_to_post = traceback
+            err_msg = traceback
 
         if self.side_window_id != 'fcc':
             self.get_fcc_sidewindow()
             
-        text_to_post+='\n'+self.CONSOLE_PROMPT
-        self.fcc_inst.post_fcc(text_to_post)
+        err_msg+='\n'+self.CONSOLE_PROMPT
+        self.fcc_inst.post_fcc(err_msg)

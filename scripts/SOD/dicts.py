@@ -12,6 +12,12 @@ from SOD.file_handler import fhs, FileHandler
 
 log = logging.getLogger('dicts')
 
+ReqExcMsg = {
+    403: '⨷ Access Forbidden!',
+    404: '⨷ Page not Found!',
+    400: '⨷ Bad Request!',
+    500: '⨷ Internal Server Error!'
+}
 
 dict_services = dict()
 def get_unique_shortname(name:str):
@@ -35,6 +41,8 @@ class TemplateDict():
     def __init__(self):
         self.config = Config()
         self.timeout = int(self.config['SOD']['request_timeout'])
+        self.make_headers()
+        self.req_status = 200
 
     @abstractmethod
     def get(self, word:str) -> tuple[list[str], list[str], list[str]]:
@@ -44,6 +52,16 @@ class TemplateDict():
     def set_languages(self, src:str, tgt:str):
         self.source_lng = src
         self.target_lng = tgt
+
+    def make_headers(self):
+        self.headers = dict()
+        if ua:=self.config.get('user_agent'):
+            self.headers['User-Agent'] = ua
+
+    def check_status_code(self, resp:requests.Response):
+        self.req_status = resp.status_code
+        if self.req_status != 200:
+            raise requests.exceptions.RequestException
 
 
 
@@ -73,6 +91,7 @@ class DictPons(TemplateDict):
         self.word = word
         warnings = list()
         content = self.get_page_content()
+        self.check_status_code(content)
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
         warnings = self.check_for_warning(bs)
         translations = self.fetch_data(bs, 'target', self.pons_mapping[self.target_lng].capitalize())
@@ -136,6 +155,7 @@ class DictMerriam(TemplateDict):
         self.word = word
         warnings = list()
         content = self.get_page_content()
+        self.check_status_code(content)
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
         translations = self.fetch_data(bs, 'dtText')
         [warnings.append(msg) for msg in self.check_for_warning(bs)]
@@ -186,6 +206,7 @@ class DictBabla(TemplateDict):
         warnings = list()
         re_patterns = OrderedDict()
         content = self.get_page_content()
+        self.check_status_code(content)
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
         warnings = self.check_for_warning(bs)
         originals = self.fetch_data_source(bs) if not warnings else list()
@@ -201,8 +222,7 @@ class DictBabla(TemplateDict):
         url = self.dict_url.replace('|PHRASE|', self.word)
         url = url.replace('|ORIGINAL|', self.babla_mapping[self.source_lng])
         url = url.replace('|TRANSLATION|', self.babla_mapping[self.target_lng])
-        agent = {"User-Agent":"Mozilla/5.0"}
-        html = requests.get(url, headers=agent, timeout=self.timeout)
+        html = requests.get(url, headers=self.headers, timeout=self.timeout)
         return html
 
 
@@ -254,6 +274,7 @@ class DictDiki(TemplateDict):
         self.word = word
         warnings = list()
         content = self.get_page_content()
+        self.check_status_code(content)
         bs = bs4.BeautifulSoup(content.content, 'html5lib')
         warnings = self.check_for_warning(bs)
         originals = self.fetch_data_source(bs) if not warnings else list()
@@ -268,8 +289,7 @@ class DictDiki(TemplateDict):
     def get_page_content(self):
         url = self.dict_url.replace('|PHRASE|', self.word)
         url = url.replace('|TRANSLATION|', self.diki_mapping.get(self.target_lng, self.diki_mapping['en']))
-        agent = {"User-Agent":"Mozilla/5.0"}
-        html = requests.get(url, headers=agent, timeout=self.timeout)
+        html = requests.get(url, headers=self.headers, timeout=self.timeout)
         return html
 
 
@@ -368,6 +388,8 @@ class DictLocal(TemplateDict):
                 raise KeyError
         except KeyError:
             transl, orig, err =  [], [], ['Nothing Found!']
+        except re.error as e:
+            transl, orig, err = [], [], [f"⚠ Regex Error: {str(e)}"]
         return transl, orig, err
 
     
@@ -430,7 +452,13 @@ class Dict_Services:
             trans, orig, warn = [], [], ['🌐 No Internet Connection']
         except requests.exceptions.Timeout:
             trans, orig, warn = [], [], ['⏲ Request Timed Out']
+        except requests.exceptions.RequestException:
+            rs = self.dicts[self.dict_service]['service'].req_status
+            trans, orig, warn = [], [], [ReqExcMsg.get(rs, f'⨷ Unknown Error: {rs}!')]
         except AttributeError as e:
             trans, orig, warn = [], [], ['⎙ Scraping Error']
+            log.error(e, exc_info=True)
+        except Exception as e:
+            trans, orig, warn = [], [], ['⨷ Unknown Error']
             log.error(e, exc_info=True)
         return trans[:self.WORDS_LIMIT], orig[:self.WORDS_LIMIT], warn

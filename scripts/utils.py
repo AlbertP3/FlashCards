@@ -42,30 +42,32 @@ class Config(UserDict):
     def __init__(self):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
         self.iterable_fields:set= {'languages', 'optional'}
+        self.iter_sep = ','
         self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
-        self.sectors = ('KEYBOARD_SHORTCUTS', 'GEOMETRY', 'THEME', 'SOD')
         self.__refresh()
     
     def __refresh(self):
         self.parser.read(self.PATH_TO_DICT)
-        self.data = dict(self.parser.items('PARAMETERS'))
-        for s in self.sectors:
+        self.default_section = self.parser.sections()[0]
+        self.sections = self.parser.sections()[1:]
+        self.data = dict(self.parser.items(self.default_section))
+        for s in self.sections:
             self.data[s] = dict(self.parser.items(s))
         self.parse_items()
 
     def save(self):
         for field in self.iterable_fields:
-            self.data[field] = '|'.join(self.data[field])
+            self.data[field] = self.iter_sep.join(self.data[field])
         for k, v in self.data.items():
-            if k in self.sectors: [self.parser.set(k, k_, v_) for k_, v_ in v.items()]
-            else: self.parser.set('PARAMETERS', k, v)
+            if k in self.sections: [self.parser.set(k, k_, v_) for k_, v_ in v.items()]
+            else: self.parser.set(self.default_section, k, v)
         with open(self.PATH_TO_DICT, 'w') as configfile:
             self.parser.write(configfile)
 
     def parse_items(self):
         for field in self.iterable_fields:
             if not isinstance(self.data[field], list):
-                self.data[field] = self.data[field].split('|')
+                self.data[field] = self.data[field].split(self.iter_sep)
         for window, geometry in self.data['GEOMETRY'].items():
             if not isinstance(geometry, tuple):
                 self.data['GEOMETRY'][window] = tuple(eval(geometry))
@@ -182,33 +184,22 @@ def get_files_in_dir(path, include_extension = True, exclude_open=True):
 
 
 def format_timedelta(tmd:timedelta): 
-    if ',' in str(tmd): # timedelta is more than 1 day
-        if tmd.days < 31 :
-            time_value = str(tmd.days)
-            interval = 'day'
-        elif tmd.days < 365:
-            time_value = str(round(tmd.days/30.437, 1))
-            interval = 'month'
-        else:
-            time_value = str(round(tmd.days/365.25, 1))
-            interval = 'year'
+    if tmd.days > 365:
+        interval, time_value = 'year',  round(tmd.days/365.25, 1)
+    elif tmd.days > 31:
+        interval, time_value = 'month', round(tmd.days/30.437, 1)
+    elif tmd.days > 1 :
+        interval, time_value = 'day', round(tmd.days, 1)
+    elif tmd.total_seconds() > 3600:
+        interval, time_value = 'hour', round(tmd.total_seconds()/3600, 0)
+    elif tmd.total_seconds() > 60:
+        interval, time_value = 'minute', round(tmd.total_seconds()/60, 0)
     else:
-        tmd = str(tmd).split(':')
-        if tmd[0] != '0':
-            interval, _id = 'hour', 0
-        elif tmd[1] != '00':
-            interval, _id = 'minute', 1
-        else:
-            interval, _id = 'second', 2
-        time_value =  str(tmd[_id])
+        interval, time_value = 'second', round(tmd.total_seconds(), 0)
 
-    if time_value.startswith('0'): 
-        time_value = time_value[1:]
-
-    try: t = time_value[1] in '.:'
-    except IndexError: t = True
-    suffix = '' if time_value.startswith('1') and t else 's'       
-    return f'{time_value} {interval}{suffix}'
+    suffix = '' if int(time_value) == 1 else 's'
+    prec = 0 if int(time_value) == time_value else '1'    
+    return f'{time_value:.{prec}f} {interval}{suffix}'
 
 
 def format_seconds(total_seconds):

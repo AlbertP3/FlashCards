@@ -2,6 +2,7 @@ from collections import OrderedDict
 from itertools import islice
 import re
 import os
+from functools import lru_cache
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
 from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print
@@ -54,6 +55,7 @@ class CLI():
         self.selection_queue = list()
         self.status_message = str()
         self.sep_manual = self.config['SOD']['manual_mode_sep']
+        self.re_ewc = re.compile(r"[\u04FF-\uFFFF]")
 
 
     def __init_set_languages(self):
@@ -115,10 +117,10 @@ class CLI():
             self.cls()
         elif parsed_phrase[0] == 'dict':
             self.set_dict(parsed_phrase[1])
-        elif parsed_phrase[0] == self.config['SOD']['manual_mode_seq']:
-            self.insert_manual(parsed_phrase)
         elif parsed_phrase.count(self.config['SOD']['manual_mode_sep']) == 2:
             self.insert_manual_oneline(parsed_phrase)
+        elif parsed_phrase[0] == self.config['SOD']['manual_mode_seq']:
+            self.insert_manual(parsed_phrase)
         elif parsed_phrase[0] == 'Q':
             self.setup_queue()
         elif parsed_phrase[0] == 'help':
@@ -385,7 +387,7 @@ class CLI():
         for phrase, info in islice(self.queue_dict.items(), slice_[0], slice_[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
-            transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
+            transl = transl[:c_lim-self.exlen(transl)]+'…' if self.strlen(transl)>c_lim else transl
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
@@ -417,41 +419,80 @@ class CLI():
     
 
     def notify_on_save(self, phrase, res_edit, is_duplicate):
-        lim = self.get_char_limit()
         icon = '🖉' if is_duplicate else '🖫'
         msg = f'{icon} {phrase}: {res_edit}'
-        self.cls(msg[:lim]+'…' if len(msg)>lim else msg)
+        self.cls(msg)
 
 
-    def print_translations_table(self, trans, origs, mode='flex'):
-        lim = self.get_char_limit()
-        if ''.join(origs)!='': lim = int(lim/2) - 3; sep=' | '
-        else: lim = lim-1; sep=''
-        func = {'flex':self.__ptt_flex, 'fix':self.__ptt_fix}[mode]
-        output = func(trans, origs, lim, sep) 
+    def print_translations_table(self, trans, origs):
+        if ''.join(origs)!='': 
+            limfn = lambda x: (x-1) // 2
+            sep='|'
+        else: 
+            limfn = lambda x: x
+            sep=''
+        if self.config['SOD']['table_ext_mode']=='flex':
+            func = self.__ptt_flex
+        else:
+            func = self.__ptt_fix
+        output = func(trans, origs, limfn, sep) 
         self.send_output(output[:-1])
 
-    def __ptt_flex(self, trans, origs, lim, sep) -> str:
+
+    def __ptt_flex(self, trans, origs, limfn, sep) -> str:
+        output = list()
+        rlim = limfn(self.get_char_limit())
+
+        for i, (t, o) in enumerate(zip(trans, origs)):
+            i = f"{i+1}."
+            t = self.make_cell(t, rlim, len(i)+1)
+            o = self.make_cell(o, rlim, len(sep)+1)
+            output.append(f"{i} {t} {sep} {o}")
+        return '\n'.join(output)
+    
+    def make_cell(self, text:str, rlim:int, ioff:int, suffix:str='… ') -> str:
+            lsw = False
+            if self.strlen(text) + ioff > rlim:
+                free = rlim - ioff - len(suffix)
+                c, ewcs = '', self.re_ewc.findall(text)
+                for t in text:
+                    free -= 2 if t in ewcs else 1
+                    if free >= 0:
+                        c += t
+                    else:
+                        lsw = t in ewcs
+                        break
+                text = c + suffix
+            plim = rlim - ioff - self.exlen(text)
+            return text.ljust(plim+lsw, ' ')
+
+    def __ptt_fix(self, trans, origs, limfn, sep) -> str:
         output = str()
-        for i in range(len(trans)):
-            t = trans[i][:lim-1] + '…' if len(trans[i]) > lim else trans[i].ljust(lim, ' ')
-            o = origs[i][:lim-1] + '…' if len(origs[i]) > lim else origs[i].ljust(lim, ' ')
+        wlim = limfn(self.get_char_limit()) - len(sep)
+        for i, (t, o) in enumerate(zip(trans, origs)):
+            ioff = len(str(i))
+            t = t[:wlim-self.exlen(t)-ioff-1] + ('…' if self.strlen(t) > wlim else '')
+            o = o[:wlim-self.exlen(o)-ioff-1] + ('…' if self.strlen(o) > wlim else '')
             output+=f'{i+1}. {t}{sep}{o}' + '\n'
         return output
+
+
+    def get_char_limit(self) -> int:
+        return self.output.mw.charslim()
+
+
+    def strlen(self, text:str) -> int:
+        '''Get <text> length while accounting for non-standard width chars'''
+        return len(text) + self.exlen(text)
+
     
-    def __ptt_fix(self, trans, origs, lim, sep) -> str:
-        output = str()
-        for i in range(len(trans)):
-            t = trans[i][:lim-1] + ('…' if len(trans[i]) > lim else '')
-            o = origs[i][:lim-1] + ('…' if len(origs[i]) > lim else '')
-            output+=f'{i+1}. {t:{lim}}{sep}{o:{lim}}' + '\n'
-        return output
-
-    def get_char_limit(self):
-        return int(1.184 * self.output.console.width() / self.output.mw.CONSOLE_FONT_SIZE)
+    @lru_cache(maxsize=1024)
+    def exlen(self, text:str) -> int:
+        '''Returns printable extra width'''
+        return len(self.re_ewc.findall(text))
 
 
-    def get_lines_limit(self):
+    def get_lines_limit(self) -> int:
         return int(0.589 * self.output.console.height() / self.output.mw.CONSOLE_FONT_SIZE)
 
 
@@ -531,13 +572,6 @@ class CLI():
             self.res_edit.append(c[e_index:])
 
 
-    def safe_get(self, iterable, i, default=None):
-        try:
-            return iterable[i]
-        except:
-            return default
-
-
     def res_edit_set_prompt(self, r):
         if r[0] == 'm':
             new_prompt = 'Modify: ' 
@@ -575,8 +609,12 @@ class CLI():
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | "
 
         if msg:
-            remaining_len = self.get_char_limit() - len(status)
-            status += msg[:remaining_len-1]+'…' if len(msg)>remaining_len else msg
+            remaining_len = self.get_char_limit() - self.strlen(status)
+            if self.strlen(msg) > remaining_len:
+                msg_lim = remaining_len - self.exlen(msg)
+                status += msg[:msg_lim-2] + '…'  
+            else:
+                status += msg
         self.send_output(status)
 
 

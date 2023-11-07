@@ -8,11 +8,11 @@ class sod_spawn:
     def __init__(self, stream_out):
         self.config = Config()
         self.sout = stream_out
-        self.adapt()
+        self.sout.editable_output = ''
         self.cli = CLI(output=self.sout)
+        self.adapt()
         self.cli.cls()
         self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
-        self.sout.editable_output = ''
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
