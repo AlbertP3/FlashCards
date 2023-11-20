@@ -40,18 +40,20 @@ class fcc_gui():
 
 
     @cache
-    def charslim(self) -> int:
+    def charslim(self, letter='W') -> int:
         '''Returns amount of standard glyphs that fit in one line'''
-        return int(self.console.width() / self.fmetrics.widthChar('a'))
+        return int(self.console.width() / self.fmetrics.widthChar(letter))
 
     @property
     def curpos(self) -> int:
         return self.console.textCursor().position()
     
     @property
-    def promptend(self):
+    def promptend(self) -> int:
         return self.rt_re.sub('  ', self.console.toPlainText()).rfind(self.CONSOLE_PROMPT)+len(self.CONSOLE_PROMPT)
 
+    def get_input(self) -> str:
+        return self.console.toPlainText()[self.promptend:]
 
     def get_fcc_sidewindow(self):
         self.arrange_fcc_window()
@@ -186,9 +188,7 @@ class efc_gui(efc):
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.font = self.config['THEME']['font']
-        self.font_button_size = int(self.config['THEME']['font_button_size'])
-        self.button_font = QtGui.QFont(self.font, self.font_button_size)
+        self.button_font = QtGui.QFont(self.config['THEME']['font'], int(self.config['THEME']['font_button_size']))
         self.textbox_width = 275
         self.textbox_height = 200
         self.buttons_height = 45
@@ -283,9 +283,7 @@ class load_gui(load):
         # Style
         self.textbox_stylesheet = (self.config['THEME']['textbox_style_sheet'])
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.font = self.config['THEME']['font']
-        self.font_button_size = int(self.config['THEME']['font_button_size'])
-        self.button_font = QtGui.QFont(self.font, self.font_button_size)
+        self.button_font = QtGui.QFont(self.config['THEME']['font'], int(self.config['THEME']['font_button_size']))
 
         # Elements
         self.load_layout = widget.QGridLayout()
@@ -369,7 +367,6 @@ class mistakes_gui():
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.font = QtGui.QFont('Consolas', 12)
 
         # Elements
         self.mistakes_layout = widget.QGridLayout()
@@ -377,19 +374,18 @@ class mistakes_gui():
         
         # Fill
         if self.mistakes_list:
-            geolim = self.frameGeometry().width()/4  if 'side_by_side' in self.config['optional'] else self.frameGeometry().width()/1.8
-            lim = int(1.834 * geolim / self.CONSOLE_FONT_SIZE)
             out = list()
+            lim = int((self.config['GEOMETRY']['mistakes'][2] / self.fmetrics.widthChar('W')) / 2 - 3)
             for m in self.mistakes_list:
-                m1 = m[self.default_side][:lim-1] + '…' if len(m[self.default_side]) > lim else m[self.default_side]
-                m2 = m[1-self.default_side][:lim] + '…' if len(m[1-self.default_side]) > lim else m[1-self.default_side]
-                out.append([m1, m2])
-            self.mistakes_qtext.setText(get_pretty_print(out, separator=' ⇾ ', alingment=['<', '<']))
+                m1 = caliper.make_cell(m[self.default_side], lim)
+                m2 = caliper.make_cell(m[1-self.default_side], lim)
+                out.append(f"{m1} ⇾ {m2}")
+            self.mistakes_qtext.setText('\n'.join(out))
 
 
     def create_mistakes_list(self):
         self.mistakes_qtext = widget.QTextEdit(self)
-        self.mistakes_qtext.setFont(self.font)
+        self.mistakes_qtext.setFont(self.CONSOLE_FONT)
         self.mistakes_qtext.setReadOnly(True)
         self.mistakes_qtext.setStyleSheet(self.textbox_stylesheet)
         return self.mistakes_qtext
@@ -638,9 +634,7 @@ class config_gui():
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.font = self.config['THEME']['font']
-        self.font_button_size = int(self.config['THEME']['font_button_size'])
-        self.button_font = QtGui.QFont(self.font, self.font_button_size)
+        self.button_font = QtGui.QFont(self.config['THEME']['font'], int(self.config['THEME']['font_button_size']))
 
         # Elements
         self.config_layout = widget.QGridLayout()

@@ -98,3 +98,37 @@ class CLI:
                 msg = 'Aborted - invalid filetype'
         return msg
 
+    def add_card(self, parsed_cmd:list):
+        if self.state is None:
+            self.new_card = [None, None]
+            p = 'Phrase: '
+            self.set_output_prompt(p)
+            self.send_output(p)
+            self.state = 'add_phrase'
+        elif self.state == 'add_phrase':
+            self.new_card[0] = self.sout.mw.get_input()
+            if not self.new_card[0]:
+                self.state = 'add_exit'
+                return 'Aborted'
+            p = 'Transl: '
+            self.set_output_prompt(p)
+            self.send_output(p)
+            self.state = 'add_transl'
+        elif self.state == 'add_transl':
+            self.new_card[1] = self.sout.mw.get_input()
+            self.state = 'add_exit'
+            msg = self.apply_add_card()
+            return msg
+
+    def apply_add_card(self):
+        if '' in self.new_card:
+            return 'Aborted'
+        if self.config['card_default_side'] == 1:
+            self.new_card.reverse()
+        self.sout.mw.dataset = pd.concat(
+            [self.sout.mw.dataset, pd.DataFrame([self.new_card], columns=self.sout.mw.dataset.columns)],
+            ignore_index=True, sort=False
+        )
+        self.sout.mw.total_words = self.sout.mw.dataset.shape[0]
+        self.sout.mw.update_words_button()
+        return 'Added a new card'

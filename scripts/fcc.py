@@ -42,7 +42,8 @@ class fcc():
                     'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
                     'emo':'EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs',
                     'rgd':'Reset Geometry Defaults',
-                    'err':'Raises an Exception'
+                    'err':'Raises an Exception',
+                    'add':'Add Card - appends a card to the current dataset. Does not modify the source file'
                     }
 
 
@@ -119,6 +120,12 @@ class fcc():
         '''Reverse Current Card'''
         cmg = cmg_spawn(stream_out=self)
         cmg.reverse_current_card(parsed_cmd)
+
+    
+    def add(self, parsed_cmd):
+        '''Add Card'''
+        cmg = cmg_spawn(stream_out=self)
+        cmg.add_card(parsed_cmd)
 
 
     def mcr(self, parsed_cmd):

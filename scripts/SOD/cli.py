@@ -2,10 +2,9 @@ from collections import OrderedDict
 from itertools import islice
 import re
 import os
-from functools import lru_cache
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
-from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print
+from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print, caliper
 
 
 
@@ -55,7 +54,6 @@ class CLI():
         self.selection_queue = list()
         self.status_message = str()
         self.sep_manual = self.config['SOD']['manual_mode_sep']
-        self.re_ewc = re.compile(r"[\u04FF-\uFFFF]")
 
 
     def __init_set_languages(self):
@@ -387,7 +385,7 @@ class CLI():
         for phrase, info in islice(self.queue_dict.items(), slice_[0], slice_[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
-            transl = transl[:c_lim-self.exlen(transl)]+'…' if self.strlen(transl)>c_lim else transl
+            transl = transl[:c_lim-caliper.exlen(transl)]+'…' if caliper.strlen(transl)>c_lim else transl
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
@@ -431,10 +429,7 @@ class CLI():
         else: 
             limfn = lambda x: x
             sep=''
-        if self.config['SOD']['table_ext_mode']=='flex':
-            func = self.__ptt_flex
-        else:
-            func = self.__ptt_fix
+        func = self.__ptt_flex
         output = func(trans, origs, limfn, sep) 
         self.send_output(output[:-1])
 
@@ -445,51 +440,14 @@ class CLI():
 
         for i, (t, o) in enumerate(zip(trans, origs)):
             i = f"{i+1}."
-            t = self.make_cell(t, rlim, len(i)+1)
-            o = self.make_cell(o, rlim, len(sep)+1)
+            t = caliper.make_cell(t, rlim, len(i)+1)
+            o = caliper.make_cell(o, rlim, len(sep)+1)
             output.append(f"{i} {t} {sep} {o}")
         return '\n'.join(output)
     
-    def make_cell(self, text:str, rlim:int, ioff:int, suffix:str='… ') -> str:
-            lsw = False
-            if self.strlen(text) + ioff > rlim:
-                free = rlim - ioff - len(suffix)
-                c, ewcs = '', self.re_ewc.findall(text)
-                for t in text:
-                    free -= 2 if t in ewcs else 1
-                    if free >= 0:
-                        c += t
-                    else:
-                        lsw = t in ewcs
-                        break
-                text = c + suffix
-            plim = rlim - ioff - self.exlen(text)
-            return text.ljust(plim+lsw, ' ')
-
-    def __ptt_fix(self, trans, origs, limfn, sep) -> str:
-        output = str()
-        wlim = limfn(self.get_char_limit()) - len(sep)
-        for i, (t, o) in enumerate(zip(trans, origs)):
-            ioff = len(str(i))
-            t = t[:wlim-self.exlen(t)-ioff-1] + ('…' if self.strlen(t) > wlim else '')
-            o = o[:wlim-self.exlen(o)-ioff-1] + ('…' if self.strlen(o) > wlim else '')
-            output+=f'{i+1}. {t}{sep}{o}' + '\n'
-        return output
-
 
     def get_char_limit(self) -> int:
         return self.output.mw.charslim()
-
-
-    def strlen(self, text:str) -> int:
-        '''Get <text> length while accounting for non-standard width chars'''
-        return len(text) + self.exlen(text)
-
-    
-    @lru_cache(maxsize=1024)
-    def exlen(self, text:str) -> int:
-        '''Returns printable extra width'''
-        return len(self.re_ewc.findall(text))
 
 
     def get_lines_limit(self) -> int:
@@ -609,9 +567,9 @@ class CLI():
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | "
 
         if msg:
-            remaining_len = self.get_char_limit() - self.strlen(status)
-            if self.strlen(msg) > remaining_len:
-                msg_lim = remaining_len - self.exlen(msg)
+            remaining_len = self.get_char_limit() - caliper.strlen(status)
+            if caliper.strlen(msg) > remaining_len:
+                msg_lim = remaining_len - max(caliper.exlen(msg), 3)
                 status += msg[:msg_lim-2] + '…'  
             else:
                 status += msg

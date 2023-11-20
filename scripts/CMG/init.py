@@ -79,3 +79,16 @@ class cmg_spawn:
             self._exit('Aborted')
 
     
+    def add_card(self, parsed_cmd:list):
+        '''Add a card to the current dataset'''
+        if self.state is None:
+            if not self.sout.mw.TEMP_FILE_FLAG:
+                self.sout.post_fcc("Can only add cards to temporary files!")
+                return
+            self._adapt(self.add_card, state='add')
+        try:
+            msg = self.cli.add_card(parsed_cmd)
+            if self.cli.state == 'add_exit':
+                self._exit(msg)
+        except KeyboardInterrupt:
+            self._exit('Aborted')

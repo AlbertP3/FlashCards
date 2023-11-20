@@ -1,5 +1,6 @@
 import random
 from collections import UserDict
+from functools import lru_cache
 from datetime import datetime, timedelta
 import os
 import pandas as pd
@@ -457,3 +458,37 @@ def flatten_dict(d:dict, root:str='BASE', lim_chars:int=None) -> list:
     if lim_chars:
         res = [[str(x)[:lim_chars] for x in i] for i in res]
     return res
+
+
+@singleton
+class Caliper:
+    def __init__(self):
+        self.re_ewc = re.compile(r"[\u04FF-\uFFFF]", re.IGNORECASE)
+
+    @lru_cache(maxsize=1024)
+    def exlen(self, text:str) -> int:
+        '''Returns printable extra width'''
+        return len(self.re_ewc.findall(text))
+
+    def strlen(self, text:str) -> int:
+        '''Get <text> length while accounting for non-standard width chars'''
+        return len(text) + self.exlen(text)
+    
+    def make_cell(self, text:str, rlim:int, ioff:int=0, suffix:str='… ') -> str:
+            lsw = False
+            if self.strlen(text) + ioff > rlim:
+                free = rlim - ioff - len(suffix)
+                c, ewcs = '', self.re_ewc.findall(text)
+                for t in text:
+                    free -= 2 if t in ewcs else 1
+                    if free >= 0:
+                        c += t
+                    else:
+                        lsw = t in ewcs
+                        break
+                text = c + suffix
+            plim = rlim - ioff - self.exlen(text)
+            return text.ljust(plim+lsw, ' ')
+
+
+caliper = Caliper()

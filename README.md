@@ -112,6 +112,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
         <li><b>emo</b>: EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs</li>
         <li><b>rgd</b>: Reset Geometry Defaults</li>
         <li><b>err</b>: Raises an Exception</li>
+        <li><b>add</b>: Add Card - appends a card to the current dataset. Does not modify the source file</li>
     </ol>
 
 <h1>Optional Features</h1>
