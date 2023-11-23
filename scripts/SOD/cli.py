@@ -87,7 +87,6 @@ class CLI():
             if '.' not in filename: filename+='.'
             f = get_most_similar_file_startswith(self.config['lngs_path'], filename)
         fh = get_filehandler(os.path.join(self.config['lngs_path'], f))
-        self.d_api.available_lngs = (fh.native_lng, fh.foreign_lng)
         if hasattr(self, 'fh'):
             self.fh.close()
         return fh
@@ -395,7 +394,7 @@ class CLI():
     def save_to_db(self, phrase:str, translations:list):
         translations:str= '; '.join([t for t in translations if t])
         if len(translations) > 0 and self.phrase:
-            is_duplicate = self.fh.is_duplicate(phrase, self.is_from_native)
+            is_duplicate = self.fh.dtracker is not None
             
             if self.is_from_native:
                 phrase, translations = translations, phrase
@@ -517,11 +516,7 @@ class CLI():
         if self.state.MODIFY_RES_EDIT_MODE[0] == 'm':
             c = self.output.console.toPlainText()
             e_index = c.rfind('Modify: ') + 8
-            phrase = c[e_index:]
-            if self.fh.is_duplicate(self.phrase, is_from_native=False):
-                self.fh.data[phrase] = self.fh.data[self.phrase]
-                del self.fh.data[self.phrase]
-            self.phrase = phrase
+            self.phrase = c[e_index:]
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'a':
             self.res_edit.append(' '.join(parsed_cmd))
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'e':

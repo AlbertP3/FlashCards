@@ -5,8 +5,9 @@ import requests
 import logging
 
 import SOD.init as sod_init
+from SOD.file_handler import XLSXFileHandler
 from SOD.dicts import DictLocal
-from utils import Config
+from utils import Config, caliper
 from tests.tools import dict_mock
 from tests.data import EXAMPLE_PHRASES
 
@@ -20,7 +21,7 @@ class Test_CLI(TestCase):
     
     def setUp(self):
         self.config = Config()
-        self.config['SOD'].update({'last_file': 'example.xlsx', 'initial_language':'native'})
+        self.config['SOD'].update({'last_file': 'example.xlsx', 'initial_language':'native', 'dict_service': 'mock'})
         self.mock_cli_output()
         
     def mock_cli_output(self):
@@ -29,16 +30,21 @@ class Test_CLI(TestCase):
         output.console.toPlainText = lambda: '\n'.join(self.cli_output_registry)
         output.console.setText = self.set_text_mock
         self.ss = sod_init.sod_spawn(stream_out=output)
+        self.ss.cli.fh = XLSXFileHandler('./languages/example.xlsx')
+        self.ss.cli.fh.wb.save = mock.MagicMock()
         self.ss.cli.d_api.dicts = {'mock': {'service':dict_mock(), 'shortname':'M'}, 
                                     'imitation': {'service':dict_mock(), 'shortname':'i'},
                                     'local': {'service':DictLocal(), 'shortname':'l'}}
         self.ss.cli.d_api.dict_service = 'mock'
+        self.ss.cli.d_api.set_languages('np', 'fl')
         self.ss.cli.d_api.available_dicts.update({'mock','imitation'})
         self.ss.cli.d_api.available_dicts_short.update({'i', 'M'})
         self.ss.cli.output.cls = self.cls_mock
         self.ss.cli.send_output = self.send_output_mock
         self.ss.cli.get_char_limit = lambda: 99
         self.ss.cli.get_lines_limit = lambda: 99
+        self.manual_sep = self.config['SOD']['manual_mode_sep']
+        self.init_db_len = self.ss.cli.fh.ws.init_len
 
     def set_text_mock(self, text): 
         self.cli_output_registry = [i for i in text.split('\n')]
@@ -50,8 +56,16 @@ class Test_CLI(TestCase):
         '''Returns what is currently displayed in the console'''
         return '\n'.join(self.cli_output_registry)
 
-    def check_record(self, key, value):
-        self.assertEqual(self.ss.cli.fh.data[key][0], value)
+    def get_added_record(self, nth) -> tuple:
+        '''Returns n-th added record'''
+        return self.ss.cli.fh.data[self.ss.cli.fh.ws.init_len+nth]
+
+    def check_record(self, foreign, native, exp_row):
+        '''Verify that specific record meets expectations'''
+        self.assertEqual(
+            (foreign, native),
+            (self.ss.cli.fh.ws.cell(exp_row, 1).value, self.ss.cli.fh.ws.cell(exp_row, 2).value)
+        )
 
     def check_count_added(self, exp, msg=None):
         self.assertEqual(self.ss.cli.fh.ws.max_row, self.ss.cli.fh.ws.init_len+exp, msg=msg)
@@ -101,7 +115,7 @@ class Test_CLI(TestCase):
         self.run_cmd([''])
         self.assertEqual(self.ss.cli.phrase, 'default dict service for tests')
         self.run_cmd(['added_new'])
-        self.assertEqual(self.ss.cli.fh.data['default dict service for tests'][0], 'witaj świEcieedited_record; red; added_new')
+        self.assertEqual(self.get_added_record(1)[1], 'witaj świEcieedited_record; red; added_new')
 
 
     def test_basic_inquiry_3(self):
@@ -136,14 +150,14 @@ class Test_CLI(TestCase):
         self.assertTrue(self.cli_output_registry[-1], 'Phrase: Newphrase')
         self.run_cmd(['manual entry'])
         self.assertTrue(self.cli_output_registry[-1], 'manual entry')
-        self.assertEqual(self.ss.cli.fh.data['manual entry'][0], 'Newphrase')
+        self.assertEqual(self.get_added_record(1)[1], 'Newphrase')
 
 
     def test_basic_inquiry_manual_2(self):
         sep = self.config['SOD']['manual_mode_sep']
         self.run_cmd(['fl'])
         self.run_cmd([sep, 'Newphrase', sep, 'manual entry'])
-        self.assertEqual(self.ss.cli.fh.data['Newphrase'][0], 'manual entry')
+        self.assertEqual(self.get_added_record(1)[1], 'manual entry')
 
     
     def test_multiple_inquiries_manual_duplicate(self):
@@ -151,7 +165,7 @@ class Test_CLI(TestCase):
         sep = self.config['SOD']['manual_mode_sep']
         self.run_cmd([sep, 'Newphrase', sep, 'manual entry'])
         self.assertTrue(self.ss.cli.fh.is_duplicate('Newphrase', self.ss.cli.is_from_native))
-        self.assertEqual(self.ss.cli.fh.data['manual entry'][0], 'Newphrase')
+        self.assertEqual(self.get_added_record(1)[1], 'Newphrase')
         self.run_cmd([sep, 'Newphrase', sep, 'manual entry'])
         self.assertIn(self.ss.cli.msg.PHRASE_EXISTS_IN_DB, self.get_console())
         self.assertRegex(self.get_console(), r'1\. manual entry\s+\| Newphrase')
@@ -194,8 +208,8 @@ class Test_CLI(TestCase):
         self.run_cmd(['m', '2'])
         self.run_cmd(['modded'])
 
-        self.assertEqual(self.ss.cli.fh.data['hello world'][0],'witaj świEcie_edited; added_new')
-        self.assertEqual(self.ss.cli.fh.data['domyślny serwis'][0],'mooningmodded')
+        self.assertEqual(self.get_added_record(1)[1],'witaj świEcie_edited; added_new')
+        self.assertEqual(self.get_added_record(2)[1],'mooningmodded')
 
 
     def test_verify_selection_pattern(self):
@@ -368,16 +382,16 @@ class Test_CLI(TestCase):
         self.run_cmd(['']) 
         self.run_cmd(['']) 
         self.assertIn(' ➲ [3/4]', self.get_console())
-        self.assertEqual(self.ss.cli.fh.data['manual-phrase'][0], 'manual-entry')
+        self.assertEqual(self.get_added_record(1)[1], 'manual-entry')
              
 
-    def test_simple_save(self):
+    def test_save_simple(self):
         self.run_cmd(['moon'])
         self.run_cmd(['1', '3'])
         self.assertIn(f'🖫 witaj świEcie; czerwony: moon', self.get_console())
 
     
-    def test_simple_save_2(self):
+    def test_save_simple_2(self):
         self.run_cmd(['fl', 'moon'])
         self.run_cmd(['1', '3'])
         self.assertIn(f'🖫 moon: witaj świEcie; czerwony', self.get_console())
@@ -388,10 +402,35 @@ class Test_CLI(TestCase):
         self.run_cmd(['moon'])
         self.run_cmd(['r1', '3'])
         self.assertIn(f'🖫 hello world; czerwony: moon', self.get_console())
+    
 
+    def test_save_duplicate_with_modified_phrase(self):
+        '''Check if updating existing row works as expected'''
+        self.run_cmd(['fl', 'gimcrack'])
+        self.run_cmd(['1', '4', 'm'])
+        self.run_cmd(['_modded'])
+        self.assertIn(f'🖉 gimcrack_modded: cheap; shoddy; czerwony', self.get_console())
+        self.check_count_added(0)
+        self.check_record('gimcrack_modded', 'cheap; shoddy; czerwony', self.init_db_len)
+
+    def test_cache_cleared(self):
+        '''Verify that cache are cleared properly'''
+        # Edit existing
+        self.run_cmd(['cheap; shoddy'])
+        self.run_cmd(['1', '4'])
+        self.check_count_added(0)
+        # Add new
+        self.run_cmd(['fl', self.manual_sep, 'new-phrase', self.manual_sep, 'new-translation'])
+        self.check_count_added(1)
+        self.check_record('new-phrase', 'new-translation', self.init_db_len+1)
+        # Edit existing
+        self.run_cmd(['maudlin'])
+        self.run_cmd(['3'])
+        self.check_count_added(1)
+        self.check_record('maudlin', 'domyślny serwis', 3)
 
     def test_res_edit_parse(self):
-        self.run_cmd(['moon'])
+        self.run_cmd(['fl', 'moon'])
         self.run_cmd(['a', 'e3', 'm', 'a'])
 
         # append
@@ -488,9 +527,9 @@ class Test_CLI(TestCase):
 
         self.run_cmd(['r3'])
 
-        self.assertEqual(self.ss.cli.fh.data['Mercury'][0], 'witaj świEcie_edited; added_new')
-        self.assertEqual(self.ss.cli.fh.data['Venus_modified'][0], 'witaj świEcie')
-        self.assertEqual(self.ss.cli.fh.data['Earth'][0], 'red')
+        self.assertEqual(self.get_added_record(1), ('Mercury','witaj świEcie_edited; added_new'))
+        self.assertEqual(self.get_added_record(2), ('Venus_modified', 'witaj świEcie'))
+        self.assertEqual(self.get_added_record(3), ('Earth', 'red'))
 
  
     def test_duplicate_reversed_lng(self):
@@ -504,7 +543,7 @@ class Test_CLI(TestCase):
 
     def test_duplicate_mode_single_entry_1(self):
         '''Manage the duplicate process'''
-        self.run_cmd(['definitely a wrong explanation'])
+        self.run_cmd(['np', 'definitely a wrong explanation'])
         self.assertIn(self.ss.cli.msg.PHRASE_EXISTS_IN_DB, self.get_console())
         self.run_cmd(['e1', '2'])
         self.run_cmd(['_edited'])
@@ -597,7 +636,7 @@ class Test_CLI(TestCase):
         self.run_cmd(['e1', 'a'])
         self.run_cmd(['_edited'])
         self.run_cmd(['added_new'])
-        self.check_record('witaj świEcie_edited; added_new', 'Mercury')
+        self.check_record('witaj świEcie_edited; added_new', 'Mercury', self.init_db_len+1)
         self.check_count_added(1)
 
         # Query
@@ -608,7 +647,7 @@ class Test_CLI(TestCase):
         self.run_cmd(['3', 'm', 'r5'])
         self.run_cmd(['modified'])
         self.run_cmd([''])
-        self.check_record('czerwony; dolor sit amet', 'Venusmodified')
+        self.check_record('czerwony; dolor sit amet', 'Venusmodified', self.init_db_len+2)
         self.check_count_added(2)
         
         # Manual
@@ -616,7 +655,7 @@ class Test_CLI(TestCase):
         self.run_cmd(['fl'])
         self.assertEqual(self.ss.cli.d_api.source_lng, 'fl')
         self.run_cmd([sep, 'manual-entry', sep, 'manual-input'])
-        self.check_record('manual-entry', 'manual-input')
+        self.check_record('manual-entry', 'manual-input', self.init_db_len+3)
         self.check_count_added(3)
 
         # Query
@@ -632,5 +671,5 @@ class Test_CLI(TestCase):
         # Single
         self.run_cmd(['Earth'])
         self.run_cmd(['5'])
-        self.check_record('Earth', 'lorem ipsum')
+        self.check_record('Earth', 'lorem ipsum', self.init_db_len+6)
         self.check_count_added(6)

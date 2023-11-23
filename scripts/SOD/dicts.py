@@ -404,7 +404,6 @@ class Dict_Services:
         self.available_dicts = set(self.dicts.keys())
         self.available_dicts_short = set(v['shortname'] for v in self.dicts.values())
         self.dict_service:str = self.config['SOD']['dict_service']
-        self.available_lngs = set()
         self.WORDS_LIMIT = int(self.config['SOD']['results_limit'])
         self.word = None
         self.mute_warning = False
@@ -414,6 +413,11 @@ class Dict_Services:
 
     def __getitem__(self, key):
         return self.dicts[key]['service']
+    
+
+    @property
+    def available_lngs(self) -> tuple:
+        return (self.source_lng, self.target_lng)
 
 
     def set_dict_service(self, dict_service):
