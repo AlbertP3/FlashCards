@@ -38,7 +38,7 @@ class FileHandler(ABC):
         i = int(is_from_native)
         for k, v in self.data.items():
             if word == v[i]:
-                self.dtracker = (k, )
+                self.dtracker = (k, word)
                 return True
         else:
             return False
@@ -63,9 +63,26 @@ class FileHandler(ABC):
         return tran, orig
     
     def clear_cache(self):
+        self.dtracker = None
         self.get_translations.cache_clear()
         self.is_duplicate.cache_clear()
         self.get_translations_with_regex.cache_clear()
+    
+    def update_dtracker(self, new_row:int=None, new_phrase:str=None):
+        try:
+            self.dtracker = (new_row or self.dtracker[0], new_phrase or self.dtracker[1])
+        except TypeError:
+            return
+
+    def validate_dtracker(self, searched_phrase:str) -> bool:
+        '''
+            Returns True if dtracker is relevant to the current search, 
+            which also means it is a duplicate
+        '''
+        try:
+            return self.dtracker[1] == searched_phrase
+        except TypeError:
+            return False
 
 
 
@@ -83,7 +100,7 @@ class XLSXFileHandler(FileHandler):
         self.config['SOD']['last_file'] = self.filename
         self.native_lng = self.ws.cell(1, 2).value.lower()
         self.foreign_lng = self.ws.cell(1, 1).value.lower()
-        self.dtracker = None  # tuple: (row,)
+        self.dtracker = None  # tuple: (row, searched_phrase)
         fhs[self.path] = self
 
 
@@ -113,8 +130,8 @@ class XLSXFileHandler(FileHandler):
 
 
     def commit(self):
-        self.wb.save(self.path)
         self.dtracker = None
+        self.wb.save(self.path)
         self.clear_cache()
 
 
@@ -150,18 +167,19 @@ class CSVFileHandler(FileHandler):
         new_row = pd.DataFrame([[foreign_word, domestic_word]], columns=self.raw_data.columns)
         self.raw_data = pd.concat([self.raw_data, new_row], ignore_index=True)
         self.data[self.raw_data.index[-1]] = (foreign_word, domestic_word)
-        self.raw_data.to_csv(self.path, encoding='utf-8', index=False)
+        self.commit()
         return True, ''
 
 
     def edit_content(self, foreign_word, domestic_word) -> tuple[bool, str]:
         self.data[self.dtracker[0]] = (foreign_word, domestic_word)
         self.raw_data.iloc[self.dtracker[0]] = [foreign_word, domestic_word]
-        self.dtracker = None
-        self.raw_data.to_csv(self.path, encoding='utf-8', index=False)
-        self.clear_cache()
+        self.commit()
         return True, ''
 
+    def commit(self):
+        self.raw_data.to_csv(self.path, encoding='utf-8', index=False)
+        self.clear_cache()
 
     def close(self):
         del fhs[self.path]

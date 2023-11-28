@@ -49,7 +49,7 @@ class main_window_logic():
 
     def append_current_card_to_mistakes_list(self):
         cc = self.get_current_card()
-        self.mistakes_list.append([cc[self.default_side], cc[1-self.default_side]])
+        self.mistakes_list.append([cc.iloc[self.default_side], cc.iloc[1-self.default_side]])
         
 
     def goto_next_card(self):

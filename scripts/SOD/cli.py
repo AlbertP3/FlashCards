@@ -4,7 +4,7 @@ import re
 import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
-from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print, caliper
+from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print, default_suffix
 
 
 
@@ -325,7 +325,7 @@ class CLI():
             if (translations or originals) and not warnings:
                 self.queue_dict[phrase] = [translations, originals, warnings]
                 transl = "; ".join(translations[:2]).rstrip()
-                transl = transl[:c_lim]+'…' if len(transl)>c_lim else transl
+                transl = transl[:c_lim]+default_suffix if len(transl)>c_lim else transl
             else:
                 transl = ''
                 warnings = warnings if warnings else [self.msg.NO_TRANSLATIONS]
@@ -384,7 +384,7 @@ class CLI():
         for phrase, info in islice(self.queue_dict.items(), slice_[0], slice_[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
-            transl = transl[:c_lim-caliper.exlen(transl)]+'…' if caliper.strlen(transl)>c_lim else transl
+            transl = transl[:c_lim-self.output.mw.caliper.exlen(transl)]+default_suffix if self.output.mw.caliper.strlen(transl)>c_lim else transl
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
@@ -394,7 +394,7 @@ class CLI():
     def save_to_db(self, phrase:str, translations:list):
         translations:str= '; '.join([t for t in translations if t])
         if len(translations) > 0 and self.phrase:
-            is_duplicate = self.fh.dtracker is not None
+            is_duplicate = self.fh.validate_dtracker(phrase)
             
             if self.is_from_native:
                 phrase, translations = translations, phrase
@@ -439,8 +439,8 @@ class CLI():
 
         for i, (t, o) in enumerate(zip(trans, origs)):
             i = f"{i+1}."
-            t = caliper.make_cell(t, rlim, len(i)+1)
-            o = caliper.make_cell(o, rlim, len(sep)+1)
+            t = self.output.mw.caliper.make_cell(t, rlim - len(i)-2)
+            o = self.output.mw.caliper.make_cell(o, rlim - len(sep)-2)
             output.append(f"{i} {t} {sep} {o}")
         return '\n'.join(output)
     
@@ -517,6 +517,7 @@ class CLI():
             c = self.output.console.toPlainText()
             e_index = c.rfind('Modify: ') + 8
             self.phrase = c[e_index:]
+            self.fh.update_dtracker(new_phrase=self.phrase)
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'a':
             self.res_edit.append(' '.join(parsed_cmd))
         elif self.state.MODIFY_RES_EDIT_MODE[0] == 'e':
@@ -542,7 +543,7 @@ class CLI():
         self.output.editable_output = extra
 
 
-    def cls(self, msg=None, keep_content=False, keep_cmd=False):
+    def cls(self, msg='', keep_content=False, keep_cmd=False):
         if keep_content:
             content = self.output.console.toPlainText().split('\n')
             content = content[1:] if keep_cmd else content[1:-1]
@@ -554,21 +555,13 @@ class CLI():
             self.send_output(content)
 
 
-    def __post_status_bar(self, msg=None):
+    def __post_status_bar(self, msg=''):
         active_dict = self.d_api.dict_service
         source_lng = self.d_api.source_lng
         target_lng = self.d_api.target_lng
         len_db = self.fh.total_rows
-        status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | "
-
-        if msg:
-            remaining_len = self.get_char_limit() - caliper.strlen(status)
-            if caliper.strlen(msg) > remaining_len:
-                msg_lim = remaining_len - max(caliper.exlen(msg), 3)
-                status += msg[:msg_lim-2] + '…'  
-            else:
-                status += msg
-        self.send_output(status)
+        status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | {msg}"
+        self.send_output(self.output.mw.caliper.make_cell(status, self.get_char_limit()-2).rstrip())
 
 
     def show_help(self):

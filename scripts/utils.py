@@ -1,7 +1,8 @@
 import random
 from collections import UserDict
-from functools import lru_cache
+from functools import cache
 from datetime import datetime, timedelta
+import unicodedata
 import os
 import pandas as pd
 import re
@@ -460,35 +461,37 @@ def flatten_dict(d:dict, root:str='BASE', lim_chars:int=None) -> list:
     return res
 
 
-@singleton
+default_suffix:str = config['THEME']['default_suffix']
 class Caliper:
-    def __init__(self):
-        self.re_ewc = re.compile(r"[\u04FF-\uFFFF]", re.IGNORECASE)
-
-    @lru_cache(maxsize=1024)
-    def exlen(self, text:str) -> int:
-        '''Returns printable extra width'''
-        return len(self.re_ewc.findall(text))
+    def __init__(self, fmetrics):
+        self.fmetrics = fmetrics
+        self.WIDTHS = {
+            'F': 2, 'H': 1, 'W': 2,
+            'N': 2, 'A': 1, 'Na': 1
+        }
+    
+    @cache
+    def charlen(self, char:str) -> int:
+        return self.WIDTHS[unicodedata.east_asian_width(char)]
 
     def strlen(self, text:str) -> int:
-        '''Get <text> length while accounting for non-standard width chars'''
-        return len(text) + self.exlen(text)
-    
-    def make_cell(self, text:str, rlim:int, ioff:int=0, suffix:str='… ') -> str:
-            lsw = False
-            if self.strlen(text) + ioff > rlim:
-                free = rlim - ioff - len(suffix)
-                c, ewcs = '', self.re_ewc.findall(text)
-                for t in text:
-                    free -= 2 if t in ewcs else 1
-                    if free >= 0:
-                        c += t
-                    else:
-                        lsw = t in ewcs
-                        break
-                text = c + suffix
-            plim = rlim - ioff - self.exlen(text)
-            return text.ljust(plim+lsw, ' ')
+        return sum(self.charlen(c) for c in text)
 
+    def chrlim(self, width:int, char='W') -> int:
+        return int(width / self.fmetrics.widthChar(char))
 
-caliper = Caliper()
+    def make_cell(self, text:str, lim:int, suffix:str=default_suffix) -> str:
+        out = list()
+        for c in unicodedata.normalize('NFKC', text):
+            len_c = self.charlen(c)
+            if lim >= len_c:
+                out.append(c)
+                lim-=len_c
+            else:
+                suf_len = self.strlen(suffix)
+                while lim < suf_len:
+                    lim+=self.charlen(out.pop())
+                out += suffix
+                lim -= suf_len
+                break
+        return ''.join(out) + ' '*lim

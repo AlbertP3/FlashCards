@@ -7,8 +7,8 @@ import logging
 import SOD.init as sod_init
 from SOD.file_handler import XLSXFileHandler
 from SOD.dicts import DictLocal
-from utils import Config, caliper
-from tests.tools import dict_mock
+from utils import Config, Caliper
+from tests.tools import dict_mock, fmetrics
 from tests.data import EXAMPLE_PHRASES
 
 CWD = os.path.dirname(os.path.abspath(__file__))
@@ -29,6 +29,8 @@ class Test_CLI(TestCase):
         output = mock.MagicMock()
         output.console.toPlainText = lambda: '\n'.join(self.cli_output_registry)
         output.console.setText = self.set_text_mock
+        output.mw.caliper = Caliper(fmetrics(char_width=1))
+        output.mw.charslim = lambda: 99
         self.ss = sod_init.sod_spawn(stream_out=output)
         self.ss.cli.fh = XLSXFileHandler('./languages/example.xlsx')
         self.ss.cli.fh.wb.save = mock.MagicMock()
@@ -41,7 +43,6 @@ class Test_CLI(TestCase):
         self.ss.cli.d_api.available_dicts_short.update({'i', 'M'})
         self.ss.cli.output.cls = self.cls_mock
         self.ss.cli.send_output = self.send_output_mock
-        self.ss.cli.get_char_limit = lambda: 99
         self.ss.cli.get_lines_limit = lambda: 99
         self.manual_sep = self.config['SOD']['manual_mode_sep']
         self.init_db_len = self.ss.cli.fh.ws.init_len
@@ -419,15 +420,26 @@ class Test_CLI(TestCase):
         self.run_cmd(['cheap; shoddy'])
         self.run_cmd(['1', '4'])
         self.check_count_added(0)
+        # Search
+        self.run_cmd(['tarsier'])
+        self.assertFalse(self.ss.cli.fh.validate_dtracker('cheap; shoddy'))
+        self.run_cmd([''])
         # Add new
         self.run_cmd(['fl', self.manual_sep, 'new-phrase', self.manual_sep, 'new-translation'])
+        self.assertFalse(self.ss.cli.fh.validate_dtracker('tarsier'))
         self.check_count_added(1)
         self.check_record('new-phrase', 'new-translation', self.init_db_len+1)
+        self.assertFalse(self.ss.cli.fh.validate_dtracker('new-phrase'))
+        # Search
+        self.run_cmd(['quebec'])
+        self.assertFalse(self.ss.cli.fh.validate_dtracker('new_phrase'))
+        self.run_cmd([''])
         # Edit existing
         self.run_cmd(['maudlin'])
-        self.run_cmd(['3'])
+        self.run_cmd(['m', '3'])
+        self.run_cmd(['_mod'])
         self.check_count_added(1)
-        self.check_record('maudlin', 'domyślny serwis', 3)
+        self.check_record('maudlin_mod', 'domyślny serwis', 3)
 
     def test_res_edit_parse(self):
         self.run_cmd(['fl', 'moon'])
@@ -673,3 +685,15 @@ class Test_CLI(TestCase):
         self.run_cmd(['5'])
         self.check_record('Earth', 'lorem ipsum', self.init_db_len+6)
         self.check_count_added(6)
+
+    def test_make_cell(self):
+        '''Verify that cells have correct width''' 
+        scw = 1
+        caliper = Caliper(fmetrics(scw))
+        self.assertEqual(caliper.make_cell('text '*5, 10*scw, suffix='...'), 'text te...')
+        self.assertEqual(caliper.make_cell('text text', 10*scw), 'text text ')
+        self.assertEqual(caliper.make_cell('traktować kogoś z honorami', 25*scw, suffix='...'), 'traktować kogoś z ho...')
+        self.assertEqual(caliper.make_cell('ええと', 11*scw), 'ええと     ')
+        self.assertEqual(caliper.make_cell('ええとこのでんしやはどこに行きますか', 10*scw, suffix='...'), 'ええと... ')
+        self.assertEqual(caliper.make_cell('こわいジェットコースター', 36*scw), 'こわいジェットコースター            ')
+        self.assertEqual(caliper.make_cell('𨴐付', 36*scw), '𨴐付                                ')

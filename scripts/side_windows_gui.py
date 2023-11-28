@@ -23,9 +23,7 @@ class fcc_gui():
     def __init__(self):
         self.side_window_titles['fcc'] = 'Console'
         self.DEFAULT_PS1 = '$~> '
-        self.CONSOLE_FONT_SIZE = 12
-        self.CONSOLE_FONT = QtGui.QFont('Consolas', self.CONSOLE_FONT_SIZE)
-        self.fmetrics = QtGui.QFontMetricsF(self.CONSOLE_FONT)
+        self.init_font()
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
         self.CONSOLE_LOG = []
         self.CMDS_LOG = ['']
@@ -38,11 +36,15 @@ class fcc_gui():
         self.fcc_inst = fcc(self)
         self.create_console()
 
+    def init_font(self):
+        self.CONSOLE_FONT_SIZE = 12
+        self.CONSOLE_FONT = QtGui.QFont(self.config['THEME'].get('console_font', 'monospace'), self.CONSOLE_FONT_SIZE)
+        self.caliper = Caliper(QtGui.QFontMetricsF(self.CONSOLE_FONT))
 
     @cache
     def charslim(self, letter='W') -> int:
         '''Returns amount of standard glyphs that fit in one line'''
-        return int(self.console.width() / self.fmetrics.widthChar(letter))
+        return self.caliper.chrlim(self.console.width(), letter)
 
     @property
     def curpos(self) -> int:
@@ -360,28 +362,24 @@ class mistakes_gui():
         if self.is_revision:
             self.arrange_mistakes_window()
             self.open_side_window(self.mistakes_layout, 'mistakes')
+            self.show_mistakes()
         else:
             self.fcc_inst.post_fcc('Mistakes are unavailable for a Language.')
 
     def arrange_mistakes_window(self):
-        # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-
-        # Elements
         self.mistakes_layout = widget.QGridLayout()
         self.mistakes_layout.addWidget(self.create_mistakes_list(), 0, 0)
         
-        # Fill
-        if self.mistakes_list:
-            out = list()
-            lim = int((self.config['GEOMETRY']['mistakes'][2] / self.fmetrics.widthChar('W')) / 2 - 3)
-            for m in self.mistakes_list:
-                m1 = caliper.make_cell(m[self.default_side], lim)
-                m2 = caliper.make_cell(m[1-self.default_side], lim)
-                out.append(f"{m1} ⇾ {m2}")
-            self.mistakes_qtext.setText('\n'.join(out))
-
+    def show_mistakes(self):
+        out, sep = list(), ' ⇾ '
+        lim = int((self.caliper.chrlim(self.config['GEOMETRY']['mistakes'][2])-self.caliper.strlen(sep))/2-2)
+        for m in self.mistakes_list:
+            m1 = self.caliper.make_cell(m[self.default_side], lim)
+            m2 = self.caliper.make_cell(m[1-self.default_side], lim)
+            out.append(f"{m1}{sep}{m2}")
+        self.mistakes_qtext.setText('\n'.join(out))
 
     def create_mistakes_list(self):
         self.mistakes_qtext = widget.QTextEdit(self)

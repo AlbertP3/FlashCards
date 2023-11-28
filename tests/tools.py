@@ -1,5 +1,6 @@
 import requests
 import os, sys
+import unicodedata
 from urllib.request import url2pathname
 from SOD.dicts import TemplateDict
  
@@ -111,3 +112,14 @@ class workbook_mock:
 
     def close(self, *args, **kwargs):
         pass
+
+
+class fmetrics:
+    '''Fake Font Metrics'''
+    def __init__(self, char_width) -> None:
+        self.char_width = char_width
+    def widthChar(self, c):
+        if unicodedata.east_asian_width(c) in {'W', 'F'}:
+            return 2*self.char_width
+        else:
+            return self.char_width

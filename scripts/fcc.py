@@ -43,7 +43,8 @@ class fcc():
                     'emo':'EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs',
                     'rgd':'Reset Geometry Defaults',
                     'err':'Raises an Exception',
-                    'add':'Add Card - appends a card to the current dataset. Does not modify the source file'
+                    'add':'Add Card - appends a card to the current dataset. Does not modify the source file',
+                    'gcl':'Get Character Length - returns actual width for a given glyph',
                     }
 
 
@@ -518,3 +519,11 @@ class fcc():
     def err(self, parsed_cmd:list):
         '''Raise an Exception'''
         raise Exception(f"{' '.join(parsed_cmd[1:])}")
+
+
+    def gcl(self, parsed_cmd:list):
+        '''Get Character Length'''
+        if len(parsed_cmd) < 2:
+            parsed_cmd.append(' ')
+        l = self.mw.caliper.strlen(''.join(parsed_cmd[1:]))
+        self.post_fcc(str(l))

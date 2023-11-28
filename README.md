@@ -113,6 +113,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
         <li><b>rgd</b>: Reset Geometry Defaults</li>
         <li><b>err</b>: Raises an Exception</li>
         <li><b>add</b>: Add Card - appends a card to the current dataset. Does not modify the source file</li>
+        <li><b>gcl</b>: Get Character Length - returns actual width for a given glyph</li>
     </ol>
 
 <h1>Optional Features</h1>
