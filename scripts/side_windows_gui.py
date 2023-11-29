@@ -131,7 +131,8 @@ class fcc_gui():
         if cmd:
             if self.CMDS_LOG[-1] != cmd:
                 self.CMDS_LOG.append(cmd)
-            self.CONSOLE_LOG[-1]+=cmd
+            if not self.CONSOLE_LOG[-1].endswith(cmd):
+                self.CONSOLE_LOG[-1]+=cmd
         self.CMDS_CURSOR = 0
         
 
@@ -373,11 +374,15 @@ class mistakes_gui():
         self.mistakes_layout.addWidget(self.create_mistakes_list(), 0, 0)
         
     def show_mistakes(self):
-        out, sep = list(), ' ⇾ '
-        lim = int((self.caliper.chrlim(self.config['GEOMETRY']['mistakes'][2])-self.caliper.strlen(sep))/2-2)
+        out, sep = list(), ' | '
+        cell_args = {
+            'lim':int((self.caliper.chrlim(self.config['GEOMETRY']['mistakes'][2])-self.caliper.strlen(sep))/2-2), 
+            'suffix':self.config['THEME']['default_suffix'], 
+            'align':self.config['cell_alignment']
+        }
         for m in self.mistakes_list:
-            m1 = self.caliper.make_cell(m[self.default_side], lim)
-            m2 = self.caliper.make_cell(m[1-self.default_side], lim)
+            m1 = self.caliper.make_cell(m[self.default_side], **cell_args)
+            m2 = self.caliper.make_cell(m[1-self.default_side], **cell_args)
             out.append(f"{m1}{sep}{m2}")
         self.mistakes_qtext.setText('\n'.join(out))
 
@@ -771,7 +776,6 @@ class config_gui():
         self.config.update(modified_dict)
 
         # Manual updates
-        set_csv_sniffer()
         self.update_default_side()
         self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
         self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']

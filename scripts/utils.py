@@ -43,6 +43,7 @@ class Config(UserDict):
 
     def __init__(self):
         self.PATH_TO_DICT = './scripts/resources/config.ini'
+        self.default_off_values = {'off', 'no', 'none', ''}
         self.iterable_fields:set= {'languages', 'optional'}
         self.iter_sep = ','
         self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
@@ -73,6 +74,12 @@ class Config(UserDict):
         for window, geometry in self.data['GEOMETRY'].items():
             if not isinstance(geometry, tuple):
                 self.data['GEOMETRY'][window] = tuple(eval(geometry))
+    
+    def translate(self, key, val_on=None, val_off=None, off_values:set=None):
+        if self.data[key] in (off_values or self.default_off_values):
+            return val_off
+        else:
+            return val_on or self.data[key]
 
 config = Config()
 
@@ -283,15 +290,8 @@ def shuffle_dataset(dataset:pd.DataFrame, seed=None):
     return dataset.sample(frac=1, random_state=pd_random_seed).reset_index(drop=True)
 
 
-CSV_SNIFFER = None
-def set_csv_sniffer():
-    global CSV_SNIFFER
-    CSV_SNIFFER = None if config['csv_sniffer'] == 'off' else config['csv_sniffer']
-set_csv_sniffer()
-
-
 def read_csv(file_path):
-    delim = get_dialect(file_path) if CSV_SNIFFER else ','
+    delim = get_dialect(file_path) if config.translate('csv_sniffer') else ','
     dataset = pd.read_csv(file_path, encoding='utf-8',sep=delim)   
     return dataset
 
@@ -304,7 +304,7 @@ def get_dialect(dataset_path, investigate_rows=10):
             data.append(r)
             if len(data)>=investigate_rows:
                 break
-    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=CSV_SNIFFER).delimiter
+    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=config.translate('csv_sniffer')).delimiter
 
 
 def read_excel(file_path):
@@ -461,7 +461,6 @@ def flatten_dict(d:dict, root:str='BASE', lim_chars:int=None) -> list:
     return res
 
 
-default_suffix:str = config['THEME']['default_suffix']
 class Caliper:
     def __init__(self, fmetrics):
         self.fmetrics = fmetrics
@@ -480,18 +479,37 @@ class Caliper:
     def chrlim(self, width:int, char='W') -> int:
         return int(width / self.fmetrics.widthChar(char))
 
-    def make_cell(self, text:str, lim:int, suffix:str=default_suffix) -> str:
-        out = list()
-        for c in unicodedata.normalize('NFKC', text):
-            len_c = self.charlen(c)
-            if lim >= len_c:
-                out.append(c)
-                lim-=len_c
+    def make_cell(self, text:str, lim:int, suffix:str='… ', align:str='left', filler:str=' ') -> str:
+        if text.isascii():
+            out = list(text[:lim])
+            lim -= len(text[:lim])
+            should_add_suffix = lim == 0
+        else:
+            out = list()
+            for c in unicodedata.normalize('NFKC', text):
+                len_c = self.charlen(c)
+                if lim >= len_c:
+                    out.append(c)
+                    lim-=len_c
+                else:
+                    should_add_suffix = True
+                    break
             else:
-                suf_len = self.strlen(suffix)
-                while lim < suf_len:
-                    lim+=self.charlen(out.pop())
-                out += suffix
-                lim -= suf_len
-                break
-        return ''.join(out) + ' '*lim
+                should_add_suffix = False
+        
+        if should_add_suffix:
+            suf_len = self.strlen(suffix)
+            while lim < suf_len:
+                lim+=self.charlen(out.pop())
+            out += suffix
+            lim -= suf_len
+        
+        if align == 'center':
+            d, r = int(lim//2), lim%2
+            llim, rlim = d + r, d
+            rpad, lpad = filler, filler
+        else:
+            llim, rlim = lim, lim
+            rpad, lpad = filler*bool(align=='left'), filler*bool(align=='right')
+
+        return lpad*llim + ''.join(out) + rpad*rlim

@@ -4,7 +4,7 @@ import re
 import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
-from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print, default_suffix
+from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print
 
 
 
@@ -53,8 +53,10 @@ class CLI():
         self.__init_set_languages()
         self.selection_queue = list()
         self.status_message = str()
-        self.sep_manual = self.config['SOD']['manual_mode_sep']
 
+    @property
+    def sep_manual(self):
+        return self.config['SOD']['manual_mode_sep']
 
     def __init_set_languages(self):
         if self.config['SOD']['initial_language'] == 'auto':
@@ -325,7 +327,7 @@ class CLI():
             if (translations or originals) and not warnings:
                 self.queue_dict[phrase] = [translations, originals, warnings]
                 transl = "; ".join(translations[:2]).rstrip()
-                transl = transl[:c_lim]+default_suffix if len(transl)>c_lim else transl
+                transl = transl[:c_lim]+self.config['THEME']['default_suffix'] if len(transl)>c_lim else transl
             else:
                 transl = ''
                 warnings = warnings if warnings else [self.msg.NO_TRANSLATIONS]
@@ -384,7 +386,7 @@ class CLI():
         for phrase, info in islice(self.queue_dict.items(), slice_[0], slice_[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
-            transl = transl[:c_lim-self.output.mw.caliper.exlen(transl)]+default_suffix if self.output.mw.caliper.strlen(transl)>c_lim else transl
+            transl = transl[:c_lim-self.output.mw.caliper.exlen(transl)]+self.config['THEME']['default_suffix'] if self.output.mw.caliper.strlen(transl)>c_lim else transl
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
@@ -422,25 +424,29 @@ class CLI():
 
 
     def print_translations_table(self, trans, origs):
-        if ''.join(origs)!='': 
-            limfn = lambda x: (x-1) // 2
+        if ''.join(origs) != '':
             sep='|'
-        else: 
-            limfn = lambda x: x
-            sep=''
-        func = self.__ptt_flex
-        output = func(trans, origs, limfn, sep) 
+            clim = int((self.get_char_limit()-1) // 2)
+            if self.config['SOD']['table_ext_mode'] == 'fix':
+                output = self.__ptt(trans, origs, clim, clim, sep)
+            elif self.config['SOD']['table_ext_mode'] == 'flex':
+                llim = min(clim, max(self.output.mw.caliper.strlen(i) for i in trans)+4)
+                rlim = self.get_char_limit() - llim
+                output = self.__ptt(trans, origs, llim, rlim, sep)
+        else:
+            clim = self.get_char_limit()
+            output = self.__ptt(trans, origs, clim, clim, '')
         self.send_output(output[:-1])
 
 
-    def __ptt_flex(self, trans, origs, limfn, sep) -> str:
+    def __ptt(self, trans:list, origs:list, llim:int, rlim:int, sep:str) -> str:
         output = list()
-        rlim = limfn(self.get_char_limit())
-
+        suffix = self.config['THEME']['default_suffix']
+        align = self.config['SOD']['cell_alignment']
         for i, (t, o) in enumerate(zip(trans, origs)):
             i = f"{i+1}."
-            t = self.output.mw.caliper.make_cell(t, rlim - len(i)-2)
-            o = self.output.mw.caliper.make_cell(o, rlim - len(sep)-2)
+            t = self.output.mw.caliper.make_cell(t, llim - len(i)-2, suffix, align)
+            o = self.output.mw.caliper.make_cell(o, rlim - len(sep)-2, suffix, align)
             output.append(f"{i} {t} {sep} {o}")
         return '\n'.join(output)
     
@@ -561,7 +567,9 @@ class CLI():
         target_lng = self.d_api.target_lng
         len_db = self.fh.total_rows
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | {msg}"
-        self.send_output(self.output.mw.caliper.make_cell(status, self.get_char_limit()-2).rstrip())
+        self.send_output(self.output.mw.caliper.make_cell(
+            status, self.get_char_limit()-1, self.config['THEME']['default_suffix'], align='left').rstrip()
+        )
 
 
     def show_help(self):

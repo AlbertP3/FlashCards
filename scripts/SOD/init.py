@@ -34,7 +34,9 @@ class sod_spawn:
 
     def monkey_patch_execute_command(self, parsed_input:list, followup_prompt:bool=True):
         if parsed_input[0] == 'cls':
+            self.cli.reset_state()
             self.cli.cls()
+            self.cli.set_output_prompt(self.cli.prompt.PHRASE)
         else:
             self.run(parsed_input)
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT + self.sout.editable_output)

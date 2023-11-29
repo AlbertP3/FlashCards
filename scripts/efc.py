@@ -80,7 +80,7 @@ class efc():
                     pred = self.guess_when_due(rec.copy(), warm_start=efc[0][0]) if preds else 0
                 s_efc = [s, since_last_rev/24, efc[0][0], pred]
             else:
-                s_efc = [s, '∞', 0, 0]
+                s_efc = [s, 'inf', 0, 0]
             rev_table_data.append(s_efc)
             
         return rev_table_data
@@ -113,7 +113,7 @@ class efc():
         # sort revs by number of days ago since last revision
         efc_table_data.sort(key=lambda x: x[3])
         if lim: efc_table_data=efc_table_data[:lim]
-        efc_stats_list = [['REV NAME', 'ΔD', 'EFC', 'DUE']]
+        efc_stats_list = [['REV NAME', 'AGO', 'EFC', 'DUE']]
         for rev in efc_table_data:
             if abs(rev[3]) < 48:
                 pred = f"{format_seconds_to(rev[3]*3600, 'hour')}"

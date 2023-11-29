@@ -45,6 +45,7 @@ class fcc():
                     'err':'Raises an Exception',
                     'add':'Add Card - appends a card to the current dataset. Does not modify the source file',
                     'gcl':'Get Character Length - returns actual width for a given glyph',
+                    'pcd':'Print Current Dataset - pretty prints all cards in the current dataset'
                     }
 
 
@@ -527,3 +528,20 @@ class fcc():
             parsed_cmd.append(' ')
         l = self.mw.caliper.strlen(''.join(parsed_cmd[1:]))
         self.post_fcc(str(l))
+
+
+    def pcd(self, parsed_cmd:list):
+        '''Print Current Dataset'''
+        lim = min(256 if len(parsed_cmd)<2 else abs(int(parsed_cmd[1])), self.mw.dataset.shape[0])
+        out, sep = list(), ' | '
+        cell_args = {
+            'lim':int((self.mw.caliper.chrlim(self.config['GEOMETRY']['fcc'][2])-self.mw.caliper.strlen(sep))/2-2), 
+            'suffix':self.config['THEME']['default_suffix'], 
+            'align':self.config['cell_alignment']
+        }
+        rng = range(lim) if int(parsed_cmd[1]) >= 0 else range(self.mw.dataset.shape[0]-1, self.mw.dataset.shape[0]-lim, -1)
+        for i in rng:
+            c1 = self.mw.caliper.make_cell(self.mw.dataset.iloc[i, 0], **cell_args)
+            c2 = self.mw.caliper.make_cell(self.mw.dataset.iloc[i, 1], **cell_args)
+            out.append(f"{c1}{sep}{c2}")
+        self.post_fcc('\n'.join(out))

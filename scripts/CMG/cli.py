@@ -41,7 +41,7 @@ class CLI:
                 msg+=f' and updated the source file [{i+2}]' if s else '\n'+m
             elif path.endswith('.csv'):
                 file_handler.unshuffle_dataframe(self.sout.mw.dataset, seed=self.config['pd_random_seed']).to_csv(path, index=False)
-                msg+=f' and updated the source file [{i+2}]'
+                msg+=f' and updated the source file [{i+3}]'
             else:
                 msg = 'Aborted - invalid filetype'
         self.send_output(msg)
