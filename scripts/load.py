@@ -12,17 +12,19 @@ class load():
     
 
     def get_lng_files(self):
-        self.lng_files_list = get_files_in_dir(self.config['lngs_path'])
-        self.lng_files_list = filter_with_list(self.config['languages'], self.lng_files_list, case_sensitive=True)
-        self.lng_files_list.sort(reverse=False)  
+        self.lng_files_list = sorted(
+            [f for f in get_files_in_dir(self.config['lngs_path']) if any(l in f for l in self.config['languages'])],
+            reverse=False
+        ) 
         return self.lng_files_list
 
 
     def get_rev_files(self):
         self.dbapi.refresh()
-        self.rev_files_list = get_files_in_dir(self.config['revs_path'])
-        self.rev_files_list = filter_with_list(self.config['languages'], self.rev_files_list, case_sensitive=True)
-        self.rev_files_list.sort(key=self.dbapi.get_first_date_by_filename, reverse=True)  
+        self.rev_files_list = sorted(
+            [f for f in get_files_in_dir(self.config['revs_path']) if any(l in f for l in self.config['languages'])],
+            key=self.dbapi.get_first_date_by_filename, reverse=True
+        )
         return self.rev_files_list
 
 

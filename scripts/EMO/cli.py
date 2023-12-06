@@ -19,6 +19,7 @@ class CLI():
         self.STEP_MODEL_SELECTION = False
         self.STEP_APPROVE_CHANGES = False
         self.STEP_SAVE_SUCCESS = False
+        self.MIN_RECORDS = 50
 
 
     def send_output(self, text:str, include_newline=True):
@@ -74,12 +75,12 @@ class CLI():
 
         self.send_output('Filtering... ')
         self.dbapi.filter_for_efc_model()
-        if len(self.dbapi.db) > 100:
+        if len(self.dbapi.db) > self.MIN_RECORDS:
             self.send_output('OK', include_newline=False)
             self.send_output(f'{len(self.dbapi.db)} records submitted')
         else:
             self.send_output('FAIL', include_newline=False)
-            self.send_output(f'Not enough records in database: {len(self.dbapi.db)}/100. Exiting...')
+            self.send_output(f'Not enough records in database: {len(self.dbapi.db)}/{self.MIN_RECORDS}. Exiting...')
             return False
 
         self.prt_res(self.dbapi.add_efc_metrics, 'Creating metrics... ', fill_timespent=True)
@@ -157,5 +158,3 @@ class CLI():
         self.STEP_SAVE_SUCCESS = self.models_creator.save_model(self.selected_model, discretizer=self.discretizer)
         self.config.update({'efc_model': self.selected_model})
         self.send_output('CONFIG UPDATED WITH A NEW MODEL')
-
-

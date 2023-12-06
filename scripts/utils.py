@@ -10,9 +10,7 @@ import configparser
 import csv
 import inspect
 from time import perf_counter
-import inspect
 import logging
-from ntpath import basename
 
 UTILS_STATUS_DICT = dict()
 log = logging.getLogger(__name__)
@@ -98,10 +96,9 @@ def get_abs_path_from_caller(file_name, abs_path=None):
 
 
 def get_filename_from_path(path, include_extension=False):
-    if include_extension:
-        filename = basename(path)
-    else:
-        filename = (basename(path)).split('.')[0]
+    filename = os.path.basename(path)
+    if not include_extension:
+        filename = filename.split('.')[0]
     return filename 
 
 
@@ -149,7 +146,6 @@ def get_most_similar_file_startswith(path, lookup_file, if_nothing_found='load_a
         return files[0] 
 
 
-
 def remove_layout(layout):
     # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
      if layout is not None:
@@ -183,12 +179,12 @@ def get_children_widgets(layout):
 
 
 def get_files_in_dir(path, include_extension = True, exclude_open=True):
-    files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+    files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f not in {'desktop.ini'}]
     if not include_extension:
-        files_list = [f.split('.')[0] for f in files_list if f not in ['desktop.ini']]
+        files_list = [f.split('.')[0] for f in files_list]
     if exclude_open:
         # exclude locks for open files for OS: Linux, Windows
-        files_list[:] = [f for f in files_list if not f.startswith('.~') or f.startswith('~$')]
+        files_list[:] = [f for f in files_list if not any(f.startswith(tmp) for tmp in {'~$','.~'})]
     return files_list
 
 
@@ -428,20 +424,12 @@ def format_seconds_to(total_seconds:int, interval:str, include_remainder=True, n
     return res
 
 
-def filter_with_list(filter_, list_, case_sensitive=True):
-    res = list()
-    for i in list_:
-        for k in filter_:
-            if in_str(k, i, case_sensitive):
-                res.append(i)
-    return res
-
-
 def in_str(sub_string, string, case_sensitive=True):
     if case_sensitive:
         return sub_string in string
     else:
         return sub_string.casefold() in string.casefold()
+
 
 true_values = {'yes', '1', 'true', 'on', True}
 def boolinize(s:str):

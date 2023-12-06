@@ -55,7 +55,7 @@
 <li>LAS - Lasso Regression</li>
 <li>SVM - Support Vector Machine</li>
 <li>RFR - Random Forest Regression</li>
-<li>CST - custom model adjusted to fit the original EFC curve</li>
+<li>CST - custom model adjusted to fit the original EFC</li>
 </ol>
 
 <h1>Time Spent</h1>

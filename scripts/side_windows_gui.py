@@ -308,8 +308,8 @@ class load_gui(load):
 
     def fill_flashcard_files_list(self):
         # self.flashcard_files_qlist.clear()
-        [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_lng_files()]
-        [self.flashcard_files_qlist.addItem(str(file).split('.')[0]) for file in self.get_rev_files()]
+        [self.flashcard_files_qlist.addItem(str(f).split('.')[0]) for f in self.get_lng_files()]
+        [self.flashcard_files_qlist.addItem(str(f).split('.')[0]) for f in self.get_rev_files()]
         self.files_count = self.flashcard_files_qlist.count()
 
         

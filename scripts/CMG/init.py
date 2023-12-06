@@ -43,6 +43,7 @@ class cmg_spawn:
 
 
     def _remove_adapter(self):
+        self.cli.state = None
         self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
         self.sout.mw.setWindowTitle(self.prev_window_title)
         self.sout.post_fcc = self.orig_post_method

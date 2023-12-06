@@ -100,13 +100,6 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(get_most_similar_file_regex('./languages/', 'non-existing', None), None)
         self.assertEqual(get_most_similar_file_regex('./languages/', 'non-existing', 'load_any'), 'de.csv')
 
-    
-    def test_filter_with_list(self):
-        l1, f1 = ['a','B','c', 'a'], ['a', 'B']
-        l2, f2 = ['d','E', 'f'], ['e']
-        self.assertEqual(filter_with_list(f1, l1), ['a', 'B', 'a'])
-        self.assertEqual(filter_with_list(f2, l2, False), ['E'])
-    
 
     def test_format_seconds_to(self):
         s0 = format_seconds_to(4231, 'hour')

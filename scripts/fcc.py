@@ -134,14 +134,14 @@ class fcc():
         '''Modify Card Result - allows modification of current score'''
 
         mistakes_one_side = [x[1-self.mw.side] for x in self.mw.mistakes_list]
-        is_mistake = self.mw.get_current_card()[self.mw.side] in mistakes_one_side
+        is_mistake = self.mw.get_current_card().iloc[self.mw.side] in mistakes_one_side
         is_wordsback_mode = self.mw.words_back != 0
 
         if not is_wordsback_mode:
             self.post_fcc('Card not yet checked.')
         else:
             if is_mistake:
-                mistake_index = mistakes_one_side.index(self.mw.get_current_card()[self.mw.side])
+                mistake_index = mistakes_one_side.index(self.mw.get_current_card().iloc[self.mw.side])
                 del self.mw.mistakes_list[mistake_index]
                 self.mw.negatives-=1
                 self.mw.positives+=1
@@ -372,6 +372,7 @@ class fcc():
 
         # edit DB records
         dbapi = db_api.db_interface()
+        dbapi.refresh()
         dbapi.rename_signature(old_filename, new_filename)
 
         self.post_fcc('Filename changed successfully')
@@ -532,16 +533,21 @@ class fcc():
 
     def pcd(self, parsed_cmd:list):
         '''Print Current Dataset'''
-        lim = min(256 if len(parsed_cmd)<2 else abs(int(parsed_cmd[1])), self.mw.dataset.shape[0])
+        try:
+            lim = int(parsed_cmd[1])
+        except IndexError:
+            lim = 256
         out, sep = list(), ' | '
         cell_args = {
             'lim':int((self.mw.caliper.chrlim(self.config['GEOMETRY']['fcc'][2])-self.mw.caliper.strlen(sep))/2-2), 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }
-        rng = range(lim) if int(parsed_cmd[1]) >= 0 else range(self.mw.dataset.shape[0]-1, self.mw.dataset.shape[0]-lim, -1)
+        rng = range(lim) if lim >= 0 else range(self.mw.dataset.shape[0]-1, self.mw.dataset.shape[0]+lim-1, -1)
         for i in rng:
             c1 = self.mw.caliper.make_cell(self.mw.dataset.iloc[i, 0], **cell_args)
             c2 = self.mw.caliper.make_cell(self.mw.dataset.iloc[i, 1], **cell_args)
             out.append(f"{c1}{sep}{c2}")
+        if lim < 0:
+            out.reverse()
         self.post_fcc('\n'.join(out))

@@ -57,6 +57,10 @@ class CLI():
     @property
     def sep_manual(self):
         return self.config['SOD']['manual_mode_sep']
+  
+    @property
+    def dict_arg(self):
+        return self.config['SOD']['dict_change_arg']
 
     def __init_set_languages(self):
         if self.config['SOD']['initial_language'] == 'auto':
@@ -114,7 +118,7 @@ class CLI():
         # execute command
         if not parsed_phrase:
             self.cls()
-        elif parsed_phrase[0] == 'dict':
+        elif parsed_phrase[0] == self.dict_arg and len(parsed_phrase) == 2:
             self.set_dict(parsed_phrase[1])
         elif parsed_phrase.count(self.config['SOD']['manual_mode_sep']) == 2:
             self.insert_manual_oneline(parsed_phrase)
