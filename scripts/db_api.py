@@ -77,7 +77,7 @@ class db_interface():
         self.db['TIMESTAMP'] = pd.to_datetime(self.db['TIMESTAMP'], format="%m/%d/%Y, %H:%M:%S")
 
         sig = {k:list() for k in self.db['SIGNATURE'].unique()}
-        initial_reps = int(config['initial_repetitions'])
+        initial_reps = int(config['init_revs_cnt'])
         if fill_timespent: avg_wpsec = self.db['TOTAL'].sum() / self.db.loc[self.db['SEC_SPENT'] > 0]['SEC_SPENT'].sum()
         else: avg_wpsec = 0
         rows_to_del = list()

@@ -102,17 +102,13 @@ class Test_utils(unittest.TestCase):
 
 
     def test_format_seconds_to(self):
-        s0 = format_seconds_to(4231, 'hour')
-        s1 = format_seconds_to(231, 'minute', include_remainder=False)
-        s2 = format_seconds_to(604800, 'week', max_len=4)
-        s3 = format_seconds_to(502750217, 'year')
-        s4 = format_seconds_to(0, 'hour', null_format='-/-')
-
-        self.assertEqual(s0, '01:11')
-        self.assertEqual(s1, '3')
-        self.assertEqual(s2, '1.00')
-        self.assertEqual(s3, '02.03')
-        self.assertEqual(s4, '-/-')
+        self.assertEqual(format_seconds_to(4231, 'hour'), '01:11')
+        self.assertEqual(format_seconds_to(3600, 'hour'), '01:00')
+        self.assertEqual(format_seconds_to(60, 'minute'), '01:00')
+        self.assertEqual(format_seconds_to(231, 'minute', include_remainder=False), '3')
+        self.assertEqual(format_seconds_to(604800, 'week', max_len=4), '1.00')
+        self.assertEqual(format_seconds_to(502750217, 'year'), '02.03')
+        self.assertEqual(format_seconds_to(0, 'hour', null_format='-/-'), '-/-')
 
 
 

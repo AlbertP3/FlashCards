@@ -61,6 +61,10 @@ class CLI():
     @property
     def dict_arg(self):
         return self.config['SOD']['dict_change_arg']
+    
+    @property
+    def queue_arg(self):
+        return self.config['SOD']['queue_start_arg']
 
     def __init_set_languages(self):
         if self.config['SOD']['initial_language'] == 'auto':
@@ -124,7 +128,7 @@ class CLI():
             self.insert_manual_oneline(parsed_phrase)
         elif parsed_phrase[0] == self.config['SOD']['manual_mode_seq']:
             self.insert_manual(parsed_phrase)
-        elif parsed_phrase[0] == 'Q':
+        elif parsed_phrase[0] == self.queue_arg:
             self.setup_queue()
         elif parsed_phrase[0] == 'help':
             self.show_help()
@@ -434,7 +438,7 @@ class CLI():
             if self.config['SOD']['table_ext_mode'] == 'fix':
                 output = self.__ptt(trans, origs, clim, clim, sep)
             elif self.config['SOD']['table_ext_mode'] == 'flex':
-                llim = min(clim, max(self.output.mw.caliper.strlen(i) for i in trans)+4)
+                llim = min(clim, max(self.output.mw.caliper.strlen(i) for i in trans)+5)
                 rlim = self.get_char_limit() - llim
                 output = self.__ptt(trans, origs, llim, rlim, sep)
         else:
@@ -572,7 +576,7 @@ class CLI():
         len_db = self.fh.total_rows
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | {msg}"
         self.send_output(self.output.mw.caliper.make_cell(
-            status, self.get_char_limit()-1, self.config['THEME']['default_suffix'], align='left').rstrip()
+            status, self.get_char_limit()-2, self.config['THEME']['default_suffix'], align='left').rstrip()
         )
 
 

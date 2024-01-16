@@ -128,7 +128,8 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 <li>days_to_new_rev: After specified amount of days a notification prompting to create a new revision will be shown in the Load menu</li>
 <li>pace_card_interval: Specifies amount of seconds between card switches. Set to 0 in order to disable the timer</li>
 <li>file_update_interval: Specifies amount of seconds between checking for the source file changes. Set to 0 in order to disable the timer</li>
-<li>initial_repetitions: Specifies amount of revisions that are supposed to be reccommended in 12 hours intervals, ignoring the EFC model</li>
+<li>init_revs_cnt: Specifies amount of revisions that are supposed to be reccommended in init_revs_inth hours intervals, ignoring the EFC model</li>
+<li>init_revs_inth: Hourly Interval between initial revisions, ignoring the EFC model</li>
 <li>mistakes_buffer: Specifies amount of cards that are kept in the *_mistakes.csv files. The queue follows the FIFO logic</li>
 <li>card_default_side: Specifies with side of the card is displayed first. Valid choices are: 1, 0, random</li>
 <li>languages: determines list of languages in use, ignoring both data and files which does not have the LANGUAGE_ID matching</li>

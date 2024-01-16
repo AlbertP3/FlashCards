@@ -19,7 +19,6 @@ class CLI():
         self.STEP_MODEL_SELECTION = False
         self.STEP_APPROVE_CHANGES = False
         self.STEP_SAVE_SUCCESS = False
-        self.MIN_RECORDS = 50
 
 
     def send_output(self, text:str, include_newline=True):
@@ -75,12 +74,12 @@ class CLI():
 
         self.send_output('Filtering... ')
         self.dbapi.filter_for_efc_model()
-        if len(self.dbapi.db) > self.MIN_RECORDS:
+        if len(self.dbapi.db) > int(self.config['EMO']['min_records']):
             self.send_output('OK', include_newline=False)
             self.send_output(f'{len(self.dbapi.db)} records submitted')
         else:
             self.send_output('FAIL', include_newline=False)
-            self.send_output(f'Not enough records in database: {len(self.dbapi.db)}/{self.MIN_RECORDS}. Exiting...')
+            self.send_output(f"Not enough records in database: {len(self.dbapi.db)}/{self.config['EMO']['min_records']}. Exiting...")
             return False
 
         self.prt_res(self.dbapi.add_efc_metrics, 'Creating metrics... ', fill_timespent=True)
@@ -90,9 +89,9 @@ class CLI():
 
     def prepare_augmentation(self):
         self.dbapi.db.iloc[:, :-1] = self.prt_res(augmentation.cap_quantiles, 'Capping quantiles... ', self.dbapi.db.iloc[:, :-1])
-        discretizer = self.discretizers.get(self.config['emo_discretizer'])
+        discretizer = self.discretizers.get(self.config['EMO']['emo_discretizer'])
         if discretizer:
-            self.dbapi.db, self.discretizer = self.prt_res(discretizer, f"Applying {self.config['emo_discretizer']} Discretization... ", self.dbapi.db)
+            self.dbapi.db, self.discretizer = self.prt_res(discretizer, f"Applying {self.config['EMO']['emo_discretizer']} Discretization... ", self.dbapi.db)
 
 
     def prepare_models(self):

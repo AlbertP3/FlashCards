@@ -60,6 +60,8 @@ class efc():
         rev_table_data = list()
         self.db_interface.filter_for_efc_model()
         unqs = self.db_interface.gather_efc_record_data()
+        init_revs = int(self.config['init_revs_cnt'])
+        init_revs_inth = float(self.config['init_revs_inth'])
 
         for s in self.unique_signatures:
             # data: (TIMESTAMP, TOTAL, POSITIVES, SEC_SPENT)
@@ -67,9 +69,9 @@ class efc():
             if data:
                 since_last_rev = (datetime.now()-data[-1][0]).total_seconds()/3600
                 cnt = len(data)+1
-                if cnt <= int(self.config['initial_repetitions']):
-                    efc = [[0 if since_last_rev>=12 else 100]]
-                    pred = 12 - since_last_rev if since_last_rev<=12 else 0
+                if cnt <= init_revs:
+                    efc = [[0 if since_last_rev>=init_revs_inth else 100]]
+                    pred = init_revs_inth - since_last_rev if since_last_rev<=init_revs_inth else 0
                 else:
                     total = data[-1][1]
                     since_creation = (datetime.now()-data[0][0]).total_seconds()/3600

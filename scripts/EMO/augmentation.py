@@ -9,7 +9,7 @@ config = Config()
 
 def cap_quantiles(df):
     variables = [i for i in df.columns.values.tolist()]
-    fold = float(config['emo_cap_fold'])
+    fold = float(config['EMO']['cap_fold'])
     w = Winsorizer(capping_method='quantiles', tail='both', fold=fold, variables=variables).fit(df)
     df = w.transform(df)
     return df

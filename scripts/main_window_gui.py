@@ -278,7 +278,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         elif self.is_revision:
             self.display_text(self.revision_summary)
         else:
-            self.display_text(self.config['after_face'])
+            self.display_text(self.config['after_face'].strip('"'))
             self.is_afterface = True
             self.stop_timer()
             self.stop_pace_timer()

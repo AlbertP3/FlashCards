@@ -141,7 +141,7 @@ class summary_generator():
                 elif self.cpm_score >= self.CPM_ULTRA_SLOW:
                     res = f"Taking your time with {self.cpm_score:.0f} CPM, aren't you?"
                 else:
-                    res = f"However with {self.cpm_score:.0f} CPM you're slower than Renault Laguna."
+                    res = f"However with {self.cpm_score:.0f} CPM you're slower than the Lagun."
         elif self.score >= self.PERCENTAGE_MEDIOCRE:
             if self.cpm_score >= self.CPM_PRETTY_FAST:
                 res = f"{self.cpm_score:.0f} CPM - what will be $150 for speeding, sir."  

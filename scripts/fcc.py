@@ -133,7 +133,7 @@ class fcc():
     def mcr(self, parsed_cmd):
         '''Modify Card Result - allows modification of current score'''
 
-        mistakes_one_side = [x[1-self.mw.side] for x in self.mw.mistakes_list]
+        mistakes_one_side = [x[self.mw.side] for x in self.mw.mistakes_list]
         is_mistake = self.mw.get_current_card().iloc[self.mw.side] in mistakes_one_side
         is_wordsback_mode = self.mw.words_back != 0
 
@@ -223,7 +223,7 @@ class fcc():
         self.refresh_interface()
         self.mw.reset_timer()
         self.mw.start_file_update_timer()
-        self.post_fcc(f'Loaded last {len(data)} cards.')
+        self.post_fcc(f'Loaded last {len(data)} cards')
 
     
     def cfm(self, parsed_cmd):
@@ -316,19 +316,19 @@ class fcc():
     def sck(self, parsed_cmd):
         '''Show Config Key'''
         headers = ['Dict', 'Key', 'Value']
-        c = flatten_dict(self.config, lim_chars=30)
+        content = flatten_dict(self.config, lim_chars=30)
         if len(parsed_cmd) == 1:
-            msg = get_pretty_print(c, separator='|', 
+            msg = get_pretty_print(content, separator='|', 
                     alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
         elif len(parsed_cmd) in (2,3):
             if isinstance(self.config.get(parsed_cmd[1]), dict):
-                c = [i for i in c if re.search(parsed_cmd[1], i[0], re.IGNORECASE)]
+                content = [i for i in content if re.search(parsed_cmd[1], i[0], re.IGNORECASE)]
                 if len(parsed_cmd) == 3:
-                    c = [i for i in c if re.search(parsed_cmd[2], i[1], re.IGNORECASE)]
+                    content = [i for i in content if re.search(parsed_cmd[2], i[1], re.IGNORECASE)]
             else:
-                c = [i for i in c if re.search(parsed_cmd[1], i[1], re.IGNORECASE)]
-            if c:
-               msg = get_pretty_print(c, separator='|', 
+                content = [i for i in content if re.search(parsed_cmd[1], i[1], re.IGNORECASE)]
+            if content:
+               msg = get_pretty_print(content, separator='|', 
                     alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
             else:
                 suffix = f' in dict {parsed_cmd[1]}' if len(parsed_cmd) == 3 else ''
@@ -536,7 +536,7 @@ class fcc():
         try:
             lim = int(parsed_cmd[1])
         except IndexError:
-            lim = 256
+            lim = self.mw.dataset.shape[0]
         out, sep = list(), ' | '
         cell_args = {
             'lim':int((self.mw.caliper.chrlim(self.config['GEOMETRY']['fcc'][2])-self.mw.caliper.strlen(sep))/2-2), 

@@ -11,18 +11,19 @@ import csv
 import inspect
 from time import perf_counter
 import logging
+from typing import Union
 
 UTILS_STATUS_DICT = dict()
 log = logging.getLogger(__name__)
 
 
-def timer(func):
+def perftm(func):
     def timed(*args, **kwargs):
         caller = inspect.stack()[1][3]
         t1 = perf_counter() 
         result = func(*args, **kwargs)
         t2 = perf_counter()
-        log.info(f'{func.__name__} called by {caller} took {(t2-t1)*1000:0.4f}ms', stacklevel=2)
+        log.debug(f'{func.__name__} called by {caller} took {(t2-t1)*1000:0.4f}ms', stacklevel=2)
         return result
     return timed
         
@@ -44,7 +45,7 @@ class Config(UserDict):
         self.default_off_values = {'off', 'no', 'none', ''}
         self.iterable_fields:set= {'languages', 'optional'}
         self.iter_sep = ','
-        self.parser = configparser.RawConfigParser(inline_comment_prefixes=None)
+        self.parser = configparser.RawConfigParser()
         self.__refresh()
     
     def __refresh(self):
@@ -189,15 +190,15 @@ def get_files_in_dir(path, include_extension = True, exclude_open=True):
 
 
 def format_timedelta(tmd:timedelta): 
-    if tmd.days > 365:
+    if tmd.days >= 365:
         interval, time_value = 'year',  round(tmd.days/365.25, 1)
-    elif tmd.days > 31:
+    elif tmd.days >= 31:
         interval, time_value = 'month', round(tmd.days/30.437, 1)
-    elif tmd.days > 1 :
-        interval, time_value = 'day', round(tmd.days, 1)
-    elif tmd.total_seconds() > 3600:
+    elif tmd.days >= 1 :
+        interval, time_value = 'day', round(tmd.total_seconds()/86_400, 0)
+    elif tmd.total_seconds() >= 3600:
         interval, time_value = 'hour', round(tmd.total_seconds()/3600, 0)
-    elif tmd.total_seconds() > 60:
+    elif tmd.total_seconds() >= 60:
         interval, time_value = 'minute', round(tmd.total_seconds()/60, 0)
     else:
         interval, time_value = 'second', round(tmd.total_seconds(), 0)
@@ -381,7 +382,7 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     return printout[:-1]
 
 
-def format_seconds_to(total_seconds:int, interval:str, include_remainder=True, null_format:str=None, max_len=0, fmt:str=None) -> str:
+def format_seconds_to(total_seconds:int, interval:str, include_remainder=True, null_format:str=None, max_len=0) -> str:
     if interval == 'hour':
         prev_interval = 60
         interval = 3600
@@ -419,7 +420,7 @@ def format_seconds_to(total_seconds:int, interval:str, include_remainder=True, n
     
     if max_len != 0 and len(res) > max_len and include_remainder:
         # remove remainder and the colon
-        res = res.split(':')[0].rjust(max_len, ' ')
+        res = res.split(':')[0].rjust(max_len, ' ').lstrip('0')
 
     return res
 

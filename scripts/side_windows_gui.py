@@ -37,7 +37,7 @@ class fcc_gui():
         self.create_console()
 
     def init_font(self):
-        self.CONSOLE_FONT_SIZE = 12
+        self.CONSOLE_FONT_SIZE = int(self.config['THEME']['console_font_size'])
         self.CONSOLE_FONT = QtGui.QFont(self.config['THEME'].get('console_font', 'monospace'), self.CONSOLE_FONT_SIZE)
         self.caliper = Caliper(QtGui.QFontMetricsF(self.CONSOLE_FONT))
 
@@ -661,7 +661,7 @@ class config_gui():
             ['side_by_side','hide_timer','show_cpm_stats', 'revision_summary',
                 'show_efc_line', 'show_percent_stats', 'show_cpm_timer'])
         self.optional_label = self.create_label('Optional Features')
-        self.init_rep_qline = self.create_config_qlineedit('initial_repetitions')
+        self.init_rep_qline = self.create_config_qlineedit('init_revs_cnt')
         self.init_rep_label = self.create_label("Initial Repetitions")
         self.check_for_file_updates_combobox = self.create_config_qlineedit('file_update_interval')
         self.check_for_file_updates_label = self.create_label('Check file udpates')
@@ -756,7 +756,7 @@ class config_gui():
         modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
         modified_dict['days_to_new_rev'] = self.days_to_new_rev_qlineedit.text()
         modified_dict['optional'] = self.optional_checkablecombobox.currentData()
-        modified_dict['initial_repetitions'] = self.init_rep_qline.text()
+        modified_dict['init_revs_cnt'] = self.init_rep_qline.text()
         modified_dict['file_update_interval'] = self.check_for_file_updates_combobox.text()
         modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
         modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]

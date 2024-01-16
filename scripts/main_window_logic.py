@@ -48,8 +48,7 @@ class main_window_logic():
             
 
     def append_current_card_to_mistakes_list(self):
-        cc = self.get_current_card()
-        self.mistakes_list.append([cc.iloc[self.default_side], cc.iloc[1-self.default_side]])
+        self.mistakes_list.append(self.get_current_card().to_list())
         
 
     def goto_next_card(self):
@@ -177,7 +176,7 @@ class main_window_logic():
 
     def save_to_mistakes_list(self):
         # auto_cfm_offset - avoid duplicating cards on multiple saves of the same dataset
-        mistakes_list = pd.DataFrame([[x[1], x[0]] for x in self.mistakes_list], columns=self.dataset.columns[::-1])
+        mistakes_list = pd.DataFrame(data=self.mistakes_list, columns=self.dataset.columns)
         lng = get_lng_from_signature(self.signature).upper()
         full_path = os.path.join(self.config['lngs_path'], f'{lng}_mistakes.csv')
         try:
@@ -234,7 +233,7 @@ class main_window_logic():
         log.error(traceback)
 
         if exc_value:  # is an error
-            err_msg = str(exc_value) + '. See log file for more details.'
+            err_msg = f"[{datetime.now():%H:%M:%S}] {str(exc_value)}. See log file for more details."
         else:
             err_msg = traceback
 

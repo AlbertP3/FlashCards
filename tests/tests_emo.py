@@ -73,7 +73,7 @@ class Test_data_prep(TestCase):
         self.assertEqual(str(modb_part['TIMESTAMP'].values[0]), '2021-10-18T10:00:06.000000000')
         self.assertEqual(modb_part['TIMEDELTA_SINCE_CREATION'].to_list()[:9], [216,240,1235,1885,2525,3413,4616,5863,7705])
         self.assertEqual(modb_part['TIMEDELTA_LAST_REV'].to_list()[:9], [86, 24, 995, 650, 640, 888, 1203, 1246, 1842])
-        self.assertEqual(modb_part['CUM_CNT_REVS'].to_list()[:9], [int(config['initial_repetitions'])+i for i in range(1, 10)])
+        self.assertEqual(modb_part['CUM_CNT_REVS'].to_list()[:9], [int(config['init_revs_cnt'])+i for i in range(1, 10)])
 
 
 
