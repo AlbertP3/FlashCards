@@ -175,18 +175,18 @@ class CLI():
     def insert_manual(self, parsed_cmd):
         if not self.state.MANUAL_MODE:
             self.cls()
-            self.set_output_prompt(self.prompt.MANUAL_PH)
-            self.state.MANUAL_MODE = 'phrase'
+            self.set_output_prompt(self.prompt.MANUAL_TR if self.is_from_native else self.prompt.MANUAL_PH)
+            self.state.MANUAL_MODE = 'first'
             return
-        elif self.state.MANUAL_MODE == 'phrase':
+        elif self.state.MANUAL_MODE == 'first':
             self.phrase = ' '.join(parsed_cmd)
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
                 self.manual_duplicate_show()
                 return
-            self.set_output_prompt(self.prompt.MANUAL_TR)
-            self.state.MANUAL_MODE = 'transl'
+            self.set_output_prompt(self.prompt.MANUAL_PH if self.is_from_native else self.prompt.MANUAL_TR)
+            self.state.MANUAL_MODE = 'second'
             return
-        elif self.state.MANUAL_MODE == 'transl':
+        elif self.state.MANUAL_MODE == 'second':
             self.transl = ' '.join(parsed_cmd)
         # Finalize
         if self.phrase and self.transl:

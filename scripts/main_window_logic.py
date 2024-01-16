@@ -2,7 +2,7 @@ import logging
 from random import randint
 import db_api
 from utils import *
-from rev_summary import summary_generator
+from rev_summary import SummaryGenerator
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ class main_window_logic():
         self.last_modification_time = None
         self.is_saved = False
         self.dbapi = db_api.db_interface()
+        self.summary_gen = SummaryGenerator()
         self.auto_cfm_offset = 0
         self.is_afterface = False
 
@@ -202,14 +203,10 @@ class main_window_logic():
 
 
     def get_rating_message(self):
-        self.dbapi.refresh()
-        last_positives = self.dbapi.get_last_positives(self.signature, req_pos=True)
-        max_positives = self.dbapi.get_max_positives_count(self.signature)
-        last_time_spent = self.dbapi.get_last_time_spent(self.signature, req_pos=True)
-        summary_gen = summary_generator(self.positives, last_positives, self.total_words,
-                                    max_positives, self.seconds_spent, last_time_spent)
         if 'revision_summary' in self.config['optional']:
-            progress = summary_gen.get_summary_text()
+            progress = self.summary_gen.get_summary_text(
+                self.signature, self.positives, self.total_words, self.seconds_spent
+            )
         else:
             progress = 'Revision done'
         return progress

@@ -307,6 +307,7 @@ class fcc():
                     new_val = self.config[subdict][key].__class__(new_val.split(' '))
                 self.config[subdict][key] = new_val
                 self.post_fcc(f"{key} of {subdict} set to {new_val}")
+                self.mw.config_manual_update(key=key, subdict=subdict)
             else:
                 self.post_fcc(f"{subdict} not found in the config. Use 'sck' to list all available keys")
         else:
@@ -533,10 +534,16 @@ class fcc():
 
     def pcd(self, parsed_cmd:list):
         '''Print Current Dataset'''
-        try:
-            lim = int(parsed_cmd[1])
-        except IndexError:
+        if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
+            lim = min(int(parsed_cmd[1]), self.mw.dataset.shape[0])
+            gsi = 2
+        else:
             lim = self.mw.dataset.shape[0]
+            gsi = 1
+        if len(parsed_cmd) > gsi:
+            grep = re.compile(' '.join(parsed_cmd[gsi:]).strip("'").strip('"'), re.IGNORECASE)
+        else:
+            grep = None
         out, sep = list(), ' | '
         cell_args = {
             'lim':int((self.mw.caliper.chrlim(self.config['GEOMETRY']['fcc'][2])-self.mw.caliper.strlen(sep))/2-2), 
@@ -550,4 +557,6 @@ class fcc():
             out.append(f"{c1}{sep}{c2}")
         if lim < 0:
             out.reverse()
+        if grep:
+            out = [card for card in out if grep.search(card)]
         self.post_fcc('\n'.join(out))

@@ -776,11 +776,7 @@ class config_gui():
         self.config.update(modified_dict)
 
         # Manual updates
-        self.update_default_side()
-        self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
-        self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
-        self.set_append_seconds_spent_function()
-        self.initiate_pace_timer()
+        self.config_manual_update()
 
         self.del_side_window()
 
@@ -797,8 +793,21 @@ class config_gui():
         models_path =  os.path.join(config['resources_path'], 'efc_models')
         pickled_models = [f.split('.')[0] for f in os.listdir(models_path) if f.endswith('.pkl')]
         return pickled_models
-
     
+
+    def config_manual_update(self, key:str=None, subdict:str=None):
+        if subdict == 'THEME':
+            if key == 'console_font_size':
+                self.init_font()
+                self.console.setFont(self.CONSOLE_FONT)
+        elif not (key or subdict):
+            self.update_default_side()
+            self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
+            self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+            self.set_append_seconds_spent_function()
+            self.initiate_pace_timer()
+
+
 
 class timer_gui():
 

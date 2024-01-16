@@ -329,5 +329,13 @@ class db_interface():
         self.filters['BY_LNG'] = lngs
 
     
+    def get_avg_cpm(self):
+        return self.db['TOTAL'].sum() / ( self.db['SEC_SPENT'].sum() / 60 )
+    
+
+    def get_avg_score(self):
+        return self.db['POSITIVES'].sum() / self.db['TOTAL'].sum()
+
+    
     def get_all(self):
         return self.db

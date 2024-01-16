@@ -13,7 +13,7 @@ import efc
 from fcc import fcc
 import stats
 from random import randint
-from rev_summary import summary_generator
+from rev_summary import SummaryGenerator
 import time
 
 
@@ -362,7 +362,7 @@ def run_summary_generator_test(positives=None, last_positives=None, total=None, 
         last_time_spent = randint(50, 600)
         res = str()
 
-        summary_gen = summary_generator(positives, last_positives, total, max_positives, 
+        summary_gen = SummaryGenerator(positives, last_positives, total, max_positives, 
                                         time_spent, last_time_spent)
 
         if verbose:
@@ -384,7 +384,7 @@ def run_summary_generator_test(positives=None, last_positives=None, total=None, 
         return res    
 
 
-def print_summary_generator_in_loop(positives=None, last_positives=None, total=None, max_positives=None, 
+def print_SummaryGenerator_in_loop(positives=None, last_positives=None, total=None, max_positives=None, 
                                 time_spent=None, last_time_spent=None, verbose=True, iter=1, filters:list()=[]):
     for _ in range(iter):
         res = run_summary_generator_test(positives=positives, last_positives=last_positives, total=total, 

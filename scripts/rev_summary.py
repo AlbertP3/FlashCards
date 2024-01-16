@@ -1,45 +1,59 @@
 from utils import *
 from random import randint
+from db_api import db_interface
 
-class summary_generator():
+class SummaryGenerator():
 
-    def __init__(self, positives, last_positives, total, max_positives, time_spent, last_time_spent):
-        
-        self.PERCENTAGE_IMPRESSIVE = 0.8
-        self.PERCENTAGE_MEDIOCRE = 0.6
-        self.PERCENTAGE_BAD = 0.4
-        self.CPM_ULTRA_FAST = 60
-        self.CPM_VERY_FAST = 30
-        self.CPM_PRETTY_FAST = 25
-        self.FAST = 20
-        self.CPM_MEDIUM = 15
-        self.CPM_SLOW = 10
-        self.CPM_ULTRA_SLOW = 8
-        
-        self.positives = positives
-        self.last_positives = last_positives
-        self.total = total
-        self.max_positives = max_positives
-        self.time_spent = time_spent
-        self.last_time_spent = last_time_spent
-
-        # KPIs
-        self.score = positives/total
-        self.diff = total - positives
-        self.diff_last_record = positives - last_positives
-        self.desc_diff_last_record= ['more', 'less'][self.diff_last_record<0]
-        self.diff_to_record = max_positives - positives
-        self.desc_diff_record = ['more', 'less'][self.diff_to_record<0]
-        self.diff_time = time_spent - last_time_spent if self.last_time_spent else 0
-        self.desc_diff_time = ['more', 'less'][self.diff_time<0]
-        self.cpm_score = total/(time_spent/60) if time_spent > 0 else 0
-        self.last_cpm_score = total/(last_time_spent/60) if self.last_time_spent else 0
-        self.cpm_diff = self.cpm_score - self.last_cpm_score
-        self.desc_cpm_diff = ['more', 'less'][self.cpm_diff<0]
+    def __init__(self):
+        self.config = Config()
+        self.dbapi = db_interface()
 
 
-    def get_summary_text(self):
-            if self.last_positives in {0, None}:
+    def setup_parameters(self, signature):
+        if 'dynamic_summary' in self.config['optional']:
+            self.dbapi.filter_where_lng([get_lng_from_signature(signature).upper()])
+            self.dbapi.filter_where_positives_not_zero()
+            avg_cpm = self.dbapi.get_avg_cpm()
+            avg_score = self.dbapi.get_avg_score()
+        else:
+            avg_cpm = 15
+            avg_score = 0.6
+
+        self.PERCENTAGE_IMPRESSIVE = min(avg_score*1.182, 0.95)
+        self.PERCENTAGE_MEDIOCRE = avg_score
+        self.PERCENTAGE_BAD = avg_score*0.618
+        self.CPM_ULTRA_FAST = avg_cpm * 2.137
+        self.CPM_VERY_FAST = avg_cpm * 1.637
+        self.CPM_PRETTY_FAST = avg_cpm * 1.318
+        self.CPM_FAST = avg_cpm * 1.182
+        self.CPM_MEDIUM = avg_cpm
+        self.CPM_SLOW = avg_cpm * 0.818
+        self.CPM_ULTRA_SLOW = avg_cpm * 0.674
+
+
+    def get_summary_text(self, signature, positives, total, time_spent):
+            self.dbapi.refresh()
+            last_positives = self.dbapi.get_last_positives(signature, req_pos=True)
+            max_positives = self.dbapi.get_max_positives_count(signature)
+            last_time_spent = self.dbapi.get_last_time_spent(signature, req_pos=True)
+
+            self.setup_parameters(signature)
+
+            self.last_time_spent = last_time_spent
+            self.score = positives/total
+            self.diff = total - positives
+            self.diff_last_record = positives - last_positives
+            self.desc_diff_last_record= ['more', 'less'][self.diff_last_record<0]
+            self.diff_to_record = max_positives - positives
+            self.desc_diff_record = ['more', 'less'][self.diff_to_record<0]
+            self.diff_time = time_spent - last_time_spent if self.last_time_spent else 0
+            self.desc_diff_time = ['more', 'less'][self.diff_time<0]
+            self.cpm_score = total/(time_spent/60) if time_spent > 0 else 0
+            self.last_cpm_score = total/(last_time_spent/60) if self.last_time_spent else 0
+            self.cpm_diff = self.cpm_score - self.last_cpm_score
+            self.desc_cpm_diff = ['more', 'less'][self.cpm_diff<0]
+
+            if last_positives in {0, None}:
                 # revision not in DB
                 progress = self.__get_summary_first_rev()
             elif self.diff_to_record < 0:
@@ -110,7 +124,7 @@ class summary_generator():
         elif self.diff_last_record == 0:
             progress = 'You guessed the exact same number of cards as last time.'
         else:
-            incentive = "However, overall it's not that bad - you scored {:.0%}.".format(self.score) if self.score >= self.PERCENTAGE_MEDIOCRE \
+            incentive = "However, overall it's not that bad - you scored {:.0%}.".format(self.score) if self.score >= self.PERCENTAGE_BAD \
                         else "Get your sh*t together."
             comparison = ['last time', 'previously', 'in the previous attempt'][randint(0,2)]
             progress = f'You guessed {abs(self.diff_last_record)} card{suffix} less than {comparison}. {incentive}'
@@ -133,8 +147,8 @@ class summary_generator():
                 if self.cpm_score >= self.CPM_ULTRA_FAST:
                     res = f"However I smell a rat here somewhere..."
                 elif self.cpm_score >= self.CPM_VERY_FAST:
-                    res = f"{self.cpm_score:.0f} CPM - Faster than Sonic!"
-                elif self.cpm_score >= self.FAST:
+                    res = f"{self.cpm_score:.0f} CPM - Faster than Light!"
+                elif self.cpm_score >= self.CPM_FAST:
                     res = f"{self.cpm_score:.0f} CPM - Astounding feat!!"
                 elif self.cpm_score >= self.CPM_MEDIUM:
                     res = f"You scored {self.cpm_score:.0f} CPM which is {abs(self.cpm_diff):.0f} {self.desc_cpm_diff} than last time."
