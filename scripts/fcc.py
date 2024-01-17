@@ -165,6 +165,9 @@ class fcc():
         elif parsed_cmd[1] != '-':
             self.post_fcc('Wrong confirmation sign. Expected "-".')
             return
+        elif not self.mw.is_revision:
+            self.post_fcc('Command only available for Revisions')
+            return
 
         # Get parameters before deletion
         current_word = self.mw.get_current_card()[self.mw.side]
@@ -365,8 +368,17 @@ class fcc():
         old_filename = self.mw.file_path.split('/')[-1].split('.')[0]
         new_filename = ' '.join(parsed_cmd[1:])
 
+        old_lng, new_lng = get_lng_from_signature(old_filename), get_lng_from_signature(new_filename)
+        if old_lng != new_lng:
+            self.post_fcc(f"New filename must include '{old_lng}'")
+            return
+        
         old_file_path = self.mw.file_path
         new_file_path = self.mw.file_path.replace(old_filename, new_filename)
+        
+        if os.path.exists(new_file_path):
+            self.post_fcc("File already exists!")
+            return
         
         # rename file
         os.rename(old_file_path, new_file_path)

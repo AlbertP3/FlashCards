@@ -48,23 +48,20 @@ class CLI():
         self.phrase = str()
         self.queue_dict = OrderedDict()
         self.output = output
+        self.init_cli_args()
         self.d_api = Dict_Services()
         self.fh = self.get_file_handler(self.config['SOD']['last_file'])
         self.__init_set_languages()
         self.selection_queue = list()
         self.status_message = str()
 
-    @property
-    def sep_manual(self):
-        return self.config['SOD']['manual_mode_sep']
-  
-    @property
-    def dict_arg(self):
-        return self.config['SOD']['dict_change_arg']
     
-    @property
-    def queue_arg(self):
-        return self.config['SOD']['queue_start_arg']
+    def init_cli_args(self):
+        self.sep_manual = self.config['SOD']['manual_mode_sep']
+        self.dict_arg = self.config['SOD']['dict_change_arg']
+        self.queue_arg = self.config['SOD']['queue_start_arg']
+        self.chg_db_arg = self.config['SOD']['change_db_arg']
+
 
     def __init_set_languages(self):
         if self.config['SOD']['initial_language'] == 'auto':
@@ -137,17 +134,21 @@ class CLI():
         
 
     def handle_prefix(self, parsed_cmd:list):
-        src_lng, tgt_lng = None, None
+        src_lng, tgt_lng, capture = None, None, None
         for i in parsed_cmd:
-            if i in self.d_api.available_dicts_short:
+            if capture:
+                if capture == 'change_db':
+                    self.fh = self.get_file_handler(i)
+                    src_lng, tgt_lng = self.fh.get_languages()
+                capture = None
+            elif i in self.d_api.available_dicts_short:
                 target_dict = {k for k, v in self.d_api.dicts.items() if v['shortname'] == i}.pop()
                 self.set_dict(target_dict)
             elif i in self.d_api.available_lngs:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
-            elif i.startswith('\\'):
-                self.fh = self.get_file_handler(i[1:])
-                src_lng, tgt_lng = self.fh.get_languages()
+            elif i == self.chg_db_arg:
+                capture = 'change_db'
             else: break
             parsed_cmd = parsed_cmd[1:]
             if bool(src_lng) ^ bool(tgt_lng):
@@ -583,7 +584,7 @@ class CLI():
     def show_help(self):
         available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.d_api.dicts.items()])
         cmds = get_pretty_print([
-            ['\tdict <DICT_NAME>', 'change dictionary'], 
+            [f'\t{self.chg_db_arg} <DB_NAME>', 'change database file'], 
             [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'Enter the manual input mode'],
             [f"\t{self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"], 
             ['\tQ', 'enter Queue mode'], 
@@ -601,6 +602,7 @@ class CLI():
             separator='-->', alingment=['<', '<'])
         msg = f'''Commands:\n{cmds}\nSearch results modification:\n{mods}\nAvailable dicts:\n{available_dicts}'''
 
+        self.cls()
         self.send_output(msg)
 
 

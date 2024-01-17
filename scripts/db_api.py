@@ -133,7 +133,7 @@ class db_interface():
 
 
     def rename_signature(self, old_signature, new_signature):
-        self.db = self.db['SIGNATURE'].replace(old_signature, new_signature)
+        self.db['SIGNATURE'] = self.db['SIGNATURE'].replace(old_signature, new_signature)
         self.db.to_csv(self.config['db_path'], encoding='utf-8', sep=';', index=False)
         
 
