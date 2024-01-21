@@ -103,7 +103,7 @@ class efc():
         efc_stats_list = [['REV NAME', 'AGO', 'EFC', 'DUE']]
         for rev in efc_table_data:
             if abs(rev[3]) < 48:
-                pred = format_seconds_to(rev[3]*3600, 'hour', rem=2)
+                pred = format_seconds_to(rev[3]*3600, 'hour', rem=2, sep=':')
             elif abs(rev[3]) < 10000:
                 pred = format_seconds_to(rev[3]*3600, 'day', rem=0)
             else:
@@ -133,12 +133,10 @@ class efc():
         # Periodically recommend to create new revision for every lng
         new_recommendations = list()
         for lng in self.config['languages']:
-            lng = lng.upper()
-            for fd in self.db.get_sorted_mistakes():  
+            for fd in self.db.get_sorted_revisions():  
                 if fd.lng == lng:
-                    last_date = self.db.get_last_datetime(fd.signature)
-                    time_delta = (datetime.now() - last_date).days
-                    if time_delta >= self.config['days_to_new_rev']:
+                    time_delta = self.db.get_timedelta_from_creation(fd.signature)
+                    if time_delta.days >= self.config['days_to_new_rev']:
                         new_recommendations.append(self.get_recommendation_text(lng))
                     break
         return new_recommendations
@@ -148,6 +146,8 @@ class efc():
         # adding key to the dictionary facilitates matching 
         # recommendation text with the lng file
         text = self.config['RECOMMENDATIONS'].get(lng, f"It's time for {lng}")
-        self.paths_to_suggested_lngs[text] = choice([fd.filepath for fd in self.db.files.values() if fd.lng == lng])
+        self.paths_to_suggested_lngs[text] = choice(
+            [fd.filepath for fd in self.db.files.values() if fd.lng == lng and fd.kind == 'language']
+        )
         self.new_revs+=1
         return text

@@ -103,7 +103,7 @@ class CLI():
                 self.fh.close()
             self.fh = fh
             self.__init_set_languages()
-            self.cls(f"Loaded {os.path.basename(filepath)}")
+            self.cls()
         except re.error:
             self.cls(self.msg.RE_ERROR, keep_content=True)
         except IndexError:

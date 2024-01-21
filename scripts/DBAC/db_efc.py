@@ -7,12 +7,10 @@ class db_efc_queries(ABC):
 
     def filter_for_efc_model(self):
         # Remove mistakes, obsolete lngs and revs with POSITIVES=0
-        filtered = pd.DataFrame(columns=self.db.columns)
-        for lng in self.config['languages']:
-            l_df = self.db.loc[self.db.iloc[:, 1].str.contains(lng)]
-            l_df = l_df.loc[~l_df.iloc[:, 1].str.contains('_mistakes')]
-            filtered = pd.concat([filtered, l_df], ignore_index=True, sort=False)
-        self.db = filtered.loc[filtered['POSITIVES'] != 0]
+        mistakes = {fd.signature for fd in self.files.values() if fd.kind == 'mistakes'}
+        self.db = self.db[self.db['LNG'].isin(self.config['languages'])]
+        self.db = self.db[~self.db['SIGNATURE'].isin(mistakes)]
+        self.db = self.db.loc[self.db['POSITIVES'] != 0]
         self.filters['EFC_MODEL'] = True
 
     def add_efc_metrics(self, fill_timespent=False):

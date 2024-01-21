@@ -195,7 +195,7 @@ def format_seconds_to(
     ) -> str:
     _int, _prev_int = SECONDS_CONVERTERS[interval]
     tot_int, _rem = divmod(total_seconds, _int)
-    rem_int = _rem // _prev_int
+    rem_int = int(_rem // _prev_int)
     
     if null_format is not None and tot_int + rem_int == 0:
         res = null_format

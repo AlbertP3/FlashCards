@@ -316,11 +316,11 @@ class fcc():
             self.mw.active_file.basename,
             new_filename
         )
-        if os.path.exists(new_filepath):
-            self.post_fcc("File already exists!")
+        dbapi = api.db_interface()
+        if new_filename in {fd.basename for fd in dbapi.files.values()}:
+            self.post_fcc(f"File {new_filename} already exists!")
             return
         os.rename(self.mw.active_file.filepath, new_filepath)
-        dbapi = api.db_interface()
         dbapi.refresh()
         dbapi.rename_signature(self.mw.active_file.signature, new_filename)
         dbapi.reload_files_cache()

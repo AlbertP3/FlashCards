@@ -17,7 +17,7 @@ class Timespent_BE:
     def _get_data_for_timespent(self, last_n, interval):
             db_interface = api.db_interface()
             db_interface.refresh()
-            lngs = [l.upper() for l in self.config['languages']]
+            lngs = self.config['languages']
             db = db_interface.get_filtered_by_lng(lngs)
 
             date_format_dict = {
@@ -42,7 +42,7 @@ class Timespent_BE:
             try:
                 db = db.loc[db.iloc[:, 4] != 0]
             except IndexError:
-                self.post_fcc(f'DATE  {"  ".join([l.upper() for l in lngs])}{"  TOTAL" if len(lngs)>1 else ""}')
+                self.post_fcc(f'DATE  {"  ".join(lngs)}{"  TOTAL" if len(lngs)>1 else ""}')
                 return
 
             # format dates in time-containing columns
