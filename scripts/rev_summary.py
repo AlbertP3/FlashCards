@@ -1,43 +1,22 @@
 from utils import *
 from random import randint
-from db_api import db_interface
+from DBAC.api import db_interface
 
 class SummaryGenerator():
 
     def __init__(self):
         self.config = Config()
-        self.dbapi = db_interface()
+        self.db = db_interface()
 
 
-    def setup_parameters(self, signature):
-        if 'dynamic_summary' in self.config['optional']:
-            self.dbapi.filter_where_lng([get_lng_from_signature(signature).upper()])
-            self.dbapi.filter_where_positives_not_zero()
-            avg_cpm = self.dbapi.get_avg_cpm()
-            avg_score = self.dbapi.get_avg_score()
-        else:
-            avg_cpm = 15
-            avg_score = 0.6
+    def get_summary_text(self, positives, total, time_spent):
+            self.db.refresh()
+            self.signature = self.db.active_file.signature
+            last_positives = self.db.get_last_positives(self.signature, req_pos=True)
+            max_positives = self.db.get_max_positives_count(self.signature)
+            last_time_spent = self.db.get_last_time_spent(self.signature, req_pos=True)
 
-        self.PERCENTAGE_IMPRESSIVE = min(avg_score*1.182, 0.95)
-        self.PERCENTAGE_MEDIOCRE = avg_score
-        self.PERCENTAGE_BAD = avg_score*0.618
-        self.CPM_ULTRA_FAST = avg_cpm * 2.137
-        self.CPM_VERY_FAST = avg_cpm * 1.637
-        self.CPM_PRETTY_FAST = avg_cpm * 1.318
-        self.CPM_FAST = avg_cpm * 1.182
-        self.CPM_MEDIUM = avg_cpm
-        self.CPM_SLOW = avg_cpm * 0.818
-        self.CPM_ULTRA_SLOW = avg_cpm * 0.674
-
-
-    def get_summary_text(self, signature, positives, total, time_spent):
-            self.dbapi.refresh()
-            last_positives = self.dbapi.get_last_positives(signature, req_pos=True)
-            max_positives = self.dbapi.get_max_positives_count(signature)
-            last_time_spent = self.dbapi.get_last_time_spent(signature, req_pos=True)
-
-            self.setup_parameters(signature)
+            self.__setup_parameters()
 
             self.last_time_spent = last_time_spent
             self.score = positives/total
@@ -74,6 +53,28 @@ class SummaryGenerator():
                 progress += self.__get_summary_timespent()
 
             return progress
+
+
+    def __setup_parameters(self):
+        if 'dynamic_summary' in self.config['optional']:
+            self.db.filter_where_lng([self.signature])
+            self.db.filter_where_positives_not_zero()
+            avg_cpm = self.db.get_avg_cpm()
+            avg_score = self.db.get_avg_score()
+        else:
+            avg_cpm = 15
+            avg_score = 0.6
+
+        self.PERCENTAGE_IMPRESSIVE = min(avg_score*1.182, 0.95)
+        self.PERCENTAGE_MEDIOCRE = avg_score
+        self.PERCENTAGE_BAD = avg_score*0.618
+        self.CPM_ULTRA_FAST = avg_cpm * 2.137
+        self.CPM_VERY_FAST = avg_cpm * 1.637
+        self.CPM_PRETTY_FAST = avg_cpm * 1.318
+        self.CPM_FAST = avg_cpm * 1.182
+        self.CPM_MEDIUM = avg_cpm
+        self.CPM_SLOW = avg_cpm * 0.818
+        self.CPM_ULTRA_SLOW = avg_cpm * 0.674
 
 
     def __get_summary_first_rev(self):

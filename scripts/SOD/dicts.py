@@ -2,13 +2,12 @@ from utils import Config
 from abc import abstractmethod
 from collections import OrderedDict
 import bs4
-import os
 import re
 import requests
 import itertools
 import string
 import logging
-from SOD.file_handler import fhs, FileHandler
+import SOD.file_handler
 
 log = logging.getLogger('dicts')
 
@@ -379,9 +378,11 @@ class DictLocal(TemplateDict):
 
 
     def get(self, word:str):
-        fh:FileHandler = fhs[os.path.join(self.config['lngs_path'], self.config['SOD']['last_file'])]
         try:
-            transl, orig = fh.get_translations_with_regex(word, self.source_lng==fh.native_lng)
+            transl, orig = SOD.file_handler.ACTIVE_FH.get_translations_with_regex(
+                word, 
+                self.source_lng==SOD.file_handler.ACTIVE_FH.native_lng
+            )
             if transl:
                 err = []
             else:

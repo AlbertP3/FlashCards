@@ -9,9 +9,8 @@ class sod_spawn:
         self.config = Config()
         self.sout = stream_out
         self.sout.editable_output = ''
-        self.cli = CLI(output=self.sout)
         self.adapt()
-        self.cli.cls()
+        self.cli = CLI(output=self.sout)
         self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
@@ -26,6 +25,7 @@ class sod_spawn:
         self.orig_execute_method = self.sout.execute_command
         self.sout.post_fcc = self.monkey_patch_post
         self.sout.execute_command = self.monkey_patch_execute_command
+        self.sout.console.setText('')
     
     def monkey_patch_post(self, msg):
         if msg != self.sout.mw.CONSOLE_PROMPT:
@@ -75,7 +75,7 @@ class sod_spawn:
 
 
     def manage_modes(self, cmd:list):
-        if cmd[0] == 'cls':
+        if cmd[0] == 'cls' or not cmd:
             self.cli.cls()
         elif self.cli.state.SELECT_TRANSLATIONS_MODE or self.cli.state.RES_EDIT_SELECTION_MODE \
                 or self.cli.state.MODIFY_RES_EDIT_MODE:

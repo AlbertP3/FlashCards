@@ -1,12 +1,15 @@
 import traceback
 import sys
+import logging
 from PyQt5 import QtCore
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import main_window_logic
 from side_windows_gui import *
+from DBAC.api import FileDescriptor
 
+log = logging.getLogger(__name__)
 
 
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
@@ -23,7 +26,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.initiate_timer()
         self.initiate_pace_timer()
         self.initiate_cyclic_file_update()
-        self.initiate_flashcards(self.file_path)
+        self.initiate_flashcards(
+            self.db.files.get(  
+                self.config['onload_filepath'],
+                FileDescriptor(
+                    filepath=self.config['onload_filepath'], 
+                    tmp=True
+                )
+            )
+        )
+        log.debug('Application launch')
         self.q_app.exec()
 
     def build_interface(self):
@@ -129,8 +141,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def set_theme(self):
-        for i in get_children_layouts(self.layout):
-            remove_layout(i)
+        for i in self.get_children_layouts(self.layout):
+            self.remove_layout(i)
         self.build_layout()
         self.initiate_timer()
         side_windows.__init__(self)
@@ -208,33 +220,32 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def load_again_click(self):
-        if self.dataset.empty:
+        if not self.active_file.valid:
             self.post_logic('Cannot reload an empty file')
             return
-        elif self.TEMP_FILE_FLAG:
-            dataset = shuffle_dataset(self.dataset)
+        elif self.active_file.tmp:
+            self.db.shuffle_dataset()
         else:
-            dataset = load_dataset(self.file_path)
+            self.db.load_dataset(self.active_file)
 
-        self.update_backend_parameters(self.file_path, dataset)
+        self.update_backend_parameters()
         self.update_interface_parameters()
         self.change_revmode(self.is_revision)
         self.start_file_update_timer()
 
 
-    def initiate_flashcards(self, file_path):
+    def initiate_flashcards(self, fd):
         # Manage whole process of loading flashcards file
-        dataset = super().load_flashcards(file_path)
-        if dataset_is_valid(dataset):
-            self.update_backend_parameters(file_path, dataset)
+        super().load_flashcards(fd)
+        if self.db.active_file.valid:
+            self.update_backend_parameters()
             self.update_interface_parameters()
             self.del_side_window()
             self.start_file_update_timer()
 
 
     def update_interface_parameters(self):
-        filename = self.file_path.split('/')[-1].split('.')[0]
-        self.window_title = self.signature if self.is_revision else filename
+        self.window_title = self.active_file.signature if self.is_revision else self.active_file.basename
         self.setWindowTitle(self.window_title)
             
         self.display_text(self.get_current_card().iloc[self.side])
@@ -292,7 +303,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def conditions_to_save_time_for_mistakes_are_met(self, diff_words):
-        if not self.is_revision and self.is_mistakes_list and \
+        if not self.is_revision and self.active_file.kind=='mistakes' and \
             not self.is_saved and diff_words==0:
             return True
         else:
@@ -417,7 +428,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.set_geometry(self.config['GEOMETRY'][name])
     
     def del_side_window_in_place(self):
-        remove_layout(self.side_window_layout)
+        self.remove_layout(self.side_window_layout)
         self.toggle_primary_widgets_visibility(True)
         self.side_window_id = 'main'
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
@@ -445,7 +456,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def del_side_window_side_by_side(self): 
         self.unfix_size(self)
         self.unfix_size(self.textbox)
-        remove_layout(self.side_window_layout)
+        self.remove_layout(self.side_window_layout)
         self.side_window_id = 'main'
         self.set_geometry(self.config['GEOMETRY']['main'])
     
@@ -549,27 +560,27 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def file_update_timer_handler(self):
         self.last_file_update_seconds_ago+=1
         interval_sec = int(self.config['file_update_interval'])
-        if interval_sec == 0 or self.TEMP_FILE_FLAG:
+        if interval_sec == 0 or self.active_file.tmp:
             self.file_update_timer.stop()
             self.fcc_inst.post_fcc('File update timer: stopped')
         elif interval_sec <= self.last_file_update_seconds_ago:
-            mod_time = os.path.getmtime(self.file_path)
-            if mod_time > self.last_modification_time:
+            mod_time = os.path.getmtime(self.active_file.filepath)
+            if mod_time > self.active_file.mtime:
                 self.update_dataset()
                 self.fcc_inst.post_fcc('Dataset refreshed')
             self.last_file_update_seconds_ago = 0
-            self.last_modification_time = mod_time
+            self.active_file.mtime = mod_time
 
 
     def condition_to_run_file_update_timer(self):
         c = self.file_update_timer is not None \
-            and not self.TEMP_FILE_FLAG and \
+            and not self.active_file.tmp and \
             self.config['file_update_interval']!='0'
         return c
 
 
     def update_dataset(self):
-            self.dataset = load_dataset(self.file_path, seed=self.config['pd_random_seed'])
+            self.db.load_dataset(self.active_file, seed=self.config['pd_random_seed'])
             self.display_text(self.get_current_card().iloc[self.side])
 
 
@@ -634,8 +645,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def _revtimer_func_time(self):
         self.seconds_spent+=1
-        interval = 'minute' if self.seconds_spent < 3600 else 'hour'
-        self.timer_button.setText(format_seconds_to(self.seconds_spent, interval))
+        interval, rem = (('minute', 0), ('hour', 2))[self.seconds_spent>3600]
+        self.timer_button.setText(format_seconds_to(self.seconds_spent, interval, rem=rem))
 
 
     ############### PACE TIMER ############### 
@@ -690,8 +701,41 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return super(main_window_gui, self).eventFilter(source, event)
 
 
+    def remove_layout(self, layout):
+    # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
+     if layout is not None:
+         while layout.count():
+             item = layout.takeAt(0)
+             widget = item.widget()
+             if widget is not None:
+                 widget.setParent(None)
+             else:
+                 self.remove_layout(item.layout())
+
+    
+    def get_children_layouts(self, layout):
+        layouts = list()
+        for l in layout.children():
+            layouts.append(l)
+            for w in range(l.count()):
+                wdg = l.itemAt(w).widget()
+                if wdg is None:
+                    layouts.append(l.itemAt(w))
+        return layouts
+
+
+    def get_children_widgets(self, layout):
+        widgets = list()
+        for i in range(layout.count()):
+                w = layout.itemAt(i)
+                if w is not None:
+                    widgets.append(w.widget())
+        return widgets
+
+
     def closeEvent(self, event):
         self.config.save()
+        log.debug('Application shutdown')
 
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:

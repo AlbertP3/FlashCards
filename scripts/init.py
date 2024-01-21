@@ -9,7 +9,7 @@ def configure_logging(log_level, plt_log_level='error'):
     logging.basicConfig(
         filename=os.path.realpath(f'{CWD}/../fcs.log'),
         filemode='a',
-        format='%(asctime)s.%(msecs)05d [%(name)s] %(levelname)s %(message)s <%(filename)s(%(lineno)d)>',
+        format='%(asctime)s.%(msecs)03d [%(name)s] %(levelname)s %(message)s <%(filename)s(%(lineno)d)>',
         datefmt="%Y-%m-%dT%H:%M:%S", 
         level=log_level
         )

@@ -1,6 +1,6 @@
 import logging
 from random import randint
-import db_api
+from DBAC.api import db_interface, FileDescriptor
 from utils import *
 from rev_summary import SummaryGenerator
 
@@ -11,28 +11,31 @@ class main_window_logic():
 
     def __init__(self):
         self.config = Config()
-        self.dataset = pd.DataFrame()
         self.update_default_side()
         self.default_side = self.get_default_side()
         self.side = self.default_side
-        self.file_path = self.config['onload_file_path']
         self.revmode = False
         self.total_words = 0
+        self.words_back = 0
         self.current_index = 0
         self.cards_seen = 0
-        self.signature = ''
         self.revision_summary = None
-        self.TEMP_FILE_FLAG = False
-        self.is_revision = False
-        self.is_mistakes_list = False
-        self.last_modification_time = None
         self.is_saved = False
-        self.dbapi = db_api.db_interface()
+        self.db = db_interface()
         self.summary_gen = SummaryGenerator()
         self.auto_cfm_offset = 0
         self.is_afterface = False
 
-        
+
+    @property
+    def is_revision(self):
+        return self.db.active_file.kind == 'revision'
+    
+    @property
+    def active_file(self):
+        return self.db.active_file
+
+
     def post_logic(self, text):
         self.fcc_inst.post_fcc(text)
 
@@ -80,8 +83,8 @@ class main_window_logic():
 
 
     def record_revision_to_db(self, seconds_spent=0):
-        self.dbapi.create_record(self.signature, self.total_words, self.positives, seconds_spent)
-        self.post_logic(db_api.DBAPI_STATUS_DICT['create_record'])
+        self.db.create_record(self.total_words, self.positives, seconds_spent)
+        self.post_logic(DBAPI_STATUS_DICT['create_record'])
 
 
     def goto_prev_card(self):
@@ -95,21 +98,18 @@ class main_window_logic():
         
      
     def delete_current_card(self):
-        self.dataset.drop([self.current_index], inplace=True, axis=0)
-        self.dataset.reset_index(inplace=True, drop=True)
-        self.total_words = self.dataset.shape[0]
+        self.db.delete_card(self.current_index)
+        self.total_words = self.active_file.data.shape[0]
         self.side = self.get_default_side()
         
 
-    def load_flashcards(self, file_path):
+    def load_flashcards(self, fd:FileDescriptor):
         try:
-            dataset = load_dataset(file_path, do_shuffle=True)   
-            if dataset.empty: self.post_logic(UTILS_STATUS_DICT['load_dataset'])
-            self.TEMP_FILE_FLAG = dataset.empty
-            return dataset
+            self.db.load_dataset(fd, do_shuffle=True)   
+            if msg:=DBAPI_STATUS_DICT['load_dataset']:
+                self.post_logic(msg)
         except FileNotFoundError:
             self.post_logic('File Not Found.')
-            self.TEMP_FILE_FLAG = True
 
 
     def is_complete_revision(self):
@@ -118,19 +118,11 @@ class main_window_logic():
 
 
     def handle_saving(self, seconds_spent=0):      
-        # update timestamp
-        self.signature = update_signature_timestamp(self.signature)
-
-        save_revision(self.dataset.iloc[:self.cards_seen+1, :], self.signature)
-        self.post_logic(UTILS_STATUS_DICT['save_revision'])
-
-        # Create initial record
-        self.dbapi.create_record(self.signature, self.cards_seen+1, self.positives, seconds_spent)
-        
-        # immediately load the revision
-        new_path = os.path.join(self.config['revs_path'], f'{self.signature}.csv')
-        data = self.load_flashcards(new_path)
-        self.update_backend_parameters(new_path, data)
+        newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
+        self.post_logic(DBAPI_STATUS_DICT['save_revision'])
+        self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
+        self.load_flashcards(self.db.files[newfp])
+        self.update_backend_parameters()
 
 
     def change_revmode(self, force_which=None):
@@ -142,20 +134,10 @@ class main_window_logic():
             self.revmode = force_which
 
     
-    def update_backend_parameters(self, file_path, data, override_signature=None):
-        self.filename = file_path.split('/')[-1].split('.')[0]
-        self.file_path = file_path
-        self.dataset = data
-        self.is_revision = os.path.normpath(os.path.dirname(file_path)) == os.path.normpath(self.config['revs_path'])
-
-        if override_signature is None:
-            self.signature = get_signature(self.filename, str(data.columns[0])[:2], self.is_revision)
-        else:
-            self.signature = override_signature
-
-        self.config.update({'onload_file_path': file_path})
+    def update_backend_parameters(self):
+        self.config.update({'onload_filepath': self.active_file.filepath})
         self.reset_flashcards_parameters()
-        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.filename}')
+        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.active_file.basename}')
 
 
     def reset_flashcards_parameters(self):
@@ -167,35 +149,27 @@ class main_window_logic():
         self.mistakes_list = list()
         self.is_saved = False
         self.side = self.get_default_side()
-        self.total_words = self.dataset.shape[0]
-        self.is_mistakes_list = 'mistakes' in self.filename.lower()
+        self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
-        self.last_modification_time = os.path.getmtime(self.file_path) if not self.TEMP_FILE_FLAG else 9999999999
         self.auto_cfm_offset = 0
         self.change_revmode(self.is_revision)
         
 
-    def save_to_mistakes_list(self):
-        # auto_cfm_offset - avoid duplicating cards on multiple saves of the same dataset
-        mistakes_list = pd.DataFrame(data=self.mistakes_list, columns=self.dataset.columns)
-        lng = get_lng_from_signature(self.signature).upper()
-        full_path = os.path.join(self.config['lngs_path'], f'{lng}_mistakes.csv')
-        try:
-            buffer:pd.DataFrame = load_dataset(full_path, do_shuffle=False)
-        except FileNotFoundError:
-            buffer = pd.DataFrame()
-        buffer = pd.concat([buffer, mistakes_list.iloc[self.auto_cfm_offset:]], ignore_index=True)
-        overflow = int(self.config['mistakes_buffer'])
-        buffer.iloc[-overflow:].to_csv(full_path, index=False, mode='w', header=True)
-
-        m_cnt = mistakes_list.shape[0] - self.auto_cfm_offset
-        self.post_logic(f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes List')
-        self.auto_cfm_offset = mistakes_list.shape[0]
-
-        # show only the current mistakes as flashcards
-        fake_path = os.path.join(self.config['lngs_path'], f'{lng} Mistakes.csv')
-        self.TEMP_FILE_FLAG = True
-        self.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
+    def save_to_mistakes_list(self):   
+        mistakes_list = self.db.save_mistakes(
+            mistakes_list = self.mistakes_list, 
+            cols = self.active_file.data.columns, 
+            offset = self.auto_cfm_offset
+        )
+        self.auto_cfm_offset = mistakes_list.shape[0]  
+        self.db.load_tempfile(
+            data = mistakes_list,
+            kind = 'mistakes',
+            basename = f'{self.active_file.lng} Mistakes',
+            lng = self.active_file.lng,
+            signature = f"{self.active_file.lng}_mistakes"
+        )
+        self.update_backend_parameters()
         self.update_interface_parameters()
 
         # allow instant save of a rev created from mistakes_list
@@ -205,7 +179,7 @@ class main_window_logic():
     def get_rating_message(self):
         if 'revision_summary' in self.config['optional']:
             progress = self.summary_gen.get_summary_text(
-                self.signature, self.positives, self.total_words, self.seconds_spent
+                self.positives, self.total_words, self.seconds_spent
             )
         else:
             progress = 'Revision done'
@@ -223,14 +197,14 @@ class main_window_logic():
 
 
     def get_current_card(self):
-        return self.dataset.iloc[self.current_index, :]
+        return self.active_file.data.iloc[self.current_index, :]
 
 
     def notify_on_error(self, traceback, exc_value=None):
-        log.error(traceback)
+        log.error(traceback, exc_info=True)
 
         if exc_value:  # is an error
-            err_msg = f"[{datetime.now():%H:%M:%S}] {str(exc_value)}. See log file for more details."
+            err_msg = f"{str(exc_value)}. See log file for more details."
         else:
             err_msg = traceback
 

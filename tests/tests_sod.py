@@ -34,13 +34,13 @@ class Test_CLI(TestCase):
         self.ss = sod_init.sod_spawn(stream_out=output)
         self.ss.cli.fh = XLSXFileHandler('./languages/example.xlsx')
         self.ss.cli.fh.wb.save = mock.MagicMock()
-        self.ss.cli.d_api.dicts = {'mock': {'service':dict_mock(), 'shortname':'M'}, 
+        self.ss.cli.dicts.dicts = {'mock': {'service':dict_mock(), 'shortname':'M'}, 
                                     'imitation': {'service':dict_mock(), 'shortname':'i'},
                                     'local': {'service':DictLocal(), 'shortname':'l'}}
-        self.ss.cli.d_api.dict_service = 'mock'
-        self.ss.cli.d_api.set_languages('np', 'fl')
-        self.ss.cli.d_api.available_dicts.update({'mock','imitation'})
-        self.ss.cli.d_api.available_dicts_short.update({'i', 'M'})
+        self.ss.cli.dicts.dict_service = 'mock'
+        self.ss.cli.dicts.set_languages('np', 'fl')
+        self.ss.cli.dicts.available_dicts.update({'mock','imitation'})
+        self.ss.cli.dicts.available_dicts_short.update({'i', 'M'})
         self.ss.cli.output.cls = self.cls_mock
         self.ss.cli.send_output = self.send_output_mock
         self.ss.cli.get_lines_limit = lambda: 99
@@ -327,25 +327,25 @@ class Test_CLI(TestCase):
             
     def test_lng_switch(self):
         # test various lng changes - user can define: src_lng only, or both src and tgt
-        self.ss.cli.d_api.switch_languages(src_lng='pl', tgt_lng='en')
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'pl')
-        self.assertEqual(self.ss.cli.d_api.target_lng, 'en')
+        self.ss.cli.dicts.switch_languages(src_lng='pl', tgt_lng='en')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'pl')
+        self.assertEqual(self.ss.cli.dicts.target_lng, 'en')
 
-        self.ss.cli.d_api.switch_languages(src_lng='en')
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'en')
-        self.assertEqual(self.ss.cli.d_api.target_lng, 'pl')
+        self.ss.cli.dicts.switch_languages(src_lng='en')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'en')
+        self.assertEqual(self.ss.cli.dicts.target_lng, 'pl')
 
-        self.ss.cli.d_api.switch_languages(src_lng='pl', tgt_lng='en')
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'pl')
-        self.assertEqual(self.ss.cli.d_api.target_lng, 'en')
+        self.ss.cli.dicts.switch_languages(src_lng='pl', tgt_lng='en')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'pl')
+        self.assertEqual(self.ss.cli.dicts.target_lng, 'en')
          
-        self.ss.cli.d_api.switch_languages(src_lng='ru', tgt_lng='pl')
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'ru')
-        self.assertEqual(self.ss.cli.d_api.target_lng, 'pl')
+        self.ss.cli.dicts.switch_languages(src_lng='ru', tgt_lng='pl')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'ru')
+        self.assertEqual(self.ss.cli.dicts.target_lng, 'pl')
          
-        self.ss.cli.d_api.switch_languages(src_lng='en')
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'en')
-        self.assertEqual(self.ss.cli.d_api.target_lng, 'pl')
+        self.ss.cli.dicts.switch_languages(src_lng='en')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'en')
+        self.assertEqual(self.ss.cli.dicts.target_lng, 'pl')
 
 
     def test_queue_ommit_duplicates(self):
@@ -549,7 +549,7 @@ class Test_CLI(TestCase):
         self.run_cmd(['earth'])
         self.run_cmd(['1'])
         self.run_cmd(['fl', 'witaj świEcie'])
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'fl')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'fl')
         self.assertIn(self.ss.cli.msg.PHRASE_EXISTS_IN_DB, self.get_console())
 
 
@@ -587,12 +587,12 @@ class Test_CLI(TestCase):
         self.run_cmd(['Earth'])
         self.run_cmd(['dict', 'imitation'])
         self.assertEqual(self.ss.cli.queue_index, 2)
-        self.assertEqual(self.ss.cli.d_api.dict_service, 'imitation', self.ss.cli.d_api.available_dicts)
+        self.assertEqual(self.ss.cli.dicts.dict_service, 'imitation', self.ss.cli.dicts.available_dicts)
         self.run_cmd(['fl', 'Moon'])
         self.assertEqual(self.ss.cli.queue_index, 3)
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'fl')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'fl')
         self.run_cmd(['dict', 'mock'])
-        self.assertEqual(self.ss.cli.d_api.dict_service, 'mock')
+        self.assertEqual(self.ss.cli.dicts.dict_service, 'mock')
         self.assertEqual(self.ss.cli.queue_index, 3)
         self.run_cmd([''])
         self.assertEqual(set(self.ss.cli.queue_dict.keys()), {'Moon'})
@@ -665,7 +665,7 @@ class Test_CLI(TestCase):
         # Manual
         sep = self.config['SOD']['manual_mode_sep']
         self.run_cmd(['fl'])
-        self.assertEqual(self.ss.cli.d_api.source_lng, 'fl')
+        self.assertEqual(self.ss.cli.dicts.source_lng, 'fl')
         self.run_cmd([sep, 'manual-entry', sep, 'manual-input'])
         self.check_record('manual-entry', 'manual-input', self.init_db_len+3)
         self.check_count_added(3)

@@ -8,7 +8,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
 from fcc import fcc
 from efc import efc
-from load import load
 from stats import stats
 import timer
 from copy import deepcopy
@@ -202,7 +201,7 @@ class efc_gui(efc):
         self.efc_layout.addWidget(self.create_load_efc_button(), 1, 0, 1, 1)
 
         # Fill List Widget
-        self.refresh_source_data()
+        self.db.refresh()
         [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
         self.files_count = self.recommendation_list.count()
         if self.files_count: 
@@ -238,19 +237,15 @@ class efc_gui(efc):
 
 
     def load_selected_efc(self):
-        selected_path = self.get_path_from_selected_file()
-        if selected_path is None:
-            self.post_logic('File Not Found')
-            return
-        self.initiate_flashcards(selected_path)
-        self.del_side_window()
+        if fd := self.get_fd_from_selected_file():
+            self.initiate_flashcards(fd)
+            self.del_side_window()
 
 
 
-class load_gui(load):
+class load_gui:
 
     def __init__(self):
-        load.__init__(self)
         self.side_window_titles['load'] = 'Load'
         self.cur_load_index = 0
         # add button to main window
@@ -307,9 +302,19 @@ class load_gui(load):
 
 
     def fill_flashcard_files_list(self):
-        # self.flashcard_files_qlist.clear()
-        [self.flashcard_files_qlist.addItem(str(f).split('.')[0]) for f in self.get_lng_files()]
-        [self.flashcard_files_qlist.addItem(str(f).split('.')[0]) for f in self.get_rev_files()]
+        self.load_map, i = dict(), 0
+        for fd in self.db.get_sorted_languages():
+            self.flashcard_files_qlist.addItem(fd.basename)
+            self.load_map[i] = fd.filepath
+            i+=1
+        for fd in self.db.get_sorted_mistakes():
+            self.flashcard_files_qlist.addItem(fd.basename)
+            self.load_map[i] = fd.filepath
+            i+=1
+        for fd in self.db.get_sorted_revisions():
+            self.flashcard_files_qlist.addItem(fd.basename)
+            self.load_map[i] = fd.filepath
+            i+=1
         self.files_count = self.flashcard_files_qlist.count()
 
         
@@ -333,8 +338,9 @@ class load_gui(load):
 
 
     def load_selected_file(self):
-        file_path = super().get_selected_file_path(self.flashcard_files_qlist)
-        self.initiate_flashcards(file_path)
+        self.initiate_flashcards(
+            self.db.files[self.load_map[self.flashcard_files_qlist.currentRow()]]
+        )
 
 
 
@@ -423,7 +429,7 @@ class stats_gui(stats):
             self.fcc_inst.post_fcc('Statistics are not available for a Language')
 
     def arrange_stats_sidewindow(self):
-        self.get_data_for_current_revision(self.signature)
+        self.get_data_for_current_revision(self.active_file.signature)
         self.get_stats_chart()
         self.get_stats_table()
         self.stats_layout = widget.QGridLayout()
@@ -470,7 +476,7 @@ class stats_gui(stats):
         self.figure.set_facecolor(self.config['THEME']['stat_background_color'])
         ax.set_facecolor(self.config['THEME']['stat_chart_background_color'])
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-        ax.set_ylim([0, self.total_words])
+        ax.set_ylim([0, self.total_words+2])
         ax.tick_params(colors=self.config['THEME']['stat_chart_text_color'],
                         labelrotation=0,
                         pad=1)
@@ -491,17 +497,22 @@ class stats_gui(stats):
         self.days_from_creation = self.create_button(f'Created\n{str(self.days_ago).split(",")[0]} ago')
 
         # estimate total time spent if some records miss time_spent
+        interval, rem = (('minute', 0), ('hour', 2))[self.total_seconds_spent>3600]
         if self.missing_records_cnt == 0:
-            self.missing_records_adj = format_seconds(self.total_seconds_spent)
+            self.missing_records_adj = format_seconds_to(
+                self.total_seconds_spent, interval, int_name=interval.capitalize(), rem=rem, sep=':'
+            )
         elif self.total_seconds_spent != 0:
             # estimate total time by adding to actual total_seconds_spent, 
             # the estimate = X * count of missing records multiplied by average time spent on non-zero revision
             # X is an arbitrary number to adjust for learning curve
             adjustment = 1.481*self.missing_records_cnt*(self.total_seconds_spent/(self.sum_repeated-self.missing_records_cnt))
-            self.missing_records_adj = f"±{format_seconds(self.total_seconds_spent + adjustment)}"
+            fmt_time = format_seconds_to(self.total_seconds_spent + adjustment, interval, int_name=interval.capitalize(), rem=rem, sep=':')
+            self.missing_records_adj = f"±{fmt_time}"
         else:
             # no time records for this revision
-            self.missing_records_adj = f'±{format_seconds(self.sum_repeated*(60*self.total_words/12))}'
+            fmt_time = format_seconds_to(self.sum_repeated*(60*self.total_words/12), interval, int_name=interval.capitalize(), rem=rem, sep=':')
+            self.missing_records_adj = f'±{fmt_time}'
 
         self.total_time_spent = self.create_button(f'Spent\n{self.missing_records_adj}')
 
@@ -533,23 +544,23 @@ class progress_gui(stats):
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'progress')
 
 
-    def get_progress_sidewindow(self, override_lng_gist=False):
-        lng_gist = '' if override_lng_gist else get_lng_from_signature(self.signature)
-        if lng_gist != 'UNKNOWN':
-            self.arrange_progress_sidewindow(lng_gist)
+    def get_progress_sidewindow(self, lngs:set=None):
+        lngs = lngs if lngs is not None else self.config['languages']
+        try:
+            self.arrange_progress_sidewindow(lngs)
             self.open_side_window(self.progress_layout, 'progress')
-        else:
-            self.post_logic('Progress not available')
+        except ValueError:
+            self.post_logic('No data found for Progress')
 
 
-    def arrange_progress_sidewindow(self, lng_gist):
-        self.get_data_for_progress(lng_gist)
-        self.get_progress_chart(lng_gist)
+    def arrange_progress_sidewindow(self, lngs:set):
+        self.get_data_for_progress(lngs)
+        self.get_progress_chart(lngs)
         self.progress_layout = widget.QGridLayout()
         self.progress_layout.addWidget(self.canvas, 0, 0)
 
 
-    def get_progress_chart(self, lng_gist):
+    def get_progress_chart(self, lngs:set):
         
         self.figure = Figure(figsize=(5, 3))
         self.canvas = FigureCanvas(self.figure)
@@ -599,12 +610,15 @@ class progress_gui(stats):
         positives_plot.get_yaxis().set_visible(False)
         revision_count_plot.get_yaxis().set_visible(False)
         positives_plot.get_xaxis().set_visible(False)
-        title = lng_gist if lng_gist != '' else 'ALL'
+        title = ' & '.join(lngs) if lngs else 'All'
         self.figure.suptitle(title, fontsize=18, y=0.92, color=self.config['THEME']['font_color'])
         self.figure.subplots_adjust(left=0.0, bottom=0.06, right=0.997, top=0.997)
 
         # synchronize axes
-        max_ = max(self.chart_values.max(), self.second_chart_values.max())
+        max_ = max(
+            self.chart_values.max(), 
+            self.second_chart_values.max()
+        )
         positives_plot.set_ylim([0, max_*1.2])
         total_words_plot.set_ylim([0, max_*1.2])
         revision_count_plot.set_ylim([0, max_*99])
@@ -801,6 +815,7 @@ class config_gui():
                 self.init_font()
                 self.console.setFont(self.CONSOLE_FONT)
         elif not (key or subdict):
+            self.db.reload_files_cache()
             self.update_default_side()
             self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
             self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']

@@ -83,7 +83,7 @@ class cmg_spawn:
     def add_card(self, parsed_cmd:list):
         '''Add a card to the current dataset'''
         if self.state is None:
-            if not self.sout.mw.TEMP_FILE_FLAG:
+            if not self.sout.mw.active_file.tmp:
                 self.sout.post_fcc("Can only add cards to temporary files!")
                 return
             self._adapt(self.add_card, state='add')

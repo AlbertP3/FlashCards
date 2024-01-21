@@ -1,7 +1,7 @@
-import db_api
-from utils import *
-from os import listdir
 import joblib
+from random import choice
+import DBAC.api as api
+from utils import *
 
 
 
@@ -12,24 +12,11 @@ class efc():
     def __init__(self):
         self.config = Config()
         self.paths_to_suggested_lngs = dict()
-        self.reccommendation_texts = {'EN':'Oi mate, take a gander', 
-                                        'RU':'давай товарищ, двигаемся!', 
-                                        'DE':'Es ist an der Zeit zu handeln!',
-                                        'IT':'Andiamo a lavorare',
-                                        'FR':'Mettons-nous au travail'}
-        self.db_interface = db_api.db_interface()
-        self.unique_signatures = set()
+        self.db = api.db_interface()
         self.efc_model = Placeholder()
         self.efc_model.name = None
         self.efc_model.mtime = 0
-
-
-    def refresh_source_data(self):
-        if self.db_interface.refresh():
-            self.load_pickled_model()
-            self.db_interface.filter_where_lng(lngs=self.config['languages'])
-            self.unique_signatures = {s for s in self.db_interface.db['SIGNATURE'] 
-                                    if s + '.csv' in listdir(self.config['revs_path'])}
+        self.load_pickled_model()
 
 
     def load_pickled_model(self):
@@ -42,30 +29,27 @@ class efc():
 
 
     def get_recommendations(self):
-        reccommendations = list()
-
+        recommendations = list()
+        self.new_revs = 0
         if int(self.config['days_to_new_rev'])>0:
-            reccommendations.extend(self.is_it_time_for_something_new())
-
-        # get parameters and efc_function result for each unique signature
+            recommendations.extend(self.is_it_time_for_something_new())
         for rev in self.get_complete_efc_table():
             efc_critera_met = rev[2] < int(self.config['efc_threshold'])
             if efc_critera_met:
-                reccommendations.append(rev[0])
-        
-        return reccommendations
+                recommendations.append(rev[0]) 
+        return recommendations
 
 
     def get_complete_efc_table(self, preds:bool=False) -> list[str, str, float]:
         rev_table_data = list()
-        self.db_interface.filter_for_efc_model()
-        unqs = self.db_interface.gather_efc_record_data()
+        self.db.filter_for_efc_model()
+        unqs = self.db.gather_efc_record_data()
         init_revs = int(self.config['init_revs_cnt'])
         init_revs_inth = float(self.config['init_revs_inth'])
 
-        for s in self.unique_signatures:
+        for fd in self.db.get_sorted_revisions():
             # data: (TIMESTAMP, TOTAL, POSITIVES, SEC_SPENT)
-            data = unqs.get(s)
+            data = unqs.get(fd.signature)
             if data:
                 since_last_rev = (datetime.now()-data[-1][0]).total_seconds()/3600
                 cnt = len(data)+1
@@ -80,9 +64,9 @@ class efc():
                     rec = [total, prev_wpm, since_creation, since_last_rev, cnt, prev_score]
                     efc = self.efc_model.predict([rec])
                     pred = self.guess_when_due(rec.copy(), warm_start=efc[0][0]) if preds else 0
-                s_efc = [s, since_last_rev/24, efc[0][0], pred]
+                s_efc = [fd.signature, since_last_rev/24, efc[0][0], pred]
             else:
-                s_efc = [s, 'inf', 0, 0]
+                s_efc = [fd.signature, 'inf', 0, 0]
             rev_table_data.append(s_efc)
             
         return rev_table_data
@@ -118,9 +102,9 @@ class efc():
         efc_stats_list = [['REV NAME', 'AGO', 'EFC', 'DUE']]
         for rev in efc_table_data:
             if abs(rev[3]) < 48:
-                pred = f"{format_seconds_to(rev[3]*3600, 'hour')}"
+                pred = format_seconds_to(rev[3]*3600, 'hour', rem=2)
             elif abs(rev[3]) < 10000:
-                pred = f"{format_seconds_to(rev[3]*3600, 'day', include_remainder=False)}"  
+                pred = format_seconds_to(rev[3]*3600, 'day', rem=0)
             else:
                 pred = "Too Long"
             diff_days = '{:.1f}'.format(rev[1]) if isinstance(rev[1], float) else rev[1]
@@ -130,50 +114,39 @@ class efc():
         return printout
 
 
-    def get_path_from_selected_file(self):
-        # safety-check if no item is selected
-        if self.recommendation_list.currentItem() is None: return
-
-        selected_li = self.recommendation_list.currentItem().text()
+    def get_fd_from_selected_file(self):
         try:
-            # Check if selected item is a suggestion to create a new revision
-            if selected_li in self.paths_to_suggested_lngs.keys():
-                path = os.path.join(self.config['lngs_path'], self.paths_to_suggested_lngs[selected_li])
-            else:
-                path = os.path.join(self.config['revs_path'], f"{selected_li}.csv")
-                                     
-        except FileNotFoundError:
-            path = None
-    
-        return path
+            i = self.recommendation_list.currentItem().text()
+            if self.recommendation_list.currentRow() >= self.new_revs:
+                fd = [fd for fd in self.db.files.values() if fd.basename == i][0]
+            else:  # Select New Recommendation
+                fd = self.db.files[
+                    self.paths_to_suggested_lngs[i]
+                ]
+        except AttributeError:  # if no item is selected
+            fd = None
+        return fd
 
 
     def is_it_time_for_something_new(self):
-        # Periodically reccommend to create new revision for every lng
-        lngs = self.config['languages']
-        new_reccommendations = list()
-
-        for lng in lngs:
-            for signature in sorted(list(self.unique_signatures), key=self.db_interface.get_first_datetime, reverse=True):  
-                if lng in signature:
-                    initial_date = self.db_interface.get_first_datetime(signature)
-                    time_delta = (datetime.now() - initial_date).days
+        # Periodically recommend to create new revision for every lng
+        new_recommendations = list()
+        for lng in self.config['languages']:
+            lng = lng.upper()
+            for fd in self.db.get_sorted_mistakes():  
+                if fd.lng == lng:
+                    last_date = self.db.get_last_datetime(fd.signature)
+                    time_delta = (datetime.now() - last_date).days
                     if time_delta >= int(self.config['days_to_new_rev']):
-                        new_reccommendations.append(self.get_reccommendation_text(lng))
+                        new_recommendations.append(self.get_recommendation_text(lng))
                     break
-        return new_reccommendations
+        return new_recommendations
 
 
-    def get_reccommendation_text(self, lng):
+    def get_recommendation_text(self, lng:str):
         # adding key to the dictionary facilitates matching 
-        # reccommendation text with the lng file
-
-        # if lng message is specified else get default
-        if lng in self.reccommendation_texts:
-            text = self.reccommendation_texts[lng]  
-        else:
-            text = f"It's time for {lng}"     
-        
-        self.paths_to_suggested_lngs[text] = get_most_similar_file_regex(config['lngs_path'], lng)
+        # recommendation text with the lng file
+        text = self.config['RECOMMENDATIONS'].get(lng, f"It's time for {lng}")
+        self.paths_to_suggested_lngs[text] = choice([fd.filepath for fd in self.db.files.values() if fd.lng == lng])
+        self.new_revs+=1
         return text
-    

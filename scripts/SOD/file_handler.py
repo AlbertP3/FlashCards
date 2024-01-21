@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod, abstractproperty
+import logging
 import re
 import pandas as pd
 import openpyxl
@@ -6,8 +7,7 @@ from collections import OrderedDict
 from utils import Config, get_filename_from_path
 from functools import cache
 
-fhs = dict()
-
+log = logging.getLogger(__name__)
 
 
 class FileHandler(ABC):
@@ -97,11 +97,10 @@ class XLSXFileHandler(FileHandler):
         self.data = OrderedDict()  # row_index: (original, translation)
         for r in range(1, self.ws.max_row+1):
             self.data[r] = (str(self.ws.cell(r, 1).value), str(self.ws.cell(r, 2).value))
-        self.config['SOD']['last_file'] = self.filename
+        self.config['SOD']['last_file'] = self.path
         self.native_lng = self.ws.cell(1, 2).value.lower()
         self.foreign_lng = self.ws.cell(1, 1).value.lower()
         self.dtracker = None  # tuple: (row, searched_phrase)
-        fhs[self.path] = self
 
 
     @property
@@ -137,7 +136,7 @@ class XLSXFileHandler(FileHandler):
 
     def close(self):
         self.wb.close()
-        del fhs[self.path]
+        del self
 
 
 
@@ -151,11 +150,10 @@ class CSVFileHandler(FileHandler):
         self.data = OrderedDict()  # row_index: (original, translation)
         for r in self.raw_data.itertuples():
             self.data[r[0]] = (str(r[1]), str(r[2]))
-        self.config['SOD']['last_file'] = self.filename
+        self.config['SOD']['last_file'] = self.path
         self.native_lng = self.raw_data.columns[1].lower()
         self.foreign_lng = self.raw_data.columns[0].lower()
         self.dtracker = None  # tuple: (row,)
-        fhs[self.path] = self
 
 
     @property
@@ -182,15 +180,63 @@ class CSVFileHandler(FileHandler):
         self.clear_cache()
 
     def close(self):
-        del fhs[self.path]
+        del self
 
 
 
+class VoidFileHandler(FileHandler):
+    
+    def __init__(self, path=''):
+        self.filename = None
+        self.native_lng = None
+        self.foreign_lng = None
+    
+    @property
+    def total_rows(self):
+        return 0
+    
+    def append_content(self, phrase, translations) -> tuple[bool, str]:
+        return False, ''
+
+    def edit_content(self, phrase, translations) -> tuple[bool, str]:
+        return False, ''
+
+    def close(self):
+        del self
+    
+    def is_duplicate(self, word, is_from_native):
+        return False
+
+    def get_translations(self, phrase:str, is_from_native:bool):
+        return [], []
+    
+    def get_translations_with_regex(self, phrase:str, is_from_native:bool):
+        return [], []
+    
+    def clear_cache(self):
+        return
+    
+    def get_languages(self) -> tuple[str]:
+        return [self.foreign_lng, self.native_lng]
+    
+    def update_dtracker(self, new_row: int = None, new_phrase: str = None):
+        return
+    
+    def validate_dtracker(self, searched_phrase: str):
+        return
+
+
+ACTIVE_FH:FileHandler = None
 def get_filehandler(fullpath:str) -> FileHandler:
         '''Pick FileHandler based on the file extension'''
+        global ACTIVE_FH
         if fullpath.endswith(('.xlsx','.xlsm','.xltx','.xltm')):
-            return XLSXFileHandler(fullpath)
+            ACTIVE_FH = XLSXFileHandler(fullpath)
         elif fullpath.endswith('.csv'):
-            return CSVFileHandler(fullpath)
+            ACTIVE_FH = CSVFileHandler(fullpath)
+        elif fullpath.endswith('.void'):
+            ACTIVE_FH = VoidFileHandler(fullpath)
         else:
             raise AttributeError(f'Unsupported file extension: {fullpath.split(".")[-1]}')
+        log.debug(f"Initialized {ACTIVE_FH.__class__} for: {fullpath}")
+        return ACTIVE_FH

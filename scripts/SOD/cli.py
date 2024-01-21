@@ -1,11 +1,14 @@
 from collections import OrderedDict
 from itertools import islice
+import logging
 import re
 import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
-from utils import Config, get_most_similar_file_startswith, get_most_similar_file_regex, get_pretty_print
+from DBAC.api import db_interface
+from utils import Config, get_pretty_print
 
+log = logging.getLogger(__name__)
 
 
 class State:
@@ -27,6 +30,9 @@ class Message:
         self.OK = '✅ OK'
         self.QUERY_UPDATE = "🔃 Updated Queue"
         self.RE_ERROR = '⚠ Regex Error!'
+        self.RE_WARN = '⚠ Nothing Matched Regex!'
+        self.UNSUP_EXT = '⚠ Unsupported File Extension'
+        self.FILE_MISSING = '⚠ File Does Not Exist!'
 
 class Prompt:
     def __init__(self) -> None:
@@ -49,9 +55,11 @@ class CLI():
         self.queue_dict = OrderedDict()
         self.output = output
         self.init_cli_args()
-        self.d_api = Dict_Services()
-        self.fh = self.get_file_handler(self.config['SOD']['last_file'])
-        self.__init_set_languages()
+        self.re_excl_dirs = re.compile(self.config['SOD']['exclude_pattern'], re.IGNORECASE)
+        self.dicts = Dict_Services()
+        self.dbapi = db_interface()
+        self.fh = None
+        self.update_file_handler(self.config['SOD']['last_file'])
         self.selection_queue = list()
         self.status_message = str()
 
@@ -70,33 +78,46 @@ class CLI():
             ref = self.config['SOD']['initial_language']
         r = 1 if ref=='native' else -1
         native, foreign = self.fh.get_languages()[::r]
-        self.d_api.set_languages(native, foreign)
+        self.dicts.set_languages(native, foreign)
         self.config['SOD']['last_src_lng'] = ref
 
 
     @property
     def is_from_native(self) -> bool:
-        return self.d_api.source_lng==self.fh.native_lng
+        return self.dicts.source_lng==self.fh.native_lng
 
     @property
     def using_local_db(self) -> bool:
-        return self.d_api.dict_service == 'local'
+        return self.dicts.dict_service == 'local'
 
 
-    def get_file_handler(self, filename:str) -> FileHandler:
-        if any(c in "*+?\\" for c in filename):
-            try:
-                f = get_most_similar_file_regex(self.config['lngs_path'], filename)
-            except re.error:
-                self.cls(self.msg.RE_ERROR, keep_cmd=True, keep_content=True)
-                return
-        else:
-            if '.' not in filename: filename+='.'
-            f = get_most_similar_file_startswith(self.config['lngs_path'], filename)
-        fh = get_filehandler(os.path.join(self.config['lngs_path'], f))
-        if hasattr(self, 'fh'):
-            self.fh.close()
-        return fh
+    def update_file_handler(self, filepath:str) -> FileHandler:
+        try:
+            if not os.path.exists(filepath):
+                filepath = self.dbapi.match_from_all_languages(
+                    repat=re.compile(filepath, re.IGNORECASE),
+                    exclude_dirs=self.re_excl_dirs
+                )[0]
+            fh = get_filehandler(filepath)
+            if self.fh:
+                self.fh.close()
+            self.fh = fh
+            self.__init_set_languages()
+            self.cls(f"Loaded {os.path.basename(filepath)}")
+        except re.error:
+            self.cls(self.msg.RE_ERROR, keep_content=True)
+        except IndexError:
+            self.cls(self.msg.RE_WARN, keep_content=True)
+        except AttributeError:
+            self.cls(
+                self.msg.UNSUP_EXT + f' {filepath.split(".")[-1]}!', keep_content=True
+            )
+        else:  # success
+            return
+        if not self.fh:  # last file does not exist
+            self.fh = get_filehandler('.void')
+            self.__init_set_languages()
+            self.cls(self.msg.FILE_MISSING, keep_content=True)
 
 
     def reset_state(self):
@@ -113,12 +134,9 @@ class CLI():
 
 
     def execute_command(self, parsed_phrase:list):
-        # set dict service
         parsed_phrase = self.handle_prefix(parsed_phrase)
-
-        # execute command
         if not parsed_phrase:
-            self.cls()
+            return
         elif parsed_phrase[0] == self.dict_arg and len(parsed_phrase) == 2:
             self.set_dict(parsed_phrase[1])
         elif parsed_phrase.count(self.config['SOD']['manual_mode_sep']) == 2:
@@ -138,13 +156,13 @@ class CLI():
         for i in parsed_cmd:
             if capture:
                 if capture == 'change_db':
-                    self.fh = self.get_file_handler(i)
+                    self.update_file_handler(i)
                     src_lng, tgt_lng = self.fh.get_languages()
                 capture = None
-            elif i in self.d_api.available_dicts_short:
-                target_dict = {k for k, v in self.d_api.dicts.items() if v['shortname'] == i}.pop()
+            elif i in self.dicts.available_dicts_short:
+                target_dict = {k for k, v in self.dicts.dicts.items() if v['shortname'] == i}.pop()
                 self.set_dict(target_dict)
-            elif i in self.d_api.available_lngs:
+            elif i in self.dicts.available_lngs:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
             elif i == self.chg_db_arg:
@@ -152,24 +170,24 @@ class CLI():
             else: break
             parsed_cmd = parsed_cmd[1:]
             if bool(src_lng) ^ bool(tgt_lng):
-                self.d_api.switch_languages(src_lng, tgt_lng)
+                self.dicts.switch_languages(src_lng, tgt_lng)
                 self.update_last_source_lng()
             elif src_lng and tgt_lng:
-                self.d_api.set_languages(src_lng, tgt_lng)
+                self.dicts.set_languages(src_lng, tgt_lng)
                 self.update_last_source_lng()
         return parsed_cmd
 
 
     def set_dict(self, new_dict):
-        if new_dict in self.d_api.available_dicts:
-            self.d_api.set_dict_service(new_dict)
+        if new_dict in self.dicts.available_dicts:
+            self.dicts.set_dict_service(new_dict)
             self.cls(keep_content=self.state.QUEUE_MODE, keep_cmd=self.state.QUEUE_MODE)
         else:
             self.cls(f'⚠ Wrong Dict!', keep_content=True, keep_cmd = self.state.QUEUE_MODE)
 
 
     def update_last_source_lng(self):
-        lng = 'native' if self.d_api.source_lng == self.fh.native_lng else 'foreign'
+        lng = 'native' if self.dicts.source_lng == self.fh.native_lng else 'foreign'
         self.config['SOD']['last_src_lng'] = lng
 
 
@@ -200,15 +218,15 @@ class CLI():
 
     def manual_duplicate_show(self):
         '''If manually entered phrase exists in db then print results from source'''
-        prev_dict = self.d_api.dict_service
-        self.d_api.dict_service = 'local'
-        self.translations, self.originals, _ = self.d_api.get_info_about_phrase(self.phrase)
+        prev_dict = self.dicts.dict_service
+        self.dicts.dict_service = 'local'
+        self.translations, self.originals, _ = self.dicts.get_info_about_phrase(self.phrase)
         self.state.MANUAL_MODE = False
         self.state.SELECT_TRANSLATIONS_MODE = True
         self.set_output_prompt(f'Select for {self.phrase}: ')
         self.cls(self.msg.PHRASE_EXISTS_IN_DB)
         self.print_translations_table(self.translations, self.originals)
-        self.d_api.dict_service = prev_dict
+        self.dicts.dict_service = prev_dict
 
 
     def insert_manual_oneline(self, parsed_cmd):
@@ -219,15 +237,15 @@ class CLI():
         self.transl = ' '.join(parsed_cmd[delim_index+1:]) 
         if self.phrase and self.transl:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
-                prev_dict = self.d_api.dict_service
-                self.d_api.dict_service = 'local'
-                tran, orig, _ = self.d_api.get_info_about_phrase(self.phrase)
+                prev_dict = self.dicts.dict_service
+                self.dicts.dict_service = 'local'
+                tran, orig, _ = self.dicts.get_info_about_phrase(self.phrase)
                 self.translations, self.originals = [self.transl, *tran], [self.phrase, *orig]
                 self.state.SELECT_TRANSLATIONS_MODE = True
                 self.set_output_prompt(f'Select for {self.phrase}: ')
                 self.cls(self.msg.PHRASE_EXISTS_IN_DB)
                 self.print_translations_table(self.translations, self.originals)
-                self.d_api.dict_service = prev_dict
+                self.dicts.dict_service = prev_dict
             else:
                 self.save_to_db(self.phrase, [self.transl])
         else:
@@ -237,7 +255,7 @@ class CLI():
 
     def handle_single_entry(self, phrase):
         self.phrase = phrase
-        self.translations, self.originals, self.warnings = self.d_api.get_info_about_phrase(self.phrase)
+        self.translations, self.originals, self.warnings = self.dicts.get_info_about_phrase(self.phrase)
         self.cls()
         if self.translations:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
@@ -332,7 +350,7 @@ class CLI():
             transl = translations
             warnings = None
         else:  # Online Dictionary
-            translations, originals, warnings = self.d_api.get_info_about_phrase(phrase)
+            translations, originals, warnings = self.dicts.get_info_about_phrase(phrase)
             if (translations or originals) and not warnings:
                 self.queue_dict[phrase] = [translations, originals, warnings]
                 transl = "; ".join(translations[:2]).rstrip()
@@ -571,9 +589,9 @@ class CLI():
 
 
     def __post_status_bar(self, msg=''):
-        active_dict = self.d_api.dict_service
-        source_lng = self.d_api.source_lng
-        target_lng = self.d_api.target_lng
+        active_dict = self.dicts.dict_service
+        source_lng = self.dicts.source_lng
+        target_lng = self.dicts.target_lng
         len_db = self.fh.total_rows
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | {msg}"
         self.send_output(self.output.mw.caliper.make_cell(
@@ -582,7 +600,7 @@ class CLI():
 
 
     def show_help(self):
-        available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.d_api.dicts.items()])
+        available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.dicts.dicts.items()])
         cmds = get_pretty_print([
             [f'\t{self.chg_db_arg} <DB_NAME>', 'change database file'], 
             [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'Enter the manual input mode'],

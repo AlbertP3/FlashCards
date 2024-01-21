@@ -1,5 +1,5 @@
 from utils import Config
-from db_api import db_interface
+from DBAC.api import db_interface
 import EMO.models as models
 import EMO.augmentation as augmentation
 
@@ -11,7 +11,7 @@ class CLI():
         self.config = Config()
         self.sout = sout
         self.models_creator = models.Models()
-        self.dbapi = db_interface()
+        self.db = db_interface()
         self.discretizers = {'yeo-johnson': augmentation.transformation_yeo_johnson,
                             'decision-tree': augmentation.decision_tree_discretizer}
         self.discretizer = None
@@ -55,7 +55,7 @@ class CLI():
         if not data_prepare_success: return
 
         # CST model must be trained on raw data
-        self.prt_res(self.models_creator.prep_CST, 'Preparing CST model... ', self.dbapi.db)
+        self.prt_res(self.models_creator.prep_CST, 'Preparing CST model... ', self.db.db)
         self.prt_res(self.models_creator.eval_CST, 'Evaluating CST model... ')
         
         self.prepare_augmentation()
@@ -70,36 +70,36 @@ class CLI():
 
 
     def prepare_data(self):
-        self.prt_res(self.dbapi.refresh, 'Loading data... ')
+        self.prt_res(self.db.refresh, 'Loading data... ')
 
         self.send_output('Filtering... ')
-        self.dbapi.filter_for_efc_model()
-        if len(self.dbapi.db) > int(self.config['EMO']['min_records']):
+        self.db.filter_for_efc_model()
+        if len(self.db.db) > int(self.config['EMO']['min_records']):
             self.send_output('OK', include_newline=False)
-            self.send_output(f'{len(self.dbapi.db)} records submitted')
+            self.send_output(f'{len(self.db.db)} records submitted')
         else:
             self.send_output('FAIL', include_newline=False)
-            self.send_output(f"Not enough records in database: {len(self.dbapi.db)}/{self.config['EMO']['min_records']}. Exiting...")
+            self.send_output(f"Not enough records in database: {len(self.db.db)}/{self.config['EMO']['min_records']}. Exiting...")
             return False
 
-        self.prt_res(self.dbapi.add_efc_metrics, 'Creating metrics... ', fill_timespent=True)
-        self.prt_res(self.dbapi.remove_cols_for_efc_model, 'Dropping obsolete columns... ')
+        self.prt_res(self.db.add_efc_metrics, 'Creating metrics... ', fill_timespent=True)
+        self.prt_res(self.db.remove_cols_for_efc_model, 'Dropping obsolete columns... ')
         return True
 
 
     def prepare_augmentation(self):
-        self.dbapi.db.iloc[:, :-1] = self.prt_res(augmentation.cap_quantiles, 'Capping quantiles... ', self.dbapi.db.iloc[:, :-1])
+        self.db.db.iloc[:, :-1] = self.prt_res(augmentation.cap_quantiles, 'Capping quantiles... ', self.db.db.iloc[:, :-1])
         discretizer = self.discretizers.get(self.config['EMO']['emo_discretizer'])
         if discretizer:
-            self.dbapi.db, self.discretizer = self.prt_res(discretizer, f"Applying {self.config['EMO']['emo_discretizer']} Discretization... ", self.dbapi.db)
+            self.db.db, self.discretizer = self.prt_res(discretizer, f"Applying {self.config['EMO']['emo_discretizer']} Discretization... ", self.db.db)
 
 
     def prepare_models(self):
-        self.prt_res(self.models_creator.prep_LASSO, 'Preparing LASSO model... ', self.dbapi.db)
+        self.prt_res(self.models_creator.prep_LASSO, 'Preparing LASSO model... ', self.db.db)
         self.prt_res(self.models_creator.eval_LASSO, 'Evaluating LASSO model... ')
-        self.prt_res(self.models_creator.prep_SVR, 'Preparing SVR model... ', self.dbapi.db)
+        self.prt_res(self.models_creator.prep_SVR, 'Preparing SVR model... ', self.db.db)
         self.prt_res(self.models_creator.eval_SVR, 'Evaluating SVR model... ')
-        self.prt_res(self.models_creator.prep_RFR, 'Preparing RFR model... ', self.dbapi.db)
+        self.prt_res(self.models_creator.prep_RFR, 'Preparing RFR model... ', self.db.db)
         self.prt_res(self.models_creator.eval_RFR, 'Evaluating RFR model... ')
 
 

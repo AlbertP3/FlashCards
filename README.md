@@ -94,14 +94,12 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
         <li><b>mcr</b>: Modify Card Result - allows changing pos/neg for the current card</li>
         <li><b>dcc</b>: Delete Current Card - deletes card both in current set and in the file</li>
         <li><b>lln</b>: Load Last N, loads N-number of words from the original file, starting from the end</li>
-        <li><b>cfm</b>: Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file</li>
         <li><b>efc</b>: Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals. Additionaly, shows predicted time until the next revision</li>
         <li><b>mcp</b>: Modify Config Parameter - allows modifying the config file. Syntax: mcp *sub_dict key new_value</li>
         <li><b>sck</b>: Show Config Key: Syntax: sck *sub_dict key</li>
         <li><b>cls</b>: Clear Screen</li>
         <li><b>cfn</b>: Change File Name - changes currently loaded file_path, filename and all records in DB for this signature</li>
         <li><b>sah</b>: Show Progress Chart for all languages</li>
-        <li><b>tts</b>: Total Time Spent *[last_n(1,2,3,...)] *[interval(m,d,y)] - shows amount of time (in hours) spent for each lng for each *interval. Default = 1 m</li>
         <li><b>scs</b>: Show Current Signature</li>
         <li><b>lor</b>: List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.</li>
         <li><b>sod</b>: Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.</li>

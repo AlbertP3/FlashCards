@@ -1,5 +1,5 @@
 from utils import *
-import db_api
+import DBAC.api as api
 
 
 class Timespent_BE:
@@ -15,7 +15,7 @@ class Timespent_BE:
 
 
     def _get_data_for_timespent(self, last_n, interval):
-            db_interface = db_api.db_interface()
+            db_interface = api.db_interface()
             db_interface.refresh()
             lngs = [l.upper() for l in self.config['languages']]
             db = db_interface.get_filtered_by_lng(lngs)
@@ -49,29 +49,30 @@ class Timespent_BE:
             visible_total_time = list()
             for l in lngs:
                 visible_total_time.append(db[l].sum())
-                db[l] = db[l].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
-            db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
+                db[l] = db[l].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-', rem=2, sep=':'))
+            db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-', rem=2, sep=':'))
 
             self.visible_total_time = visible_total_time
-            self.grand_total_time = grand_total_time
+            self.gt_times = grand_total_time
             return db
             
 
-    def _format_timespent_data(self, db) -> str:
-            lngs = [l.upper() for l in self.config['languages']]
+    def _format_timespent_data(self, db:pd.DataFrame) -> str:
+            lngs = self.config['languages']
+            col_space = len(str(sum(self.gt_times)//3600)) + 3
             if len(lngs) > 1:
-                res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
+                res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'], col_space=col_space)
                 self.visible_total_time.append(sum(self.visible_total_time))
-                self.grand_total_time.append(sum(self.grand_total_time))
+                self.gt_times.append(sum(self.gt_times))
             else:
-                res = db.to_string(index=False, columns=['TIMESTAMP']+lngs, header=['DATE']+['TOTAL'])
+                res = db.to_string(index=False, columns=['TIMESTAMP']+lngs, header=['DATE']+['TOTAL'], col_space=col_space)
 
             # add row for Grand Total
-            self.visible_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in self.visible_total_time]
-            self.grand_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in self.grand_total_time]
+            self.visible_total_time = [format_seconds_to(t, "hour", null_format="-", pref_len=col_space, sep=':', rem=2) for t in self.visible_total_time]
+            self.gt_times = [format_seconds_to(t, "hour", null_format="-", pref_len=col_space, sep=':', rem=2) for t in self.gt_times]
             res += '\n' + '-'*len(res.split('\n')[1])
-            res += '\n∑        ' + '  '.join(self.visible_total_time)
-            res += '\nTOTAL    ' + '  '.join(self.grand_total_time)
+            res += '\n∑       ' + ' '.join(self.visible_total_time)
+            res += '\nTOTAL   ' + ' '.join(self.gt_times)
             return res
 
 

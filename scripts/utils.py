@@ -1,4 +1,3 @@
-import random
 from collections import UserDict
 from functools import cache
 from datetime import datetime, timedelta
@@ -7,14 +6,24 @@ import os
 import pandas as pd
 import re
 import configparser
-import csv
 import inspect
 from time import perf_counter
 import logging
 from typing import Union
 
 UTILS_STATUS_DICT = dict()
+DBAPI_STATUS_DICT = dict()
 log = logging.getLogger(__name__)
+logdb = logging.getLogger('DBAC.fcc')
+
+
+def post_dbapi(text):
+    caller_function = inspect.stack()[1].function
+    DBAPI_STATUS_DICT[caller_function] = text
+
+def post_utils(text):
+    caller_function = inspect.stack()[1].function
+    UTILS_STATUS_DICT[caller_function] = text
 
 
 def perftm(func):
@@ -82,18 +91,6 @@ class Config(UserDict):
 
 config = Config()
 
-def post_utils(text):
-    caller_function = inspect.stack()[1].function
-    UTILS_STATUS_DICT[caller_function] = text
-
-
-def get_abs_path_from_caller(file_name, abs_path=None):
-    from os import path
-    from inspect import stack
-    if abs_path is None:
-        abs_path = path.abspath((stack()[1])[1])
-        abs_path = path.join(path.dirname(abs_path), file_name)
-    return abs_path
 
 
 def get_filename_from_path(path, include_extension=False):
@@ -110,73 +107,6 @@ def get_sign(num, plus_sign='+', neg_sign='-'):
         return neg_sign
     else:
         return ''
-
-
-def make_datetime(d):
-    return datetime.strptime(d, '%m/%d/%Y, %H:%M:%S')
-
-
-def save_revision(dataset:pd.DataFrame(), signature):
-    try:
-        dataset.to_csv(os.path.join(config['revs_path'], f"{signature}.csv"), index=False)
-        save_success = True
-        post_utils(f'{signature} successfully saved')
-    except PermissionError:
-        post_utils('Permission Denied. Please close the file before modifications')
-        save_success = False
-    return save_success
-     
-
-def get_most_similar_file_regex(path, lookup_file, if_nothing_found='load_any'):
-    files = get_files_in_dir(path)
-    for file in files:
-        if re.match(lookup_file.lower(), file.lower()) is not None:
-            return file
-            
-    if if_nothing_found == 'load_any':
-        return files[0] 
-    
-
-def get_most_similar_file_startswith(path, lookup_file, if_nothing_found='load_any'):
-    files = sorted(get_files_in_dir(path, include_extension=True), reverse=True)
-    for file in files:
-        if file.lower().startswith(lookup_file.lower()):
-            return file
-            
-    if if_nothing_found == 'load_any':
-        return files[0] 
-
-
-def remove_layout(layout):
-    # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
-     if layout is not None:
-         while layout.count():
-             item = layout.takeAt(0)
-             widget = item.widget()
-             if widget is not None:
-                 widget.setParent(None)
-             else:
-                 remove_layout(item.layout())
-
-
-def get_children_layouts(layout):
-    layouts = list()
-    for l in layout.children():
-        layouts.append(l)
-        for w in range(l.count()):
-            wdg = l.itemAt(w).widget()
-            if wdg is None:
-                layouts.append(l.itemAt(w))
-    return layouts
-
-
-def get_children_widgets(layout):
-    widgets = list()
-    for i in range(layout.count()):
-            w = layout.itemAt(i)
-            if w is not None:
-                widgets.append(w.widget())
-    return widgets
 
 
 def get_files_in_dir(path, include_extension = True, exclude_open=True):
@@ -208,150 +138,32 @@ def format_timedelta(tmd:timedelta):
     return f'{time_value:.{prec}f} {interval}{suffix}'
 
 
-def format_seconds(total_seconds):
-    hours = total_seconds // 3600
-    minutes = round((total_seconds % 3600)/60,0)
-    leading_zero = '0' if minutes <= 9 else ''
-    if hours == 0:
-        s = '' if int(minutes) == 1 else 's'
-        res = f'{minutes:.0f} minute{s}'
-    else:
-        s = '' if int(hours) == 1 else 's'
-        res = f'{hours:.0f}:{leading_zero}{minutes:.0f} hour{s}'
-    return res
-
-
-def get_signature(file_name, lng_gist, is_revision):
-        # create unique signature for currently loaded rev
-        # or return filename for lng
-        # Special Case - mistakes list -> return file name
-        
-        if is_revision or '_mistakes' in file_name:
-            signature = file_name
-        else:
-            # update_signature_timestamp() is directly dependent on this format
-            saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
-            signature = 'REV_' + lng_gist + saving_date
-        return signature
-
-
-def update_signature_timestamp(signature):
-    # Tighly coupled with get_signature
-    updated_signature = signature[:6] + datetime.now().strftime('%m%d%Y%H%M%S')
-    return updated_signature
-
-
-def get_lng_from_signature(signature):
-    for lng in config['languages']:
-        if lng in signature:
-            matched_lng = lng
-            break
-    else:
-        matched_lng = 'UNKNOWN'
-    return matched_lng
-
-
-def load_dataset(file_path, do_shuffle=True, seed=None):
-    _, extension = os.path.splitext(file_path)
-    operation_status = ''
-    
-    # Choose File Extension Handler
-    try:
-        if extension in ['.csv', '.txt']:
-            dataset = read_csv(file_path)
-        elif extension in ['.xlsx', '.xlsm']:  
-            dataset = read_excel(file_path)
-        elif extension in ['.odf']:
-            dataset = pd.read_excel(file_path, engine='odf')
-        else:
-            dataset = pd.DataFrame()
-            operation_status = f'Chosen extension is not (yet) supported: {extension}'
-    except FileNotFoundError as e:
-        operation_status = 'File Not Found'
-        dataset = pd.DataFrame()
-    except Exception as e:
-        operation_status = f'Exception occurred: {e}'
-        dataset = pd.DataFrame()
-
-    if do_shuffle:
-        dataset = shuffle_dataset(dataset, seed)
-
-    post_utils(operation_status)
-    return dataset
-
-
-def shuffle_dataset(dataset:pd.DataFrame, seed=None):
-    if not seed: pd_random_seed = random.randrange(10000)
-    else: pd_random_seed = config['pd_random_seed']
-    config.update({'pd_random_seed':pd_random_seed})
-    return dataset.sample(frac=1, random_state=pd_random_seed).reset_index(drop=True)
-
-
-def read_csv(file_path):
-    delim = get_dialect(file_path) if config.translate('csv_sniffer') else ','
-    dataset = pd.read_csv(file_path, encoding='utf-8',sep=delim)   
-    return dataset
-
-
-def get_dialect(dataset_path, investigate_rows=10):
-    data = list()
-    with open(dataset_path, 'r', encoding='utf-8') as csvfile:
-        csvreader = csv.reader(csvfile)
-        for r in csvreader:
-            data.append(r)
-            if len(data)>=investigate_rows:
-                break
-    return csv.Sniffer().sniff(str(data[1]) + '\n' + str(data[2]), delimiters=config.translate('csv_sniffer')).delimiter
-
-
-def read_excel(file_path):
-    sht_id = 0
-    return pd.read_excel(file_path, sheet_name=sht_id)
-
-
-def dataset_is_valid(dataset:pd.DataFrame):
-    rows_count = dataset.shape[0]
-    cols_count = dataset.shape[1]
-    if rows_count < 1:
-        operation_status = 'Not enough rows'
-        is_valid = False
-    elif cols_count == 2:
-        operation_status = 'OK'
-        is_valid = True
-    elif cols_count > 2:
-        operation_status = f'Selected file has {cols_count} columns. Only first 2 will be loaded'
-        is_valid = True  # as dataset is still viable
-    elif cols_count < 2:
-        operation_status = 'Selected file is invalid - not enough columns. Min is 2.'
-        is_valid = False
-    
-    post_utils(operation_status)
-    return is_valid
-
-
 def validate_setup():
     operation_status = ""
 
-    # Database
     if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
         operation_status += 'Initializing new Database\n'
-        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE','TOTAL','POSITIVES', 'SEC_SPENT']).to_csv(config['db_path'], sep=';')
+        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE', 'LNG', 'TOTAL','POSITIVES', 'SEC_SPENT']).to_csv(config['db_path'], sep=';')
 
-    # Lngs folder
     lngs_dir_name = os.path.normpath(config['lngs_path'])
     if lngs_dir_name not in [f for f in os.listdir('.')]:
         operation_status += 'Creating Lngs dir\n'
-        os.mkdir('./' + lngs_dir_name)
+        os.mkdir(lngs_dir_name)
 
-    # Revs folder
     revs_dir_name = os.path.normpath(config['revs_path'])
     if revs_dir_name not in [f for f in os.listdir('.')]:
         operation_status += 'Creating revs dir\n'
-        os.mkdir('./' + revs_dir_name)
+        os.mkdir(revs_dir_name)
+
+    mstk_dir_name = os.path.normpath(config['mistakes_path'])
+    if mstk_dir_name not in [f for f in os.listdir('.')]:
+        operation_status += 'Creating revs dir\n'
+        os.mkdir(mstk_dir_name)
 
     post_utils(operation_status)
 
 
+# TODO replace with Caliper.make_table
 def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False, alingment:list=list(), headers:list=None) -> str:
     printout = '' 
     longest_elements = list()
@@ -382,59 +194,40 @@ def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False
     return printout[:-1]
 
 
-def format_seconds_to(total_seconds:int, interval:str, include_remainder=True, null_format:str=None, max_len=0) -> str:
-    if interval == 'hour':
-        prev_interval = 60
-        interval = 3600
-        sep = ':'
-    elif interval == 'minute':
-        prev_interval = 1
-        interval = 60
-        sep = ':'
-    elif interval == 'day':
-        prev_interval = 3600
-        interval = 86400
-        sep = '.'
-    elif interval == 'week':
-        prev_interval = 86400
-        interval = 604800
-        sep = '.'
-    elif interval == 'month':
-        prev_interval = 604800
-        interval = 18408297.6
-        sep = '.'
-    elif interval == 'year':
-        prev_interval = 18408297.6
-        interval = 220899571.2
-        sep = '.'
+SECONDS_CONVERTERS = {
+    'minute': (60, 1),
+    'hour':  (3600, 60),
+    'day': (86400, 3600),
+    'week': (604800, 86400),
+    'month': (18408297.6, 604800),
+    'year': (220899571.2, 18408297.6)
+}
+def format_seconds_to(
+        total_seconds:int, interval:str, rem:int=1, int_name:str=None, 
+        null_format:str=None, pref_len=0, sep='.'
+    ) -> str:
+    _int, _prev_int = SECONDS_CONVERTERS[interval]
+    tot_int, _rem = divmod(total_seconds, _int)
+    rem_int = _rem // _prev_int
     
-    total_intervals = total_seconds // interval
-    remaining_intervals = (abs(total_seconds) % interval)/prev_interval
-    
-    if null_format is not None and total_intervals + remaining_intervals == 0:
+    if null_format is not None and tot_int + rem_int == 0:
         res = null_format
-    elif include_remainder:
-        res = f'{round(total_intervals, 0):0>2.0f}{sep}{round(remaining_intervals,0):0>2.0f}'
+    elif rem:
+        res = f'{tot_int:.0f}{sep}{rem_int:0{rem}d}'
     else:
-        res = f"{round(total_intervals, 0):.0f}"
+        res = f"{tot_int:.0f}"
     
-    if max_len != 0 and len(res) > max_len and include_remainder:
-        # remove remainder and the colon
-        res = res.split(':')[0].rjust(max_len, ' ').lstrip('0')
+    if int_name:
+        postfix = ('', 's')[tot_int>=2]
+        res = f"{res} {int_name}{postfix}"
+
+    if pref_len != 0:
+        res = res[:pref_len].rjust(pref_len, ' ')
+        if res.endswith(sep):
+            res = res[:-1] + ' '
 
     return res
 
-
-def in_str(sub_string, string, case_sensitive=True):
-    if case_sensitive:
-        return sub_string in string
-    else:
-        return sub_string.casefold() in string.casefold()
-
-
-true_values = {'yes', '1', 'true', 'on', True}
-def boolinize(s:str):
-    return s.lower() in true_values
 
 class Placeholder:
     pass
@@ -502,3 +295,7 @@ class Caliper:
             rpad, lpad = filler*bool(align=='left'), filler*bool(align=='right')
 
         return lpad*llim + ''.join(out) + rpad*rlim
+
+    
+    def make_table(self, data:list, lim:Union[float, list], headers:list=None, suffix='... ', align:Union[str, list]='left', filler:str=' '):
+        ...

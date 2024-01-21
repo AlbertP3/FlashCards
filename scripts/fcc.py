@@ -1,7 +1,7 @@
 import re 
 from utils import *
-from random import shuffle
-import db_api
+import logging
+import DBAC.api as api
 from operator import methodcaller
 
 # Optional modules
@@ -9,6 +9,7 @@ from SOD.init import sod_spawn
 from EMO.init import emo_spawn
 from CMG.init import cmg_spawn
 
+log = logging.getLogger('FCC')
 
 
 class fcc():
@@ -25,14 +26,12 @@ class fcc():
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
-                    'cfm':'Create Flashcards from Mistakes List *[~] *[a/w] *[r/l]- initiate new set from current mistakes e.g cfm a r. "~" arg disables saving to file',
                     'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of intervals. Additionaly, shows predicted time until the next revision',
                     'mcp':'Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>',
                     'sck':'Show Config Key: Syntax: sck *<sub_dict> <key>',
                     'cls':'Clear Screen',
                     'cfn':'Change File Name - changes currently loaded file_path, filename and all records in DB for this signature',
                     'sah':'Show Progress Chart for all languages',
-                    'tts':'Total Time Spent *[last_n(1,2,3,...)] *[interval(m,d,y)] - shows amount of time (in hours) spent for each lng for each *interval. Default = 1 m',
                     'scs':'Show Current Signature',
                     'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.',
                     'sod':'Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.',
@@ -45,7 +44,8 @@ class fcc():
                     'err':'Raises an Exception',
                     'add':'Add Card - appends a card to the current dataset. Does not modify the source file',
                     'gcl':'Get Character Length - returns actual width for a given glyph',
-                    'pcd':'Print Current Dataset - pretty prints all cards in the current dataset'
+                    'pcd':'Print Current Dataset - pretty prints all cards in the current dataset',
+                    'cac':'Clear Application Cache - *key *help - runs cache_clear on an optional key',
                     }
 
 
@@ -103,9 +103,9 @@ class fcc():
         self.post_fcc(printout)
 
 
-    def require_nontemporary(func):
+    def require_regular_file(func):
         def verify_conditions(self, *args, **kwargs):
-            if not self.mw.TEMP_FILE_FLAG:
+            if not self.mw.active_file.tmp:
                 func(self, *args, **kwargs)
             else:
                 self.post_fcc(f'{func.__name__} requires a real file.')
@@ -159,35 +159,31 @@ class fcc():
         '''Delete current card - from set and from the file'''
 
         # check preconditions
-        if len(parsed_cmd) != 2:
-            self.post_fcc('Wrong number of args. Expected 2.')
-            return
-        elif parsed_cmd[1] != '-':
-            self.post_fcc('Wrong confirmation sign. Expected "-".')
-            return
-        elif not self.mw.is_revision:
-            self.post_fcc('Command only available for Revisions')
+        if self.mw.active_file.tmp or not self.mw.active_file.valid:
+            self.post_fcc('Command available only for Valid Regular files')
             return
 
         # Get parameters before deletion
-        current_word = self.mw.get_current_card()[self.mw.side]
-
+        current_word = self.mw.get_current_card().iloc[self.mw.side]
         self.mw.delete_current_card()
+        dataset_ordered = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False)
 
-        dataset_ordered = load_dataset(self.mw.filepath, do_shuffle=False)
+        # modify source file
+        dataset_ordered.drop(
+            dataset_ordered.loc[
+                dataset_ordered[dataset_ordered.columns[self.mw.side]] == current_word
+            ].index, 
+            inplace=True
+        )
+        if self.mw.active_file.kind == 'revision':
+            self.mw.db.save_revision(dataset_ordered)
+            self.post_fcc('Card removed from the set and from the file as well')
+        elif self.mw.active_file.kind in {'language','mistakes'}:
+            msg = self.mw.db.save_language(dataset_ordered, self.mw.active_file)
+            self.post_fcc('Card removed\n' + msg)
 
-        # modify file if exists
-        file_mod_msg = ''
-        if dataset_ordered.shape[0] > 0:
-            dataset_ordered.drop(dataset_ordered.loc[dataset_ordered[dataset_ordered.columns[self.mw.side]]==current_word].index, inplace=True)
-            save_revision(dataset_ordered, self.mw.signature)
-            file_mod_msg = ' and from the file as well'
 
-        # print output
-        self.post_fcc(f'Card removed from the set{file_mod_msg}.')
-
-
-    @require_nontemporary
+    @require_regular_file
     def lln(self, parsed_cmd):
         '''load last N cards from dataset'''
         if len(parsed_cmd) in (2,3):
@@ -207,84 +203,38 @@ class fcc():
         n_cards = abs(int(parsed_cmd[1]))
         l_cards = abs(int(parsed_cmd[2])) if len(parsed_cmd)==3 else 0
 
-        file_path = self.mw.file_path
         if l_cards == 0:
-            data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:, :]
+            data = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False).iloc[-n_cards:, :]
         else:
             n_cards, l_cards = sorted([n_cards, l_cards], reverse=True)
-            data = load_dataset(file_path, do_shuffle=False).iloc[-n_cards:-l_cards, :]
-
-        data = shuffle_dataset(data)
-
-        # point to non-existing file in case user modified cards
-        filename = file_path.split('/')[-1].split('.')[0]
-        new_path = os.path.join(self.config['lngs_path'], f"{filename}{str(len(data))}.csv")
-        
-        self.mw.TEMP_FILE_FLAG = True
+            data = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False).iloc[-n_cards:-l_cards, :]
+        self.mw.db.load_tempfile(
+            basename=f"{self.mw.active_file.lng}{len(data)}", 
+            data=data,
+            lng = self.mw.active_file.lng,
+            kind='language',
+            ext='.csv'
+        )
+        self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
-        self.mw.update_backend_parameters(new_path, data)
+        self.mw.update_backend_parameters()
         self.refresh_interface()
         self.mw.reset_timer()
         self.mw.start_file_update_timer()
         self.post_fcc(f'Loaded last {len(data)} cards')
 
-    
-    def cfm(self, parsed_cmd):
-        '''Create Flashcards from Mistakes list'''
 
-        if self.mw.cards_seen == 0:
-            self.post_fcc('Unable to save an empty file')
-            return
-
-        # Parse args - select path[rev/lng] and mode[append/write]
-        mode = 'w' if 'w' in parsed_cmd[1:] else 'a'
-        path = self.config['revs_path'] if 'r' in parsed_cmd[1:] else self.config['lngs_path']
-        do_save = False if '~' in parsed_cmd[1:] else True
-
-        # Create DataFrame - reverse arrays to match default_side
-        reversed_mistakes_list = [[x[1], x[0]] for x in self.mw.mistakes_list]
-        shuffle(reversed_mistakes_list)
-        mistakes_list = pd.DataFrame(reversed_mistakes_list, columns=self.mw.dataset.columns[::-1])
-                                            
-        # [write/append] to a mistakes_list file
-        lng = get_lng_from_signature(self.mw.signature).upper()
-        if do_save:
-            full_path = os.path.join(path, f"{lng}_mistakes.csv")
-            file_exists = f"{lng}_mistakes.csv" in get_files_in_dir(path)
-            keep_headers = True if mode == 'w' or not file_exists else False
-            mistakes_list.to_csv(full_path, index=False, mode=mode, header=keep_headers)
-
-        # shows only current mistakes
-        # fake path secures original mistakes file from 
-        # being overwritten by other commands such as mct or dc
-        fake_path = os.path.join(self.config['lngs_path'], f'{lng} Mistakes.csv')
-        self.mw.TEMP_FILE_FLAG = True
-
-        self.mw.update_backend_parameters(fake_path, mistakes_list, override_signature=f"{lng}_mistakes")
-        self.refresh_interface()
-        self.mw.reset_timer()
-
-        # allow instant save of a rev created from mistakes_list
-        self.mw.cards_seen = mistakes_list.shape[0]-1
-        
-        msg_mode = 'written' if mode == 'w' else 'appended'
-        msg_result = f'Mistakes List {msg_mode} to {full_path}' if do_save else 'Created flashcards from mistakes list'
-        self.post_fcc(msg_result)
-        self.mw.del_side_window()
-
-        
-    
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
         from efc import efc
         efc_obj = efc()
-        efc_obj.refresh_source_data()
-        reccommendations = efc_obj.get_complete_efc_table(preds=True)
+        self.mw.db.refresh()
+        recommendations = efc_obj.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
             lim = int(parsed_cmd[1])
         else:
             lim = None
-        efc_table_printout = efc_obj.get_efc_table_printout(reccommendations, lim)
+        efc_table_printout = efc_obj.get_efc_table_printout(recommendations, lim)
         self.post_fcc(efc_table_printout)
         
 
@@ -298,6 +248,7 @@ class fcc():
                 elif isinstance(self.config[key], (list, set, tuple)):
                     new_val = self.config[key].__class__(new_val.split(' '))
                 self.config[key] = new_val
+                self.mw.config_manual_update(key=key, subdict=None)
                 self.post_fcc(f"{key} set to {new_val}")
             else:
                 self.post_fcc(f"{key} not found in the config. Use 'sck' to list all available keys")
@@ -309,8 +260,8 @@ class fcc():
                 elif isinstance(self.config[subdict][key], (list, set, tuple)):
                     new_val = self.config[subdict][key].__class__(new_val.split(' '))
                 self.config[subdict][key] = new_val
-                self.post_fcc(f"{key} of {subdict} set to {new_val}")
                 self.mw.config_manual_update(key=key, subdict=subdict)
+                self.post_fcc(f"{key} of {subdict} set to {new_val}")
             else:
                 self.post_fcc(f"{subdict} not found in the config. Use 'sck' to list all available keys")
         else:
@@ -355,131 +306,48 @@ class fcc():
         self.mw.CONSOLE_LOG = new_console_log
 
 
-    @require_nontemporary
+    @require_regular_file
     def cfn(self, parsed_cmd):
         '''Change File Name'''
-       
-        # preconditions
         if len(parsed_cmd) < 2:
-            self.post_fcc('cfn requires a filename - None was provided.')
+            self.post_fcc('cfn requires a filename arg')
             return
-        
-        # change file name
-        old_filename = self.mw.file_path.split('/')[-1].split('.')[0]
         new_filename = ' '.join(parsed_cmd[1:])
-
-        old_lng, new_lng = get_lng_from_signature(old_filename), get_lng_from_signature(new_filename)
-        if old_lng != new_lng:
-            self.post_fcc(f"New filename must include '{old_lng}'")
-            return
-        
-        old_file_path = self.mw.file_path
-        new_file_path = self.mw.file_path.replace(old_filename, new_filename)
-        
-        if os.path.exists(new_file_path):
+        new_filepath = self.mw.active_file.filepath.replace(
+            self.mw.active_file.basename,
+            new_filename
+        )
+        if os.path.exists(new_filepath):
             self.post_fcc("File already exists!")
             return
-        
-        # rename file
-        os.rename(old_file_path, new_file_path)
-
-        # edit DB records
-        dbapi = db_api.db_interface()
+        os.rename(self.mw.active_file.filepath, new_filepath)
+        dbapi = api.db_interface()
         dbapi.refresh()
-        dbapi.rename_signature(old_filename, new_filename)
-
-        self.post_fcc('Filename changed successfully')
-        
-        # load file again
-        self.mw.initiate_flashcards(new_file_path)
+        dbapi.rename_signature(self.mw.active_file.signature, new_filename)
+        dbapi.reload_files_cache()
+        self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
+        self.post_fcc('Filename and Signature changed successfully')
     
 
     def sah(self, parsed_cmd):
         '''Show All (languages) History chart'''
         self.mw.del_side_window()
-        self.mw.get_progress_sidewindow(override_lng_gist=True)  
+        self.mw.get_progress_sidewindow(lngs={})  
         self.post_fcc('Showing Progress Chart for all languages')
-
-
-    def tts(self, parsed_cmd):
-        '''Total Time Spent'''
-
-        # parse user input
-        last_n = 1 if len(parsed_cmd) < 2 else int(parsed_cmd[1])
-        interval = 'm' if len(parsed_cmd) < 3 else parsed_cmd[2]
-
-        db_interface = db_api.db_interface()
-        db_interface.refresh()
-        lngs = [l.upper() for l in self.config['languages']]
-        db = db_interface.get_filtered_by_lng(lngs)
-
-        date_format_dict = {
-            'm': '%m/%Y',
-            'd': '%d/%m/%Y',
-            'y': '%Y',
-        } 
-        date_format = date_format_dict[interval]
-        db['TIMESTAMP'] = pd.to_datetime(db['TIMESTAMP']).dt.strftime(date_format)
-
-        # create column with time for each lng in config
-        grand_total_time = list()
-        for l in lngs:  
-            db[l] = db.loc[db.iloc[:, 1].str.contains(l)]['SEC_SPENT']
-            grand_total_time.append(db[l].sum())
-
-        # group by selected interval - removes SIGNATURE
-        db = db.groupby(db['TIMESTAMP'], as_index=False, sort=False).sum()
-        
-        # cut db
-        db = db.iloc[-last_n:, :]
-        try:
-            db = db.loc[db.iloc[:, 4] != 0]
-        except IndexError:
-            self.post_fcc(f'DATE  {"  ".join([l.upper() for l in lngs])}{"  TOTAL" if len(lngs)>1 else ""}')
-            return
-
-        # format dates in time-containing columns
-        visible_total_time = list()
-        for l in lngs:
-            visible_total_time.append(db[l].sum())
-            db[l] = db[l].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
-        db['SEC_SPENT'] = db['SEC_SPENT'].apply(lambda x: ' ' + format_seconds_to(x, 'hour', null_format='-'))
-        
-        # print result
-        if len(lngs) > 1:
-            res = db.to_string(index=False, columns=['TIMESTAMP']+lngs+['SEC_SPENT'], header=['DATE']+lngs+['TOTAL'])
-            visible_total_time.append(sum(visible_total_time))
-            grand_total_time.append(sum(grand_total_time))
-        else:
-            res = db.to_string(index=False, columns=['TIMESTAMP']+lngs, header=['DATE']+['TOTAL'])
-
-        # add row for Grand Total
-        visible_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in visible_total_time]
-        grand_total_time = [format_seconds_to(t, "hour", null_format="-", max_len=5) for t in grand_total_time]
-        res += '\n' + '-'*len(res.split('\n')[1])
-        res += '\n∑        ' + '  '.join(visible_total_time)
-        res += '\nTOTAL    ' + '  '.join(grand_total_time)
-
-        self.post_fcc(res)
 
 
     def scs(self, parsed_cmd):
         '''Show Current Signature'''
-        self.post_fcc(self.mw.signature)
+        self.post_fcc(self.mw.active_file.signature)
 
 
     def lor(self, parsed_cmd):
-        '''Pist Obsolete Revisions'''
-        db_interface = db_api.db_interface()
-
-        unique_signatures = db_interface.get_unique_signatures().values.tolist()
-        available_files = get_files_in_dir(self.config['revs_path'], include_extension=False)
-
-        for s in available_files:
-            if s in unique_signatures:
-                unique_signatures.remove(s)
-        
-        self.post_fcc('\n'.join([f'{i+1}. {v}' for i, v in enumerate(unique_signatures) if '_mistakes' not in v]))
+        '''List Obsolete Revisions'''
+        db_interface = api.db_interface()
+        unique = set(db_interface.get_unique_signatures().values.tolist())
+        available = set(s.signature for s in self.mw.db.files.values())
+        for i, v in enumerate(available.difference(unique)):
+            self.post_fcc(f"{i+1}. {v}")
 
 
     def gwd(self, parsed_cmd):
@@ -491,8 +359,8 @@ class fcc():
 
     def pcc(self, parsed_cmd):
         '''Pull Current Card'''
-        new_data = load_dataset(self.mw.file_path, seed=self.config['pd_random_seed'])
-        self.mw.dataset.iloc[self.mw.current_index, :2] = new_data.iloc[self.mw.current_index, :2]
+        new_data = self.mw.db.load_dataset(self.mw.active_file, seed=self.config['pd_random_seed'])
+        self.mw.active_file.data.iloc[self.mw.current_index, :2] = new_data.iloc[self.mw.current_index, :2]
         self.mw.display_text(self.mw.get_current_card()[self.mw.side])
 
 
@@ -547,10 +415,10 @@ class fcc():
     def pcd(self, parsed_cmd:list):
         '''Print Current Dataset'''
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
-            lim = min(int(parsed_cmd[1]), self.mw.dataset.shape[0])
+            lim = min(int(parsed_cmd[1]), self.mw.active_file.data.shape[0])
             gsi = 2
         else:
-            lim = self.mw.dataset.shape[0]
+            lim = self.mw.active_file.data.shape[0]
             gsi = 1
         if len(parsed_cmd) > gsi:
             grep = re.compile(' '.join(parsed_cmd[gsi:]).strip("'").strip('"'), re.IGNORECASE)
@@ -562,13 +430,28 @@ class fcc():
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }
-        rng = range(lim) if lim >= 0 else range(self.mw.dataset.shape[0]-1, self.mw.dataset.shape[0]+lim-1, -1)
+        rng = range(lim) if lim >= 0 else range(self.mw.active_file.data.shape[0]-1, self.mw.active_file.data.shape[0]+lim-1, -1)
         for i in rng:
-            c1 = self.mw.caliper.make_cell(self.mw.dataset.iloc[i, 0], **cell_args)
-            c2 = self.mw.caliper.make_cell(self.mw.dataset.iloc[i, 1], **cell_args)
+            c1 = self.mw.caliper.make_cell(self.mw.active_file.data.iloc[i, 0], **cell_args)
+            c2 = self.mw.caliper.make_cell(self.mw.active_file.data.iloc[i, 1], **cell_args)
             out.append(f"{c1}{sep}{c2}")
         if lim < 0:
             out.reverse()
         if grep:
             out = [card for card in out if grep.search(card)]
         self.post_fcc('\n'.join(out))
+
+
+    def cac(self, parsed_cmd:list):
+        '''Clear Application Cache'''
+        if len(parsed_cmd) == 2 and parsed_cmd[1]=='help':
+            self.post_fcc("Available keys: files, fonts")
+            return
+        run_all = len(parsed_cmd) == 1
+        key = parsed_cmd[1] if len(parsed_cmd)==2 else None
+        if run_all or key == 'files':
+            self.mw.db.reload_files_cache()
+        if run_all or key == 'fonts':
+            self.mw.charslim.cache_clear()
+            self.mw.caliper.chrlim.cache_clear()
+        self.post_fcc('Reloaded cache')

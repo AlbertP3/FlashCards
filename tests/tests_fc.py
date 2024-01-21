@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch, Mock
 import pandas as pd
 from utils import *
-import db_api
+import DBAC.api as api
 from datetime import datetime, date, timedelta
 import main_window_logic
 import main_window_gui
@@ -105,8 +105,8 @@ class Test_utils(unittest.TestCase):
         self.assertEqual(format_seconds_to(4231, 'hour'), '01:11')
         self.assertEqual(format_seconds_to(3600, 'hour'), '01:00')
         self.assertEqual(format_seconds_to(60, 'minute'), '01:00')
-        self.assertEqual(format_seconds_to(231, 'minute', include_remainder=False), '3')
-        self.assertEqual(format_seconds_to(604800, 'week', max_len=4), '1.00')
+        self.assertEqual(format_seconds_to(231, 'minute', rem=False), '3')
+        self.assertEqual(format_seconds_to(604800, 'week', pref_len=4), '1.00')
         self.assertEqual(format_seconds_to(502750217, 'year'), '02.03')
         self.assertEqual(format_seconds_to(0, 'hour', null_format='-/-'), '-/-')
 
@@ -115,7 +115,7 @@ class Test_utils(unittest.TestCase):
 class Test_db_api(unittest.TestCase):
 
     def setUp(self):
-        self.dbapi = db_api.db_interface()
+        self.dbapi = api.db_interface()
         self.dbapi.refresh()
         
     def test_get_db(self):
@@ -165,13 +165,13 @@ class Test_db_api(unittest.TestCase):
 
 
     def test_get_timedelta_from_creation(self):
-        db_api.create_record('TEST_SIGNATURE', 0, 0)
+        api.create_record('TEST_SIGNATURE', 0, 0)
         self.assertEqual(self.dbapi.get_timedelta_from_creation('TEST_SIGNATURE').days, 5)
         self.assertEqual(self.dbapi.get_timedelta_from_creation('NONEXISTING_SIGNATURE'), None)
 
 
     def test_time_delta_from_last_rev(self):
-        db_api.create_record('TEST_SIGNATURE', 0, 0)
+        api.create_record('TEST_SIGNATURE', 0, 0)
         self.assertEqual(self.dbapi.get_timedelta_from_last_rev('TEST_SIGNATURE').days, 5)
         self.assertEqual(self.dbapi.get_timedelta_from_last_rev('NON-EXISTING_SIGNATURE'), None)
 

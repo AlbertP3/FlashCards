@@ -7,7 +7,7 @@ import sys
 import joblib
 import logging
 from utils import Config
-from db_api import db_interface
+from DBAC.api import db_interface
 import EMO.models as models
 import EMO.augmentation as augmentation
 import EMO.cli as emo_cli
