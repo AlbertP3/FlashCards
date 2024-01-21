@@ -39,7 +39,7 @@ class TemplateDict():
 
     def __init__(self):
         self.config = Config()
-        self.timeout = int(self.config['SOD']['request_timeout'])
+        self.timeout = self.config['SOD']['request_timeout']
         self.make_headers()
         self.req_status = 200
 
@@ -405,7 +405,7 @@ class Dict_Services:
         self.available_dicts = set(self.dicts.keys())
         self.available_dicts_short = set(v['shortname'] for v in self.dicts.values())
         self.dict_service:str = self.config['SOD']['dict_service']
-        self.WORDS_LIMIT = int(self.config['SOD']['results_limit'])
+        self.WORDS_LIMIT = self.config['SOD']['results_limit']
         self.word = None
         self.mute_warning = False
         self.source_lng = None

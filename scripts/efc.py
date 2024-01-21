@@ -1,5 +1,6 @@
 import joblib
 from random import choice
+from datetime import datetime
 import DBAC.api as api
 from utils import *
 
@@ -31,10 +32,10 @@ class efc():
     def get_recommendations(self):
         recommendations = list()
         self.new_revs = 0
-        if int(self.config['days_to_new_rev'])>0:
+        if self.config['days_to_new_rev']>0:
             recommendations.extend(self.is_it_time_for_something_new())
         for rev in self.get_complete_efc_table():
-            efc_critera_met = rev[2] < int(self.config['efc_threshold'])
+            efc_critera_met = rev[2] < self.config['efc_threshold']
             if efc_critera_met:
                 recommendations.append(rev[0]) 
         return recommendations
@@ -44,8 +45,8 @@ class efc():
         rev_table_data = list()
         self.db.filter_for_efc_model()
         unqs = self.db.gather_efc_record_data()
-        init_revs = int(self.config['init_revs_cnt'])
-        init_revs_inth = float(self.config['init_revs_inth'])
+        init_revs = self.config['init_revs_cnt']
+        init_revs_inth = self.config['init_revs_inth']
 
         for fd in self.db.get_sorted_revisions():
             # data: (TIMESTAMP, TOTAL, POSITIVES, SEC_SPENT)
@@ -79,7 +80,7 @@ class efc():
         # prog_resh - factor for adjusting resh
         # t_tol - target diff tolerance in points
         efc_ = warm_start or 1
-        t = int(self.config['efc_threshold'])
+        t = self.config['efc_threshold']
         init = record[3]
         cycles = 0
         while cycles < max_cycles:
@@ -137,7 +138,7 @@ class efc():
                 if fd.lng == lng:
                     last_date = self.db.get_last_datetime(fd.signature)
                     time_delta = (datetime.now() - last_date).days
-                    if time_delta >= int(self.config['days_to_new_rev']):
+                    if time_delta >= self.config['days_to_new_rev']:
                         new_recommendations.append(self.get_recommendation_text(lng))
                     break
         return new_recommendations

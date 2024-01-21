@@ -74,7 +74,7 @@ class CLI():
 
         self.send_output('Filtering... ')
         self.db.filter_for_efc_model()
-        if len(self.db.db) > int(self.config['EMO']['min_records']):
+        if len(self.db.db) > self.config['EMO']['min_records']:
             self.send_output('OK', include_newline=False)
             self.send_output(f'{len(self.db.db)} records submitted')
         else:

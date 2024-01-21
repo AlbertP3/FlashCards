@@ -50,8 +50,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.C_MG = 5  # Content Margin
         self.LEFT = 10
         self.TOP = 10
-        self.TEXTBOX_HEIGHT = int(self.config['THEME']['textbox_height'])
-        self.BUTTONS_HEIGHT = int(self.config['THEME']['buttons_height'])
+        self.TEXTBOX_HEIGHT = self.config['THEME']['textbox_height']
+        self.BUTTONS_HEIGHT = self.config['THEME']['buttons_height']
 
         # Set Window Parameters
         self.setWindowIcon(QtGui.QIcon(os.path.join(self.config['resources_path'],'icon.ico')))
@@ -83,8 +83,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         # left, top, right, bottom
         self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
         self.FONT = self.config['THEME']['font']
-        self.FONT_BUTTON_SIZE = int(self.config['THEME']['font_button_size'])
-        self.FONT_TEXTBOX_SIZE = int(self.config['THEME']['font_textbox_size'])
+        self.FONT_BUTTON_SIZE = self.config['THEME']['font_button_size']
+        self.FONT_TEXTBOX_SIZE = self.config['THEME']['font_textbox_size']
         self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
         self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
 
@@ -543,7 +543,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     # =============== FILE UPDATE TIMER ================
     def initiate_cyclic_file_update(self):
-        if self.config['file_update_interval']=='0':
+        if self.config['file_update_interval']==0:
             self.file_update_timer = None
         else:
             self.file_update_timer = QTimer()
@@ -559,7 +559,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def file_update_timer_handler(self):
         self.last_file_update_seconds_ago+=1
-        interval_sec = int(self.config['file_update_interval'])
+        interval_sec = self.config['file_update_interval']
         if interval_sec == 0 or self.active_file.tmp:
             self.file_update_timer.stop()
             self.fcc_inst.post_fcc('File update timer: stopped')
@@ -575,7 +575,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def condition_to_run_file_update_timer(self):
         c = self.file_update_timer is not None \
             and not self.active_file.tmp and \
-            self.config['file_update_interval']!='0'
+            self.config['file_update_interval']!=0
         return c
 
 
@@ -651,7 +651,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     ############### PACE TIMER ############### 
     def initiate_pace_timer(self):
-        interval = int(self.config['pace_card_interval'])
+        interval = self.config['pace_card_interval']
         self.pace_spent = 0
         if interval > 0:
             self.pace_timer = QTimer()

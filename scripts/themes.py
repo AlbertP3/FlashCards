@@ -1,6 +1,6 @@
 from utils import Config
 import os
-import configparser
+import json
 
 config = Config()
 
@@ -8,13 +8,11 @@ config = Config()
 def load_themes() -> dict:
     themes_dict = dict()
     themes_path =  os.path.join(config['resources_path'], 'themes')
-    theme_files = [f for f in os.listdir(themes_path) if f.endswith('.ini')]
-    parser = configparser.RawConfigParser(inline_comment_prefixes=None)
+    theme_files = [f for f in os.listdir(themes_path) if f.endswith('.json')]
 
-    for file in theme_files:
-        parser.read(os.path.join(themes_path, file))
-        theme_name = file.split('.')[0]
-        themes_dict[theme_name] = dict(parser.items('THEME'))
+    for f in theme_files:
+        theme = json.load(open(os.path.join(themes_path, f), 'r'))
+        theme_name = f.split('.')[0]
+        themes_dict[theme_name] = theme
 
     return themes_dict
-    

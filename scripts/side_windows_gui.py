@@ -36,7 +36,7 @@ class fcc_gui():
         self.create_console()
 
     def init_font(self):
-        self.CONSOLE_FONT_SIZE = int(self.config['THEME']['console_font_size'])
+        self.CONSOLE_FONT_SIZE = self.config['THEME']['console_font_size']
         self.CONSOLE_FONT = QtGui.QFont(self.config['THEME'].get('console_font', 'monospace'), self.CONSOLE_FONT_SIZE)
         self.caliper = Caliper(QtGui.QFontMetricsF(self.CONSOLE_FONT))
 
@@ -190,7 +190,7 @@ class efc_gui(efc):
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.button_font = QtGui.QFont(self.config['THEME']['font'], int(self.config['THEME']['font_button_size']))
+        self.button_font = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
         self.textbox_width = 275
         self.textbox_height = 200
         self.buttons_height = 45
@@ -281,7 +281,7 @@ class load_gui:
         # Style
         self.textbox_stylesheet = (self.config['THEME']['textbox_style_sheet'])
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.button_font = QtGui.QFont(self.config['THEME']['font'], int(self.config['THEME']['font_button_size']))
+        self.button_font = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
 
         # Elements
         self.load_layout = widget.QGridLayout()
@@ -651,7 +651,7 @@ class config_gui():
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.button_font = QtGui.QFont(self.config['THEME']['font'], int(self.config['THEME']['font_button_size']))
+        self.button_font = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
 
         # Elements
         self.config_layout = widget.QGridLayout()
@@ -681,7 +681,7 @@ class config_gui():
         self.check_for_file_updates_label = self.create_label('Check file udpates')
         self.mistakes_buffer_qline = self.create_config_qlineedit('mistakes_buffer')
         self.mistakes_buffer_label = self.create_label('Mistakes Buffer')
-        self.theme_checkablecombobox = self.create_config_checkable_combobox('theme', self.themes_dict.keys())
+        self.theme_checkablecombobox = self.create_config_checkable_combobox('active_theme', self.themes_dict.keys())
         self.theme_label = self.create_label('Theme')
         self.model_checkablecombobox = self.create_config_checkable_combobox('efc_model', self.get_available_efc_models())
         self.model_label = self.create_label('EFC Model')
@@ -768,19 +768,17 @@ class config_gui():
         modified_dict = deepcopy(self.config)
         modified_dict['card_default_side'] = self.card_default_combobox.currentText()
         modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
-        modified_dict['days_to_new_rev'] = self.days_to_new_rev_qlineedit.text()
+        modified_dict['days_to_new_rev'] = int(self.days_to_new_rev_qlineedit.text())
         modified_dict['optional'] = self.optional_checkablecombobox.currentData()
-        modified_dict['init_revs_cnt'] = self.init_rep_qline.text()
-        modified_dict['file_update_interval'] = self.check_for_file_updates_combobox.text()
-        modified_dict['theme'] = self.theme_checkablecombobox.currentData()[0]
+        modified_dict['init_revs_cnt'] = int(self.init_rep_qline.text())
+        modified_dict['file_update_interval'] = int(self.check_for_file_updates_combobox.text())
+        modified_dict['active_theme'] = self.theme_checkablecombobox.currentData()[0]
+        modified_dict['THEME'].update(self.themes_dict[modified_dict['active_theme']])
         modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
-        modified_dict['pace_card_interval'] = self.pace_card_qline.text()
+        modified_dict['pace_card_interval'] = int(self.pace_card_qline.text())
         modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentData()[0]
-
-        if modified_dict['theme'] != self.config['theme']:
-            self.config['THEME'].update(self.themes_dict[modified_dict['theme']])
-            self.set_theme()
+    
         if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
             self.toggle_primary_widgets_visibility(True)
         else:
@@ -788,9 +786,8 @@ class config_gui():
             self.unfix_size(self.textbox)
 
         self.config.update(modified_dict)
-
-        # Manual updates
         self.config_manual_update()
+        self.set_theme()
 
         self.del_side_window()
 
@@ -868,7 +865,7 @@ class timer_gui():
 
 
     def show_data(self):
-        last_n = int(self.config['timespent_len'])
+        last_n = self.config['timespent_len']
         interval = 'm'
         res = self.data_getter.get_timespent_printout(last_n, interval)
         self.timer_console.setText(res)

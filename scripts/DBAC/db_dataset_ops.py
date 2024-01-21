@@ -106,7 +106,7 @@ class db_dataset_ops():
 
     def save_mistakes(self, mistakes_list:list, cols:list, offset:int) -> pd.DataFrame:
         '''Dump dataset to the Mistakes file'''
-        lim = int(self.config['mistakes_buffer'])
+        lim = self.config['mistakes_buffer']
         mistakes_list:pd.DataFrame = pd.DataFrame(data=mistakes_list, columns=cols)
         basename = f'{self.active_file.lng}_mistakes'
         mfd = FileDescriptor(

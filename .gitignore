@@ -12,3 +12,4 @@ test.log
 tests/res/
 build/
 scripts/resources/efc_models/
+scripts/resources/config.json

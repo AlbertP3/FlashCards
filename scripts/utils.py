@@ -1,11 +1,10 @@
 from collections import UserDict
 from functools import cache
-from datetime import datetime, timedelta
+from datetime import timedelta
 import unicodedata
 import os
 import pandas as pd
-import re
-import configparser
+import json
 import inspect
 from time import perf_counter
 import logging
@@ -48,41 +47,20 @@ def singleton(cls):
 
 @singleton
 class Config(UserDict):
-
     def __init__(self):
-        self.PATH_TO_DICT = './scripts/resources/config.ini'
+        self.DICT_PATH = './scripts/resources/config.json'
         self.default_off_values = {'off', 'no', 'none', ''}
-        self.iterable_fields:set= {'languages', 'optional'}
-        self.iter_sep = ','
-        self.parser = configparser.RawConfigParser()
-        self.__refresh()
-    
-    def __refresh(self):
-        self.parser.read(self.PATH_TO_DICT)
-        self.default_section = self.parser.sections()[0]
-        self.sections = self.parser.sections()[1:]
-        self.data = dict(self.parser.items(self.default_section))
-        for s in self.sections:
-            self.data[s] = dict(self.parser.items(s))
-        self.parse_items()
+        self.data = json.load(open(self.DICT_PATH, 'r'))
 
     def save(self):
-        for field in self.iterable_fields:
-            self.data[field] = self.iter_sep.join(self.data[field])
-        for k, v in self.data.items():
-            if k in self.sections: [self.parser.set(k, k_, v_) for k_, v_ in v.items()]
-            else: self.parser.set(self.default_section, k, v)
-        with open(self.PATH_TO_DICT, 'w') as configfile:
-            self.parser.write(configfile)
+        json.dump(
+            self.data, 
+            open(self.DICT_PATH, 'w'), 
+            indent=4, 
+            ensure_ascii=False
+        )
+        log.debug("Config saved")
 
-    def parse_items(self):
-        for field in self.iterable_fields:
-            if not isinstance(self.data[field], list):
-                self.data[field] = self.data[field].split(self.iter_sep)
-        for window, geometry in self.data['GEOMETRY'].items():
-            if not isinstance(geometry, tuple):
-                self.data['GEOMETRY'][window] = tuple(eval(geometry))
-    
     def translate(self, key, val_on=None, val_off=None, off_values:set=None):
         if self.data[key] in (off_values or self.default_off_values):
             return val_off
@@ -90,7 +68,6 @@ class Config(UserDict):
             return val_on or self.data[key]
 
 config = Config()
-
 
 
 def get_filename_from_path(path, include_extension=False):
