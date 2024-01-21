@@ -7,6 +7,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import main_window_logic
 from side_windows_gui import *
+from utils import fcc_queue
 from DBAC.api import FileDescriptor
 
 log = logging.getLogger(__name__)
@@ -199,13 +200,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             if self.mistakes_list[self.auto_cfm_offset:]:
                 self.save_to_mistakes_list()
             else:
-                self.post_logic('No mistakes to save')
+                fcc_queue.put('No mistakes to save')
         else:
             if self.cards_seen != 0:
                 super().handle_saving(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
-                self.post_logic('Unable to save an empty file')
+                fcc_queue.put('Unable to save an empty file')
                 
 
     def delete_current_card(self):
@@ -221,7 +222,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def load_again_click(self):
         if not self.active_file.valid:
-            self.post_logic('Cannot reload an empty file')
+            fcc_queue.put('Cannot reload an empty file')
             return
         elif self.active_file.tmp:
             self.db.shuffle_dataset()

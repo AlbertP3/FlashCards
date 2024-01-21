@@ -57,6 +57,8 @@ class fcc_gui():
         return self.console.toPlainText()[self.promptend:]
 
     def get_fcc_sidewindow(self):
+        for msg in fcc_queue.dump():
+            self.fcc_inst.post_fcc(msg)
         self.arrange_fcc_window()
         self.open_side_window(self.fcc_layout, 'fcc')
         self.console.setFocus()
@@ -550,7 +552,7 @@ class progress_gui(stats):
             self.arrange_progress_sidewindow(lngs)
             self.open_side_window(self.progress_layout, 'progress')
         except ValueError:
-            self.post_logic('No data found for Progress')
+            fcc_queue.put('No data found for Progress')
 
 
     def arrange_progress_sidewindow(self, lngs:set):

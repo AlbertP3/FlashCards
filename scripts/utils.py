@@ -1,4 +1,4 @@
-from collections import UserDict
+from collections import UserDict, deque
 from functools import cache
 from datetime import timedelta
 import unicodedata
@@ -10,19 +10,29 @@ from time import perf_counter
 import logging
 from typing import Union
 
-UTILS_STATUS_DICT = dict()
-DBAPI_STATUS_DICT = dict()
 log = logging.getLogger(__name__)
-logdb = logging.getLogger('DBAC.fcc')
 
 
-def post_dbapi(text):
-    caller_function = inspect.stack()[1].function
-    DBAPI_STATUS_DICT[caller_function] = text
 
-def post_utils(text):
-    caller_function = inspect.stack()[1].function
-    UTILS_STATUS_DICT[caller_function] = text
+class FccQueue:
+    '''Collects messages to be displayed in the console'''
+
+    def __init__(self):
+        self.queue = deque()
+    
+    def put(self, record:str):
+        if record:
+            self.queue.append(record)
+        
+    def pull(self):
+        return self.queue.popleft()
+    
+    def dump(self):
+        res = list(self.queue)
+        self.queue.clear()
+        return res
+
+fcc_queue = FccQueue() 
 
 
 def perftm(func):
@@ -137,7 +147,7 @@ def validate_setup():
         operation_status += 'Creating revs dir\n'
         os.mkdir(mstk_dir_name)
 
-    post_utils(operation_status)
+    fcc_queue.put(operation_status)
 
 
 # TODO replace with Caliper.make_table

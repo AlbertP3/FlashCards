@@ -213,7 +213,6 @@ class fcc():
             data=data,
             lng = self.mw.active_file.lng,
             kind='language',
-            ext='.csv'
         )
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()

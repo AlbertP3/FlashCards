@@ -36,10 +36,6 @@ class main_window_logic():
         return self.db.active_file
 
 
-    def post_logic(self, text):
-        self.fcc_inst.post_fcc(text)
-
-
     def result_positive(self):
         if self.current_index + 1 <= self.total_words and self.words_back == 0:
             self.positives+=1
@@ -84,7 +80,6 @@ class main_window_logic():
 
     def record_revision_to_db(self, seconds_spent=0):
         self.db.create_record(self.total_words, self.positives, seconds_spent)
-        self.post_logic(DBAPI_STATUS_DICT['create_record'])
 
 
     def goto_prev_card(self):
@@ -106,10 +101,8 @@ class main_window_logic():
     def load_flashcards(self, fd:FileDescriptor):
         try:
             self.db.load_dataset(fd, do_shuffle=True)   
-            if msg:=DBAPI_STATUS_DICT['load_dataset']:
-                self.post_logic(msg)
         except FileNotFoundError:
-            self.post_logic('File Not Found.')
+            fcc_queue.put('File Not Found.')
 
 
     def is_complete_revision(self):
@@ -119,7 +112,6 @@ class main_window_logic():
 
     def handle_saving(self, seconds_spent=0):      
         newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
-        self.post_logic(DBAPI_STATUS_DICT['save_revision'])
         self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
@@ -137,7 +129,7 @@ class main_window_logic():
     def update_backend_parameters(self):
         self.config.update({'onload_filepath': self.active_file.filepath})
         self.reset_flashcards_parameters()
-        self.post_logic(f'{"Revision" if self.is_revision else "Language"} loaded: {self.active_file.basename}')
+        fcc_queue.put(f'{"Revision" if self.is_revision else "Language"} loaded: {self.active_file.basename}')
 
 
     def reset_flashcards_parameters(self):

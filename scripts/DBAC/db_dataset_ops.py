@@ -8,7 +8,7 @@ from datetime import datetime
 from dataclasses import dataclass
 import os
 import csv
-from utils import post_dbapi, get_files_in_dir
+from utils import fcc_queue, get_files_in_dir
 
 log = logging.getLogger('DBAC')
 
@@ -78,12 +78,12 @@ class db_dataset_ops():
                 self.active_file.lng, 
                 f"{signature}.csv")
             dataset.to_csv(fp, index=False)
-            post_dbapi(f'{signature} successfully saved')
+            fcc_queue.put(f'{signature} saved successfully')
             log.debug(f"Created a new File: {fp}")
             self.reload_files_cache()
             return fp
         except Exception as e:
-            post_dbapi(f'Exception while creating File: {e}')
+            fcc_queue.put(f'Exception while creating File: {e}')
             log.error(e, exc_info=True)
 
     def save_language(self, dataset:pd.DataFrame, fd:FileDescriptor) -> str:
@@ -131,7 +131,7 @@ class db_dataset_ops():
             self.reload_files_cache()
         m_cnt = mistakes_list.shape[0] - offset
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
-        post_dbapi(msg)
+        fcc_queue.put(msg)
         log.debug(msg)
         return mistakes_list
 
@@ -169,7 +169,7 @@ class db_dataset_ops():
         if self.active_file.valid and do_shuffle:
             self.shuffle_dataset(seed)
 
-        post_dbapi(operation_status)
+        fcc_queue.put(operation_status)
         return fd.data
     
     def load_tempfile(self, data, kind, basename, lng, signature=None):

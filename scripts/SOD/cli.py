@@ -112,6 +112,8 @@ class CLI():
             self.cls(
                 self.msg.UNSUP_EXT + f' {filepath.split(".")[-1]}!', keep_content=True
             )
+        except TypeError:
+            pass
         else:  # success
             return
         if not self.fh:  # last file does not exist

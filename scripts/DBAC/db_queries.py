@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from time import monotonic
 import logging
-from utils import post_dbapi
+from utils import fcc_queue
 
 log = logging.getLogger('DBAC')
 
@@ -65,7 +65,7 @@ class db_queries:
             ]
             fd.write(';'.join(record)+'\n')
         self.last_update = monotonic()
-        post_dbapi(f'Recorded {self.active_file.signature}')
+        fcc_queue.put(f'Recorded {self.active_file.signature}')
         log.debug(f"Created Record: {record}")
 
     def rename_signature(self, old, new):
