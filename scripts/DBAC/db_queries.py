@@ -23,12 +23,8 @@ class db_queries:
         self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"
         self.DEFAULT_DATE = datetime(1900, 1, 1)
 
-    def __reset_filters_flags(self):
-        for key in self.filters.keys():
-            self.filters[key] = False
-
     def __load_db(self):
-        if self.last_load < self.last_update or any(self.filters): 
+        if self.last_load < self.last_update or any(self.filters.values()): 
             self.db = pd.read_csv(
                 self.config['db_path'], 
                 encoding='utf-8', 
@@ -41,7 +37,7 @@ class db_queries:
                     'SEC_SPENT': 'Int64',
                 }
             )
-            log.debug(f"Reloaded database")
+            log.debug(f"Reloaded database", stacklevel=3)
             self.last_load = monotonic()
             return True
 
@@ -51,12 +47,15 @@ class db_queries:
             return True
         return False
     
+    def __reset_filters_flags(self):
+        for key in self.filters.keys():
+            self.filters[key] = False
+    
     def create_record(self, words_total, positives, seconds_spent):
-        '''Appends a new record to the rev_db.'''
-        timestamp = datetime.now().strftime(self.TSFORMAT)
+        '''Appends a new record to the rev_db for the active file'''
         with open(self.config['db_path'], 'a') as fd:
             record = [
-                    timestamp, 
+                    datetime.now().strftime(self.TSFORMAT), 
                     self.active_file.signature, 
                     self.active_file.lng, 
                     str(words_total), 
@@ -67,8 +66,10 @@ class db_queries:
         self.last_update = monotonic()
         fcc_queue.put(f'Recorded {self.active_file.signature}')
         log.debug(f"Created Record: {record}")
+        self.refresh()
 
     def rename_signature(self, old, new):
+        self.refresh()
         self.db['SIGNATURE'] = self.db['SIGNATURE'].replace(old, new)
         self.db.to_csv(
             self.config['db_path'], 
@@ -77,6 +78,8 @@ class db_queries:
             index=False, 
             date_format=self.TSFORMAT
         )
+        self.last_update = monotonic()
+        self.refresh()
         log.debug(f"Renamed signature '{old}' to '{new}'")
 
     def get_unique_signatures(self):

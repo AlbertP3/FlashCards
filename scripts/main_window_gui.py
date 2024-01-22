@@ -145,7 +145,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         for i in self.get_children_layouts(self.layout):
             self.remove_layout(i)
         self.build_layout()
-        self.initiate_timer()
         side_windows.__init__(self)
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
@@ -630,9 +629,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def set_append_seconds_spent_function(self):
         self.timer = QTimer()
-        if self.revtimer_hide_timer: self.append_seconds_spent = self._revtimer_func_hidden
-        elif self.revtimer_show_cpm_timer: self.append_seconds_spent = self._revtimer_func_cpm
-        else: self.append_seconds_spent = self._revtimer_func_time
+        if self.revtimer_hide_timer: 
+            self.append_seconds_spent = self._revtimer_func_hidden
+        elif self.revtimer_show_cpm_timer: 
+            self.append_seconds_spent = self._revtimer_func_cpm
+        else: 
+            self.append_seconds_spent = self._revtimer_func_time
         self.timer.timeout.connect(self.append_seconds_spent)
 
     def _revtimer_func_hidden(self):
@@ -646,8 +648,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def _revtimer_func_time(self):
         self.seconds_spent+=1
-        interval, rem = (('minute', 0), ('hour', 2))[self.seconds_spent>3600]
-        self.timer_button.setText(format_seconds_to(self.seconds_spent, interval, rem=rem))
+        self.timer_button.setText(format_seconds_to(self.seconds_spent, 'minute', rem=2, sep=':'))
 
 
     ############### PACE TIMER ############### 

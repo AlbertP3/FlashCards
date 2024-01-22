@@ -680,7 +680,7 @@ class config_gui():
         self.init_rep_qline = self.create_config_qlineedit('init_revs_cnt')
         self.init_rep_label = self.create_label("Initial Repetitions")
         self.check_for_file_updates_combobox = self.create_config_qlineedit('file_update_interval')
-        self.check_for_file_updates_label = self.create_label('Check file udpates')
+        self.check_for_file_updates_label = self.create_label('Check file updates')
         self.mistakes_buffer_qline = self.create_config_qlineedit('mistakes_buffer')
         self.mistakes_buffer_label = self.create_label('Mistakes Buffer')
         self.theme_checkablecombobox = self.create_config_checkable_combobox('active_theme', self.themes_dict.keys())

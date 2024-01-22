@@ -321,7 +321,6 @@ class fcc():
             self.post_fcc(f"File {new_filename} already exists!")
             return
         os.rename(self.mw.active_file.filepath, new_filepath)
-        dbapi.refresh()
         dbapi.rename_signature(self.mw.active_file.signature, new_filename)
         dbapi.reload_files_cache()
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])

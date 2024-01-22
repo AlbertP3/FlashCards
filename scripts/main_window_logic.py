@@ -110,9 +110,10 @@ class main_window_logic():
         return diff_words == 0 and self.is_revision
 
 
-    def handle_saving(self, seconds_spent=0):      
-        newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
+    def handle_saving(self, seconds_spent=0):
+        self.active_file.signature = self.db.gen_signature(self.active_file.lng)
         self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
+        newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
 

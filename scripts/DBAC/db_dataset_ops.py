@@ -71,14 +71,13 @@ class db_dataset_ops():
 
     def save_revision(self, dataset:pd.DataFrame) -> str:
         '''Creates a new file for the Revision. Returns a new filepath'''
-        signature = self.gen_signature(self.active_file.lng)
         try:
             fp = os.path.join(
                 self.config['revs_path'], 
                 self.active_file.lng, 
-                f"{signature}.csv")
+                f"{self.active_file.signature}.csv")
             dataset.to_csv(fp, index=False)
-            fcc_queue.put(f'{signature} saved successfully')
+            fcc_queue.put(f'{self.active_file.signature} saved successfully')
             log.debug(f"Created a new File: {fp}")
             self.reload_files_cache()
             return fp
@@ -181,7 +180,7 @@ class db_dataset_ops():
             lng=lng,
             data=data,
             valid=True,
-            signature=signature or self.gen_signature(lng),  # TODO is it needed?
+            signature=signature,
             tmp=True,
             mtime=99999999999
         )
@@ -240,8 +239,8 @@ class db_dataset_ops():
                     lng = lng,
                     kind = kind,
                     ext = ext,
-                    signature=basename,
-                    mtime=os.stat(filepath).st_mtime
+                    signature = basename,
+                    mtime = os.stat(filepath).st_mtime
                 )
         except FileNotFoundError:
             log.warning(f"Language '{lng}' is missing the corresponding directory")
