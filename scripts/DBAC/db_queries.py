@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import pandas as pd
-from time import monotonic
+from time import monotonic, perf_counter
 import logging
 from utils import fcc_queue
 
@@ -22,12 +22,14 @@ class db_queries:
         self.last_load:float = -1
         self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"
         self.DEFAULT_DATE = datetime(1900, 1, 1)
+        self.assessable = {'revision', 'mistakes'}
 
-    def __load_db(self):
-        if self.last_load < self.last_update or any(self.filters.values()): 
+    def refresh(self) -> bool:
+        if self.last_load < self.last_update:
+            t0 = perf_counter()
             self.db = pd.read_csv(
                 self.config['db_path'], 
-                encoding='utf-8', 
+                encoding='utf-8',
                 sep=';', 
                 parse_dates=['TIMESTAMP'],
                 date_format=self.TSFORMAT,
@@ -37,13 +39,16 @@ class db_queries:
                     'SEC_SPENT': 'Int64',
                 }
             )
-            log.debug(f"Reloaded database", stacklevel=3)
+            self.__db = self.db.copy(deep=True)
             self.last_load = monotonic()
-            return True
-
-    def refresh(self):
-        if self.__load_db():
             self.__reset_filters_flags()
+            log.debug(f"Reloaded database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3)
+            return True
+        elif any(self.filters.values()):
+            t0 = perf_counter()
+            self.__reset_filters_flags()
+            self.db = self.__db.copy(deep=True)
+            log.debug(f"Refreshed database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3)
             return True
         return False
     
@@ -51,6 +56,15 @@ class db_queries:
         for key in self.filters.keys():
             self.filters[key] = False
     
+    def write_op(func):
+        def inner(self, *args, **kwargs):
+            res = func(self, *args, **kwargs)
+            self.last_update = monotonic()
+            self.refresh()
+            return res
+        return inner
+    
+    @write_op
     def create_record(self, words_total, positives, seconds_spent):
         '''Appends a new record to the rev_db for the active file'''
         with open(self.config['db_path'], 'a') as fd:
@@ -63,11 +77,10 @@ class db_queries:
                     str(seconds_spent)
             ]
             fd.write(';'.join(record)+'\n')
-        self.last_update = monotonic()
         fcc_queue.put(f'Recorded {self.active_file.signature}')
         log.debug(f"Created Record: {record}")
-        self.refresh()
 
+    @write_op
     def rename_signature(self, old, new):
         self.refresh()
         self.db['SIGNATURE'] = self.db['SIGNATURE'].replace(old, new)
@@ -78,8 +91,6 @@ class db_queries:
             index=False, 
             date_format=self.TSFORMAT
         )
-        self.last_update = monotonic()
-        self.refresh()
         log.debug(f"Renamed signature '{old}' to '{new}'")
 
     def get_unique_signatures(self):

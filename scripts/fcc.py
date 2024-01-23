@@ -37,13 +37,12 @@ class fcc():
                     'sod':'Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.',
                     'gwd':'Get Window Dimensions',
                     'pcc':'Pull Current Card - load the origin file and updates the currently displayed card',
-                    'sfs':'Set Font Size - sets font for current card and returns info on width, height and text len',
                     'sod':'Scrape Online Dictionary - fetch data from online sources using a cli',
                     'emo':'EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs',
                     'rgd':'Reset Geometry Defaults',
                     'err':'Raises an Exception',
                     'add':'Add Card - appends a card to the current dataset. Does not modify the source file',
-                    'gcl':'Get Character Length - returns actual width for a given glyph',
+                    'gcw':'Get Character Width - returns actual width in pixels for a given glyph',
                     'pcd':'Print Current Dataset - pretty prints all cards in the current dataset',
                     'cac':'Clear Application Cache - *key *help - runs cache_clear on an optional key',
                     }
@@ -362,18 +361,6 @@ class fcc():
         self.mw.display_text(self.mw.get_current_card()[self.mw.side])
 
 
-    def sfs(self, parsed_cmd):
-        '''Set Font Size'''
-        if len(parsed_cmd)<2 or not parsed_cmd[1].isnumeric():
-            self.post_fcc('SFS requires at least one, numeric argument')
-            return
-        
-        self.mw.display_text(forced_size=int(parsed_cmd[1]))
-        self.post_fcc(f'FONT_SIZE:{parsed_cmd[1]} | ' \
-                    + f'TEXT_LEN={len(self.mw.get_current_card()[self.mw.side])} | ' \
-                    + f'WIDTH={self.mw.frameGeometry().width()} | HEIGHT={self.mw.frameGeometry().height()}')
-    
-
     def rgd(self, parsed_cmd):
         '''Reset Geometry Default'''
         if len(parsed_cmd)==1:
@@ -402,12 +389,18 @@ class fcc():
         raise Exception(f"{' '.join(parsed_cmd[1:])}")
 
 
-    def gcl(self, parsed_cmd:list):
-        '''Get Character Length'''
+    def gcw(self, parsed_cmd:list):
+        '''Get Character Width'''
         if len(parsed_cmd) < 2:
-            parsed_cmd.append(' ')
-        l = self.mw.caliper.strlen(''.join(parsed_cmd[1:]))
-        self.post_fcc(str(l))
+            self.post_fcc('GCL requires at least one character')
+            return
+        text = ''.join(parsed_cmd[1:])
+        if text   == 'space':               text = '\u0020'
+        elif text == 'half-space':          text = '\u2009'
+        elif text == 'ideographic-space':   text = '\u3000'
+        self.post_fcc((
+            f"Pixel Length: {self.mw.caliper.strwidth(text)}"
+        ))
 
 
     def pcd(self, parsed_cmd:list):
@@ -424,7 +417,7 @@ class fcc():
             grep = None
         out, sep = list(), ' | '
         cell_args = {
-            'lim':int((self.mw.caliper.chrlim(self.config['GEOMETRY']['fcc'][2])-self.mw.caliper.strlen(sep))/2-2), 
+            'lim':(self.config['GEOMETRY']['fcc'][2]-self.mw.caliper.strwidth(sep))/2, 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }
@@ -450,6 +443,5 @@ class fcc():
         if run_all or key == 'files':
             self.mw.db.reload_files_cache()
         if run_all or key == 'fonts':
-            self.mw.charslim.cache_clear()
-            self.mw.caliper.chrlim.cache_clear()
+            self.mw.caliper.pixlen.cache_clear()
         self.post_fcc('Reloaded cache')

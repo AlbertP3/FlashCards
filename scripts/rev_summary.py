@@ -159,7 +159,7 @@ class SummaryGenerator():
                     res = f"However with {self.cpm_score:.0f} CPM you're slower than the Lagun."
         elif self.score >= self.PERCENTAGE_MEDIOCRE:
             if self.cpm_score >= self.CPM_PRETTY_FAST:
-                res = f"{self.cpm_score:.0f} CPM - what will be $150 for speeding, sir."  
+                res = f"{self.cpm_score:.0f} CPM - that will be $150 for speeding, sir."  
             elif self.cpm_score >= self.CPM_MEDIUM:
                 if self.cpm_diff>=0:
                     res = f"{self.cpm_score:.0f} CPM - {abs(self.cpm_diff):.0f} {self.desc_cpm_diff} than last time, but focus more on accuracy next time, ok?"

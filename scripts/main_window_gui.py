@@ -16,6 +16,7 @@ log = logging.getLogger(__name__)
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def __init__(self):
+        log.debug('Application launch')
         self.window_title = 'FlashCards'
         self.q_app = widget.QApplication([self.window_title])
         widget.QWidget.__init__(self)
@@ -36,7 +37,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 )
             )
         )
-        log.debug('Application launch')
         self.q_app.exec()
 
     def build_interface(self):
@@ -230,7 +230,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.update_backend_parameters()
         self.update_interface_parameters()
-        self.change_revmode(self.is_revision)
+        self.change_revmode(self.active_file.kind in self.db.assessable)
         self.start_file_update_timer()
 
 
@@ -245,7 +245,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def update_interface_parameters(self):
-        self.window_title = self.active_file.signature if self.is_revision else self.active_file.basename
+        self.window_title = self.active_file.basename
         self.setWindowTitle(self.window_title)
             
         self.display_text(self.get_current_card().iloc[self.side])
@@ -275,39 +275,22 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_next_button(self):
-        diff_words = self.total_words - self.current_index - 1
-        if diff_words > 0:
+        if self.total_words - self.current_index - 1 > 0:
             super().goto_next_card()
             self.display_text(self.get_current_card().iloc[self.side])
             self.reset_pace_timer()
             self.update_score_button()
-            if self.words_back_mode(): self.nav_buttons_visibility_control(True, True, False)
-        elif self.is_complete_revision() and self.is_saved == False: 
+            if self.words_back_mode():
+                self.nav_buttons_visibility_control(True, True, False)
+        elif self.should_save_revision(): 
             self.handle_revision_complete()
-        elif self.conditions_to_save_time_for_mistakes_are_met(diff_words):
-            self.save_revision()
-        elif self.is_revision:
+        elif self.revision_summary:
             self.display_text(self.revision_summary)
         else:
-            self.display_text(self.config['after_face'].strip('"'))
+            self.display_text(self.config['after_face'])
             self.is_afterface = True
             self.stop_timer()
             self.stop_pace_timer()
-        
-
-    def save_revision(self):
-        self.record_revision_to_db(self.seconds_spent)
-        self.reset_timer()
-        self.stop_pace_timer()
-        self.is_saved = True
-
-
-    def conditions_to_save_time_for_mistakes_are_met(self, diff_words):
-        if not self.is_revision and self.active_file.kind=='mistakes' and \
-            not self.is_saved and diff_words==0:
-            return True
-        else:
-            return False
 
 
     def click_negative(self):
@@ -328,7 +311,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
         else:
             self.display_text()
-
         self.is_saved = True
         self.change_revmode()
         self.reset_timer(clear_indicator=False)
@@ -742,4 +724,3 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
         self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()
-        self.charslim.cache_clear()

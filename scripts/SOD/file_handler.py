@@ -115,9 +115,13 @@ class XLSXFileHandler(FileHandler):
             self.ws.cell(row=target_row, column=2, value=domestic_word)
             self.data[target_row] = (foreign_word, domestic_word)
             self.commit()
+            log.debug((
+                f"Insert [{foreign_word}] - [{domestic_word}] on "
+                f"Row {target_row} in {self.filename}"
+            ))
             return True, ''
         else:
-            return False, '[WARNING] Target Cell is not empty!'
+            return False, '⚠ Target Cell is not empty!'
 
 
     def edit_content(self, foreign_word, domestic_word) -> tuple[bool, str]:
@@ -125,6 +129,10 @@ class XLSXFileHandler(FileHandler):
         self.ws.cell(row=self.dtracker[0], column=2, value=domestic_word)
         self.data[self.dtracker[0]] = (foreign_word, domestic_word)
         self.commit()
+        log.debug((
+            f"Edit Row {self.dtracker[0]} with data "
+            f"[{foreign_word}] - [{domestic_word}] in {self.filename}"
+        ))
         return True, ''
 
 
@@ -166,6 +174,10 @@ class CSVFileHandler(FileHandler):
         self.raw_data = pd.concat([self.raw_data, new_row], ignore_index=True)
         self.data[self.raw_data.index[-1]] = (foreign_word, domestic_word)
         self.commit()
+        log.debug((
+                f"Insert [{foreign_word}] - [{domestic_word}] on "
+                f"Row {self.raw_data.index[-1]} in {self.filename}"
+            ))
         return True, ''
 
 
@@ -173,6 +185,10 @@ class CSVFileHandler(FileHandler):
         self.data[self.dtracker[0]] = (foreign_word, domestic_word)
         self.raw_data.iloc[self.dtracker[0]] = [foreign_word, domestic_word]
         self.commit()
+        log.debug((
+            f"Edit Row {self.dtracker[0]} with data "
+            f"[{foreign_word}] - [{domestic_word}] in {self.filename}"
+        ))
         return True, ''
 
     def commit(self):

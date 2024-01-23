@@ -75,7 +75,7 @@ class sod_spawn:
 
 
     def manage_modes(self, cmd:list):
-        if cmd[0] == 'cls' or not cmd:
+        if cmd[0] == 'cls':
             self.cli.cls()
         elif self.cli.state.SELECT_TRANSLATIONS_MODE or self.cli.state.RES_EDIT_SELECTION_MODE \
                 or self.cli.state.MODIFY_RES_EDIT_MODE:

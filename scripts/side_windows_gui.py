@@ -36,14 +36,11 @@ class fcc_gui():
         self.create_console()
 
     def init_font(self):
-        self.CONSOLE_FONT_SIZE = self.config['THEME']['console_font_size']
-        self.CONSOLE_FONT = QtGui.QFont(self.config['THEME'].get('console_font', 'monospace'), self.CONSOLE_FONT_SIZE)
+        self.CONSOLE_FONT = QtGui.QFont(
+            self.config['THEME']['console_font'], 
+            self.config['THEME']['console_font_size']
+        )
         self.caliper = Caliper(QtGui.QFontMetricsF(self.CONSOLE_FONT))
-
-    @cache
-    def charslim(self, letter='W') -> int:
-        '''Returns amount of standard glyphs that fit in one line'''
-        return self.caliper.chrlim(self.console.width(), letter)
 
     @property
     def curpos(self) -> int:
@@ -384,7 +381,7 @@ class mistakes_gui():
     def show_mistakes(self):
         out, sep = list(), ' | '
         cell_args = {
-            'lim':int((self.caliper.chrlim(self.config['GEOMETRY']['mistakes'][2])-self.caliper.strlen(sep))/2-2), 
+            'pixlim':(self.config['GEOMETRY']['mistakes'][2]-self.caliper.strwidth(sep))/2 - 2*self.caliper.scr, 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }
@@ -424,7 +421,7 @@ class stats_gui(stats):
 
 
     def get_stats_sidewindow(self):
-        if self.is_revision:
+        if self.active_file.kind in self.db.assessable:
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, 'stats')
         else:
@@ -674,7 +671,7 @@ class config_gui():
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
         self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','hide_timer','show_cpm_stats', 'revision_summary',
+            ['side_by_side','hide_timer','show_cpm_stats',
                 'show_efc_line', 'show_percent_stats', 'show_cpm_timer'])
         self.optional_label = self.create_label('Optional Features')
         self.init_rep_qline = self.create_config_qlineedit('init_revs_cnt')
@@ -813,6 +810,7 @@ class config_gui():
             if key == 'console_font_size':
                 self.init_font()
                 self.console.setFont(self.CONSOLE_FONT)
+                self.caliper.pixlen.cache_clear()
         elif not (key or subdict):
             self.db.reload_files_cache()
             self.update_default_side()

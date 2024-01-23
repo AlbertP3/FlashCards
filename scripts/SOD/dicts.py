@@ -9,7 +9,7 @@ import string
 import logging
 import SOD.file_handler
 
-log = logging.getLogger('dicts')
+log = logging.getLogger(__name__)
 
 ReqExcMsg = {
     403: '⨷ Access Forbidden!',

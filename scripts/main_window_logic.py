@@ -105,9 +105,12 @@ class main_window_logic():
             fcc_queue.put('File Not Found.')
 
 
-    def is_complete_revision(self):
-        diff_words = self.total_words - self.current_index - 1
-        return diff_words == 0 and self.is_revision
+    def should_save_revision(self):
+        return (
+            not self.is_saved
+            and self.total_words - self.current_index - 1 == 0 
+            and self.active_file.kind in self.db.assessable 
+        )
 
 
     def handle_saving(self, seconds_spent=0):
@@ -119,7 +122,7 @@ class main_window_logic():
 
 
     def change_revmode(self, force_which=None):
-        if not self.is_revision or self.is_saved:
+        if self.active_file.kind == 'language' or self.is_saved:
             self.revmode = False
         elif force_which is None:
             self.revmode = not self.revmode
@@ -145,7 +148,7 @@ class main_window_logic():
         self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
         self.auto_cfm_offset = 0
-        self.change_revmode(self.is_revision)
+        self.change_revmode(self.active_file.kind in self.db.assessable)
         
 
     def save_to_mistakes_list(self):   
@@ -170,13 +173,9 @@ class main_window_logic():
 
 
     def get_rating_message(self):
-        if 'revision_summary' in self.config['optional']:
-            progress = self.summary_gen.get_summary_text(
-                self.positives, self.total_words, self.seconds_spent
-            )
-        else:
-            progress = 'Revision done'
-        return progress
+        return self.summary_gen.get_summary_text(
+            self.positives, self.total_words, self.seconds_spent
+        )
 
 
     def update_default_side(self):
