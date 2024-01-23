@@ -1,3 +1,4 @@
+from PyQt5.QtGui import QFontMetricsF
 from collections import UserDict, deque
 from functools import cache
 from datetime import timedelta
@@ -231,58 +232,69 @@ def flatten_dict(d:dict, root:str='BASE', lim_chars:int=None) -> list:
 
 
 class Caliper:
-    def __init__(self, fmetrics):
+    '''Works on pixels!'''
+
+    def __init__(self, fmetrics:QFontMetricsF):
         self.fmetrics = fmetrics
-        self.WIDTHS = {
-            'F': 2, 'H': 1, 'W': 2,
-            'N': 2, 'A': 1, 'Na': 1
-        }
-    
+        self.scr = self.fmetrics.widthChar('W')
+
     @cache
-    def charlen(self, char:str) -> int:
-        return self.WIDTHS[unicodedata.east_asian_width(char)]
+    def pixlen(self, char:str) -> float:
+        return self.fmetrics.width(char)
 
-    def strlen(self, text:str) -> int:
-        return sum(self.charlen(c) for c in text)
+    def strwidth(self, text:str) -> float:
+        return sum(self.pixlen(c) for c in text)
 
-    def chrlim(self, width:int, char='W') -> int:
-        return int(width / self.fmetrics.widthChar(char))
-
-    def make_cell(self, text:str, lim:int, suffix:str='… ', align:str='left', filler:str=' ') -> str:
-        if text.isascii():
-            out = list(text[:lim])
-            lim -= len(text[:lim])
-            should_add_suffix = lim == 0
+    def abbreviate(self, text:str, pixlim:float) -> str:
+        '''Trims text to the given pixel-length'''
+        excess = self.strwidth(text) - pixlim
+        if excess <= 0:
+            return text
         else:
-            out = list()
+            i = 0
+            while excess > 0:
+                i -= 1
+                excess -= self.strwidth(text[i])
+            return text[:i]
+
+    def make_cell(self, text:str, pixlim:float, suffix:str='…', align:str='left', 
+                  filler:str='\u2009'
+                ) -> str:
+        if text.isascii():
+            rem_text = self.abbreviate(text, pixlim)
+            out = deque(rem_text)
+            pixlim -= self.strwidth(rem_text)
+            should_add_suffix = pixlim <= self.scr
+        else:
+            out = deque()
             for c in unicodedata.normalize('NFKC', text):
-                len_c = self.charlen(c)
-                if lim >= len_c:
+                len_c = self.pixlen(c)
+                if pixlim >= len_c:
                     out.append(c)
-                    lim-=len_c
+                    pixlim-=len_c
                 else:
                     should_add_suffix = True
                     break
             else:
                 should_add_suffix = False
-        
+  
         if should_add_suffix:
-            suf_len = self.strlen(suffix)
-            while lim < suf_len:
-                lim+=self.charlen(out.pop())
-            out += suffix
-            lim -= suf_len
-        
+            suf_len = self.strwidth(suffix)
+            while pixlim < suf_len:
+                pixlim+=self.pixlen(out.pop())
+            out.append(suffix)
+            pixlim -= suf_len
+
         if align == 'center':
-            d, r = int(lim//2), lim%2
-            llim, rlim = d + r, d
-            rpad, lpad = filler, filler
+            d, r = divmod(pixlim, 2)
+            lpad = filler * int((d+r) /  self.strwidth(filler))
+            rpad = filler * int(d /  self.strwidth(filler))
         else:
-            llim, rlim = lim, lim
-            rpad, lpad = filler*bool(align=='left'), filler*bool(align=='right')
+            pad = filler * int(pixlim /  self.strwidth(filler) + 1)
+            lpad = pad if align == 'right' else ''
+            rpad = pad if align == 'left' else ''
 
-        return lpad*llim + ''.join(out) + rpad*rlim
-
+        return lpad + ''.join(out) + rpad
     
     def make_table(self, data:list, lim:Union[float, list], headers:list=None, suffix='... ', align:Union[str, list]='left', filler:str=' '):
         ...

@@ -6,7 +6,7 @@ import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
 from DBAC.api import db_interface
-from utils import Config, get_pretty_print
+from utils import Config, get_pretty_print, Caliper
 
 log = logging.getLogger(__name__)
 
@@ -63,7 +63,15 @@ class CLI():
         self.selection_queue = list()
         self.status_message = str()
 
+    @property
+    def caliper(self) -> Caliper:
+        return self.output.mw.caliper
+
+    @property
+    def pix_limit(self) -> float:
+        return 0.98 * self.output.console.width()
     
+
     def init_cli_args(self):
         self.sep_manual = self.config['SOD']['manual_mode_sep']
         self.dict_arg = self.config['SOD']['dict_change_arg']
@@ -159,7 +167,6 @@ class CLI():
             if capture:
                 if capture == 'change_db':
                     self.update_file_handler(i)
-                    src_lng, tgt_lng = self.fh.get_languages()
                 capture = None
             elif i in self.dicts.available_dicts_short:
                 target_dict = {k for k, v in self.dicts.dicts.items() if v['shortname'] == i}.pop()
@@ -174,9 +181,11 @@ class CLI():
             if bool(src_lng) ^ bool(tgt_lng):
                 self.dicts.switch_languages(src_lng, tgt_lng)
                 self.update_last_source_lng()
+                self.cls()
             elif src_lng and tgt_lng:
                 self.dicts.set_languages(src_lng, tgt_lng)
                 self.update_last_source_lng()
+                self.cls()
         return parsed_cmd
 
 
@@ -338,7 +347,7 @@ class CLI():
             self.set_dict(parsed_cmd[1])
             return
 
-        c_lim = self.get_char_limit() - 3
+        p_lim = self.pix_limit - 4 * self.caliper.scr
         phrase:str = ' '.join(self.handle_prefix(parsed_cmd))
         exists_in_queue = phrase in self.queue_dict.keys()
         if phrase.startswith(self.sep_manual):  # Manual Mode for Queue
@@ -356,7 +365,8 @@ class CLI():
             if (translations or originals) and not warnings:
                 self.queue_dict[phrase] = [translations, originals, warnings]
                 transl = "; ".join(translations[:2]).rstrip()
-                transl = transl[:c_lim]+self.config['THEME']['default_suffix'] if len(transl)>c_lim else transl
+                if self.caliper.strwidth(transl) > p_lim:
+                    transl = self.caliper.abbreviate(transl, p_lim) + self.config['THEME']['default_suffix']
             else:
                 transl = ''
                 warnings = warnings if warnings else [self.msg.NO_TRANSLATIONS]
@@ -407,7 +417,7 @@ class CLI():
             
     
     def print_queue(self, slice_:list=[0, 0]):
-        c_lim = self.get_char_limit() - 3
+        plim = self.pix_limit - 3 * self.caliper.scr
         if slice_[0]<0: slice_[0] = len(self.queue_dict) + slice_[0] 
         if slice_[1]==0: slice_[1] = len(self.queue_dict)
         self.queue_index = slice_[0]+1
@@ -415,7 +425,8 @@ class CLI():
         for phrase, info in islice(self.queue_dict.items(), slice_[0], slice_[1]):
             s1 = f'{self.queue_index:>2d}. {phrase}'
             transl = "; ".join(info[0][:2]).rstrip()
-            transl = transl[:c_lim-self.output.mw.caliper.exlen(transl)]+self.config['THEME']['default_suffix'] if self.output.mw.caliper.strlen(transl)>c_lim else transl
+            if self.caliper.strwidth(transl) > plim:
+                transl = self.caliper.abbreviate(transl, plim) + self.config['THEME']['default_suffix']
             s2 = f' | {transl}'
             self.send_output(s1+'\n'+s2)
             self.queue_index+=1
@@ -452,37 +463,35 @@ class CLI():
         self.cls(msg)
 
 
-    def print_translations_table(self, trans, origs):
-        if ''.join(origs) != '':
-            sep='|'
-            clim = int((self.get_char_limit()-1) // 2)
+    def print_translations_table(self, trans:list, origs:list):
+        if any(origs):
+            plim = self.pix_limit / 2
             if self.config['SOD']['table_ext_mode'] == 'fix':
-                output = self.__ptt(trans, origs, clim, clim, sep)
+                output = self.__ptt(trans, origs, plim, plim, '\u0020|\u0020')
             elif self.config['SOD']['table_ext_mode'] == 'flex':
-                llim = min(clim, max(self.output.mw.caliper.strlen(i) for i in trans)+5)
-                rlim = self.get_char_limit() - llim
-                output = self.__ptt(trans, origs, llim, rlim, sep)
+                llim = min(max(self.caliper.strwidth(c) for c in trans)+5*self.caliper.scr, plim)
+                rlim = 2*plim - llim
+                output = self.__ptt(trans, origs, llim, rlim, '\u0020|\u0020')
         else:
-            clim = self.get_char_limit()
-            output = self.__ptt(trans, origs, clim, clim, '')
-        self.send_output(output[:-1])
+            output = self.__ptt(trans, origs, self.pix_limit, 0, '')
+        self.send_output(output)
 
 
-    def __ptt(self, trans:list, origs:list, llim:int, rlim:int, sep:str) -> str:
+    def __ptt(self, trans:list, origs:list, llim:float, rlim:float, sep:str) -> str:
         output = list()
         suffix = self.config['THEME']['default_suffix']
         align = self.config['SOD']['cell_alignment']
         for i, (t, o) in enumerate(zip(trans, origs)):
-            i = f"{i+1}."
-            t = self.output.mw.caliper.make_cell(t, llim - len(i)-2, suffix, align)
-            o = self.output.mw.caliper.make_cell(o, rlim - len(sep)-2, suffix, align)
-            output.append(f"{i} {t} {sep} {o}")
+            i = f"{i+1}. "
+            t = self.caliper.make_cell(
+                t, llim - self.caliper.strwidth(i), suffix, align
+            )
+            o = self.caliper.make_cell(
+                o, rlim - self.caliper.strwidth(sep), suffix, align
+            )
+            output.append(f"{i}{t}{sep}{o}")
         return '\n'.join(output)
     
-
-    def get_char_limit(self) -> int:
-        return self.output.mw.charslim()
-
 
     def get_lines_limit(self) -> int:
         return int(0.589 * self.output.console.height() / self.output.mw.CONSOLE_FONT_SIZE)
@@ -596,8 +605,8 @@ class CLI():
         target_lng = self.dicts.target_lng
         len_db = self.fh.total_rows
         status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | {msg}"
-        self.send_output(self.output.mw.caliper.make_cell(
-            status, self.get_char_limit()-2, self.config['THEME']['default_suffix'], align='left').rstrip()
+        self.send_output(self.caliper.make_cell(
+            status, self.pix_limit, self.config['THEME']['default_suffix'], align='left')
         )
 
 

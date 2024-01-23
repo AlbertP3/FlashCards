@@ -105,13 +105,12 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
         <li><b>sod</b>: Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.</li>
         <li><b>gwd</b>: Get Window Dimensions</li>
         <li><b>pcc</b>: Pull Current Card - load the origin file and updates the currently displayed card</li>
-        <li><b>sfs</b>: Set Font Size - sets font for current card and returns info on width, height and text len</li>
         <li><b>sod</b>: Scrape Online Dictionary - fetch data from online sources using a cli</li>
         <li><b>emo</b>: EFC Model Optimzer - employs regression and machine learning techniques to adjust efc model for the user needs</li>
         <li><b>rgd</b>: Reset Geometry Defaults</li>
         <li><b>err</b>: Raises an Exception</li>
         <li><b>add</b>: Add Card - appends a card to the current dataset. Does not modify the source file</li>
-        <li><b>gcl</b>: Get Character Length - returns actual width for a given glyph</li>
+        <li><b>gcw</b>: Get Character Width - returns actual width in pixels for a given glyph</li>
         <li><b>pcd</b>: Print Current Dataset - pretty prints all cards in the current dataset</li>
     </ol>
 
