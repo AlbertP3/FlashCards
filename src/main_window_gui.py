@@ -16,7 +16,6 @@ log = logging.getLogger(__name__)
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def __init__(self):
-        log.debug('Application launch')
         self.window_title = 'FlashCards'
         self.q_app = widget.QApplication([self.window_title])
         widget.QWidget.__init__(self)
@@ -722,7 +721,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def closeEvent(self, event):
         self.config.save()
-        log.debug('Application shutdown')
 
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:

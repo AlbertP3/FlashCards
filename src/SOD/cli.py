@@ -5,7 +5,7 @@ import re
 import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
-from DBAC.api import db_interface
+from DBAC.api import DbOperator
 from utils import Config, get_pretty_print, Caliper
 
 log = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class CLI():
         self.init_cli_args()
         self.re_excl_dirs = re.compile(self.config['SOD']['exclude_pattern'], re.IGNORECASE)
         self.dicts = Dict_Services()
-        self.dbapi = db_interface()
+        self.dbapi = DbOperator()
         self.init_file_handler()
         self.selection_queue = list()
         self.status_message = str()
@@ -312,8 +312,8 @@ class CLI():
             self.state.QUEUE_SELECTION_MODE = True
             self.unpack_translations_from_queue()
         if not self.queue_dict:
+            self.cls("" if self.state.QUEUE_MODE else self.msg.QUERY_DONE)
             self.reset_state()
-            self.cls(self.msg.QUERY_DONE)
             self.set_output_prompt(self.prompt.PHRASE)
 
 

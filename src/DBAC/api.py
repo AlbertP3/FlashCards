@@ -8,23 +8,26 @@ pd.options.mode.chained_assignment = None
 
 
 @singleton
-class db_interface(db_queries, db_efc_queries, db_dataset_ops):
-    KINDS = type(
-        "FileKindsEnum",
-        (object,),
-        {"mst": "mistakes", "lng": "language", "rev": "revision"},
-    )()
-    GRADED = {KINDS.rev, KINDS.mst}
-    RES_PATH = "./src/res/"
-    DB_PATH = "./src/res/rev_db.csv"
-    DATA_PATH = "./data/"
-    REV_DIR = "rev"
-    LNG_DIR = "lng"
-    MST_DIR = "mst"
-
+class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
     def __init__(self):
+        self.__configure()
         self.config = Config()
         db_dataset_ops.__init__(self)
         db_queries.__init__(self)
         self.refresh()
         self.get_files()
+
+    def __configure(self):
+        self.KINDS = type(
+            "FileKindsEnum",
+            (object,),
+            {"mst": "mistakes", "lng": "language", "rev": "revision"},
+        )()
+        self.GRADED = {self.KINDS.rev, self.KINDS.mst}
+        self.RES_PATH = "./src/res/"
+        self.DB_PATH = "./src/res/db.csv"
+        self.DATA_PATH = "./data/"
+        self.REV_DIR = "rev"
+        self.LNG_DIR = "lng"
+        self.MST_DIR = "mst"
+        self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"

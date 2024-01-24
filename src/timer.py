@@ -15,10 +15,10 @@ class Timespent_BE:
 
 
     def _get_data_for_timespent(self, last_n, interval):
-            db_interface = api.db_interface()
-            db_interface.refresh()
+            dbapi = api.DbOperator()
+            dbapi.refresh()
             lngs = self.config['languages']
-            db = db_interface.get_filtered_by_lng(lngs)
+            db = dbapi.get_filtered_by_lng(lngs)
 
             date_format_dict = {
                 'm': '%m/%Y',

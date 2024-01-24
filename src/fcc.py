@@ -316,7 +316,7 @@ class fcc():
             self.mw.active_file.basename,
             new_filename
         )
-        dbapi = api.db_interface()
+        dbapi = api.DbOperator()
         if new_filename in {fd.basename for fd in dbapi.files.values()}:
             self.post_fcc(f"File {new_filename} already exists!")
             return
@@ -341,8 +341,8 @@ class fcc():
 
     def lor(self, parsed_cmd):
         '''List Obsolete Revisions'''
-        db_interface = api.db_interface()
-        unique = set(db_interface.get_unique_signatures().values.tolist())
+        dbapi = api.DbOperator()
+        unique = set(dbapi.get_unique_signatures().values.tolist())
         available = set(s.signature for s in self.mw.db.files.values())
         for i, v in enumerate(available.difference(unique)):
             self.post_fcc(f"{i+1}. {v}")

@@ -20,7 +20,6 @@ class db_queries:
         )
         self.last_update:float = 0
         self.last_load:float = -1
-        self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"
         self.DEFAULT_DATE = datetime(1900, 1, 1)
 
     def refresh(self) -> bool:
@@ -65,7 +64,7 @@ class db_queries:
     
     @write_op
     def create_record(self, words_total, positives, seconds_spent):
-        '''Appends a new record to the rev_db for the active file'''
+        '''Appends a new record to the db for the active file'''
         with open(self.DB_PATH, 'a') as fd:
             record = [
                     datetime.now().strftime(self.TSFORMAT), 

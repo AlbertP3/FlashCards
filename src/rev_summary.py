@@ -1,12 +1,12 @@
 from utils import *
 from random import randint
-from DBAC.api import db_interface
+from DBAC.api import DbOperator
 
 class SummaryGenerator():
 
     def __init__(self):
         self.config = Config()
-        self.db = db_interface()
+        self.db = DbOperator()
 
 
     def get_summary_text(self, positives, total, time_spent):

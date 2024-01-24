@@ -1,7 +1,7 @@
 venv
 __pycache__
 __init__.py
-rev_db.csv
+db.csv
 .vscode
 desktop.ini
 fcs.log

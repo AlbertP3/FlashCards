@@ -13,7 +13,7 @@ class efc():
     def __init__(self):
         self.config = Config()
         self.paths_to_suggested_lngs = dict()
-        self.db = api.db_interface()
+        self.db = api.DbOperator()
         self.efc_model = Placeholder()
         self.efc_model.name = None
         self.efc_model.mtime = 0

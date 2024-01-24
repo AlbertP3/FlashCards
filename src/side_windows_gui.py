@@ -11,9 +11,7 @@ from efc import efc
 from stats import stats
 import timer
 from copy import deepcopy
-from functools import cache
 from checkable_combobox import CheckableComboBox
-import themes
 
 
 
@@ -161,7 +159,7 @@ class efc_gui(efc):
         self.side_window_titles['efc'] = 'EFC'
         self.cur_efc_index = 0
         # add button to main window
-        self.efc_button = self.create_button('📜', self.get_efc_sidewindow)
+        self.efc_button = self.create_button("📜", self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
         self.init_shortcuts_efc()
         
@@ -637,7 +635,7 @@ class config_gui():
 
 
     def get_config_sidewindow(self):
-        self.themes_dict = themes.load_themes()
+        self.themes_dict = self.load_themes()
         self.arrange_config_sidewindow()
         self.open_side_window(self.config_layout, 'config')
 
@@ -666,7 +664,7 @@ class config_gui():
         self.confirm_and_close_button = self.create_button('Confirm Changes', self.commit_config_update)
         self.card_default_combobox = self.create_config_combobox('card_default_side',['0','1','Random'])
         self.card_default_label = self.create_label('Card Default Side')
-        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', ['EN','RU','JP','DE','IT','FR','QN'])
+        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', self.db.get_all_languages())
         self.lngs_label = self.create_label('Languages')
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
@@ -688,7 +686,7 @@ class config_gui():
         self.pace_card_label = self.create_label('Card Pacing')
         self.initial_language_checkablecombobox = self.create_config_checkable_combobox('initial_language', 
                                                                 ['auto', 'native', 'foreign'],subdict='SOD')
-        self.initial_language_label = self.create_label('SOD: Initial Language')
+        self.initial_language_label = self.create_label('SOD Initial Language')
 
         # add widgets
         p = self.list_pos_gen()
@@ -761,6 +759,16 @@ class config_gui():
         blank = widget.QLabel(self)
         blank.setStyleSheet("border: 0px")
         return blank
+
+    def load_themes(self) -> dict:
+        themes_dict = dict()
+        themes_path = os.path.join(self.db.RES_PATH, "themes")
+        theme_files = [f for f in os.listdir(themes_path) if f.endswith(".json")]
+        for f in theme_files:
+            theme = json.load(open(os.path.join(themes_path, f), "r"))
+            theme_name = f.split(".")[0]
+            themes_dict[theme_name] = theme
+        return themes_dict
 
 
     def commit_config_update(self):

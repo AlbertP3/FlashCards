@@ -96,16 +96,6 @@ def get_sign(num, plus_sign='+', neg_sign='-'):
     else:
         return ''
 
-# TODO move to dataset_ops
-def get_files_in_dir(path, include_extension = True, exclude_open=True):
-    files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f not in {'desktop.ini'}]
-    if not include_extension:
-        files_list = [f.split('.')[0] for f in files_list]
-    if exclude_open:
-        # exclude locks for open files for OS: Linux, Windows
-        files_list[:] = [f for f in files_list if not any(f.startswith(tmp) for tmp in {'~$','.~'})]
-    return files_list
-
 
 def format_timedelta(tmd:timedelta): 
     if tmd.days >= 365:

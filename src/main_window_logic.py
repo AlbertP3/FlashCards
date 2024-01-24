@@ -1,6 +1,6 @@
 import logging
 from random import randint
-from DBAC.api import db_interface, FileDescriptor
+from DBAC.api import DbOperator, FileDescriptor
 from utils import *
 from rev_summary import SummaryGenerator
 
@@ -21,7 +21,7 @@ class main_window_logic():
         self.cards_seen = 0
         self.revision_summary = None
         self.is_saved = False
-        self.db = db_interface()
+        self.db = DbOperator()
         self.summary_gen = SummaryGenerator()
         self.auto_cfm_offset = 0
         self.is_afterface = False

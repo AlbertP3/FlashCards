@@ -8,7 +8,7 @@ class stats():
 
     def __init__(self):
         self.config = Config()
-        self.db = api.db_interface()
+        self.db = api.DbOperator()
 
     def get_data_for_current_revision(self, signature):
         self.db.refresh()

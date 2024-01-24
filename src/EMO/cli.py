@@ -1,5 +1,5 @@
 from utils import Config
-from DBAC.api import db_interface
+from DBAC.api import DbOperator
 import EMO.models as models
 import EMO.augmentation as augmentation
 
@@ -11,7 +11,7 @@ class CLI():
         self.config = Config()
         self.sout = sout
         self.models_creator = models.Models()
-        self.db = db_interface()
+        self.db = DbOperator()
         self.discretizers = {'yeo-johnson': augmentation.transformation_yeo_johnson,
                             'decision-tree': augmentation.decision_tree_discretizer}
         self.discretizer = None
