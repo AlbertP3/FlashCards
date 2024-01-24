@@ -6,7 +6,8 @@ rev_db.csv
 desktop.ini
 fcs.log
 test.log
-tests/
+tests
+pytest.ini
 build/
 data/
 src/res/efc_models/
