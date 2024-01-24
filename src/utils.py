@@ -59,7 +59,7 @@ def singleton(cls):
 @singleton
 class Config(UserDict):
     def __init__(self):
-        self.DICT_PATH = './scripts/resources/config.json'
+        self.DICT_PATH = './src/res/config.json'
         self.default_off_values = {'off', 'no', 'none', ''}
         self.data = json.load(open(self.DICT_PATH, 'r'))
 
@@ -96,7 +96,7 @@ def get_sign(num, plus_sign='+', neg_sign='-'):
     else:
         return ''
 
-
+# TODO move to dataset_ops
 def get_files_in_dir(path, include_extension = True, exclude_open=True):
     files_list = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and f not in {'desktop.ini'}]
     if not include_extension:
@@ -126,6 +126,7 @@ def format_timedelta(tmd:timedelta):
     return f'{time_value:.{prec}f} {interval}{suffix}'
 
 
+# TODO
 def validate_setup():
     operation_status = ""
 

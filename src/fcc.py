@@ -45,6 +45,7 @@ class fcc():
                     'gcw':'Get Character Width - returns actual width in pixels for a given glyph',
                     'pcd':'Print Current Dataset - pretty prints all cards in the current dataset',
                     'cac':'Clear Application Cache - *key *help - runs cache_clear on an optional key',
+                    'ssf':'Show Scanned Files - presents a list of all relevant files',
                     }
 
 
@@ -177,7 +178,7 @@ class fcc():
         if self.mw.active_file.kind == 'revision':
             self.mw.db.save_revision(dataset_ordered)
             self.post_fcc('Card removed from the set and from the file as well')
-        elif self.mw.active_file.kind in {'language','mistakes'}:
+        elif self.mw.active_file.kind in {self.mw.db.KINDS.lng, self.mw.db.KINDS.mst}:
             msg = self.mw.db.save_language(dataset_ordered, self.mw.active_file)
             self.post_fcc('Card removed\n' + msg)
 
@@ -445,3 +446,16 @@ class fcc():
         if run_all or key == 'fonts':
             self.mw.caliper.pixlen.cache_clear()
         self.post_fcc('Reloaded cache')
+
+
+    def ssf(self, parsed_cmd:list):
+        '''Show Scanned Files'''
+        for fd in self.mw.db.files.values():
+            self.post_fcc((
+                '\n'
+                f"Filepath:  {fd.filepath}" + '\n'
+                f"Signature: {fd.signature}" + '\n'
+                f"Language:  {fd.lng}" + '\n'
+                f"Kind:      {fd.kind}"
+            ))
+        self.post_fcc('\n' + f"Files total: {len(self.mw.db.files)}")

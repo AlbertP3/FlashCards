@@ -10,6 +10,7 @@ import joblib
 from sklearn.metrics import explained_variance_score, mean_absolute_error, mean_tweedie_deviance
 from math import exp
 from utils import Config
+from DBAC.api import db_interface
 
 
 RECORD_COLS = ['TOTAL', 'PREV_WPM', 'TIMEDELTA_SINCE_CREATION', 'TIMEDELTA_LAST_REV', 'CUM_CNT_REVS', 'PREV_SCORE']
@@ -159,7 +160,7 @@ class Models:
         else:
             return False
         
-        joblib.dump(model, os.path.join(self.config['resources_path'],'efc_models', f"{model_name}.pkl"))
+        joblib.dump(model, os.path.join(db_interface.RES_PATH, 'efc_models', f"{model_name}.pkl"))
         return True
             
 

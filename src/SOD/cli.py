@@ -85,6 +85,7 @@ class CLI():
             self.fh = get_filehandler('.void')
             self.init_set_languages()
             self.cls(self.msg.FILE_MISSING, keep_content=True)
+            log.debug(f"Initialized {type(self.fh).__name__} for {self.fh.path}")
 
 
     def init_cli_args(self):
@@ -120,7 +121,7 @@ class CLI():
                 filepath = self.dbapi.match_from_all_languages(
                     repat=re.compile(filepath, re.IGNORECASE),
                     exclude_dirs=self.re_excl_dirs
-                )[0]
+                ).pop()
             fh = get_filehandler(filepath)
             if self.fh:
                 self.fh.close()
@@ -129,7 +130,7 @@ class CLI():
             self.cls()
         except re.error:
             self.cls(self.msg.RE_ERROR, keep_content=True)
-        except IndexError:
+        except KeyError:
             self.cls(self.msg.RE_WARN, keep_content=True)
         except AttributeError:
             self.cls(

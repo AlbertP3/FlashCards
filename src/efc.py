@@ -22,7 +22,7 @@ class efc():
 
     def load_pickled_model(self):
         new_model:str = self.config['efc_model']
-        new_model_path = os.path.join(self.config['resources_path'],'efc_models', f'{new_model}.pkl')
+        new_model_path = os.path.join(self.db.RES_PATH,'efc_models', f'{new_model}.pkl')
         new_model_mtime = os.path.getmtime(new_model_path)
         if new_model != self.efc_model.name or self.efc_model.mtime < new_model_mtime:
             self.efc_model = joblib.load(new_model_path)

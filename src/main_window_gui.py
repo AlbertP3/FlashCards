@@ -55,7 +55,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.BUTTONS_HEIGHT = self.config['THEME']['buttons_height']
 
         # Set Window Parameters
-        self.setWindowIcon(QtGui.QIcon(os.path.join(self.config['resources_path'],'icon.ico')))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH,'icon.ico')))
         self.set_geometry(self.config['GEOMETRY']['main']) 
 
         # Initialize
@@ -233,7 +233,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.update_backend_parameters()
         self.update_interface_parameters()
-        self.change_revmode(self.active_file.kind in self.db.assessable)
+        self.change_revmode(self.active_file.kind in self.db.GRADED)
         self.start_file_update_timer()
 
 

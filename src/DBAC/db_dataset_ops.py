@@ -1,5 +1,4 @@
 import re
-from itertools import chain
 import random
 import logging
 import pandas as pd
@@ -17,7 +16,7 @@ class FileDescriptor:
     basename:   str           = None
     filepath:   str           = None
     lng:        str           = None
-    kind:       str           = None    # [language, revision, mistakes]
+    kind:       str           = None
     ext:        str           = None    # [.csv, .xlsx, ...]
     valid:      bool          = None
     data:       pd.DataFrame  = None
@@ -56,6 +55,10 @@ class db_dataset_ops():
         if (fdwd:=sum(1 for f in self.files.values() if f.data is not None)) > 1:
             log.warning(f"There are {fdwd} FileDescriptors with data!")
     
+    def make_filepath(self, lng:str, subdir:str, filename:str='') -> os.PathLike:
+        """Template for creating Paths"""
+        return os.path.join(self.DATA_PATH, lng, subdir, filename)
+
     def reload_files_cache(self):
         self.get_files.cache_clear();            self.get_files()
         self.get_sorted_revisions.cache_clear(); self.get_sorted_revisions()
@@ -65,19 +68,20 @@ class db_dataset_ops():
 
     @staticmethod
     def gen_signature(language) -> str:
-        saving_date = datetime.now().strftime('%m%d%Y%H%M%S')
+        saving_date = datetime.now().strftime('%d%m%Y%H%M%S')
         signature = f'REV_{language}{saving_date}'
         return signature
 
     def save_revision(self, dataset:pd.DataFrame) -> str:
         '''Creates a new file for the Revision. Returns a new filepath'''
         try:
-            fp = os.path.join(
-                self.config['revs_path'], 
-                self.active_file.lng, 
-                f"{self.active_file.signature}.csv")
+            fp = self.make_filepath(
+                self.active_file.lng,
+                self.REV_DIR,
+                f"{self.active_file.signature}.csv"
+            )
             dataset.to_csv(fp, index=False, encoding='utf-8')
-            fcc_queue.put(f'{self.active_file.signature} saved successfully')
+            fcc_queue.put(f'Created {self.active_file.signature}')
             log.debug(f"Created a new File: {fp}")
             self.reload_files_cache()
             return fp
@@ -105,25 +109,28 @@ class db_dataset_ops():
 
     def save_mistakes(self, mistakes_list:list, cols:list, offset:int) -> pd.DataFrame:
         '''Dump dataset to the Mistakes file'''
-        lim = self.config['mistakes_buffer']
         mistakes_list:pd.DataFrame = pd.DataFrame(data=mistakes_list, columns=cols)
         basename = f'{self.active_file.lng}_mistakes'
         mfd = FileDescriptor(
             basename=basename,
-            filepath=os.path.join(self.config['mistakes_path'], self.active_file.lng, basename+'.csv'),
+            filepath=self.make_filepath(
+                self.active_file.lng, 
+                self.MST_DIR, 
+                basename+'.csv'
+            ),
             lng=self.active_file.lng,
-            kind='revision',
+            kind=self.KINDS.rev,  # TODO change to mistakes
             ext='.csv'
         )
         if mfd.filepath in self.files.keys():
             buffer = self.load_dataset(mfd, do_shuffle=False)
             buffer = pd.concat([buffer, mistakes_list.iloc[offset:]], ignore_index=True)
-            buffer.iloc[-lim:].to_csv(
+            buffer.iloc[-self.config['mistakes_buffer']:].to_csv(
             mfd.filepath, index=False, mode='w', header=True
             )
             log.debug(f"Updated existing Mistakes File: {mfd.filepath}")
         else:
-            mistakes_list.iloc[:lim].to_csv(
+            mistakes_list.iloc[:self.config['mistakes_buffer']].to_csv(
                 mfd.filepath, index=False, mode='w', header=True
             )
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
@@ -222,17 +229,17 @@ class db_dataset_ops():
         '''Finds files from 'revs_path' matching active Languages'''
         self.files = dict()
         for lng in self.config['languages']:
-            self.__update_files(self.config['revs_path'], lng, kind='revision')
-            self.__update_files(self.config['lngs_path'], lng, kind='language')
-            self.__update_files(self.config['mistakes_path'], lng, kind='mistakes')
+            self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)
+            self.__update_files(lng, self.LNG_DIR, kind=self.KINDS.lng)
+            self.__update_files(lng, self.MST_DIR, kind=self.KINDS.mst)
         log.debug(f"Collected FileDescriptors for {len(self.files)} files")
         return self.files
     
-    def __update_files(self, path, lng, kind):
+    def __update_files(self, lng, subdir, kind):
         try:
-            for f in get_files_in_dir(os.path.join(path, lng)):
-                basename, ext = os.path.splitext(f)
-                filepath = os.path.join(path, lng, f)
+            for f in get_files_in_dir(self.make_filepath(lng, subdir)):
+                basename, ext = os.path.splitext(os.path.basename(f))
+                filepath = self.make_filepath(lng, subdir, f)
                 self.files[filepath] = FileDescriptor(
                     basename = basename,
                     filepath = filepath,
@@ -244,11 +251,12 @@ class db_dataset_ops():
                 )
         except FileNotFoundError:
             log.warning(f"Language '{lng}' is missing the corresponding directory")
+            # TODO init dir tree
     
     @cache
     def get_sorted_revisions(self) -> list[FileDescriptor]:
         return sorted(
-            [v for _, v in self.get_files().items() if v.kind=='revision'],
+            [v for _, v in self.get_files().items() if v.kind==self.KINDS.rev],
             key=lambda fd: self.get_first_datetime(fd.signature),
             reverse=True
         )
@@ -256,7 +264,7 @@ class db_dataset_ops():
     @cache
     def get_sorted_languages(self) -> list[FileDescriptor]:
         return sorted(
-            [v for _, v in self.get_files().items() if v.kind=='language'],
+            [v for _, v in self.get_files().items() if v.kind==self.KINDS.lng],
             key=lambda fd: fd.basename,
             reverse=True
         )
@@ -264,7 +272,7 @@ class db_dataset_ops():
     @cache
     def get_sorted_mistakes(self) -> list[FileDescriptor]:
         return sorted(
-            [v for _, v in self.get_files().items() if v.kind=='mistakes'],
+            [v for _, v in self.get_files().items() if v.kind==self.KINDS.mst],
             key=lambda fd: fd.basename,
             reverse=True
         )
@@ -274,16 +282,19 @@ class db_dataset_ops():
         self.active_file.data.reset_index(inplace=True, drop=True)
 
     @cache
-    def match_from_all_languages(self, repat:re.Pattern, exclude_dirs:re.Pattern=re.compile(r'.^')) -> list:
-        return list(chain(
-            *[
-                [
-                os.path.join(self.config['lngs_path'], d, f) 
-                for f in os.listdir(os.path.join(self.config['lngs_path'], d)) 
+    def match_from_all_languages(
+    self, repat: re.Pattern, exclude_dirs: re.Pattern = re.compile(r".^")
+    ) -> set[os.PathLike]:
+        matching = set()
+        for lng_rootdir in {
+            d for d in os.listdir(self.DATA_PATH) if not exclude_dirs.search(d)
+        }:
+            for lng_file in {
+                f
+                for f in os.listdir(self.make_filepath(lng_rootdir, self.LNG_DIR))
                 if repat.search(f)
-                ]
-            for d in os.listdir(self.config['lngs_path']) 
-            if os.path.isdir(os.path.join(self.config['lngs_path'])) 
-            and not exclude_dirs.search(os.path.basename(d))
-            ]
-        ))
+            }:
+                matching.add(
+                    self.make_filepath(lng_rootdir, self.LNG_DIR, lng_file)
+                )
+        return matching

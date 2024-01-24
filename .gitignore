@@ -1,14 +1,12 @@
 venv
 __pycache__
 __init__.py
-revisions
-languages
-mistakes
 rev_db.csv
 .vscode
 desktop.ini
 fcs.log
 test.log
-tests/res/
+tests/
 build/
-scripts/resources/efc_models/
+data/
+src/res/efc_models/

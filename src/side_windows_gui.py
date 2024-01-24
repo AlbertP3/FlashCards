@@ -421,7 +421,7 @@ class stats_gui(stats):
 
 
     def get_stats_sidewindow(self):
-        if self.active_file.kind in self.db.assessable:
+        if self.active_file.kind in self.db.GRADED:
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, 'stats')
         else:
@@ -800,7 +800,7 @@ class config_gui():
 
 
     def get_available_efc_models(self):
-        models_path =  os.path.join(config['resources_path'], 'efc_models')
+        models_path =  os.path.join(self.db.RES_PATH, 'efc_models')
         pickled_models = [f.split('.')[0] for f in os.listdir(models_path) if f.endswith('.pkl')]
         return pickled_models
     

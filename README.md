@@ -1,6 +1,6 @@
 <h1> FLASHCARDS </h1>
 
-![Flashcards Main Window](scripts/resources/imgs/ss_main.png)
+![Flashcards Main Window](src/res/imgs/ss_main.png)
 
 <h1>Main Goal</h1>
 <p>Provide a powerful tool to make learning languages effective, automated and smooth.</p>
@@ -17,37 +17,37 @@
 <li>Once the Revision is complete, the user is presented with the Revision Summary - couple sentences evaluating the score</li>
 <li>With Flashcards Console Commands user is able to access some extra functionalities listed via the 'help' command</li>
 <li>Side Windows despite their name, can be opened in 1 of 2 modes: in-place or side-by-side. They are nonetheless integral parts of the main window. Size of the individual windows will be recorded to the config file.</li>
-<li>Themes: list of themes is loaded from the scripts/resources/themes directory. User is free to add their own styles as long as they comply with the list of fields</li>
+<li>Themes: list of themes is loaded from the src/res/themes directory. User is free to add their own styles as long as they comply with the list of fields</li>
 <li>New cards can be easily added to the dataset through an in-built SOD extension</li>
 </ol>
 
 <h1>Load Window</h1>
 
-![Load Window](scripts/resources/imgs/ss_load.png)
+![Load Window](src/res/imgs/ss_load.png)
 
 <p>Allows picking both Revision and Language files from the specified directories. New Revisions can be created only from Languages and Revision Mode (Positive/Negative) is available only for the Revisions. If optional feature "reccomend_new" is selected, reminders to create a new revision will also appear there</p>
 
 <h1>Progress Window</h1>
 
-![Progress Window](scripts/resources/imgs/ss_progress.png)
+![Progress Window](src/res/imgs/ss_progress.png)
 
 <p>Progress can be assessed with a 'Progress' chart displaying, in specified intervals, starting from top: total number of new words user failed to learn; sum of 'last positives' for Revisions created at this interval; total number of revisions regardless of the creation time. Only data for the languages selected in the settings will be diplayed</p>
 
 <h1>Statistics</h1>
 
-![Statistics Window](scripts/resources/imgs/ss_stats.png)
+![Statistics Window](src/res/imgs/ss_stats.png)
 
 <p>Statistics shows scores for each time a particular Revision was done. Optionally, Cards Per Minute indicator can be shown instead of time-spent</p>
 
 <h1>Search Online Dictionaries</h1>
 
-![SOD Window](scripts/resources/imgs/ss_sod.png)
+![SOD Window](src/res/imgs/ss_sod.png)
 
 <p>Search Online Dictionaries facilitates adding new words to the datasets via a command line interface - translation for the searched phrase are fetched from the online service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the "help" command - a local source can also be used . Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate</p>
 
 <h1>EFC Model Optimizer</h1>
 
-![EMO Window](scripts/resources/imgs/ss_emo.png)
+![EMO Window](src/res/imgs/ss_emo.png)
 
 <p>EFC Model Optimizer employs regression models fitted on the Revision data and is used for fitting the EFC model to the user. EFC is meant to determine, after what time the predicted percentage of words still remembered falls below the defined threshold. First, statistics for each model are presented, then as selected, examples comparing True and Predicted values will be shown. If the model is accepted, it will be pickled and automatically set as the current model. Available models can be picked from the Settings menu</p>
 <p>Available Models:</p>
@@ -60,13 +60,13 @@
 
 <h1>Time Spent</h1>
 
-![TimeSpent Window](scripts/resources/imgs/ss_time.png)
+![TimeSpent Window](src/res/imgs/ss_time.png)
 
 <p>Timers: there are 3 independent timers, recording time spent on a revision, monitoring changes in the source file and a Pace Timer switching cards after a specified time has passed. Timers will stop whenever the Application window is not selected or a side-window is opened.</p>
 
 <h1>Settings</h1>
 
-![Settings Window](scripts/resources/imgs/ss_settings.png)
+![Settings Window](src/res/imgs/ss_settings.png)
 
 <p>Most important settings are available through this window, however some other options such as keyboard shortcuts are to be set directly in the config.ini file. Changing settings via this window does not require reloading the application</p>
 

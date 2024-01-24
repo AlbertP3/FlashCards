@@ -265,5 +265,5 @@ def get_filehandler(fullpath:str) -> FileHandler:
             ACTIVE_FH = VoidFileHandler(fullpath)
         else:
             raise AttributeError(f'Unsupported file extension: {fullpath.split(".")[-1]}')
-        log.debug(f"Initialized {ACTIVE_FH.__class__} for: {fullpath}")
+        log.debug(f"Initialized {type(ACTIVE_FH).__name__} for: {fullpath}")
         return ACTIVE_FH

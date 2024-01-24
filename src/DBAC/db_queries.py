@@ -22,13 +22,12 @@ class db_queries:
         self.last_load:float = -1
         self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"
         self.DEFAULT_DATE = datetime(1900, 1, 1)
-        self.assessable = {'revision', 'mistakes'}
 
     def refresh(self) -> bool:
         if self.last_load < self.last_update:
             t0 = perf_counter()
             self.db = pd.read_csv(
-                self.config['db_path'], 
+                self.DB_PATH, 
                 encoding='utf-8',
                 sep=';', 
                 parse_dates=['TIMESTAMP'],
@@ -67,7 +66,7 @@ class db_queries:
     @write_op
     def create_record(self, words_total, positives, seconds_spent):
         '''Appends a new record to the rev_db for the active file'''
-        with open(self.config['db_path'], 'a') as fd:
+        with open(self.DB_PATH, 'a') as fd:
             record = [
                     datetime.now().strftime(self.TSFORMAT), 
                     self.active_file.signature, 
@@ -85,7 +84,7 @@ class db_queries:
         self.refresh()
         self.db['SIGNATURE'] = self.db['SIGNATURE'].replace(old, new)
         self.db.to_csv(
-            self.config['db_path'], 
+            self.DB_PATH, 
             encoding='utf-8', 
             sep=';', 
             index=False, 

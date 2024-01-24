@@ -18,11 +18,11 @@ def configure_logging(log_level, plt_log_level='error'):
     matplotlib.set_loglevel(plt_log_level)
 
 try:
-    if not os.path.exists('./scripts/resources/config.json'):
+    if not os.path.exists('./src/res/config.json'):
         raise FileNotFoundError('Config file not found!')
     import utils
     configure_logging(utils.config['log_level'])
-    utils.validate_setup()
+    # utils.validate_setup()
 except Exception as e:
     configure_logging('DEBUG', 'DEBUG')
     log = logging.getLogger(__name__)

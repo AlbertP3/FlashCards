@@ -109,7 +109,7 @@ class main_window_logic():
         return (
             not self.is_saved
             and self.total_words - self.current_index - 1 == 0 
-            and self.active_file.kind in self.db.assessable 
+            and self.active_file.kind in self.db.GRADED 
         )
 
 
@@ -148,7 +148,7 @@ class main_window_logic():
         self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
         self.auto_cfm_offset = 0
-        self.change_revmode(self.active_file.kind in self.db.assessable)
+        self.change_revmode(self.active_file.kind in self.db.GRADED)
         
 
     def save_to_mistakes_list(self):   
@@ -160,7 +160,7 @@ class main_window_logic():
         self.auto_cfm_offset = mistakes_list.shape[0]  
         self.db.load_tempfile(
             data = mistakes_list,
-            kind = 'mistakes',
+            kind = self.db.KINDS.mst,
             basename = f'{self.active_file.lng} Mistakes',
             lng = self.active_file.lng,
             signature = f"{self.active_file.lng}_mistakes"

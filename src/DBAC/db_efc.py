@@ -7,7 +7,7 @@ class db_efc_queries(ABC):
 
     def filter_for_efc_model(self):
         # Remove mistakes, obsolete lngs and revs with POSITIVES=0
-        mistakes = {fd.signature for fd in self.files.values() if fd.kind == 'mistakes'}
+        mistakes = {fd.signature for fd in self.files.values() if fd.kind == self.KINDS.mst}
         self.db = self.db[self.db['LNG'].isin(self.config['languages'])]
         self.db = self.db[~self.db['SIGNATURE'].isin(mistakes)]
         self.db = self.db.loc[self.db['POSITIVES'] != 0]
