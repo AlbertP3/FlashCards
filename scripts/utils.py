@@ -236,7 +236,8 @@ class Caliper:
 
     def __init__(self, fmetrics:QFontMetricsF):
         self.fmetrics = fmetrics
-        self.scr = self.fmetrics.widthChar('W')
+        self.scw = self.fmetrics.widthChar('W') # Standard Character Width
+        self.sch = self.fmetrics.height()       # Standard Character Height
 
     @cache
     def pixlen(self, char:str) -> float:
@@ -264,7 +265,7 @@ class Caliper:
             rem_text = self.abbreviate(text, pixlim)
             out = deque(rem_text)
             pixlim -= self.strwidth(rem_text)
-            should_add_suffix = pixlim <= self.scr
+            should_add_suffix = pixlim <= self.scw
         else:
             out = deque()
             for c in unicodedata.normalize('NFKC', text):

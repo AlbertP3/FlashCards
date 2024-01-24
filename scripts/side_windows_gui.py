@@ -381,7 +381,7 @@ class mistakes_gui():
     def show_mistakes(self):
         out, sep = list(), ' | '
         cell_args = {
-            'pixlim':(self.config['GEOMETRY']['mistakes'][2]-self.caliper.strwidth(sep))/2 - 2*self.caliper.scr, 
+            'pixlim':(self.config['GEOMETRY']['mistakes'][2]-self.caliper.strwidth(sep))/2 - 2*self.caliper.scw, 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }

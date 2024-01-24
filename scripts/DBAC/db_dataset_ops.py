@@ -76,7 +76,7 @@ class db_dataset_ops():
                 self.config['revs_path'], 
                 self.active_file.lng, 
                 f"{self.active_file.signature}.csv")
-            dataset.to_csv(fp, index=False)
+            dataset.to_csv(fp, index=False, encoding='utf-8')
             fcc_queue.put(f'{self.active_file.signature} saved successfully')
             log.debug(f"Created a new File: {fp}")
             self.reload_files_cache()

@@ -43,7 +43,7 @@ class Test_CLI(TestCase):
         self.ss.cli.dicts.available_dicts_short.update({'i', 'M'})
         self.ss.cli.output.cls = self.cls_mock
         self.ss.cli.send_output = self.send_output_mock
-        self.ss.cli.get_lines_limit = lambda: 99
+        self.ss.cli.lines_lim = lambda: 99
         self.manual_sep = self.config['SOD']['manual_mode_sep']
         self.init_db_len = self.ss.cli.fh.ws.init_len
 
@@ -284,7 +284,7 @@ class Test_CLI(TestCase):
         self.run_cmd(['Q'])
 
         # only last 2 should be visible
-        self.ss.cli.get_lines_limit = mock.Mock(return_value=2*2+4)
+        self.ss.cli.lines_lim = mock.Mock(return_value=2*2+4)
         self.run_cmd([next(bloats)])
         self.run_cmd([next(bloats)])
         self.run_cmd([next(bloats)])
@@ -293,7 +293,7 @@ class Test_CLI(TestCase):
         self.assertIn('3. ', self.get_console())
 
         # After a resize - show last 4 lines
-        self.ss.cli.get_lines_limit = mock.Mock(return_value=4*2+4)
+        self.ss.cli.lines_lim = mock.Mock(return_value=4*2+4)
         self.run_cmd([next(bloats)])
         self.run_cmd([next(bloats)])
         self.assertNotIn('1. ', self.get_console())
@@ -303,7 +303,7 @@ class Test_CLI(TestCase):
         self.assertIn('5. ', self.get_console())
 
         # downsize - show last 3
-        self.ss.cli.get_lines_limit = mock.Mock(return_value=3*2+4)
+        self.ss.cli.lines_lim = mock.Mock(return_value=3*2+4)
         self.run_cmd([next(bloats)])
         self.assertNotIn('3. ', self.get_console())
         self.assertIn('4. ', self.get_console())

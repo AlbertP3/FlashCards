@@ -29,10 +29,11 @@ class Message:
         self.WRONG_EDIT = '⚠ Wrong Edit!'
         self.OK = '✅ OK'
         self.QUERY_UPDATE = "🔃 Updated Queue"
+        self.QUERY_DONE = "✅ Queue Saved"
         self.RE_ERROR = '⚠ Regex Error!'
         self.RE_WARN = '⚠ Nothing Matched Regex!'
         self.UNSUP_EXT = '⚠ Unsupported File Extension'
-        self.FILE_MISSING = '⚠ File Does Not Exist!'
+        self.FILE_MISSING = '⛌ File Missing!'
 
 class Prompt:
     def __init__(self) -> None:
@@ -58,8 +59,7 @@ class CLI():
         self.re_excl_dirs = re.compile(self.config['SOD']['exclude_pattern'], re.IGNORECASE)
         self.dicts = Dict_Services()
         self.dbapi = db_interface()
-        self.fh = None
-        self.update_file_handler(self.config['SOD']['last_file'])
+        self.init_file_handler()
         self.selection_queue = list()
         self.status_message = str()
 
@@ -70,7 +70,22 @@ class CLI():
     @property
     def pix_limit(self) -> float:
         return 0.98 * self.output.console.width()
+
+    @property
+    def lines_lim(self) -> float:
+        return 0.98 * self.output.console.height() / self.caliper.sch
     
+
+    def init_file_handler(self):
+        try:
+            self.fh = get_filehandler(self.config['SOD']['last_file'])
+            self.init_set_languages()
+            self.cls()
+        except FileNotFoundError:
+            self.fh = get_filehandler('.void')
+            self.init_set_languages()
+            self.cls(self.msg.FILE_MISSING, keep_content=True)
+
 
     def init_cli_args(self):
         self.sep_manual = self.config['SOD']['manual_mode_sep']
@@ -79,7 +94,7 @@ class CLI():
         self.chg_db_arg = self.config['SOD']['change_db_arg']
 
 
-    def __init_set_languages(self):
+    def init_set_languages(self):
         if self.config['SOD']['initial_language'] == 'auto':
             ref = self.config['SOD']['last_src_lng']
         else:
@@ -110,7 +125,7 @@ class CLI():
             if self.fh:
                 self.fh.close()
             self.fh = fh
-            self.__init_set_languages()
+            self.init_set_languages()
             self.cls()
         except re.error:
             self.cls(self.msg.RE_ERROR, keep_content=True)
@@ -120,14 +135,6 @@ class CLI():
             self.cls(
                 self.msg.UNSUP_EXT + f' {filepath.split(".")[-1]}!', keep_content=True
             )
-        except TypeError:
-            pass
-        else:  # success
-            return
-        if not self.fh:  # last file does not exist
-            self.fh = get_filehandler('.void')
-            self.__init_set_languages()
-            self.cls(self.msg.FILE_MISSING, keep_content=True)
 
 
     def reset_state(self):
@@ -303,9 +310,9 @@ class CLI():
             self.state.QUEUE_MODE = False
             self.state.QUEUE_SELECTION_MODE = True
             self.unpack_translations_from_queue()
-        else:
+        if not self.queue_dict:
             self.reset_state()
-            self.cls()
+            self.cls(self.msg.QUERY_DONE)
             self.set_output_prompt(self.prompt.PHRASE)
 
 
@@ -347,7 +354,7 @@ class CLI():
             self.set_dict(parsed_cmd[1])
             return
 
-        p_lim = self.pix_limit - 4 * self.caliper.scr
+        p_lim = self.pix_limit - 4 * self.caliper.scw
         phrase:str = ' '.join(self.handle_prefix(parsed_cmd))
         exists_in_queue = phrase in self.queue_dict.keys()
         if phrase.startswith(self.sep_manual):  # Manual Mode for Queue
@@ -390,7 +397,7 @@ class CLI():
             else:
                 msg = self.msg.OK
 
-            lim_items = int(self.get_lines_limit()/2)-2
+            lim_items = int(self.lines_lim/2)-2
             if self.queue_visible_items+1 > lim_items:
                 self.cls(msg, keep_content=False, keep_cmd=True)
                 self.print_queue(slice_=[len(self.queue_dict)-lim_items, 0])
@@ -417,7 +424,7 @@ class CLI():
             
     
     def print_queue(self, slice_:list=[0, 0]):
-        plim = self.pix_limit - 3 * self.caliper.scr
+        plim = self.pix_limit - 3 * self.caliper.scw
         if slice_[0]<0: slice_[0] = len(self.queue_dict) + slice_[0] 
         if slice_[1]==0: slice_[1] = len(self.queue_dict)
         self.queue_index = slice_[0]+1
@@ -469,7 +476,7 @@ class CLI():
             if self.config['SOD']['table_ext_mode'] == 'fix':
                 output = self.__ptt(trans, origs, plim, plim, '\u0020|\u0020')
             elif self.config['SOD']['table_ext_mode'] == 'flex':
-                llim = min(max(self.caliper.strwidth(c) for c in trans)+5*self.caliper.scr, plim)
+                llim = min(max(self.caliper.strwidth(c) for c in trans)+5*self.caliper.scw, plim)
                 rlim = 2*plim - llim
                 output = self.__ptt(trans, origs, llim, rlim, '\u0020|\u0020')
         else:
@@ -491,10 +498,6 @@ class CLI():
             )
             output.append(f"{i}{t}{sep}{o}")
         return '\n'.join(output)
-    
-
-    def get_lines_limit(self) -> int:
-        return int(0.589 * self.output.console.height() / self.output.mw.CONSOLE_FONT_SIZE)
 
 
     def select_translations(self, parsed_cmd):

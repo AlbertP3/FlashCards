@@ -175,18 +175,21 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def display_text(self, text=None, forced_size=None):
-        if not text: text = self.get_current_card().iloc[self.side]
-        if not forced_size:
+        if not text: 
+            text = self.get_current_card().iloc[self.side]
+
+        if forced_size:
+            self.FONT_TEXTBOX_SIZE = forced_size
+        else:
             min_font_size = 18
             len_factor = int(len(str(text))/30)
             width_factor = int((self.frameGeometry().width())/43)
             self.FONT_TEXTBOX_SIZE = min_font_size + max(width_factor - len_factor,0)
-        else:
-            self.FONT_TEXTBOX_SIZE = forced_size
-        self.textbox.setFont(QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE))
+        
+        self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
         self.textbox.setText(str(text))
         padding = max(0, 90 - len(str(text))*0.7)
-        self.textbox.setStyleSheet('''{} padding-top: {}%;'''.format(self.textbox_stylesheet, padding))
+        self.textbox.setStyleSheet(f'{self.textbox_stylesheet} padding-top: {padding}%;')
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.is_afterface = False
         if not self.TIMER_RUNNING_FLAG and not self.is_saved: 

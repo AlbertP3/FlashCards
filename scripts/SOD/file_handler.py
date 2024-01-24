@@ -27,6 +27,14 @@ class FileHandler(ABC):
     @abstractmethod
     def close(self):
         pass
+    
+    @staticmethod
+    def reg_close(func):
+        def inner(self, *args, **kwargs):
+            path = self.path
+            func(self, *args, **kwargs)
+            log.debug(f"Closed FileHandler: {path}")
+        return inner
 
     def get_languages(self) -> tuple[str]:
         '''returns values from header rows indicating languages used'''
@@ -141,7 +149,7 @@ class XLSXFileHandler(FileHandler):
         self.wb.save(self.path)
         self.clear_cache()
 
-
+    @FileHandler.reg_close
     def close(self):
         self.wb.close()
         del self
@@ -195,6 +203,7 @@ class CSVFileHandler(FileHandler):
         self.raw_data.to_csv(self.path, encoding='utf-8', index=False)
         self.clear_cache()
 
+    @FileHandler.reg_close
     def close(self):
         del self
 
@@ -203,6 +212,7 @@ class CSVFileHandler(FileHandler):
 class VoidFileHandler(FileHandler):
     
     def __init__(self, path=''):
+        self.path = path
         self.filename = None
         self.native_lng = None
         self.foreign_lng = None
@@ -217,6 +227,7 @@ class VoidFileHandler(FileHandler):
     def edit_content(self, phrase, translations) -> tuple[bool, str]:
         return False, ''
 
+    @FileHandler.reg_close
     def close(self):
         del self
     
