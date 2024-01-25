@@ -241,7 +241,7 @@ class db_dataset_ops:
 
     @cache
     def get_files(self) -> dict[str, FileDescriptor]:
-        """Finds files from 'revs_path' matching active Languages"""
+        """Finds files matching active Languages"""
         self.files = dict()
         for lng in self.config["languages"]:
             self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)

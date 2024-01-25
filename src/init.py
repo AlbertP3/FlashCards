@@ -25,7 +25,6 @@ try:
     import utils
 
     configure_logging(utils.config["log_level"])
-    # utils.validate_setup()
 except Exception as e:
     configure_logging("DEBUG", "DEBUG")
     log = logging.getLogger(__name__)

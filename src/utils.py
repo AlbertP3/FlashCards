@@ -116,32 +116,6 @@ def format_timedelta(tmd:timedelta):
     return f'{time_value:.{prec}f} {interval}{suffix}'
 
 
-# TODO
-def validate_setup():
-    operation_status = ""
-
-    if config['db_path'].split('/')[-1] not in [f for f in os.listdir(config['resources_path'])]:
-        operation_status += 'Initializing new Database\n'
-        pd.DataFrame(columns=['TIMESTAMP','SIGNATURE', 'LNG', 'TOTAL','POSITIVES', 'SEC_SPENT']).to_csv(config['db_path'], sep=';')
-
-    lngs_dir_name = os.path.normpath(config['lngs_path'])
-    if lngs_dir_name not in [f for f in os.listdir('.')]:
-        operation_status += 'Creating Lngs dir\n'
-        os.mkdir(lngs_dir_name)
-
-    revs_dir_name = os.path.normpath(config['revs_path'])
-    if revs_dir_name not in [f for f in os.listdir('.')]:
-        operation_status += 'Creating revs dir\n'
-        os.mkdir(revs_dir_name)
-
-    mstk_dir_name = os.path.normpath(config['mistakes_path'])
-    if mstk_dir_name not in [f for f in os.listdir('.')]:
-        operation_status += 'Creating revs dir\n'
-        os.mkdir(mstk_dir_name)
-
-    fcc_queue.put(operation_status)
-
-
 # TODO replace with Caliper.make_table
 def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False, alingment:list=list(), headers:list=None) -> str:
     printout = '' 
