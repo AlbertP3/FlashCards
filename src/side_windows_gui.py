@@ -363,12 +363,12 @@ class mistakes_gui():
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'mistakes')
     
     def get_mistakes_sidewindow(self):
-        if self.is_revision:
+        if self.active_file.kind in self.db.GRADED:
             self.arrange_mistakes_window()
             self.open_side_window(self.mistakes_layout, 'mistakes')
             self.show_mistakes()
         else:
-            self.fcc_inst.post_fcc('Mistakes are unavailable for a Language.')
+            self.fcc_inst.post_fcc('Mistakes are unavailable for a Language')
 
     def arrange_mistakes_window(self):
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']

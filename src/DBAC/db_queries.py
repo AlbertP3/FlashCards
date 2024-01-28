@@ -76,6 +76,7 @@ class db_queries:
                 total=str(words_total),
                 positives=str(positives),
                 sec_spent=str(seconds_spent),
+                kind=self.active_file.kind,
             )
             fd.write(record + "\n")
         fcc_queue.put(f"Recorded {self.active_file.signature}")

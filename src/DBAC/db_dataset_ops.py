@@ -51,10 +51,16 @@ class db_dataset_ops:
             self.__AF.data = None
         self.__AF = fd
         log.debug(
-            f"Set {'Valid' if self.__AF.valid else 'Invalid'} {'Temporary' if self.__AF.tmp else 'Regular'} Active File: {self.__AF}"
+            (
+                f"Set {'Valid' if self.__AF.valid else 'Invalid'} "
+                f"{'Temporary' if self.__AF.tmp else 'Regular'} Active File: {self.__AF}"
+            )
         )
-        if (fdwd := sum(1 for f in self.files.values() if f.data is not None)) > 1:
-            log.warning(f"There are {fdwd} FileDescriptors with data!")
+        if (
+            len(d := {f.basename for f in self.files.values() if f.data is not None})
+            > 1
+        ):
+            log.warning(f"There are {len(d)} FileDescriptors with data!: {d}")
 
     def make_filepath(self, lng: str, subdir: str, filename: str = "") -> os.PathLike:
         """Template for creating Paths"""

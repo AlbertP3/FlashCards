@@ -23,7 +23,7 @@ class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
         self.KINDS = type(
             "FileKindsEnum",
             (object,),
-            {"mst": "mistakes", "lng": "language", "rev": "revision"},
+            {"mst": "M", "lng": "L", "rev": "R"},
         )()
         self.GRADED = {self.KINDS.rev, self.KINDS.mst}
         self.RES_PATH = "./src/res/"
@@ -40,6 +40,7 @@ class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
             "TOTAL",
             "POSITIVES",
             "SEC_SPENT",
+            "KIND",
         )
 
     def __validate_env(self):

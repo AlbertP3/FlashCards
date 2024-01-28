@@ -1,15 +1,13 @@
-from abc import ABC
 import pandas as pd
 
 
 
-class db_efc_queries(ABC):
+class db_efc_queries():
 
     def filter_for_efc_model(self):
         # Remove mistakes, obsolete lngs and revs with POSITIVES=0
-        mistakes = {fd.signature for fd in self.files.values() if fd.kind == self.KINDS.mst}
         self.db = self.db[self.db['LNG'].isin(self.config['languages'])]
-        self.db = self.db[~self.db['SIGNATURE'].isin(mistakes)]
+        self.db = self.db[self.db['KIND'] == self.KINDS.rev]
         self.db = self.db.loc[self.db['POSITIVES'] != 0]
         self.filters['EFC_MODEL'] = True
 
