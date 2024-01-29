@@ -29,7 +29,7 @@ class main_window_logic():
 
     @property
     def is_revision(self):
-        return self.db.active_file.kind == 'revision'
+        return self.db.active_file.kind == self.db.KINDS.rev
     
     @property
     def active_file(self):
@@ -122,7 +122,7 @@ class main_window_logic():
 
 
     def change_revmode(self, force_which=None):
-        if self.active_file.kind == 'language' or self.is_saved:
+        if self.active_file.kind == self.db.KINDS.lng or self.is_saved:
             self.revmode = False
         elif force_which is None:
             self.revmode = not self.revmode

@@ -104,7 +104,7 @@ class db_queries:
 
     def get_unique_signatures_with_existing_files(self) -> set:
         return set(self.db["SIGNATURE"].unique()).intersection(
-            fd.signature for fd in self.files.values() if fd.kind == "revision"
+            fd.signature for fd in self.files.values() if fd.kind == self.KINDS.rev
         )
 
     def get_sum_repeated(self, signature=None) -> int:

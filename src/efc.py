@@ -147,7 +147,7 @@ class efc():
         # recommendation text with the lng file
         text = self.config['RECOMMENDATIONS'].get(lng, f"It's time for {lng}")
         self.paths_to_suggested_lngs[text] = choice(
-            [fd.filepath for fd in self.db.files.values() if fd.lng == lng and fd.kind == 'language']
+            [fd.filepath for fd in self.db.files.values() if fd.lng == lng and fd.kind == self.db.KINDS.lng]
         )
         self.new_revs+=1
         return text

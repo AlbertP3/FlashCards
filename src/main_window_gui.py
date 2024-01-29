@@ -202,12 +202,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 self.save_to_mistakes_list()
             else:
                 fcc_queue.put('No mistakes to save')
-        else:
+        elif self.active_file.kind == self.db.KINDS.lng:
             if self.cards_seen != 0:
                 super().handle_saving(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
                 fcc_queue.put('Unable to save an empty file')
+        else:
+            fcc_queue.put("Unable to save Mistakes file")
                 
 
     def delete_current_card(self):
@@ -284,7 +286,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.update_score_button()
             if self.words_back_mode():
                 self.nav_buttons_visibility_control(True, True, False)
-        elif self.should_save_revision(): 
+        elif self.should_save_revision():  # TODO rename
             self.handle_revision_complete()
         elif self.revision_summary:
             self.display_text(self.revision_summary)

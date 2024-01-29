@@ -175,7 +175,7 @@ class fcc():
             ].index, 
             inplace=True
         )
-        if self.mw.active_file.kind == 'revision':
+        if self.mw.active_file.kind == self.mw.db.KINDS.rev:
             self.mw.db.save_revision(dataset_ordered)
             self.post_fcc('Card removed from the set and from the file as well')
         elif self.mw.active_file.kind in {self.mw.db.KINDS.lng, self.mw.db.KINDS.mst}:
@@ -212,7 +212,7 @@ class fcc():
             basename=f"{self.mw.active_file.lng}{len(data)}", 
             data=data,
             lng = self.mw.active_file.lng,
-            kind='language',
+            kind=self.mw.db.KINDS.lng,
         )
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
