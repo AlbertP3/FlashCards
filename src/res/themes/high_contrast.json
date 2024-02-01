@@ -1,0 +1,14 @@
+{
+    "font_color": "#e8e8e8",
+    "main_style_sheet": "background-color: #101010; margin:0px; border:1px solid #dc7300; padding:0px;",
+    "textbox_style_sheet": "color: #e8e8e8; background-color: #14213d; border-radius: 5px;line-height: 12%; margin:0px;",
+    "button_style_sheet": "background-color: #14213d; color: #e8e8e8; border-radius: 5px;",
+    "stat_bar_color": "#9c5300",
+    "stat_background_color": "#14213f",
+    "stat_chart_background_color": "#14213f",
+    "stat_chart_text_color": "#e8e8e8",
+    "font": "Arial",
+    "font_button_size": 14,
+    "default_suffix": "—",
+    "console_font_size": 14
+}
