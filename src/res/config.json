@@ -1,36 +1,29 @@
 {
-    "version": "1.0.0",
+    "version": "1.3.0",
     "log_level": "WARNING",
-    "card_default_side": "1",
-    "revs_path": "./revisions/",
-    "lngs_path": "./languages/",
-    "mistakes_path": "./mistakes/",
+    "card_default_side": "Random",
     "onload_filepath": null,
-    "resources_path": "./scripts/resources/",
-    "db_path": "./scripts/resources/rev_db.csv",
     "languages": [
         "EN"
     ],
     "days_to_new_rev": 0,
     "optional": [
         "show_cpm_stats",
-        "revision_summary",
         "show_efc_line",
         "show_percent_stats"
     ],
-    "pd_random_seed": 1823,
-    "timespent_len": 6,
+    "pd_random_seed": 9754,
+    "timespent_len": 12,
     "file_update_interval": 0,
     "pace_card_interval": 0,
     "mistakes_buffer": 80,
-    "efc_model": "SVR",
     "efc_threshold": 80,
     "init_revs_cnt": 4,
     "init_revs_inth": 6,
     "active_theme": "slick",
     "csv_sniffer": "off",
     "after_face": "You have reached the world's edge, none but devils play past here",
-    "cell_alignment": "center",
+    "cell_alignment": "left",
     "SOD": {
         "last_file": null,
         "exclude_pattern": "arch",
@@ -42,7 +35,7 @@
         "dict_change_arg": "D",
         "queue_start_arg": "Q",
         "change_db_arg": "\\c",
-        "initial_language": "auto",
+        "initial_language": "native",
         "results_limit": 12,
         "table_ext_mode": "flex",
         "cell_alignment": "left"
@@ -66,75 +59,13 @@
         "stats": "s",
         "save": "w"
     },
-    "GEOMETRY": {
-        "default": [
-            722,
-            331,
-            475,
-            450
-        ],
-        "main": [
-            1042,
-            1551,
-            476,
-            452
-        ],
-        "load": [
-            1241,
-            1513,
-            475,
-            450
-        ],
-        "efc": [
-            1241,
-            1513,
-            475,
-            450
-        ],
-        "config": [
-            1042,
-            1551,
-            475,
-            468
-        ],
-        "fcc": [
-            1241,
-            1513,
-            790,
-            430
-        ],
-        "mistakes": [
-            1414,
-            1530,
-            736,
-            498
-        ],
-        "stats": [
-            1241,
-            1513,
-            852,
-            498
-        ],
-        "progress": [
-            1042,
-            1551,
-            880,
-            498
-        ],
-        "timer": [
-            950,
-            1514,
-            362,
-            413
-        ]
-    },
     "THEME": {
         "textbox_height": 280,
         "buttons_height": 45,
-        "font": "Fira Code",
+        "font": "Consolas",
         "console_font": "Consolas",
         "console_font_size": 14,
-        "default_suffix": "—",
+        "default_suffix": "...",
         "font_button_size": 13,
         "font_textbox_size": 32,
         "font_color": "#eeeeee",
@@ -147,11 +78,73 @@
         "stat_chart_text_color": "#eeeeee"
     },
     "EMO": {
-        "discretizer": "yeo-johnson",
+        "discretizer": "decision-tree",
         "cap_fold": 0.05,
         "min_records": 50
     },
     "RECOMMENDATIONS": {
         "EN": "Oi mate, take a gander"
+    },
+    "GEOMETRY": {
+        "default": [
+            722,
+            331,
+            475,
+            450
+        ],
+        "main": [
+            1068,
+            374,
+            476,
+            452
+        ],
+        "load": [
+            912,
+            1505,
+            475,
+            450
+        ],
+        "efc": [
+            870,
+            1447,
+            475,
+            450
+        ],
+        "config": [
+            10,
+            1280,
+            475,
+            468
+        ],
+        "fcc": [
+            1416,
+            703,
+            822,
+            430
+        ],
+        "mistakes": [
+            912,
+            1505,
+            878,
+            498
+        ],
+        "stats": [
+            870,
+            1447,
+            852,
+            498
+        ],
+        "progress": [
+            1044,
+            1482,
+            880,
+            498
+        ],
+        "timer": [
+            870,
+            1447,
+            362,
+            415
+        ]
     }
 }
