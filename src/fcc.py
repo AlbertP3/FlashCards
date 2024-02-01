@@ -212,7 +212,7 @@ class fcc():
             basename=f"{self.mw.active_file.lng}{len(data)}", 
             data=data,
             lng = self.mw.active_file.lng,
-            kind=self.mw.db.KINDS.lng,
+            kind=self.mw.db.KINDS.rev,
         )
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
@@ -220,20 +220,19 @@ class fcc():
         self.refresh_interface()
         self.mw.reset_timer()
         self.mw.start_file_update_timer()
+        self.mw.change_revmode(force_which=False)
         self.post_fcc(f'Loaded last {len(data)} cards')
 
 
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
-        from efc import efc
-        efc_obj = efc()
         self.mw.db.refresh()
-        recommendations = efc_obj.get_complete_efc_table(preds=True)
+        recommendations = self.mw.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
             lim = int(parsed_cmd[1])
         else:
             lim = None
-        efc_table_printout = efc_obj.get_efc_table_printout(recommendations, lim)
+        efc_table_printout = self.mw.get_efc_table_printout(recommendations, lim)
         self.post_fcc(efc_table_printout)
         
 
@@ -317,6 +316,7 @@ class fcc():
             new_filename
         )
         dbapi = api.DbOperator()
+        # TODO require globally unique
         if new_filename in {fd.basename for fd in dbapi.files.values()}:
             self.post_fcc(f"File {new_filename} already exists!")
             return
@@ -418,7 +418,7 @@ class fcc():
             grep = None
         out, sep = list(), ' | '
         cell_args = {
-            'lim':(self.config['GEOMETRY']['fcc'][2]-self.mw.caliper.strwidth(sep))/2, 
+            'pixlim':(self.config['GEOMETRY']['fcc'][2]-self.mw.caliper.strwidth(sep))/2, 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }

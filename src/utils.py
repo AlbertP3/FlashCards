@@ -256,7 +256,7 @@ class Caliper:
             lpad = filler * int((d+r) /  self.strwidth(filler))
             rpad = filler * int(d /  self.strwidth(filler))
         else:
-            pad = filler * int(pixlim /  self.strwidth(filler) + 1)
+            pad = filler * int(pixlim /  self.strwidth(filler))
             lpad = pad if align == 'right' else ''
             rpad = pad if align == 'left' else ''
 

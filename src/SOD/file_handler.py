@@ -127,7 +127,7 @@ class XLSXFileHandler(FileHandler):
             self.ws.cell(row=target_row, column=2, value=domestic_word)
             self.data[target_row] = (foreign_word, domestic_word)
             self.commit(
-                f"Added [{foreign_word}] - [{domestic_word}] on row {target_row} in {self.filename}"
+                f"Added [{target_row}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
             )
             return True, ""
         else:
@@ -138,7 +138,7 @@ class XLSXFileHandler(FileHandler):
         self.ws.cell(row=self.dtracker[0], column=2, value=domestic_word)
         self.data[self.dtracker[0]] = (foreign_word, domestic_word)
         self.commit(
-            f"Edited row {self.dtracker[0]} with data [{foreign_word}] - [{domestic_word}] in {self.filename}"
+            f"Edited [{self.dtracker[0]}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
         )
         return True, ""
 
@@ -180,7 +180,7 @@ class CSVFileHandler(FileHandler):
         self.raw_data = pd.concat([self.raw_data, new_row], ignore_index=True)
         self.data[self.raw_data.index[-1]] = (foreign_word, domestic_word)
         self.commit(
-            f"Added [{foreign_word}] - [{domestic_word}] on row {self.raw_data.index[-1]} in {self.filename}"
+            f"Added [{self.raw_data.index[-1]}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
         )
         return True, ""
 
@@ -188,7 +188,7 @@ class CSVFileHandler(FileHandler):
         self.data[self.dtracker[0]] = (foreign_word, domestic_word)
         self.raw_data.iloc[self.dtracker[0]] = [foreign_word, domestic_word]
         self.commit(
-            f"Edited row {self.dtracker[0]} with data [{foreign_word}] - [{domestic_word}] in {self.filename}"
+            f"Edited [{self.dtracker[0]}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
         )
         return True, ""
 

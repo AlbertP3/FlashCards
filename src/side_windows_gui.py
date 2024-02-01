@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
 from fcc import fcc
-from efc import efc
+from efc import EFC
 from stats import stats
 import timer
 from copy import deepcopy
@@ -152,10 +152,10 @@ class fcc_gui():
     
 
 
-class efc_gui(efc):
+class efc_gui(EFC):
 
     def __init__(self):
-        efc.__init__(self)
+        EFC.__init__(self)
         self.side_window_titles['efc'] = 'EFC'
         self.cur_efc_index = 0
         # add button to main window
@@ -680,8 +680,6 @@ class config_gui():
         self.mistakes_buffer_label = self.create_label('Mistakes Buffer')
         self.theme_checkablecombobox = self.create_config_checkable_combobox('active_theme', self.themes_dict.keys())
         self.theme_label = self.create_label('Theme')
-        self.model_checkablecombobox = self.create_config_checkable_combobox('efc_model', self.get_available_efc_models())
-        self.model_label = self.create_label('EFC Model')
         self.pace_card_qline = self.create_config_qlineedit('pace_card_interval')
         self.pace_card_label = self.create_label('Card Pacing')
         self.initial_language_checkablecombobox = self.create_config_checkable_combobox('initial_language', 
@@ -706,8 +704,6 @@ class config_gui():
         self.options_layout.addWidget(self.mistakes_buffer_qline, next(p), 1)
         self.options_layout.addWidget(self.theme_label, next(p), 0)
         self.options_layout.addWidget(self.theme_checkablecombobox, next(p), 1)
-        self.options_layout.addWidget(self.model_label, next(p), 0)
-        self.options_layout.addWidget(self.model_checkablecombobox, next(p), 1)
         self.options_layout.addWidget(self.pace_card_label, next(p), 0)
         self.options_layout.addWidget(self.pace_card_qline, next(p), 1)
         self.options_layout.addWidget(self.initial_language_label, next(p), 0)
@@ -781,7 +777,6 @@ class config_gui():
         modified_dict['file_update_interval'] = int(self.check_for_file_updates_combobox.text())
         modified_dict['active_theme'] = self.theme_checkablecombobox.currentData()[0]
         modified_dict['THEME'].update(self.themes_dict[modified_dict['active_theme']])
-        modified_dict['efc_model'] = self.model_checkablecombobox.currentData()[0]
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
         modified_dict['pace_card_interval'] = int(self.pace_card_qline.text())
         modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentData()[0]
@@ -806,12 +801,6 @@ class config_gui():
             yield int(i)
             i+=0.5
 
-
-    def get_available_efc_models(self):
-        models_path =  os.path.join(self.db.RES_PATH, 'efc_models')
-        pickled_models = [f.split('.')[0] for f in os.listdir(models_path) if f.endswith('.pkl')]
-        return pickled_models
-    
 
     def config_manual_update(self, key:str=None, subdict:str=None):
         if subdict == 'THEME':

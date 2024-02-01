@@ -256,3 +256,6 @@ class db_queries:
 
     def get_all(self):
         return self.db
+
+    def get_unique_languages(self) -> list:
+        return self.db['LNG'].drop_duplicates(inplace=False).values.tolist()

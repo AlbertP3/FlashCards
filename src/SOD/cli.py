@@ -487,15 +487,17 @@ class CLI():
 
     def __ptt(self, trans:list, origs:list, llim:float, rlim:float, sep:str) -> str:
         output = list()
-        suffix = self.config['THEME']['default_suffix']
-        align = self.config['SOD']['cell_alignment']
         for i, (t, o) in enumerate(zip(trans, origs)):
             i = f"{i+1}. "
             t = self.caliper.make_cell(
-                t, llim - self.caliper.strwidth(i), suffix, align
+                t, llim - self.caliper.strwidth(i), 
+                self.config['THEME']['default_suffix'], 
+                self.config['SOD']['cell_alignment']
             )
             o = self.caliper.make_cell(
-                o, rlim - self.caliper.strwidth(sep), suffix, align
+                o, rlim - self.caliper.strwidth(sep), 
+                self.config['THEME']['default_suffix'], 
+                self.config['SOD']['cell_alignment']
             )
             output.append(f"{i}{t}{sep}{o}")
         return '\n'.join(output)

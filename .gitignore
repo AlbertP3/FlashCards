@@ -10,4 +10,4 @@ tests
 pytest.ini
 build/
 data/
-src/res/efc_models/
+src/res/model.pkl
