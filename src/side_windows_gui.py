@@ -198,7 +198,6 @@ class efc_gui(EFC):
         self.efc_layout.addWidget(self.create_load_efc_button(), 1, 0, 1, 1)
 
         # Fill List Widget
-        self.db.refresh()
         [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
         self.files_count = self.recommendation_list.count()
         if self.files_count: 
@@ -475,7 +474,7 @@ class stats_gui(stats):
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         ax.set_ylim([0, self.total_words+2])
         ax.tick_params(colors=self.config['THEME']['stat_chart_text_color'],
-                        labelrotation=0,
+                        labelrotation=-20,
                         pad=1)
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
@@ -663,7 +662,7 @@ class config_gui():
         self.confirm_and_close_button = self.create_button('Confirm Changes', self.commit_config_update)
         self.card_default_combobox = self.create_config_combobox('card_default_side',['0','1','Random'])
         self.card_default_label = self.create_label('Card Default Side')
-        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', self.db.get_all_languages())
+        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', self.db.get_available_languages())
         self.lngs_label = self.create_label('Languages')
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')

@@ -46,6 +46,7 @@ class fcc():
                     'pcd':'Print Current Dataset - pretty prints all cards in the current dataset',
                     'cac':'Clear Application Cache - *key^help - runs cache_clear on an optional key',
                     'ssf':'Show Scanned Files - presents a list of all relevant files',
+                    'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
                     }
 
 
@@ -99,16 +100,18 @@ class fcc():
             else: # regex search command descriptions
                 try:
                     rp = re.compile(parsed_cmd[1], re.IGNORECASE)
-                    matching = {}
+                    matching = []
                     for k, v in self.DOCS.items():
                         if rp.search(v) or rp.search(k):
-                            matching[k] = v
+                            matching.append([k, v])
                     try:
+                        lim = self.mw.console.width()*self.config['THEME']['console_margin']
                         printout = self.mw.caliper.make_table(
                             data = matching,
-                            pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                            pixlim = [0.1*lim, 0.9*lim],
                             align=['left', 'left'], 
-                            sep='-',
+                            sep=' - ',
+                            keep_last_border=False
                         )
                     except IndexError:
                         printout = 'Nothing matches the given phrase!'
@@ -240,7 +243,8 @@ class fcc():
 
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
-        self.mw.db.refresh()
+        if self.mw.db.refresh(ignore_filters={"EFC_MODEL"}):
+            self.mw.get_complete_efc_table.cache_clear()
         recommendations = self.mw.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
             lim = int(parsed_cmd[1])
@@ -258,7 +262,7 @@ class fcc():
                 if new_val.isnumeric(): 
                     new_val = float(new_val) if '.' in new_val else int(new_val)
                 elif isinstance(self.config[key], (list, set, tuple)):
-                    new_val = self.config[key].__class__(new_val.split(' '))
+                    new_val = self.config[key].__class__(new_val.split(','))
                 self.config[key] = new_val
                 self.mw.config_manual_update(key=key, subdict=None)
                 self.post_fcc(f"{key} set to {new_val}")
@@ -270,7 +274,7 @@ class fcc():
                 if new_val.isnumeric(): 
                     new_val = float(new_val) if '.' in new_val else int(new_val)
                 elif isinstance(self.config[subdict][key], (list, set, tuple)):
-                    new_val = self.config[subdict][key].__class__(new_val.split(' '))
+                    new_val = self.config[subdict][key].__class__(new_val.split(','))
                 self.config[subdict][key] = new_val
                 self.mw.config_manual_update(key=key, subdict=subdict)
                 self.post_fcc(f"{key} of {subdict} set to {new_val}")
@@ -482,3 +486,28 @@ class fcc():
                 f"Kind:      {fd.kind}"
             ))
         self.post_fcc('\n' + f"Files total: {len(self.mw.db.files)}")
+
+    def clt(self, parsed_cmd:list):
+        '''Create Language Tree'''
+        if len(parsed_cmd) < 2:
+            self.post_fcc("Missing Argument - new language id")
+            return
+        elif len(parsed_cmd) > 2:
+            self.post_fcc("Invalid Argument - whitespaces not allowed")
+            return
+        elif parsed_cmd[1] in self.config['languages']:
+            self.post_fcc(f"Language {parsed_cmd[1]} already exists")
+            return
+        self.mw.db.create_language_dir_tree(parsed_cmd[1])
+        self.config['languages'].append(parsed_cmd[1])
+        pd.DataFrame(columns=[parsed_cmd[1].lower(), "native"], data=[["-", "-"]]).to_excel(
+            self.mw.db.make_filepath(
+                parsed_cmd[1], self.mw.db.LNG_DIR, f"{parsed_cmd[1]}.xlsx"
+            ),
+            sheet_name=parsed_cmd[1].lower(),
+            index=False,
+        )
+        for msg in fcc_queue.dump():
+            self.post_fcc(msg)
+        self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
+        self.mw.db.reload_files_cache()

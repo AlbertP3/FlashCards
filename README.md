@@ -1,4 +1,4 @@
-# FlashCards 1.3.0
+# FlashCards 1.3.2
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -39,7 +39,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
     | 寿司  | sushi |
     | ...  | ...  |
 4. Supported extensions for all *kinds* are '.csv' and '.xlsx' albeit both *Revisions* and *Mistakes* are by default created as '.csv'
-5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. If the configuration is referencing a missing directory tree, it will be created on the launch, however source file must be put by user
+5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. If the configuration is referencing a missing directory tree, it will be created on the launch, however source file must be put by user. Alternatively, a 'clt' command can be used to generate both language tree and an example file
 6. Once the *Language* file is there, it can be loaded in the app. Then the user will review multiple cards and press 'Save' which will create a new *Revision* file containing only cards seen. Pressing 'Save' during *Revision* will save all failed cards to the *Mistakes* file
 7. Spaced repetitons are reinforced by employing the EFC [See: Ebbinghaus Forgetting Curve](#efc-model-optimizer) that tells user which *Revision* they should repeat now, that is: Predicted % of words in-memory fell below the [efc_threshold](#optional-features)
 8. *Revisions* and *Mistakes* can be appraised - score, time spent and other are then recorded to the Database (src/res/db.csv) and can be eventually viewed on Statistics, Progress and TimeSpent windows
@@ -154,6 +154,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - pcd - Print Current Dataset - pretty prints all cards in the current dataset
 - cac - Clear Application Cache - *key^help - runs cache_clear on an optional key
 - ssf - Show Scanned Files - presents a list of all relevant files
+- clt - Create Language Tree - creates a directory tree for a new language and an example file
     
 
 ## Optional Features

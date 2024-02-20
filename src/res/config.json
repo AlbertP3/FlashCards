@@ -1,5 +1,5 @@
 {
-    "version": "1.3.1",
+    "version": "1.3.2",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -35,6 +35,7 @@
         "dict_change_arg": "D",
         "queue_start_arg": "Q",
         "change_db_arg": "\\c",
+        "list_files_arg": "ls",
         "initial_language": "native",
         "results_limit": 12,
         "table_ext_mode": "flex",

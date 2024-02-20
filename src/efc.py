@@ -1,5 +1,6 @@
 import joblib  # type: ignore
 from random import choice
+from functools import cache
 from datetime import datetime
 from logging import log
 from math import exp
@@ -56,6 +57,8 @@ class EFC:
     def get_recommendations(self):
         recommendations = list()
         self.new_revs = 0
+        if self.db.refresh(ignore_filters={"EFC_MODEL"}):
+            self.get_complete_efc_table.cache_clear()
         if self.config["days_to_new_rev"] > 0:
             recommendations.extend(self.is_it_time_for_something_new())
         for rev in self.get_complete_efc_table():
@@ -64,6 +67,7 @@ class EFC:
                 recommendations.append(rev[0])
         return recommendations
 
+    @cache
     def get_complete_efc_table(self, preds: bool = False) -> list[str, str, float]:
         rev_table_data = list()
         self.db.filter_for_efc_model()

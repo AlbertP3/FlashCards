@@ -68,13 +68,9 @@ class db_dataset_ops:
 
     def reload_files_cache(self):
         self.get_files.cache_clear()
-        self.get_files()
         self.get_sorted_revisions.cache_clear()
-        self.get_sorted_revisions()
         self.get_sorted_languages.cache_clear()
-        self.get_sorted_languages()
         self.get_sorted_mistakes.cache_clear()
-        self.get_sorted_mistakes()
         self.match_from_all_languages.cache_clear()
 
     @staticmethod
@@ -344,7 +340,8 @@ class db_dataset_ops:
             ]
         return files_list
 
-    def get_all_languages(self) -> set:
+    def get_all_language_files(self) -> set:
+        '''Returns files in LNG_DIRs for all languages'''
         out = set()
         for lng in os.listdir(self.DATA_PATH):
             try:
@@ -357,3 +354,10 @@ class db_dataset_ops:
             except FileNotFoundError:
                 pass
         return out
+
+    def get_available_languages(self, ignore:set={"arch"}) -> set:
+        return {
+            lng for lng 
+            in os.listdir(self.DATA_PATH) 
+            if lng not in ignore
+        }
