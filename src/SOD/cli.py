@@ -6,7 +6,7 @@ import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
 from DBAC.api import DbOperator
-from utils import Config, get_pretty_print, Caliper
+from utils import Config, Caliper
 
 log = logging.getLogger(__name__)
 
@@ -69,11 +69,11 @@ class CLI():
 
     @property
     def pix_limit(self) -> float:
-        return 0.98 * self.output.console.width()
+        return self.config['THEME']['console_margin'] * self.output.console.width()
 
     @property
     def lines_lim(self) -> float:
-        return 0.98 * self.output.console.height() / self.caliper.sch
+        return self.config['THEME']['console_margin'] * self.output.console.height() / self.caliper.sch
     
 
     def init_file_handler(self):
@@ -93,6 +93,7 @@ class CLI():
         self.dict_arg = self.config['SOD']['dict_change_arg']
         self.queue_arg = self.config['SOD']['queue_start_arg']
         self.chg_db_arg = self.config['SOD']['change_db_arg']
+        self.list_files_arg = self.config['SOD']['list_files_arg']
 
 
     def init_set_languages(self):
@@ -148,7 +149,7 @@ class CLI():
 
     def send_output(self, text:str):
         self.output.console.append(text)
-        self.output.mw.CONSOLE_LOG.append(text)
+        self.output.mw.CONSOLE_LOG.extend(text.split("\n"))
 
 
     def execute_command(self, parsed_phrase:list):
@@ -163,6 +164,8 @@ class CLI():
             self.insert_manual(parsed_phrase)
         elif parsed_phrase[0] == self.queue_arg:
             self.setup_queue()
+        elif parsed_phrase[0] == self.list_files_arg:
+            self.list_files()
         elif parsed_phrase[0] == 'help':
             self.show_help()
         else:
@@ -196,6 +199,11 @@ class CLI():
                 self.cls()
         return parsed_cmd
 
+
+    def list_files(self):
+        '''Send list of all available files to the console'''
+        self.cls()
+        self.send_output("\n".join(self.dbapi.get_all_languages()))
 
     def set_dict(self, new_dict):
         if new_dict in self.dicts.available_dicts:
@@ -473,6 +481,8 @@ class CLI():
 
     def print_translations_table(self, trans:list, origs:list):
         if any(origs):
+            if self.is_from_native:
+                trans, origs = origs, trans
             plim = self.pix_limit / 2
             if self.config['SOD']['table_ext_mode'] == 'fix':
                 output = self.__ptt(trans, origs, plim, plim, '\u0020|\u0020')
@@ -595,14 +605,14 @@ class CLI():
 
     def cls(self, msg='', keep_content=False, keep_cmd=False):
         if keep_content:
-            content = self.output.console.toPlainText().split('\n')
-            content = content[1:] if keep_cmd else content[1:-1]
-            content = '\n'.join(content)
-        self.output.console.setText('')
+            content = self.output.console.toPlainText().split('\n')[1:]
+            if not keep_cmd:
+                content.pop()
+        self.output.console.setText("")
         self.output.mw.CONSOLE_LOG = []
         self.__post_status_bar(msg)
-        if keep_content and content: 
-            self.send_output(content)
+        if keep_content and content:
+            self.send_output('\n'.join(content))
 
 
     def __post_status_bar(self, msg=''):
@@ -618,23 +628,26 @@ class CLI():
 
     def show_help(self):
         available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.dicts.dicts.items()])
-        cmds = get_pretty_print([
+        cmds = self.caliper.make_table([
             [f'\t{self.chg_db_arg} <DB_NAME>', 'change database file'], 
-            [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'Enter the manual input mode'],
-            [f"\t{self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"], 
+            [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'enter the manual input mode'],
+            [f"\t{self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"],
+            [f"\t{self.list_files_arg}", "list available files"],
             ['\tQ', 'enter Queue mode'], 
-            ["\t(<SRC_LNG_ID>^<TGT_LNG_ID>)", "change source/target language "], 
-            ["\t<blank>", "exit SOD or finish the Queue mode"]
+            ["\t(<SRC_LNG>^<TGT_LNG>)", "change source/target language"], 
+            ["\t<blank>", "exit SOD or finish Queue mode"]
             ],
-            separator='-->', alingment=['<', '<'])
-        mods = get_pretty_print([
+            pixlim = self.pix_limit,
+            sep=' --> ', align=['left', 'left'], keep_last_border=False)
+        mods = self.caliper.make_table([
             ["\te<N>", 'edit the N-th translation'],
             ["\tm*<N>", 'modify searched phrase'],
             ["\ta", 'add a new translation'],
             ["\tr<N>", 'add a reversed translation'],
             ["\t<blank>", 'abort']
             ],
-            separator='-->', alingment=['<', '<'])
+            pixlim = self.pix_limit,
+            sep=' --> ', align=['left', 'left'], keep_last_border=False)
         msg = f'''Commands:\n{cmds}\nSearch results modification:\n{mods}\nAvailable dicts:\n{available_dicts}'''
 
         self.cls()

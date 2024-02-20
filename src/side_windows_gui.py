@@ -19,12 +19,12 @@ class fcc_gui():
 
     def __init__(self):
         self.side_window_titles['fcc'] = 'Console'
-        self.DEFAULT_PS1 = '$~> '
+        self.DEFAULT_PS1 = self.config['THEME']['default_ps1']
         self.init_font()
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
         self.CONSOLE_LOG = []
         self.CMDS_LOG = ['']
-        self.tmp_cmd = str()  # partial command typed before closing the console
+        self.tmp_cmd = ""  # partial command typed before closing the console
         self.CMDS_CURSOR = 0
         self.rt_re = re.compile('[^\u0000-\uFFFF]')
         self.console = None
@@ -63,7 +63,7 @@ class fcc_gui():
     def arrange_fcc_window(self):
         self.fcc_layout = widget.QGridLayout()
         if self.CONSOLE_LOG:
-            self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i!=self.CONSOLE_PROMPT]
+            self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i != self.CONSOLE_PROMPT]
             if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
                 cur_line = self.console.toPlainText().split('\n')[-1]
                 self.CONSOLE_LOG[-1] = cur_line
@@ -85,7 +85,7 @@ class fcc_gui():
         self.fcc_inst.update_console_id(self.console)
        
 
-    def cli_shortcuts(self, event):
+    def cli_shortcuts(self, event:QtGui.QKeyEvent):
         if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
             self.fcc_inst.execute_command(['cls'], followup_prompt=False)
         elif event.key() == Qt.Key_Home:
@@ -542,9 +542,8 @@ class progress_gui(stats):
 
 
     def get_progress_sidewindow(self, lngs:set=None):
-        lngs = lngs if lngs is not None else self.config['languages']
         try:
-            self.arrange_progress_sidewindow(lngs)
+            self.arrange_progress_sidewindow(lngs or self.config['languages'])
             self.open_side_window(self.progress_layout, 'progress')
         except ValueError:
             fcc_queue.put('No data found for Progress')

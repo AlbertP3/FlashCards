@@ -85,7 +85,7 @@ class db_efc_queries:
         return sig
 
     def encode_language_columns(self, lngs: list):
-        for v in lngs:
+        for v in lngs[:-1]:  # Avoid correlated features
             self.db[v] = self.db["LNG"].apply(lambda r: 1 if r == v else 0)
         self.db = self.db.drop(["LNG"], axis=1)
         self.filters["EFC_MODEL"] = True

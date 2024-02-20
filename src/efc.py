@@ -1,4 +1,4 @@
-import joblib
+import joblib  # type: ignore
 from random import choice
 from datetime import datetime
 from logging import log
@@ -158,12 +158,11 @@ class EFC:
                 pred = "Too Long"
             diff_days = "{:.1f}".format(rev[1]) if isinstance(rev[1], float) else rev[1]
             efc_stats_list.append([rev[0], diff_days, "{:.2f}".format(rev[2]), pred])
-        printout = get_pretty_print(
-            efc_stats_list,
-            extra_indent=1,
-            separator="|",
-            alingment=["<", ">", ">", ">"],
-            keep_last_border=True,
+        w = self.console.width()*0.8
+        printout = self.caliper.make_table(
+            data=efc_stats_list,
+            pixlim=[0.5*w, 0.18*w, 0.18*w, 0.18*w],
+            align=["left", "right", "right", "right"],
         )
         return printout
 

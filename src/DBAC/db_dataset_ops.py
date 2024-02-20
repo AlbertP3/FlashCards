@@ -53,7 +53,7 @@ class db_dataset_ops:
         log.debug(
             (
                 f"Set {'Valid' if self.__AF.valid else 'Invalid'} "
-                f"{'Temporary' if self.__AF.tmp else 'Regular'} Active File: {self.__AF}"
+                f"{'Temporary' if self.__AF.tmp else 'Regular'} {self.__AF.kind} File: {self.__AF}"
             )
         )
         if (
@@ -137,7 +137,6 @@ class db_dataset_ops:
             buffer.iloc[-self.config["mistakes_buffer"] :].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
             )
-            log.debug(f"Updated existing Mistakes File: {mfd.filepath}")
         else:
             mistakes_list.iloc[: self.config["mistakes_buffer"]].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
@@ -219,9 +218,11 @@ class db_dataset_ops:
         dataset = pd.read_csv(
             file_path,
             encoding="utf-8",
-            sep=self.get_dialect(file_path)
-            if self.config.translate("csv_sniffer")
-            else ",",
+            sep=(
+                self.get_dialect(file_path)
+                if self.config.translate("csv_sniffer")
+                else ","
+            ),
         )
         return dataset
 
@@ -345,12 +346,14 @@ class db_dataset_ops:
 
     def get_all_languages(self) -> set:
         out = set()
-        for d in os.listdir(self.DATA_PATH):
-            if all(
-                [
-                    (kind in os.listdir(os.path.join(self.DATA_PATH, d)))
-                    for kind in {k for k in dir(self.KINDS) if not k.startswith("__")}
-                ]
-            ):
-                out.add(d)
+        for lng in os.listdir(self.DATA_PATH):
+            try:
+                for f in os.listdir(os.path.join(self.DATA_PATH, lng, self.LNG_DIR)):
+                    if (
+                        os.path.isfile(os.path.join(os.path.join(self.DATA_PATH, lng, self.LNG_DIR, f))) 
+                        and not f.startswith("__")
+                    ):
+                        out.add(f)
+            except FileNotFoundError:
+                pass
         return out

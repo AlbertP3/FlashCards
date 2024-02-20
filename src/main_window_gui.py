@@ -204,7 +204,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 fcc_queue.put('No mistakes to save')
         elif self.active_file.kind == self.db.KINDS.lng:
             if self.cards_seen != 0:
-                super().handle_saving(seconds_spent=self.seconds_spent)
+                super().handle_creating_revision(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
                 fcc_queue.put('Unable to save an empty file')
@@ -213,9 +213,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 
 
     def delete_current_card(self):
-        super().delete_current_card()
-        self.update_words_button()
-        self.display_text(self.get_current_card().iloc[self.side])
+        if self.active_file.kind not in self.db.GRADED:
+            super().delete_current_card()
+            self.update_words_button()
+            self.display_text(self.get_current_card().iloc[self.side])
 
 
     def reverse_side(self):

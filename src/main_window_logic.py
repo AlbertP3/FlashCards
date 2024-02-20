@@ -113,8 +113,9 @@ class main_window_logic():
         )
 
 
-    def handle_saving(self, seconds_spent=0):
+    def handle_creating_revision(self, seconds_spent=0):
         self.active_file.signature = self.db.gen_signature(self.active_file.lng)
+        self.active_file.kind = self.db.KINDS.rev
         self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
         newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
         self.load_flashcards(self.db.files[newfp])

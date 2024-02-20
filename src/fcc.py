@@ -81,11 +81,21 @@ class fcc():
 
     def help(self, parsed_cmd):
         if len(parsed_cmd) == 1:
-           printout = get_pretty_print(self.DOCS, alingment=['<', '<'], separator='-')
+            printout = self.mw.caliper.make_table(
+                data = self.DOCS,
+                pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                align=['left', 'left'], 
+                sep='-',
+            )
         else:
             command = parsed_cmd[1]
             if command in self.DOCS.keys():
-                printout =  get_pretty_print([[command, self.DOCS[command]]], alingment=['<', '<'], separator='-')
+                printout = self.mw.caliper.make_table(
+                    data = [[command, self.DOCS[command]]],
+                    pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                    align=['left', 'left'], 
+                    sep='-',
+                )
             else: # regex search command descriptions
                 try:
                     rp = re.compile(parsed_cmd[1], re.IGNORECASE)
@@ -94,7 +104,12 @@ class fcc():
                         if rp.search(v) or rp.search(k):
                             matching[k] = v
                     try:
-                        printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
+                        printout = self.mw.caliper.make_table(
+                            data = matching,
+                            pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                            align=['left', 'left'], 
+                            sep='-',
+                        )
                     except IndexError:
                         printout = 'Nothing matches the given phrase!'
                 except re.error as e:
@@ -212,7 +227,7 @@ class fcc():
             basename=f"{self.mw.active_file.lng}{len(data)}", 
             data=data,
             lng = self.mw.active_file.lng,
-            kind=self.mw.db.KINDS.rev,
+            kind=self.mw.db.KINDS.lng,
         )
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
@@ -220,7 +235,6 @@ class fcc():
         self.refresh_interface()
         self.mw.reset_timer()
         self.mw.start_file_update_timer()
-        self.mw.change_revmode(force_which=False)
         self.post_fcc(f'Loaded last {len(data)} cards')
 
 
@@ -271,8 +285,12 @@ class fcc():
         headers = ['Dict', 'Key', 'Value']
         content = flatten_dict(self.config, lim_chars=30)
         if len(parsed_cmd) == 1:
-            msg = get_pretty_print(content, separator='|', 
-                    alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
+            msg = self.mw.caliper.make_table(
+                data=content,
+                pixlim = self.console.width()*self.config['THEME']['console_margin'],
+                headers=headers,
+                align=['left', 'center', 'center'],
+            )
         elif len(parsed_cmd) in (2,3):
             if isinstance(self.config.get(parsed_cmd[1]), dict):
                 content = [i for i in content if re.search(parsed_cmd[1], i[0], re.IGNORECASE)]
@@ -281,8 +299,12 @@ class fcc():
             else:
                 content = [i for i in content if re.search(parsed_cmd[1], i[1], re.IGNORECASE)]
             if content:
-               msg = get_pretty_print(content, separator='|', 
-                    alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
+                msg = self.mw.caliper.make_table(
+                    data=content,
+                    pixlim = self.console.width()*self.config['THEME']['console_margin'],
+                    headers=headers,
+                    align=['left', 'center', 'center'],
+                )
             else:
                 suffix = f' in dict {parsed_cmd[1]}' if len(parsed_cmd) == 3 else ''
                 msg = f"Key {parsed_cmd[-1]} does not exist{suffix}"
@@ -443,6 +465,7 @@ class fcc():
         key = parsed_cmd[1] if len(parsed_cmd)==2 else None
         if run_all or key == 'files':
             self.mw.db.reload_files_cache()
+            self.mw.db.refresh()
         if run_all or key == 'fonts':
             self.mw.caliper.pixlen.cache_clear()
         self.post_fcc('Reloaded cache')
