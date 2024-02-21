@@ -106,7 +106,7 @@ class main_window_logic():
             fcc_queue.put('File Not Found.')
 
 
-    def should_save_revision(self):
+    def should_create_db_record(self):
         return (
             not self.is_saved
             and self.total_words - self.current_index - 1 == 0 
@@ -163,22 +163,25 @@ class main_window_logic():
             offset = self.auto_cfm_offset
         )
         self.auto_cfm_offset = mistakes_list.shape[0]  
+        self.load_ephemeral_file(mistakes_list)
+        self.cards_seen = mistakes_list.shape[0]-1
+
+
+    def load_ephemeral_file(self, data:pd.DataFrame):
         self.db.load_tempfile(
-            data = mistakes_list,
-            kind = self.db.KINDS.mst,
-            basename = f'{self.active_file.lng} Mistakes',
+            data = data,
+            kind = self.db.KINDS.eph,
+            basename = f'{self.active_file.lng} Ephemeral',
             lng = self.active_file.lng,
-            signature = f"{self.active_file.lng}_mistakes",
+            signature = f"{self.active_file.lng}_ephemeral",
             parent = {
                 "filepath": self.active_file.filepath, 
                 "len_": self.active_file.data.shape[0],
             },
         )
+        fcc_queue.put("Created an Ephemeral set")
         self.update_backend_parameters()
         self.update_interface_parameters()
-
-        # allow instant save of a rev created from mistakes_list
-        self.cards_seen = mistakes_list.shape[0]-1
 
 
     def get_rating_message(self):

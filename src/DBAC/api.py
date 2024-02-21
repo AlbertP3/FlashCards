@@ -23,9 +23,12 @@ class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
         self.KINDS = type(
             "FileKindsEnum",
             (object,),
-            {"mst": "M", "lng": "L", "rev": "R"},
+            {"mst": "M", "lng": "L", "rev": "R", "eph": "E", "unk": "U"},
         )()
-        self.GRADED = {self.KINDS.rev, self.KINDS.mst}
+        self.KFN = {
+            "M": "Mistakes", "L": "Language", "R": "Revision", "E": "Ephemeral", "U": "Unknown"
+        }
+        self.GRADED = {self.KINDS.rev, self.KINDS.mst, self.KINDS.eph}
         self.RES_PATH = "./src/res/"
         self.DB_PATH = "./src/res/db.csv"
         self.DATA_PATH = "./data/"

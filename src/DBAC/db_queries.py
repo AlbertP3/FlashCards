@@ -227,7 +227,7 @@ class db_queries:
 
     def __get_filtered_by_lng(self, lngs: set) -> pd.DataFrame:
         if lngs:
-            if not isinstance(lngs, (set, list)):
+            if not isinstance(lngs, (set, list, tuple)):
                 lngs = {
                     lngs,
                 }

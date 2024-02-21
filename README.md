@@ -1,4 +1,4 @@
-# FlashCards 1.3.3
+# FlashCards 1.3.4
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -29,10 +29,12 @@ Provide a powerful tool to make learning languages effective, automated and smoo
    - db.csv - stores information on *Revisions* and *Mistakes*
    - themes - available styles. User is free to add new styles based on the provided examples
    - model.pkl - custom EFC model, trained to fit forgetting curve of the user [See: EMO](#efc-model-optimizer)
-2. There are 3 *kinds* of flashcards files: 
+2. There are 5 *kinds* of flashcards files: 
     - *Language* - root source of all cards, created by the user
     - *Revision* - subsets from a *Language* file, subject of spaced repetitions managed by EFC
     - *Mistakes* - subsets of failed cards from *Revision* files
+    - *Ephemeral* - temporary sets without actual files
+    - *Unknown* - describes invalid or missing files
 3. All *kinds* follow the same template e.g.: 
     | *JP* | *EN*  |
     |------|-------|

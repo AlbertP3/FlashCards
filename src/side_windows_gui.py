@@ -1,16 +1,16 @@
+import timer
+import re
+from copy import deepcopy
 import PyQt5.QtWidgets as widget
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
-import re
-from utils import * 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
+from utils import * 
 from fcc import fcc
 from efc import EFC
 from stats import stats
-import timer
-from copy import deepcopy
 from checkable_combobox import CheckableComboBox
 
 
@@ -63,19 +63,20 @@ class fcc_gui():
         if self.CONSOLE_LOG:
             self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i != self.CONSOLE_PROMPT]
             if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
-                cur_line = self.console.toPlainText().split('\n')[-1]
-                self.CONSOLE_LOG[-1] = cur_line
+                self.CONSOLE_LOG[-1] = self.console.toPlainText().split('\n')[-1]
             else:
                 self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
             self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
 
+        # Dump fcc_queue while preserving the prompt content
         cmd = self.CONSOLE_LOG.pop()
+        self.console.setText('\n'.join(self.CONSOLE_LOG))
         for msg in fcc_queue.dump():
-           self.CONSOLE_LOG.append(msg)
+           self.fcc_inst.post_fcc(msg)
+        self.console.append(cmd)
         self.CONSOLE_LOG.append(cmd)
 
-        self.console.setText('\n'.join(self.CONSOLE_LOG))
         self.fcc_layout.addWidget(self.console, 0, 0)
 
         
@@ -425,7 +426,7 @@ class stats_gui(stats):
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, 'stats')
         else:
-            self.fcc_inst.post_fcc('Statistics are not available for a Language')
+            self.fcc_inst.post_fcc(f'Statistics are not available for a {self.db.KFN[self.active_file.kind]}')
 
     def arrange_stats_sidewindow(self):
         self.get_data_for_current_revision(self.active_file.signature)

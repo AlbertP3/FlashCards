@@ -115,7 +115,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.save_button = self.create_button('Save', self.click_save_button)
         self.del_button = self.create_button('🗑', self.delete_current_card)
         self.load_again_button = self.create_button('⟳', self.load_again_click)
-        self.revmode_button = self.create_button('RM:{}'.format('OFF'), lambda: self.change_revmode(None))
+        self.revmode_button = self.create_button('RM:OFF')  # TODO
         self.words_button = self.create_button('-')
 
         # Widgets
@@ -197,7 +197,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     
 
     def click_save_button(self):
-        if self.is_revision:
+        if self.active_file.kind == self.db.KINDS.rev:
             if self.mistakes_list[self.auto_cfm_offset:]:
                 self.save_to_mistakes_list()
             else:
@@ -208,8 +208,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 self.update_interface_parameters()
             else:
                 fcc_queue.put('Unable to save an empty file')
+        elif self.active_file.kind == self.db.KINDS.mst:
+            self.load_ephemeral_file(
+                pd.DataFrame(data=self.mistakes_list, 
+                columns=self.active_file.data.columns,
+                )
+            )
         else:
-            fcc_queue.put("Unable to save Mistakes file")
+            fcc_queue.put(f"Unable to save a {self.db.KFN[self.active_file.kind]}")
                 
 
     def delete_current_card(self):
@@ -217,6 +223,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             super().delete_current_card()
             self.update_words_button()
             self.display_text(self.get_current_card().iloc[self.side])
+        else:
+            fcc_queue.put(f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}")
 
 
     def reverse_side(self):
@@ -287,8 +295,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.update_score_button()
             if self.words_back_mode():
                 self.nav_buttons_visibility_control(True, True, False)
-        elif self.should_save_revision():  # TODO rename
-            self.handle_revision_complete()
+        elif self.should_create_db_record():
+            self.handle_graded_complete()
         elif self.revision_summary:
             self.display_text(self.revision_summary)
         else:
@@ -308,7 +316,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.click_next_button()
 
 
-    def handle_revision_complete(self):
+    def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
             self.update_score_button()
             self.revision_summary = self.get_rating_message()

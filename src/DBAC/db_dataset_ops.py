@@ -17,7 +17,7 @@ class FileDescriptor:
     basename: str = None
     filepath: str = None
     lng: str = None
-    kind: str = None
+    kind: str = "U"
     ext: str = None  # [.csv, .xlsx, ...]
     valid: bool = None
     data: pd.DataFrame = None
@@ -53,9 +53,11 @@ class db_dataset_ops:
         self.__AF = fd
         log.debug(
             (
-                f"Set {'Valid' if self.__AF.valid else 'Invalid'} "
-                f"{'Temporary' if self.__AF.tmp else 'Regular'} {self.__AF.kind} File: {self.__AF}"
-            )
+                f"Activated {'Valid' if self.__AF.valid else 'Invalid'} "
+                f"{'Temporary' if self.__AF.tmp else 'Regular'} "
+                f"{self.KFN[self.__AF.kind]}: {self.__AF}"
+            ),
+            stacklevel=3
         )
         if (
             len(d := {f.basename for f in self.files.values() if f.data is not None})
@@ -130,7 +132,7 @@ class db_dataset_ops:
             ext=".csv",
         )
         if mfd.filepath in self.files.keys():
-            buffer = self.load_dataset(mfd, do_shuffle=False)
+            buffer = self.load_dataset(mfd, do_shuffle=False, activate=False)
             buffer = pd.concat([buffer, mistakes_list.iloc[offset:]], ignore_index=True)
             buffer.iloc[-self.config["mistakes_buffer"] :].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
@@ -160,7 +162,7 @@ class db_dataset_ops:
         return fd.valid
 
     def load_dataset(
-        self, fd: FileDescriptor, do_shuffle=True, seed=None
+        self, fd: FileDescriptor, do_shuffle=True, seed=None, activate=True
     ) -> pd.DataFrame:
         operation_status = ""
         try:
@@ -179,9 +181,10 @@ class db_dataset_ops:
             operation_status = f"Exception occurred: {e}"
             log.error(e, exc_info=True)
 
-        self.active_file = fd
-        if self.active_file.valid and do_shuffle:
-            self.shuffle_dataset(seed)
+        if activate:
+            self.active_file = fd
+            if self.active_file.valid and do_shuffle:
+                self.shuffle_dataset(seed)
 
         fcc_queue.put(operation_status)
         return fd.data
