@@ -57,7 +57,8 @@ class EFC:
     def get_recommendations(self):
         recommendations = list()
         self.new_revs = 0
-        if self.db.refresh(ignore_filters={"EFC_MODEL"}):
+        if not self.db.filters["EFC_MODEL"]:
+            self.db.refresh()
             self.get_complete_efc_table.cache_clear()
         if self.config["days_to_new_rev"] > 0:
             recommendations.extend(self.is_it_time_for_something_new())

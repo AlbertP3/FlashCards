@@ -11,12 +11,13 @@ class main_window_logic():
 
     def __init__(self):
         self.config = Config()
+        self.words_back = 0
+        self.cards_seen_sides = list()
         self.update_default_side()
         self.default_side = self.get_default_side()
         self.side = self.default_side
         self.revmode = False
         self.total_words = 0
-        self.words_back = 0
         self.current_index = 0
         self.cards_seen = 0
         self.revision_summary = None
@@ -116,6 +117,8 @@ class main_window_logic():
     def handle_creating_revision(self, seconds_spent=0):
         self.active_file.signature = self.db.gen_signature(self.active_file.lng)
         self.active_file.kind = self.db.KINDS.rev
+        if isinstance(self.active_file.parent, dict):
+            self.config["ILN"][self.active_file.parent["filepath"]] = self.active_file.parent["len_"]
         self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
         newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
         self.load_flashcards(self.db.files[newfp])
@@ -140,6 +143,7 @@ class main_window_logic():
     def reset_flashcards_parameters(self):
         self.current_index = 0
         self.cards_seen = 0
+        self.cards_seen_sides = list()
         self.positives = 0
         self.negatives = 0
         self.words_back = 0
@@ -164,7 +168,11 @@ class main_window_logic():
             kind = self.db.KINDS.mst,
             basename = f'{self.active_file.lng} Mistakes',
             lng = self.active_file.lng,
-            signature = f"{self.active_file.lng}_mistakes"
+            signature = f"{self.active_file.lng}_mistakes",
+            parent = {
+                "filepath": self.active_file.filepath, 
+                "len_": self.active_file.data.shape[0],
+            },
         )
         self.update_backend_parameters()
         self.update_interface_parameters()
@@ -184,9 +192,22 @@ class main_window_logic():
         default_side = self.config['card_default_side']
         if default_side.isnumeric():
             default_side = int(default_side)
-            self.get_default_side =  lambda: default_side
+            self.get_default_side =  lambda: self.__get_default_side(default_side)
         else:
-            self.get_default_side = lambda: randint(0,1) 
+            self.get_default_side = lambda: self.__get_random_side()
+    
+
+    def __get_default_side(self, side) -> int:
+        if self.words_back == 0:
+            self.cards_seen_sides.append(side)
+        return side
+
+    def __get_random_side(self) -> int:
+        if self.words_back > 0:
+            return self.cards_seen_sides[-self.words_back]
+        else:
+            self.cards_seen_sides.append(randint(0,1))
+            return self.cards_seen_sides[-1]
 
 
     def get_current_card(self):

@@ -1,5 +1,5 @@
 {
-    "version": "1.3.2",
+    "version": "1.3.3",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -24,6 +24,7 @@
     "csv_sniffer": "off",
     "after_face": "You have reached the world's edge, none but devils play past here",
     "cell_alignment": "left",
+    "ILN": {},
     "SOD": {
         "last_file": null,
         "exclude_pattern": "arch",

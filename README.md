@@ -1,4 +1,4 @@
-# FlashCards 1.3.2
+# FlashCards 1.3.3
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -134,6 +134,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - mcr - Modify Card Result - allows changing pos/neg for the current card
 - dcc - Delete Current Card - deletes card both in current set and in the file
 - lln - Load Last N, loads N-number of words from the original file, starting from the end
+- iln - Incremental Last N - executes *lln* with parameters stored in cache
 - efc - Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of *Revisions* displayed. Additionaly, shows predicted time until the next revision,
 - mcp - Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}
 - sck - Show Config Key: Syntax: sck *{sub_dict} {key}

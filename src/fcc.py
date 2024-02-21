@@ -1,10 +1,8 @@
 import re 
-from utils import *
 import logging
-import DBAC.api as api
 from operator import methodcaller
-
-# Optional modules
+from utils import *
+import DBAC.api as api
 from SOD.init import sod_spawn
 from EMO.init import emo_spawn
 from CMG.init import cmg_spawn
@@ -26,6 +24,7 @@ class fcc():
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
+                    'iln':'Incremental Last N - executes *lln* with parameters stored in cache',
                     'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of revisions displayed. Additionaly, shows predicted time until the next revision',
                     'mcp':'Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>',
                     'sck':'Show Config Key: Syntax: sck *<sub_dict> <key>',
@@ -211,7 +210,7 @@ class fcc():
                         self.post_fcc('Number of cards must be a number greater than 0')
                         return
                 except ValueError:
-                    self.post_fcc(f'Invalid Syntax! Expected: {type(1)}, but got {type(i)}')
+                    self.post_fcc(f'Invalid Syntax: {i} is not numeric')
                     return
         else:
             self.post_fcc('Invalid Syntax! Expected: lln <num_of_cards> *<last_cards>')
@@ -231,19 +230,40 @@ class fcc():
             data=data,
             lng = self.mw.active_file.lng,
             kind=self.mw.db.KINDS.lng,
+            parent={
+                "filepath": self.mw.active_file.filepath, 
+                "len_":  self.mw.active_file.data.shape[0],
+            },
         )
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
         self.mw.update_backend_parameters()
         self.refresh_interface()
         self.mw.reset_timer()
-        self.mw.start_file_update_timer()
+        self.mw.start_file_update_timer() 
         self.post_fcc(f'Loaded last {len(data)} cards')
 
 
+    @require_regular_file
+    def iln(self, parsed_cmd):
+        '''Incremental Load N'''
+        try:
+            i_prev = self.config["ILN"][self.mw.active_file.filepath]
+        except KeyError:
+            self.post_fcc("No cached data for current file. Use *lln* first to create it")
+            return
+        diff = self.mw.active_file.data.shape[0] - i_prev + 1
+        if diff <= 1:
+            self.post_fcc("No new cards")
+            return
+        self.post_fcc(f"Using cached data [{i_prev}]")
+        self.lln(["lln", diff])
+        
+
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
-        if self.mw.db.refresh(ignore_filters={"EFC_MODEL"}):
+        if not self.mw.db.filters["EFC_MODEL"]:
+            self.mw.db.refresh()
             self.mw.get_complete_efc_table.cache_clear()
         recommendations = self.mw.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():

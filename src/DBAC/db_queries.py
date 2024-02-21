@@ -20,7 +20,7 @@ class db_queries:
         self.last_load: float = -1
         self.DEFAULT_DATE = datetime(1900, 1, 1)
 
-    def refresh(self, ignore_filters:set={}) -> bool:
+    def refresh(self) -> bool:
         if self.last_load < self.last_update:
             t0 = perf_counter()
             self.db = pd.read_csv(
@@ -42,7 +42,7 @@ class db_queries:
                 f"Reloaded database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3
             )
             return True
-        elif any({**self.filters, **{k: False for k in ignore_filters}}.values()):
+        elif any(self.filters.values()):
             t0 = perf_counter()
             self.__reset_filters_flags()
             self.db = self.__db.copy(deep=True)

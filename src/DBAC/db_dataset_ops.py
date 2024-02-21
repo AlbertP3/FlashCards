@@ -24,6 +24,7 @@ class FileDescriptor:
     signature: str = None
     tmp: bool = False
     mtime: int = None
+    parent: dict = None # {filepath: str, len_: int}
 
     def __str__(self) -> str:
         return f"{self.filepath}"
@@ -68,6 +69,7 @@ class db_dataset_ops:
 
     def reload_files_cache(self):
         self.get_files.cache_clear()
+        self.get_files()
         self.get_sorted_revisions.cache_clear()
         self.get_sorted_languages.cache_clear()
         self.get_sorted_mistakes.cache_clear()
@@ -184,7 +186,7 @@ class db_dataset_ops:
         fcc_queue.put(operation_status)
         return fd.data
 
-    def load_tempfile(self, data, kind, basename, lng, signature=None):
+    def load_tempfile(self, data, kind, basename, lng,  parent:dict, signature=None):
         fd = FileDescriptor(
             basename=basename,
             filepath=None,
@@ -196,6 +198,7 @@ class db_dataset_ops:
             signature=signature,
             tmp=True,
             mtime=99999999999,
+            parent=parent,
         )
         log.debug(f"Mocked a temporary file: {fd.basename}")
         self.active_file = fd

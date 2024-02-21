@@ -52,8 +52,6 @@ class fcc_gui():
         return self.console.toPlainText()[self.promptend:]
 
     def get_fcc_sidewindow(self):
-        for msg in fcc_queue.dump():
-            self.fcc_inst.post_fcc(msg)
         self.arrange_fcc_window()
         self.open_side_window(self.fcc_layout, 'fcc')
         self.console.setFocus()
@@ -71,7 +69,12 @@ class fcc_gui():
                 self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
             self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
-        
+
+        cmd = self.CONSOLE_LOG.pop()
+        for msg in fcc_queue.dump():
+           self.CONSOLE_LOG.append(msg)
+        self.CONSOLE_LOG.append(cmd)
+
         self.console.setText('\n'.join(self.CONSOLE_LOG))
         self.fcc_layout.addWidget(self.console, 0, 0)
 
