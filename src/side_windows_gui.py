@@ -458,12 +458,12 @@ class stats_gui(stats):
                     color=self.config['THEME']['stat_chart_text_color'])
 
          # horizontal line at EFC predicate
-        if rect and 'show_efc_line' in self.config['optional']:
+        if rect and self.config['opt']['show_efc_line']:
             ax.axhline(y=self.total_words*0.8, color='#a0a0a0', linestyle='--', zorder=-3)
             ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, f'{self.config["efc_threshold"]}%', va="bottom", color='#a0a0a0')
 
         # add labels - time spent
-        if 'show_cpm_stats' in self.config['optional']:
+        if self.config['opt']['show_cpm_stats']:
             time_spent_labels = ['{:.0f}'.format(self.total_words/(x/60)) if x else '-' for x in self.time_spent_seconds]
         else:
             time_spent_labels = self.time_spent_minutes
@@ -670,9 +670,7 @@ class config_gui():
         self.lngs_label = self.create_label('Languages')
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
-        self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','hide_timer','show_cpm_stats',
-                'show_efc_line', 'show_percent_stats', 'show_cpm_timer'])
+        self.optional_checkablecombobox = self.create_config_checkable_combobox('opt', list(self.config["opt"].keys()))
         self.optional_label = self.create_label('Optional Features')
         self.init_rep_qline = self.create_config_qlineedit('init_revs_cnt')
         self.init_rep_label = self.create_label("Initial Repetitions")
@@ -727,6 +725,8 @@ class config_gui():
     def create_config_checkable_combobox(self, key:str, content:list, subdict:str=None):
         checkable_cb = CheckableComboBox(self)
         k = self.config[subdict][key] if subdict else self.config[key]
+        if isinstance(k, dict):
+            k = [k for k, v in k.items() if v is True]
         for i in content:
             checkable_cb.addItem(i, is_checked= i in k)
         checkable_cb.setFont(self.BUTTON_FONT)
@@ -772,18 +772,18 @@ class config_gui():
     def commit_config_update(self):
         modified_dict = deepcopy(self.config)
         modified_dict['card_default_side'] = self.card_default_combobox.currentText()
-        modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
+        modified_dict['languages'] = self.lngs_checkablecombobox.currentDataList()
         modified_dict['days_to_new_rev'] = int(self.days_to_new_rev_qlineedit.text())
-        modified_dict['optional'] = self.optional_checkablecombobox.currentData()
+        modified_dict['opt'] = self.optional_checkablecombobox.currentDataDict()
         modified_dict['init_revs_cnt'] = int(self.init_rep_qline.text())
         modified_dict['file_update_interval'] = int(self.check_for_file_updates_combobox.text())
-        modified_dict['active_theme'] = self.theme_checkablecombobox.currentData()[0]
+        modified_dict['active_theme'] = self.theme_checkablecombobox.currentDataList()[0]
         modified_dict['THEME'].update(self.themes_dict[modified_dict['active_theme']])
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
         modified_dict['pace_card_interval'] = int(self.pace_card_qline.text())
-        modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentData()[0]
+        modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentDataList()[0]
     
-        if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
+        if not self.config['opt']['side_by_side'] and modified_dict['opt']['side_by_side']:
             self.toggle_primary_widgets_visibility(True)
         else:
             self.unfix_size(self)
@@ -813,8 +813,8 @@ class config_gui():
         elif not (key or subdict):
             self.db.reload_files_cache()
             self.update_default_side()
-            self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
-            self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+            self.revtimer_hide_timer = self.config['opt']['hide_timer']
+            self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
 

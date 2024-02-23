@@ -1,4 +1,4 @@
-# FlashCards 1.3.4
+# FlashCards 1.3.5
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -54,7 +54,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 ![Load Window](src/res/imgs/ss_load.png)
 
 - Allows picking all *kinds* of flashcard files that were matched by the 'languages' setting i.e. are on proper path. New *Revisions* can be created only from *Languages* and Revision Mode (Positive/Negative) is available only for the *Revisions* and *Mistakes*. 
-- If optional feature "recommend_new" is selected, reminders to create a new revision will also appear there - specific texts can be customized in the 'RECOMMENDATIONS' section of the config
+- If optional feature "recommend_new" is given a value greater than 0 (days), reminders to create a new revision will also appear there - specific texts can be customized in the 'RECOMMENDATIONS' section of the config
 
 ## Progress Window
 

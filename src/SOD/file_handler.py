@@ -7,7 +7,7 @@ from collections import OrderedDict
 from utils import Config, get_filename_from_path
 from functools import cache
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("SOD")
 
 
 class FileHandler(ABC):

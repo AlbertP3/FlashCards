@@ -113,10 +113,17 @@ class CheckableComboBox(QComboBox):
                 data = None
             self.addItem(text, data)
 
-    def currentData(self):
-        # Return the list of selected items data
+    def currentDataList(self) -> list:
+        '''Return the list of selected items data'''
         res = []
         for i in range(self.model().rowCount()):
             if self.model().item(i).checkState() == Qt.Checked:
                 res.append(self.model().item(i).data())
+        return res
+
+    def currentDataDict(self) -> dict:
+        '''Return the dict {item: is_selected}'''
+        res = dict()
+        for i in range(self.model().rowCount()):
+            res[self.model().item(i).data()] = self.model().item(i).checkState() == Qt.Checked
         return res

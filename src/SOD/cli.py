@@ -8,7 +8,7 @@ from SOD.file_handler import get_filehandler, FileHandler
 from DBAC.api import DbOperator
 from utils import Config, Caliper
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("SOD")
 
 
 class State:
@@ -156,8 +156,6 @@ class CLI():
         parsed_phrase = self.handle_prefix(parsed_phrase)
         if not parsed_phrase:
             return
-        elif parsed_phrase[0] == self.dict_arg and len(parsed_phrase) == 2:
-            self.set_dict(parsed_phrase[1])
         elif parsed_phrase.count(self.config['SOD']['manual_mode_sep']) == 2:
             self.insert_manual_oneline(parsed_phrase)
         elif parsed_phrase[0] == self.config['SOD']['manual_mode_seq']:
@@ -178,15 +176,16 @@ class CLI():
             if capture:
                 if capture == 'change_db':
                     self.update_file_handler(i)
+                elif capture == 'change_dict':
+                    self.set_dict(i)
                 capture = None
-            elif i in self.dicts.available_dicts_short:
-                target_dict = {k for k, v in self.dicts.dicts.items() if v['shortname'] == i}.pop()
-                self.set_dict(target_dict)
             elif i in self.dicts.available_lngs:
                 if not src_lng: src_lng = i.lower()
                 elif not tgt_lng: tgt_lng = i.lower()
             elif i == self.chg_db_arg:
                 capture = 'change_db'
+            elif i == self.dict_arg:
+                capture = 'change_dict'
             else: break
             parsed_cmd = parsed_cmd[1:]
             if bool(src_lng) ^ bool(tgt_lng):
@@ -206,6 +205,8 @@ class CLI():
         self.send_output("\n".join(self.dbapi.get_all_language_files()))
 
     def set_dict(self, new_dict):
+        if new_dict in self.dicts.available_dicts_short:
+            new_dict = {k for k, v in self.dicts.dicts.items() if v["shortname"] == new_dict}.pop()
         if new_dict in self.dicts.available_dicts:
             self.dicts.set_dict_service(new_dict)
             self.cls(keep_content=self.state.QUEUE_MODE, keep_cmd=self.state.QUEUE_MODE)
@@ -630,6 +631,7 @@ class CLI():
         available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.dicts.dicts.items()])
         cmds = self.caliper.make_table([
             [f'\t{self.chg_db_arg} <DB_NAME>', 'change database file'], 
+            [f'\t{self.dict_arg} <DICT>', 'switch current dictionary'], 
             [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'enter the manual input mode'],
             [f"\t{self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"],
             [f"\t{self.list_files_arg}", "list available files"],

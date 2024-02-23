@@ -28,7 +28,7 @@ class stats():
         self.last_rev_days_ago = format_timedelta(self.db.get_timedelta_from_last_rev(self.db.active_file.signature))
 
         # Create Dynamic Chain Index
-        if 'show_percent_stats' in self.config['optional']:
+        if self.config['opt']['show_percent_stats']:
             self.create_dynamic_chain_percentages(tight_format=True)
         else:
             self.create_dynamic_chain_values(tight_format=True)

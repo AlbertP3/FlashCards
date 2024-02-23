@@ -319,8 +319,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
             self.update_score_button()
-            self.revision_summary = self.get_rating_message()
-            self.display_text(self.revision_summary)
+            if self.active_file.kind in {self.db.KINDS.rev, self.db.KINDS.mst}:
+                self.revision_summary = self.get_rating_message()
+                self.display_text(self.revision_summary)
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
         else:
             self.display_text()
@@ -328,8 +329,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.change_revmode()
         self.reset_timer(clear_indicator=False)
         self.stop_pace_timer()
-        # if self.negatives != 0:
-        #     self.get_mistakes_sidewindow()
+        if self.negatives != 0 and self.config["opt"]["show_mistakes_after_revision"]:
+            self.get_mistakes_sidewindow()
 
 
     def add_shortcuts(self): 
@@ -387,7 +388,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def open_side_window(self, layout, name):
-        if 'side_by_side' in self.config['optional']:
+        if self.config['opt']['side_by_side']:
             self.open_side_by_side(layout, name)
         else:
             self.open_in_place(layout, name)
@@ -397,7 +398,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         
 
     def del_side_window(self):
-        if 'side_by_side' in self.config['optional']:
+        if self.config['opt']['side_by_side']:
             self.del_side_window_side_by_side()
         else:
             self.del_side_window_in_place()
@@ -585,8 +586,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         self.timer_prev_text = '⏲'
-        self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
-        self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+        self.revtimer_hide_timer = self.config['opt']['hide_timer']
+        self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
         self.set_append_seconds_spent_function()
 
 

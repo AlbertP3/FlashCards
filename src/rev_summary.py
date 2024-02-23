@@ -56,7 +56,7 @@ class SummaryGenerator():
 
 
     def __setup_parameters(self):
-        if 'dynamic_summary' in self.config['optional']:
+        if self.config['opt']['dynamic_summary']:
             self.db.filter_where_lng([self.signature])
             self.db.filter_where_positives_not_zero()
             avg_cpm = self.db.get_avg_cpm()
