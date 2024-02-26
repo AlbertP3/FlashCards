@@ -2,7 +2,7 @@
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.3.0](#flashcards-130)
+- [FlashCards](#flashcards-137)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
