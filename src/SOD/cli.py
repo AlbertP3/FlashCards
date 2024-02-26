@@ -34,6 +34,8 @@ class Message:
         self.RE_WARN = '⚠ Nothing Matched Regex!'
         self.UNSUP_EXT = '⚠ Unsupported File Extension'
         self.FILE_MISSING = '⛌ File Missing!'
+        self.CANNOT_DELETE = '⛌ Cannot Delete'
+        self.DELETE_COMPLETE = '🗑️ Deleted Record'
 
 class Prompt:
     def __init__(self) -> None:
@@ -62,6 +64,7 @@ class CLI():
         self.init_file_handler()
         self.selection_queue = list()
         self.status_message = str()
+        self.valid_cmd:re.Pattern = re.compile(r'^(\d+|a|m\d*|(d|r|e)\d+|)$')
 
     @property
     def caliper(self) -> Caliper:
@@ -482,6 +485,13 @@ class CLI():
         self.cls(msg)
 
 
+    def delete_from_db(self, record0:str, record1:str):
+        if self.fh.delete_record(record0, record1, self.is_from_native):
+            self.cls(self.msg.DELETE_COMPLETE)
+        else:
+            self.cls(self.msg.CANNOT_DELETE)
+
+
     def print_translations_table(self, trans:list, origs:list):
         if any(origs):
             if self.is_from_native:
@@ -535,6 +545,14 @@ class CLI():
                 elif v[0] == 'r':
                     i = int(v[1:])-1
                     self.res_edit.append(self.originals[i])
+                elif v[0] == 'd':
+                    self.delete_from_db(
+                        self.originals[int(v[1:])-1],
+                        self.translations[int(v[1:])-1]
+                    )
+                    self.state.RES_EDIT_SELECTION_MODE = False
+                    self.set_output_prompt(self.prompt.PHRASE)
+                    return
                 else:
                     self.state.RES_EDIT_SELECTION_MODE = False
                     self.state.MODIFY_RES_EDIT_MODE = v
@@ -561,14 +579,17 @@ class CLI():
 
     def selection_cmd_is_correct(self, parsed_cmd):
         result, all_args_match, index_out_of_range = True, False, False
-        pattern = re.compile(r'^(\d+|e\d+|a|m\d*|r\d+|)$')
         lim = len(self.translations)
         if (self.state.SELECT_TRANSLATIONS_MODE and str(self.state.MODIFY_RES_EDIT_MODE)[0] not in 'ea'):
             if len(parsed_cmd)==1 and parsed_cmd[0].startswith('m'):
                 all_args_match = False
             else:
-                all_args_match = all({pattern.match(c) for c in parsed_cmd})
-                index_out_of_range = any(int(re.sub(r'[a-zA-z]', '', c))>lim for c in parsed_cmd if c not in 'amr') if all_args_match else True
+                all_args_match = all({self.valid_cmd.match(c) for c in parsed_cmd})
+                index_out_of_range = any(
+                    int(re.sub(r'[a-zA-Z]', '', c)) > lim 
+                    for c in parsed_cmd 
+                    if c not in 'amr'
+                ) if all_args_match else True
             if not all_args_match or index_out_of_range:
                 result = False
                 self.cls(self.msg.WRONG_EDIT, keep_content=True)
@@ -609,7 +630,7 @@ class CLI():
     def cls(self, msg='', keep_content=False, keep_cmd=False):
         if keep_content:
             content = self.output.console.toPlainText().split('\n')[1:]
-            if not keep_cmd:
+            if not keep_cmd and content:
                 content.pop()
         self.output.console.setText("")
         self.output.mw.CONSOLE_LOG = []
@@ -648,6 +669,7 @@ class CLI():
             ["\tm*<N>", 'modify searched phrase'],
             ["\ta", 'add a new translation'],
             ["\tr<N>", 'add a reversed translation'],
+            ["\td<N>", 'remove record from source file'],
             ["\t<blank>", 'abort']
             ],
             pixlim = self.pix_limit,
