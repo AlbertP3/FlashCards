@@ -173,21 +173,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return new_button
 
 
-    def display_text(self, text=None, forced_size=None):
-        if not text: 
-            text = self.get_current_card().iloc[self.side]
-
-        if forced_size:
-            self.FONT_TEXTBOX_SIZE = forced_size
-        else:
-            min_font_size = 18
-            len_factor = int(len(str(text))/30)
-            width_factor = int((self.frameGeometry().width())/43)
-            self.FONT_TEXTBOX_SIZE = min_font_size + max(width_factor - len_factor,0)
-        
+    def display_text(self, text:str):
+        width_factor =  max(int((self.frameGeometry().width())/43-len(text)/30), 0)
+        self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
-        self.textbox.setText(str(text))
-        padding = max(0, 90 - len(str(text))*0.7)
+        self.textbox.setText(text)
+        padding = max(0, 90 - len(text)*0.7)
         self.textbox.setStyleSheet(f'{self.textbox_stylesheet} padding-top: {padding}%;')
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.is_afterface = False
@@ -250,11 +241,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def initiate_flashcards(self, fd):
         # Manage whole process of loading flashcards file
         super().load_flashcards(fd)
-        if self.db.active_file.valid:
-            self.update_backend_parameters()
-            self.update_interface_parameters()
-            self.del_side_window()
-            self.start_file_update_timer()
+        self.update_backend_parameters()
+        self.update_interface_parameters()
+        self.del_side_window()
+        self.start_file_update_timer()
 
 
     def update_interface_parameters(self):
@@ -324,7 +314,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 self.display_text(self.revision_summary)
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
         else:
-            self.display_text()
+            self.display_text(self.get_current_card().iloc[self.side])
         self.is_saved = True
         self.change_revmode()
         self.reset_timer(clear_indicator=False)

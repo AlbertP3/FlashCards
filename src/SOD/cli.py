@@ -202,7 +202,9 @@ class CLI():
     def list_files(self):
         '''Send list of all available files to the console'''
         self.cls()
-        self.send_output("\n".join(self.dbapi.get_all_language_files()))
+        self.send_output("\n".join(
+            self.dbapi.get_all_files(dirs={self.dbapi.LNG_DIR,}, use_basenames=True)
+        ))
 
     def set_dict(self, new_dict):
         if new_dict in self.dicts.available_dicts_short:

@@ -363,7 +363,7 @@ class fcc():
         )
         dbapi = api.DbOperator()
         # TODO require globally unique
-        if new_filename in {fd.basename for fd in dbapi.files.values()}:
+        if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
             return
         os.rename(self.mw.active_file.filepath, new_filepath)

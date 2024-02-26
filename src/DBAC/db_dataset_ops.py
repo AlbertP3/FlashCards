@@ -48,7 +48,9 @@ class db_dataset_ops:
         if not fd.valid:
             fd.data = self.empty_df
             fd.tmp = True
+            fd.kind = self.KINDS.unk
         if self.__AF != fd:
+            # Clear stored data for previous active file
             self.__AF.data = None
         self.__AF = fd
         log.debug(
@@ -346,19 +348,26 @@ class db_dataset_ops:
             ]
         return files_list
 
-    def get_all_language_files(self) -> set:
-        '''Returns files in LNG_DIRs for all languages'''
+    def get_all_files(self, dirs:set=None, use_basenames=False, excl_ext=False) -> set:
+        '''Returns files for all languages'''
         out = set()
+        dirs = dirs or {self.REV_DIR, self.LNG_DIR, self.MST_DIR}
         for lng in os.listdir(self.DATA_PATH):
             try:
-                for f in os.listdir(os.path.join(self.DATA_PATH, lng, self.LNG_DIR)):
-                    if (
-                        os.path.isfile(os.path.join(os.path.join(self.DATA_PATH, lng, self.LNG_DIR, f))) 
-                        and not f.startswith("__")
-                    ):
-                        out.add(f)
+                for kind in dirs:
+                    for f in os.listdir(os.path.join(self.DATA_PATH, lng, kind)):
+                        fp = os.path.join(os.path.join(self.DATA_PATH, lng, kind, f))
+                        if (
+                            os.path.isfile(fp) 
+                            and not f.startswith("__")
+                        ):
+                            out.add(fp)
             except FileNotFoundError:
                 pass
+        if use_basenames:
+            out = {os.path.basename(f) for f in out}
+        if excl_ext:
+            out = {os.path.splitext(f)[0] for f in out}
         return out
 
     def get_available_languages(self, ignore:set={"arch"}) -> set:

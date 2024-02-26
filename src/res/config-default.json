@@ -6,7 +6,6 @@
     "languages": [
         "EN"
     ],
-    "days_to_new_rev": 0,
     "opt": {
         "show_cpm_stats": true,
         "show_efc_line": true,
@@ -17,6 +16,7 @@
         "hide_timer": false,
         "show_cpm_timer": false
     },
+    "days_to_new_rev": 0,
     "pd_random_seed": 9022,
     "timespent_len": 12,
     "file_update_interval": 0,
@@ -69,6 +69,7 @@
     "THEME": {
         "textbox_height": 280,
         "buttons_height": 45,
+        "min_font_size": 18,
         "font": "Consolas",
         "console_font": "Consolas",
         "console_font_size": 14,

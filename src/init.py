@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import logging
 import matplotlib
 
@@ -21,7 +22,12 @@ def configure_logging(log_level, plt_log_level="error"):
 
 try:
     if not os.path.exists("./src/res/config.json"):
-        raise FileNotFoundError("Config file not found!")
+        json.dump(
+            json.load(open("./src/res/config-default.json", "r")),
+            open("./src/res/config.json", "w"),
+            indent=4,
+            ensure_ascii=False,
+        )
     import utils
 
     configure_logging(utils.config["log_level"])
