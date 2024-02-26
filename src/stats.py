@@ -22,13 +22,13 @@ class stats():
         self.time_spent_seconds = self.db.get_chart_time_spent()
         self.missing_records_cnt = self.db.get_count_of_records_missing_time()
         self.time_spent_minutes = [datetime.fromtimestamp(x).strftime('%M:%S') for x in self.time_spent_seconds]
-        self.formatted_dates = [f"{date.year}-{date.month}-{date.day}" for date in self.chart_dates]
+        self.formatted_dates = [date.strftime("%d-%m-%y") for date in self.chart_dates]
         self.sum_repeated = self.db.get_sum_repeated(self.db.active_file.signature)
         self.days_ago = format_timedelta(self.db.get_timedelta_from_creation(self.db.active_file.signature))
         self.last_rev_days_ago = format_timedelta(self.db.get_timedelta_from_last_rev(self.db.active_file.signature))
 
         # Create Dynamic Chain Index
-        if 'show_percent_stats' in self.config['optional']:
+        if self.config['opt']['show_percent_stats']:
             self.create_dynamic_chain_percentages(tight_format=True)
         else:
             self.create_dynamic_chain_values(tight_format=True)

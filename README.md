@@ -1,4 +1,4 @@
-# FlashCards 1.3.0
+# FlashCards 1.3.7
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -29,17 +29,19 @@ Provide a powerful tool to make learning languages effective, automated and smoo
    - db.csv - stores information on *Revisions* and *Mistakes*
    - themes - available styles. User is free to add new styles based on the provided examples
    - model.pkl - custom EFC model, trained to fit forgetting curve of the user [See: EMO](#efc-model-optimizer)
-2. There are 3 *kinds* of flashcards files: 
+2. There are 5 *kinds* of flashcards files: 
     - *Language* - root source of all cards, created by the user
     - *Revision* - subsets from a *Language* file, subject of spaced repetitions managed by EFC
     - *Mistakes* - subsets of failed cards from *Revision* files
+    - *Ephemeral* - temporary sets without actual files
+    - *Unknown* - describes invalid or missing files
 3. All *kinds* follow the same template e.g.: 
     | *JP* | *EN*  |
     |------|-------|
     | 寿司  | sushi |
     | ...  | ...  |
 4. Supported extensions for all *kinds* are '.csv' and '.xlsx' albeit both *Revisions* and *Mistakes* are by default created as '.csv'
-5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. If the configuration is referencing a missing directory tree, it will be created on the launch, however source file must be put by user
+5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. If the configuration is referencing a missing directory tree, it will be created on the launch, however source file must be put by user. Alternatively, a 'clt' command can be used to generate both language tree and an example file
 6. Once the *Language* file is there, it can be loaded in the app. Then the user will review multiple cards and press 'Save' which will create a new *Revision* file containing only cards seen. Pressing 'Save' during *Revision* will save all failed cards to the *Mistakes* file
 7. Spaced repetitons are reinforced by employing the EFC [See: Ebbinghaus Forgetting Curve](#efc-model-optimizer) that tells user which *Revision* they should repeat now, that is: Predicted % of words in-memory fell below the [efc_threshold](#optional-features)
 8. *Revisions* and *Mistakes* can be appraised - score, time spent and other are then recorded to the Database (src/res/db.csv) and can be eventually viewed on Statistics, Progress and TimeSpent windows
@@ -52,7 +54,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 ![Load Window](src/res/imgs/ss_load.png)
 
 - Allows picking all *kinds* of flashcard files that were matched by the 'languages' setting i.e. are on proper path. New *Revisions* can be created only from *Languages* and Revision Mode (Positive/Negative) is available only for the *Revisions* and *Mistakes*. 
-- If optional feature "recommend_new" is selected, reminders to create a new revision will also appear there - specific texts can be customized in the 'RECOMMENDATIONS' section of the config
+- If optional feature "recommend_new" is given a value greater than 0 (days), reminders to create a new revision will also appear there - specific texts can be customized in the 'RECOMMENDATIONS' section of the config
 
 ## Progress Window
 
@@ -134,6 +136,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - mcr - Modify Card Result - allows changing pos/neg for the current card
 - dcc - Delete Current Card - deletes card both in current set and in the file
 - lln - Load Last N, loads N-number of words from the original file, starting from the end
+- iln - Incremental Last N - executes *lln* with parameters stored in cache
 - efc - Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of *Revisions* displayed. Additionaly, shows predicted time until the next revision,
 - mcp - Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}
 - sck - Show Config Key: Syntax: sck *{sub_dict} {key}
@@ -154,6 +157,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - pcd - Print Current Dataset - pretty prints all cards in the current dataset
 - cac - Clear Application Cache - *key^help - runs cache_clear on an optional key
 - ssf - Show Scanned Files - presents a list of all relevant files
+- clt - Create Language Tree - creates a directory tree for a new language and an example file
     
 
 ## Optional Features

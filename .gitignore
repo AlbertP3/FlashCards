@@ -4,6 +4,7 @@ __init__.py
 db.csv
 .vscode
 desktop.ini
+config.json
 fcs.log
 test.log
 tests

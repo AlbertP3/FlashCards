@@ -115,7 +115,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.save_button = self.create_button('Save', self.click_save_button)
         self.del_button = self.create_button('🗑', self.delete_current_card)
         self.load_again_button = self.create_button('⟳', self.load_again_click)
-        self.revmode_button = self.create_button('RM:{}'.format('OFF'), lambda: self.change_revmode(None))
+        self.revmode_button = self.create_button('RM:OFF')  # TODO
         self.words_button = self.create_button('-')
 
         # Widgets
@@ -173,21 +173,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return new_button
 
 
-    def display_text(self, text=None, forced_size=None):
-        if not text: 
-            text = self.get_current_card().iloc[self.side]
-
-        if forced_size:
-            self.FONT_TEXTBOX_SIZE = forced_size
-        else:
-            min_font_size = 18
-            len_factor = int(len(str(text))/30)
-            width_factor = int((self.frameGeometry().width())/43)
-            self.FONT_TEXTBOX_SIZE = min_font_size + max(width_factor - len_factor,0)
-        
+    def display_text(self, text:str):
+        width_factor =  max(int((self.frameGeometry().width())/43-len(text)/30), 0)
+        self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
-        self.textbox.setText(str(text))
-        padding = max(0, 90 - len(str(text))*0.7)
+        self.textbox.setText(text)
+        padding = max(0, 90 - len(text)*0.7)
         self.textbox.setStyleSheet(f'{self.textbox_stylesheet} padding-top: {padding}%;')
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.is_afterface = False
@@ -197,25 +188,34 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     
 
     def click_save_button(self):
-        if self.is_revision:
+        if self.active_file.kind == self.db.KINDS.rev:
             if self.mistakes_list[self.auto_cfm_offset:]:
                 self.save_to_mistakes_list()
             else:
                 fcc_queue.put('No mistakes to save')
         elif self.active_file.kind == self.db.KINDS.lng:
             if self.cards_seen != 0:
-                super().handle_saving(seconds_spent=self.seconds_spent)
+                super().handle_creating_revision(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
                 fcc_queue.put('Unable to save an empty file')
+        elif self.active_file.kind == self.db.KINDS.mst:
+            self.load_ephemeral_file(
+                pd.DataFrame(data=self.mistakes_list, 
+                columns=self.active_file.data.columns,
+                )
+            )
         else:
-            fcc_queue.put("Unable to save Mistakes file")
+            fcc_queue.put(f"Unable to save a {self.db.KFN[self.active_file.kind]}")
                 
 
     def delete_current_card(self):
-        super().delete_current_card()
-        self.update_words_button()
-        self.display_text(self.get_current_card().iloc[self.side])
+        if self.active_file.kind not in self.db.GRADED:
+            super().delete_current_card()
+            self.update_words_button()
+            self.display_text(self.get_current_card().iloc[self.side])
+        else:
+            fcc_queue.put(f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}")
 
 
     def reverse_side(self):
@@ -241,11 +241,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def initiate_flashcards(self, fd):
         # Manage whole process of loading flashcards file
         super().load_flashcards(fd)
-        if self.db.active_file.valid:
-            self.update_backend_parameters()
-            self.update_interface_parameters()
-            self.del_side_window()
-            self.start_file_update_timer()
+        self.update_backend_parameters()
+        self.update_interface_parameters()
+        self.del_side_window()
+        self.start_file_update_timer()
 
 
     def update_interface_parameters(self):
@@ -286,8 +285,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.update_score_button()
             if self.words_back_mode():
                 self.nav_buttons_visibility_control(True, True, False)
-        elif self.should_save_revision():  # TODO rename
-            self.handle_revision_complete()
+        elif self.should_create_db_record():
+            self.handle_graded_complete()
         elif self.revision_summary:
             self.display_text(self.revision_summary)
         else:
@@ -307,20 +306,21 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.click_next_button()
 
 
-    def handle_revision_complete(self):
+    def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
             self.update_score_button()
-            self.revision_summary = self.get_rating_message()
-            self.display_text(self.revision_summary)
+            if self.active_file.kind in {self.db.KINDS.rev, self.db.KINDS.mst}:
+                self.revision_summary = self.get_rating_message()
+                self.display_text(self.revision_summary)
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
         else:
-            self.display_text()
+            self.display_text(self.get_current_card().iloc[self.side])
         self.is_saved = True
         self.change_revmode()
         self.reset_timer(clear_indicator=False)
         self.stop_pace_timer()
-        # if self.negatives != 0:
-        #     self.get_mistakes_sidewindow()
+        if self.negatives != 0 and self.config["opt"]["show_mistakes_after_revision"]:
+            self.get_mistakes_sidewindow()
 
 
     def add_shortcuts(self): 
@@ -378,7 +378,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def open_side_window(self, layout, name):
-        if 'side_by_side' in self.config['optional']:
+        if self.config['opt']['side_by_side']:
             self.open_side_by_side(layout, name)
         else:
             self.open_in_place(layout, name)
@@ -388,7 +388,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         
 
     def del_side_window(self):
-        if 'side_by_side' in self.config['optional']:
+        if self.config['opt']['side_by_side']:
             self.del_side_window_side_by_side()
         else:
             self.del_side_window_in_place()
@@ -576,8 +576,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         self.timer_prev_text = '⏲'
-        self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
-        self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+        self.revtimer_hide_timer = self.config['opt']['hide_timer']
+        self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
         self.set_append_seconds_spent_function()
 
 

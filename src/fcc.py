@@ -1,10 +1,8 @@
 import re 
-from utils import *
 import logging
-import DBAC.api as api
 from operator import methodcaller
-
-# Optional modules
+from utils import *
+import DBAC.api as api
 from SOD.init import sod_spawn
 from EMO.init import emo_spawn
 from CMG.init import cmg_spawn
@@ -26,6 +24,7 @@ class fcc():
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
+                    'iln':'Incremental Last N - executes *lln* with parameters stored in cache',
                     'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of revisions displayed. Additionaly, shows predicted time until the next revision',
                     'mcp':'Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>',
                     'sck':'Show Config Key: Syntax: sck *<sub_dict> <key>',
@@ -46,6 +45,7 @@ class fcc():
                     'pcd':'Print Current Dataset - pretty prints all cards in the current dataset',
                     'cac':'Clear Application Cache - *key^help - runs cache_clear on an optional key',
                     'ssf':'Show Scanned Files - presents a list of all relevant files',
+                    'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
                     }
 
 
@@ -81,20 +81,37 @@ class fcc():
 
     def help(self, parsed_cmd):
         if len(parsed_cmd) == 1:
-           printout = get_pretty_print(self.DOCS, alingment=['<', '<'], separator='-')
+            printout = self.mw.caliper.make_table(
+                data = self.DOCS,
+                pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                align=['left', 'left'], 
+                sep='-',
+            )
         else:
             command = parsed_cmd[1]
             if command in self.DOCS.keys():
-                printout =  get_pretty_print([[command, self.DOCS[command]]], alingment=['<', '<'], separator='-')
+                printout = self.mw.caliper.make_table(
+                    data = [[command, self.DOCS[command]]],
+                    pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                    align=['left', 'left'], 
+                    sep='-',
+                )
             else: # regex search command descriptions
                 try:
                     rp = re.compile(parsed_cmd[1], re.IGNORECASE)
-                    matching = {}
+                    matching = []
                     for k, v in self.DOCS.items():
                         if rp.search(v) or rp.search(k):
-                            matching[k] = v
+                            matching.append([k, v])
                     try:
-                        printout = get_pretty_print(matching, alingment=['<', '<'], separator='-')
+                        lim = self.mw.console.width()*self.config['THEME']['console_margin']
+                        printout = self.mw.caliper.make_table(
+                            data = matching,
+                            pixlim = [0.1*lim, 0.9*lim],
+                            align=['left', 'left'], 
+                            sep=' - ',
+                            keep_last_border=False
+                        )
                     except IndexError:
                         printout = 'Nothing matches the given phrase!'
                 except re.error as e:
@@ -193,7 +210,7 @@ class fcc():
                         self.post_fcc('Number of cards must be a number greater than 0')
                         return
                 except ValueError:
-                    self.post_fcc(f'Invalid Syntax! Expected: {type(1)}, but got {type(i)}')
+                    self.post_fcc(f'Invalid Syntax: {i} is not numeric')
                     return
         else:
             self.post_fcc('Invalid Syntax! Expected: lln <num_of_cards> *<last_cards>')
@@ -212,21 +229,42 @@ class fcc():
             basename=f"{self.mw.active_file.lng}{len(data)}", 
             data=data,
             lng = self.mw.active_file.lng,
-            kind=self.mw.db.KINDS.rev,
+            kind=self.mw.db.KINDS.lng,
+            parent={
+                "filepath": self.mw.active_file.filepath, 
+                "len_":  self.mw.active_file.data.shape[0],
+            },
         )
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
         self.mw.update_backend_parameters()
         self.refresh_interface()
         self.mw.reset_timer()
-        self.mw.start_file_update_timer()
-        self.mw.change_revmode(force_which=False)
+        self.mw.start_file_update_timer() 
         self.post_fcc(f'Loaded last {len(data)} cards')
 
 
+    @require_regular_file
+    def iln(self, parsed_cmd):
+        '''Incremental Load N'''
+        try:
+            i_prev = self.config["ILN"][self.mw.active_file.filepath]
+        except KeyError:
+            self.post_fcc("No cached data for current file. Use *lln* first to create it")
+            return
+        diff = self.mw.active_file.data.shape[0] - i_prev + 1
+        if diff <= 1:
+            self.post_fcc("No new cards")
+            return
+        self.post_fcc(f"Using cached data [{i_prev}]")
+        self.lln(["lln", diff])
+        
+
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
-        self.mw.db.refresh()
+        if not self.mw.db.filters["EFC_MODEL"]:
+            self.mw.db.refresh()
+            self.mw.get_complete_efc_table.cache_clear()
         recommendations = self.mw.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
             lim = int(parsed_cmd[1])
@@ -244,7 +282,7 @@ class fcc():
                 if new_val.isnumeric(): 
                     new_val = float(new_val) if '.' in new_val else int(new_val)
                 elif isinstance(self.config[key], (list, set, tuple)):
-                    new_val = self.config[key].__class__(new_val.split(' '))
+                    new_val = self.config[key].__class__(new_val.split(','))
                 self.config[key] = new_val
                 self.mw.config_manual_update(key=key, subdict=None)
                 self.post_fcc(f"{key} set to {new_val}")
@@ -256,7 +294,7 @@ class fcc():
                 if new_val.isnumeric(): 
                     new_val = float(new_val) if '.' in new_val else int(new_val)
                 elif isinstance(self.config[subdict][key], (list, set, tuple)):
-                    new_val = self.config[subdict][key].__class__(new_val.split(' '))
+                    new_val = self.config[subdict][key].__class__(new_val.split(','))
                 self.config[subdict][key] = new_val
                 self.mw.config_manual_update(key=key, subdict=subdict)
                 self.post_fcc(f"{key} of {subdict} set to {new_val}")
@@ -271,8 +309,12 @@ class fcc():
         headers = ['Dict', 'Key', 'Value']
         content = flatten_dict(self.config, lim_chars=30)
         if len(parsed_cmd) == 1:
-            msg = get_pretty_print(content, separator='|', 
-                    alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
+            msg = self.mw.caliper.make_table(
+                data=content,
+                pixlim = self.console.width()*self.config['THEME']['console_margin'],
+                headers=headers,
+                align=['left', 'center', 'center'],
+            )
         elif len(parsed_cmd) in (2,3):
             if isinstance(self.config.get(parsed_cmd[1]), dict):
                 content = [i for i in content if re.search(parsed_cmd[1], i[0], re.IGNORECASE)]
@@ -281,8 +323,12 @@ class fcc():
             else:
                 content = [i for i in content if re.search(parsed_cmd[1], i[1], re.IGNORECASE)]
             if content:
-               msg = get_pretty_print(content, separator='|', 
-                    alingment=['<', '^', '^'], keep_last_border=True, headers=headers)
+                msg = self.mw.caliper.make_table(
+                    data=content,
+                    pixlim = self.console.width()*self.config['THEME']['console_margin'],
+                    headers=headers,
+                    align=['left', 'center', 'center'],
+                )
             else:
                 suffix = f' in dict {parsed_cmd[1]}' if len(parsed_cmd) == 3 else ''
                 msg = f"Key {parsed_cmd[-1]} does not exist{suffix}"
@@ -317,7 +363,7 @@ class fcc():
         )
         dbapi = api.DbOperator()
         # TODO require globally unique
-        if new_filename in {fd.basename for fd in dbapi.files.values()}:
+        if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
             return
         os.rename(self.mw.active_file.filepath, new_filepath)
@@ -443,6 +489,7 @@ class fcc():
         key = parsed_cmd[1] if len(parsed_cmd)==2 else None
         if run_all or key == 'files':
             self.mw.db.reload_files_cache()
+            self.mw.db.refresh()
         if run_all or key == 'fonts':
             self.mw.caliper.pixlen.cache_clear()
         self.post_fcc('Reloaded cache')
@@ -459,3 +506,28 @@ class fcc():
                 f"Kind:      {fd.kind}"
             ))
         self.post_fcc('\n' + f"Files total: {len(self.mw.db.files)}")
+
+    def clt(self, parsed_cmd:list):
+        '''Create Language Tree'''
+        if len(parsed_cmd) < 2:
+            self.post_fcc("Missing Argument - new language id")
+            return
+        elif len(parsed_cmd) > 2:
+            self.post_fcc("Invalid Argument - whitespaces not allowed")
+            return
+        elif parsed_cmd[1] in self.config['languages']:
+            self.post_fcc(f"Language {parsed_cmd[1]} already exists")
+            return
+        self.mw.db.create_language_dir_tree(parsed_cmd[1])
+        self.config['languages'].append(parsed_cmd[1])
+        pd.DataFrame(columns=[parsed_cmd[1].lower(), "native"], data=[["-", "-"]]).to_excel(
+            self.mw.db.make_filepath(
+                parsed_cmd[1], self.mw.db.LNG_DIR, f"{parsed_cmd[1]}.xlsx"
+            ),
+            sheet_name=parsed_cmd[1].lower(),
+            index=False,
+        )
+        for msg in fcc_queue.dump():
+            self.post_fcc(msg)
+        self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
+        self.mw.db.reload_files_cache()

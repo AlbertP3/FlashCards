@@ -56,7 +56,7 @@ class Model:
         self.rec_cols = RECORD_COLS.copy()
         if self.approach == MODEL_APPROACHES[1]:
             self.__language_specific_model = True
-            self.lng_cols = lng_cols
+            self.lng_cols = lng_cols[:-1]
             self.rec_cols.extend(self.lng_cols)
         else:
             self.__language_specific_model = False
@@ -184,7 +184,7 @@ class Models:
             x.values, y.values, test_size=self.size_test, random_state=self.random_state
         )
         regressor_rfr = ensemble.RandomForestRegressor(
-            n_estimators=12, random_state=42, max_depth=8, min_samples_leaf=3
+            n_estimators=40, random_state=42, max_depth=9, min_samples_leaf=6
         )
         regressor_rfr.fit(x_train_rfr, y_train_rfr.ravel())
         self.y_test_rfr = np.array(self.y_test_rfr).reshape(-1, 1)

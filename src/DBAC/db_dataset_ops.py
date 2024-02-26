@@ -17,13 +17,14 @@ class FileDescriptor:
     basename: str = None
     filepath: str = None
     lng: str = None
-    kind: str = None
+    kind: str = "U"
     ext: str = None  # [.csv, .xlsx, ...]
     valid: bool = None
     data: pd.DataFrame = None
     signature: str = None
     tmp: bool = False
     mtime: int = None
+    parent: dict = None # {filepath: str, len_: int}
 
     def __str__(self) -> str:
         return f"{self.filepath}"
@@ -47,14 +48,18 @@ class db_dataset_ops:
         if not fd.valid:
             fd.data = self.empty_df
             fd.tmp = True
+            fd.kind = self.KINDS.unk
         if self.__AF != fd:
+            # Clear stored data for previous active file
             self.__AF.data = None
         self.__AF = fd
         log.debug(
             (
-                f"Set {'Valid' if self.__AF.valid else 'Invalid'} "
-                f"{'Temporary' if self.__AF.tmp else 'Regular'} Active File: {self.__AF}"
-            )
+                f"Activated {'Valid' if self.__AF.valid else 'Invalid'} "
+                f"{'Temporary' if self.__AF.tmp else 'Regular'} "
+                f"{self.KFN[self.__AF.kind]}: {self.__AF}"
+            ),
+            stacklevel=3
         )
         if (
             len(d := {f.basename for f in self.files.values() if f.data is not None})
@@ -70,11 +75,8 @@ class db_dataset_ops:
         self.get_files.cache_clear()
         self.get_files()
         self.get_sorted_revisions.cache_clear()
-        self.get_sorted_revisions()
         self.get_sorted_languages.cache_clear()
-        self.get_sorted_languages()
         self.get_sorted_mistakes.cache_clear()
-        self.get_sorted_mistakes()
         self.match_from_all_languages.cache_clear()
 
     @staticmethod
@@ -132,12 +134,11 @@ class db_dataset_ops:
             ext=".csv",
         )
         if mfd.filepath in self.files.keys():
-            buffer = self.load_dataset(mfd, do_shuffle=False)
+            buffer = self.load_dataset(mfd, do_shuffle=False, activate=False)
             buffer = pd.concat([buffer, mistakes_list.iloc[offset:]], ignore_index=True)
             buffer.iloc[-self.config["mistakes_buffer"] :].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
             )
-            log.debug(f"Updated existing Mistakes File: {mfd.filepath}")
         else:
             mistakes_list.iloc[: self.config["mistakes_buffer"]].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
@@ -163,7 +164,7 @@ class db_dataset_ops:
         return fd.valid
 
     def load_dataset(
-        self, fd: FileDescriptor, do_shuffle=True, seed=None
+        self, fd: FileDescriptor, do_shuffle=True, seed=None, activate=True
     ) -> pd.DataFrame:
         operation_status = ""
         try:
@@ -182,14 +183,15 @@ class db_dataset_ops:
             operation_status = f"Exception occurred: {e}"
             log.error(e, exc_info=True)
 
-        self.active_file = fd
-        if self.active_file.valid and do_shuffle:
-            self.shuffle_dataset(seed)
+        if activate:
+            self.active_file = fd
+            if self.active_file.valid and do_shuffle:
+                self.shuffle_dataset(seed)
 
         fcc_queue.put(operation_status)
         return fd.data
 
-    def load_tempfile(self, data, kind, basename, lng, signature=None):
+    def load_tempfile(self, data, kind, basename, lng,  parent:dict, signature=None):
         fd = FileDescriptor(
             basename=basename,
             filepath=None,
@@ -201,6 +203,7 @@ class db_dataset_ops:
             signature=signature,
             tmp=True,
             mtime=99999999999,
+            parent=parent,
         )
         log.debug(f"Mocked a temporary file: {fd.basename}")
         self.active_file = fd
@@ -219,9 +222,11 @@ class db_dataset_ops:
         dataset = pd.read_csv(
             file_path,
             encoding="utf-8",
-            sep=self.get_dialect(file_path)
-            if self.config.translate("csv_sniffer")
-            else ",",
+            sep=(
+                self.get_dialect(file_path)
+                if self.config.translate("csv_sniffer")
+                else ","
+            ),
         )
         return dataset
 
@@ -343,14 +348,31 @@ class db_dataset_ops:
             ]
         return files_list
 
-    def get_all_languages(self) -> set:
+    def get_all_files(self, dirs:set=None, use_basenames=False, excl_ext=False) -> set:
+        '''Returns files for all languages'''
         out = set()
-        for d in os.listdir(self.DATA_PATH):
-            if all(
-                [
-                    (kind in os.listdir(os.path.join(self.DATA_PATH, d)))
-                    for kind in {k for k in dir(self.KINDS) if not k.startswith("__")}
-                ]
-            ):
-                out.add(d)
+        dirs = dirs or {self.REV_DIR, self.LNG_DIR, self.MST_DIR}
+        for lng in os.listdir(self.DATA_PATH):
+            try:
+                for kind in dirs:
+                    for f in os.listdir(os.path.join(self.DATA_PATH, lng, kind)):
+                        fp = os.path.join(os.path.join(self.DATA_PATH, lng, kind, f))
+                        if (
+                            os.path.isfile(fp) 
+                            and not f.startswith("__")
+                        ):
+                            out.add(fp)
+            except FileNotFoundError:
+                pass
+        if use_basenames:
+            out = {os.path.basename(f) for f in out}
+        if excl_ext:
+            out = {os.path.splitext(f)[0] for f in out}
         return out
+
+    def get_available_languages(self, ignore:set={"arch"}) -> set:
+        return {
+            lng for lng 
+            in os.listdir(self.DATA_PATH) 
+            if lng not in ignore
+        }

@@ -1,16 +1,16 @@
+import timer
+import re
+from copy import deepcopy
 import PyQt5.QtWidgets as widget
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
-import re
-from utils import * 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
+from utils import * 
 from fcc import fcc
 from efc import EFC
 from stats import stats
-import timer
-from copy import deepcopy
 from checkable_combobox import CheckableComboBox
 
 
@@ -19,12 +19,12 @@ class fcc_gui():
 
     def __init__(self):
         self.side_window_titles['fcc'] = 'Console'
-        self.DEFAULT_PS1 = '$~> '
+        self.DEFAULT_PS1 = self.config['THEME']['default_ps1']
         self.init_font()
         self.CONSOLE_PROMPT = self.DEFAULT_PS1
         self.CONSOLE_LOG = []
         self.CMDS_LOG = ['']
-        self.tmp_cmd = str()  # partial command typed before closing the console
+        self.tmp_cmd = ""  # partial command typed before closing the console
         self.CMDS_CURSOR = 0
         self.rt_re = re.compile('[^\u0000-\uFFFF]')
         self.console = None
@@ -52,8 +52,6 @@ class fcc_gui():
         return self.console.toPlainText()[self.promptend:]
 
     def get_fcc_sidewindow(self):
-        for msg in fcc_queue.dump():
-            self.fcc_inst.post_fcc(msg)
         self.arrange_fcc_window()
         self.open_side_window(self.fcc_layout, 'fcc')
         self.console.setFocus()
@@ -63,16 +61,22 @@ class fcc_gui():
     def arrange_fcc_window(self):
         self.fcc_layout = widget.QGridLayout()
         if self.CONSOLE_LOG:
-            self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i!=self.CONSOLE_PROMPT]
+            self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i != self.CONSOLE_PROMPT]
             if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
-                cur_line = self.console.toPlainText().split('\n')[-1]
-                self.CONSOLE_LOG[-1] = cur_line
+                self.CONSOLE_LOG[-1] = self.console.toPlainText().split('\n')[-1]
             else:
                 self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
             self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
-        
+
+        # Dump fcc_queue while preserving the prompt content
+        cmd = self.CONSOLE_LOG.pop()
         self.console.setText('\n'.join(self.CONSOLE_LOG))
+        for msg in fcc_queue.dump():
+           self.fcc_inst.post_fcc(msg)
+        self.console.append(cmd)
+        self.CONSOLE_LOG.append(cmd)
+
         self.fcc_layout.addWidget(self.console, 0, 0)
 
         
@@ -85,7 +89,7 @@ class fcc_gui():
         self.fcc_inst.update_console_id(self.console)
        
 
-    def cli_shortcuts(self, event):
+    def cli_shortcuts(self, event:QtGui.QKeyEvent):
         if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
             self.fcc_inst.execute_command(['cls'], followup_prompt=False)
         elif event.key() == Qt.Key_Home:
@@ -198,7 +202,6 @@ class efc_gui(EFC):
         self.efc_layout.addWidget(self.create_load_efc_button(), 1, 0, 1, 1)
 
         # Fill List Widget
-        self.db.refresh()
         [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
         self.files_count = self.recommendation_list.count()
         if self.files_count: 
@@ -423,7 +426,7 @@ class stats_gui(stats):
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, 'stats')
         else:
-            self.fcc_inst.post_fcc('Statistics are not available for a Language')
+            self.fcc_inst.post_fcc(f'Statistics are not available for a {self.db.KFN[self.active_file.kind]}')
 
     def arrange_stats_sidewindow(self):
         self.get_data_for_current_revision(self.active_file.signature)
@@ -455,12 +458,12 @@ class stats_gui(stats):
                     color=self.config['THEME']['stat_chart_text_color'])
 
          # horizontal line at EFC predicate
-        if rect and 'show_efc_line' in self.config['optional']:
+        if rect and self.config['opt']['show_efc_line']:
             ax.axhline(y=self.total_words*0.8, color='#a0a0a0', linestyle='--', zorder=-3)
             ax.text(rect.get_x() + rect.get_width()/1, self.total_words*0.8, f'{self.config["efc_threshold"]}%', va="bottom", color='#a0a0a0')
 
         # add labels - time spent
-        if 'show_cpm_stats' in self.config['optional']:
+        if self.config['opt']['show_cpm_stats']:
             time_spent_labels = ['{:.0f}'.format(self.total_words/(x/60)) if x else '-' for x in self.time_spent_seconds]
         else:
             time_spent_labels = self.time_spent_minutes
@@ -475,7 +478,7 @@ class stats_gui(stats):
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         ax.set_ylim([0, self.total_words+2])
         ax.tick_params(colors=self.config['THEME']['stat_chart_text_color'],
-                        labelrotation=0,
+                        labelrotation=-20,
                         pad=1)
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
@@ -542,9 +545,8 @@ class progress_gui(stats):
 
 
     def get_progress_sidewindow(self, lngs:set=None):
-        lngs = lngs if lngs is not None else self.config['languages']
         try:
-            self.arrange_progress_sidewindow(lngs)
+            self.arrange_progress_sidewindow(lngs or self.config['languages'])
             self.open_side_window(self.progress_layout, 'progress')
         except ValueError:
             fcc_queue.put('No data found for Progress')
@@ -664,13 +666,11 @@ class config_gui():
         self.confirm_and_close_button = self.create_button('Confirm Changes', self.commit_config_update)
         self.card_default_combobox = self.create_config_combobox('card_default_side',['0','1','Random'])
         self.card_default_label = self.create_label('Card Default Side')
-        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', self.db.get_all_languages())
+        self.lngs_checkablecombobox = self.create_config_checkable_combobox('languages', self.db.get_available_languages())
         self.lngs_label = self.create_label('Languages')
         self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
         self.days_to_new_rev_label = self.create_label('Days between Revs')
-        self.optional_checkablecombobox = self.create_config_checkable_combobox('optional', 
-            ['side_by_side','hide_timer','show_cpm_stats',
-                'show_efc_line', 'show_percent_stats', 'show_cpm_timer'])
+        self.optional_checkablecombobox = self.create_config_checkable_combobox('opt', list(self.config["opt"].keys()))
         self.optional_label = self.create_label('Optional Features')
         self.init_rep_qline = self.create_config_qlineedit('init_revs_cnt')
         self.init_rep_label = self.create_label("Initial Repetitions")
@@ -725,6 +725,8 @@ class config_gui():
     def create_config_checkable_combobox(self, key:str, content:list, subdict:str=None):
         checkable_cb = CheckableComboBox(self)
         k = self.config[subdict][key] if subdict else self.config[key]
+        if isinstance(k, dict):
+            k = [k for k, v in k.items() if v is True]
         for i in content:
             checkable_cb.addItem(i, is_checked= i in k)
         checkable_cb.setFont(self.BUTTON_FONT)
@@ -770,18 +772,18 @@ class config_gui():
     def commit_config_update(self):
         modified_dict = deepcopy(self.config)
         modified_dict['card_default_side'] = self.card_default_combobox.currentText()
-        modified_dict['languages'] = self.lngs_checkablecombobox.currentData()
+        modified_dict['languages'] = self.lngs_checkablecombobox.currentDataList()
         modified_dict['days_to_new_rev'] = int(self.days_to_new_rev_qlineedit.text())
-        modified_dict['optional'] = self.optional_checkablecombobox.currentData()
+        modified_dict['opt'] = self.optional_checkablecombobox.currentDataDict()
         modified_dict['init_revs_cnt'] = int(self.init_rep_qline.text())
         modified_dict['file_update_interval'] = int(self.check_for_file_updates_combobox.text())
-        modified_dict['active_theme'] = self.theme_checkablecombobox.currentData()[0]
+        modified_dict['active_theme'] = self.theme_checkablecombobox.currentDataList()[0]
         modified_dict['THEME'].update(self.themes_dict[modified_dict['active_theme']])
         modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
         modified_dict['pace_card_interval'] = int(self.pace_card_qline.text())
-        modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentData()[0]
+        modified_dict['SOD']['initial_language'] = self.initial_language_checkablecombobox.currentDataList()[0]
     
-        if 'side_by_side' not in self.config['optional'] and 'side_by_side' in modified_dict['optional']:
+        if not self.config['opt']['side_by_side'] and modified_dict['opt']['side_by_side']:
             self.toggle_primary_widgets_visibility(True)
         else:
             self.unfix_size(self)
@@ -811,8 +813,8 @@ class config_gui():
         elif not (key or subdict):
             self.db.reload_files_cache()
             self.update_default_side()
-            self.revtimer_hide_timer = 'hide_timer' in self.config['optional']
-            self.revtimer_show_cpm_timer = 'show_cpm_timer' in self.config['optional']
+            self.revtimer_hide_timer = self.config['opt']['hide_timer']
+            self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
 

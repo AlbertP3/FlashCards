@@ -12,14 +12,15 @@ class sod_spawn:
         self.adapt()
         self.cli = CLI(output=self.sout)
         self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
-        self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
+        self.cli.send_output(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
 
     def adapt(self):
         self.HISTORY:list = self.sout.mw.CONSOLE_LOG.copy()
         self.CMD_HISTORY:list = self.sout.mw.CMDS_LOG.copy()
-        self.sout.mw.CMDS_LOG = ['']
+        self.sout.mw.CMDS_LOG = [""]
+        self.sout.mw.CONSOLE_LOG = []
         self.prev_window_title = self.sout.mw.side_window_titles['fcc']
         self.orig_post_method = self.sout.post_fcc
         self.orig_execute_method = self.sout.execute_command
@@ -29,7 +30,7 @@ class sod_spawn:
     
     def monkey_patch_post(self, msg):
         if msg != self.sout.mw.CONSOLE_PROMPT:
-            self.cli.cls(msg, keep_content=True, keep_cmd=False)
+            self.cli.cls(msg, keep_content=True, keep_cmd=True)
             self.HISTORY.append(msg)
 
     def monkey_patch_execute_command(self, parsed_input:list, followup_prompt:bool=True):
@@ -39,7 +40,7 @@ class sod_spawn:
             self.cli.set_output_prompt(self.cli.prompt.PHRASE)
         else:
             self.run(parsed_input)
-        self.sout.console.append(self.sout.mw.CONSOLE_PROMPT + self.sout.editable_output)
+        self.cli.send_output(self.sout.mw.CONSOLE_PROMPT + self.sout.editable_output)
         self.sout.editable_output = ''
 
     def remove_adapter(self):
@@ -48,7 +49,6 @@ class sod_spawn:
         self.sout.execute_command = self.orig_execute_method
         self.sout.mw.CONSOLE_LOG = self.HISTORY
         self.sout.mw.console.setText('\n'.join(self.sout.mw.CONSOLE_LOG))
-        self.sout.mw.CONSOLE_LOG.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.CMDS_LOG = self.CMD_HISTORY
 
     def run(self, cmd:list):

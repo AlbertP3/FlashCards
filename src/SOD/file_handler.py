@@ -7,7 +7,7 @@ from collections import OrderedDict
 from utils import Config, get_filename_from_path
 from functools import cache
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("SOD")
 
 
 class FileHandler(ABC):
@@ -21,6 +21,10 @@ class FileHandler(ABC):
 
     @abstractmethod
     def edit_content(self) -> tuple[bool, str]:
+        pass
+
+    @abstractmethod
+    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
         pass
 
     @abstractmethod
@@ -105,15 +109,18 @@ class XLSXFileHandler(FileHandler):
         self.filename = get_filename_from_path(path, include_extension=True)
         self.wb = openpyxl.load_workbook(self.path)
         self.ws = self.wb[self.wb.sheetnames[0]]
+        self.__load_data()
+        self.config["SOD"]["last_file"] = self.path
+        self.native_lng = self.ws.cell(1, 2).value.lower()
+        self.foreign_lng = self.ws.cell(1, 1).value.lower()
+
+    def __load_data(self):
         self.data = OrderedDict()  # row_index: (original, translation)
         for r in range(1, self.ws.max_row + 1):
             self.data[r] = (
                 str(self.ws.cell(r, 1).value),
                 str(self.ws.cell(r, 2).value),
             )
-        self.config["SOD"]["last_file"] = self.path
-        self.native_lng = self.ws.cell(1, 2).value.lower()
-        self.foreign_lng = self.ws.cell(1, 1).value.lower()
         self.dtracker = None  # tuple: (row, searched_phrase)
 
     @property
@@ -142,6 +149,20 @@ class XLSXFileHandler(FileHandler):
         )
         return True, ""
 
+    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+        if self.is_duplicate(r0, is_from_native):
+            if (self.ws.cell(row=self.dtracker[0], column=int(is_from_native)+1).value == r0 and
+                self.ws.cell(row=self.dtracker[0], column=2-int(is_from_native)).value == r1
+            ):
+                self.ws.delete_rows(self.dtracker[0], 1)
+                self.commit(f"Deleted [{self.dtracker[0]}] [{r0}] in {self.filename}")
+                self.__load_data()
+                return True
+            else:
+                return False
+        else:
+            return False
+
     def commit(self, msg: str = None):
         self.dtracker = None
         self.wb.save(self.path)
@@ -160,18 +181,21 @@ class CSVFileHandler(FileHandler):
         self.config = Config()
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
+        self.__load_data()
+        self.config["SOD"]["last_file"] = self.path
+        self.native_lng = self.raw_data.columns[1].lower()
+        self.foreign_lng = self.raw_data.columns[0].lower()
+
+    def __load_data(self):
         self.raw_data = pd.read_csv(self.path, encoding="utf-8")
         self.data = OrderedDict()  # row_index: (original, translation)
         for r in self.raw_data.itertuples():
             self.data[r[0]] = (str(r[1]), str(r[2]))
-        self.config["SOD"]["last_file"] = self.path
-        self.native_lng = self.raw_data.columns[1].lower()
-        self.foreign_lng = self.raw_data.columns[0].lower()
         self.dtracker = None  # tuple: (row,)
 
     @property
     def total_rows(self):
-        return self.raw_data.index[-1]
+        return self.raw_data.index[-1] + 1
 
     def append_content(self, foreign_word, domestic_word) -> tuple[bool, str]:
         new_row = pd.DataFrame(
@@ -191,6 +215,24 @@ class CSVFileHandler(FileHandler):
             f"Edited [{self.dtracker[0]}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
         )
         return True, ""
+
+    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+        if self.is_duplicate(r0, is_from_native):
+            if (self.raw_data.iloc[self.dtracker[0], int(is_from_native)] == r0 and
+                self.raw_data.iloc[self.dtracker[0], 1-int(is_from_native)] == r1
+            ):
+                self.raw_data.drop(
+                    index=self.dtracker[0], 
+                    axis = 0,
+                    inplace=True
+                )
+                self.commit(f"Deleted [{self.dtracker[0]}] [{r0}] in {self.filename}")
+                self.__load_data()
+                return True
+            else:
+                return False
+        else:
+            return False
 
     def commit(self, msg: str = None):
         self.raw_data.to_csv(self.path, encoding="utf-8", index=False)
@@ -243,6 +285,12 @@ class VoidFileHandler(FileHandler):
         return
 
     def validate_dtracker(self, searched_phrase: str):
+        return
+
+    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+        return False
+
+    def commit(self, msg:str = None):
         return
 
 

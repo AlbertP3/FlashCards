@@ -116,37 +116,6 @@ def format_timedelta(tmd:timedelta):
     return f'{time_value:.{prec}f} {interval}{suffix}'
 
 
-# TODO replace with Caliper.make_table
-def get_pretty_print(list_, extra_indent=1, separator='', keep_last_border=False, alingment:list=list(), headers:list=None) -> str:
-    printout = '' 
-    longest_elements = list()
-
-    # convert to list
-    if isinstance(list_, dict):
-        list_ = [[k, v] for k, v in list_.items()]
-
-    if headers:
-        list_.insert(0, headers)
-        
-    # find longest element for each sub-list
-    for k in range(len(list_[0])):
-        longest_elements.append(max([len(str(item[k])) for item in list_]))
-
-    alingment += ['^'] * (len(list_) - len(alingment))
-    for item in list_:
-        line = ''
-        for sub_index, sub_item in enumerate(item):
-            i = longest_elements[sub_index]+extra_indent
-            a = alingment[sub_index]
-            rpad = ' ' if a=='>' else ''
-            lpad = ' ' if a=='<' else ''
-            line+=f'{lpad}{sub_item:{a}{i}}{rpad}{separator}'
-        if not keep_last_border and separator: line=line[:-len(separator)] 
-        printout += line + '\n'
-    
-    return printout[:-1]
-
-
 SECONDS_CONVERTERS = {
     'minute': (60, 1),
     'hour':  (3600, 60),
@@ -168,7 +137,7 @@ def format_seconds_to(
     elif rem:
         res = f'{tot_int:.0f}{sep}{rem_int:0{rem}d}'
     else:
-        res = f"{tot_int:.0f}"
+        res = f"{total_seconds/_int:.0f}"
     
     if int_name:
         postfix = ('', 's')[tot_int>=2]
@@ -253,14 +222,46 @@ class Caliper:
 
         if align == 'center':
             d, r = divmod(pixlim, 2)
-            lpad = filler * int((d+r) /  self.strwidth(filler))
-            rpad = filler * int(d /  self.strwidth(filler))
+            lpad = filler * int(round((d+r) /  self.strwidth(filler), 0))
+            rpad = filler * int(round(d /  self.strwidth(filler), 0))
         else:
-            pad = filler * int(pixlim /  self.strwidth(filler))
+            pad = filler * int(round(pixlim /  self.strwidth(filler), 0))
             lpad = pad if align == 'right' else ''
             rpad = pad if align == 'left' else ''
 
         return lpad + ''.join(out) + rpad
     
-    def make_table(self, data:list, lim:Union[float, list], headers:list=None, suffix='... ', align:Union[str, list]='left', filler:str=' '):
-        ...
+    def make_table(self, 
+                    data:list[list], 
+                    pixlim:Union[float, list], 
+                    headers:list=None, 
+                    suffix='…', 
+                    align:Union[str, list]='left', 
+                    filler:str='\u2009', 
+                    sep:str=" | ",
+                    keep_last_border:bool=True):
+        if isinstance(pixlim, (float, int)):
+            part = pixlim / len(data[0])
+            pixlim = [part for _ in range(len(data[0]))]
+        sepw = (self.pixlen(sep) * (len(data[0]))-int(keep_last_border)) / len(data[0])
+        for i, p in enumerate(pixlim):
+            pixlim[i] = p - sepw
+        if isinstance(align, str):
+            align = [align for _ in range(len(data[0]))]
+        if headers:
+            data = [headers] + data
+        out = list()
+        for row in data:
+            new_row = ""
+            for i, text in enumerate(row):
+                new_row += self.make_cell(
+                    text, 
+                    pixlim=pixlim[i], 
+                    suffix=suffix,
+                    align=align[i],
+                    filler=filler
+                ) + sep
+            if not keep_last_border:
+                new_row = new_row[:-len(sep)]
+            out.append(new_row)
+        return "\n".join(out)
