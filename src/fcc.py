@@ -46,6 +46,7 @@ class fcc():
                     'cac':'Clear Application Cache - *key^help - runs cache_clear on an optional key',
                     'ssf':'Show Scanned Files - presents a list of all relevant files',
                     'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
+                    'cem':'Create Ephemeral Mistakes - shows current mistakes as flashcards',
                     }
 
 
@@ -162,12 +163,12 @@ class fcc():
                 del self.mw.mistakes_list[mistake_index]
                 self.mw.negatives-=1
                 self.mw.positives+=1
-                self.post_fcc('Score modified to positive.')
+                self.post_fcc('Score modified to positive')
             else:
                 self.mw.append_current_card_to_mistakes_list()
                 self.mw.positives-=1
                 self.mw.negatives+=1
-                self.post_fcc('Score modified to negative.')
+                self.post_fcc('Score modified to negative')
       
             self.mw.update_score_button() 
 
@@ -262,9 +263,7 @@ class fcc():
 
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
-        if not self.mw.db.filters["EFC_MODEL"]:
-            self.mw.db.refresh()
-            self.mw.get_complete_efc_table.cache_clear()
+        self.mw.db.refresh()
         recommendations = self.mw.get_complete_efc_table(preds=True)
         if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
             lim = int(parsed_cmd[1])
@@ -362,12 +361,12 @@ class fcc():
             new_filename
         )
         dbapi = api.DbOperator()
-        # TODO require globally unique
         if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
             return
         os.rename(self.mw.active_file.filepath, new_filepath)
-        dbapi.rename_signature(self.mw.active_file.signature, new_filename)
+        if self.mw.active_file.kind in self.mw.db.GRADED:
+            dbapi.rename_signature(self.mw.active_file.signature, new_filename)
         dbapi.reload_files_cache()
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
         self.post_fcc('Filename and Signature changed successfully')
@@ -464,7 +463,9 @@ class fcc():
             grep = None
         out, sep = list(), ' | '
         cell_args = {
-            'pixlim':(self.config['GEOMETRY']['fcc'][2]-self.mw.caliper.strwidth(sep))/2, 
+            'pixlim':(
+                0.94 * (self.config['GEOMETRY']['fcc'][2]-self.mw.caliper.strwidth(sep))/2
+            ), 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
         }
@@ -531,3 +532,18 @@ class fcc():
             self.post_fcc(msg)
         self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
         self.mw.db.reload_files_cache()
+
+    def cem(self, parsed_cmd:list):
+        '''Create Ephemeral Mistakes'''
+        if not self.mw.is_saved:
+            self.post_fcc("All cards must be reviewed before running this command")
+            return
+        elif not self.mw.mistakes_list:
+            self.post_fcc("No mistakes to save")
+            return
+        data = pd.DataFrame(
+            data=self.mw.mistakes_list, 
+            columns=self.mw.active_file.data.columns
+        )
+        self.mw.del_side_window()
+        self.mw.load_ephemeral_file(data)

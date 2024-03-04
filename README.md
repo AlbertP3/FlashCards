@@ -1,4 +1,4 @@
-# FlashCards 1.3.7
+# FlashCards 1.3.8
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -158,6 +158,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - cac - Clear Application Cache - *key^help - runs cache_clear on an optional key
 - ssf - Show Scanned Files - presents a list of all relevant files
 - clt - Create Language Tree - creates a directory tree for a new language and an example file
+- cem - Create Ephemeral Mistakes - shows current mistakes as flashcards
     
 
 ## Optional Features

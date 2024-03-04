@@ -34,6 +34,7 @@ class Message:
         self.RE_WARN = '⚠ Nothing Matched Regex!'
         self.UNSUP_EXT = '⚠ Unsupported File Extension'
         self.FILE_MISSING = '⛌ File Missing!'
+        self.FILE_INVALID = '⛌ Invalid File!'
         self.CANNOT_DELETE = '⛌ Cannot Delete'
         self.DELETE_COMPLETE = '🗑️ Deleted Record'
 
@@ -84,11 +85,14 @@ class CLI():
             self.fh = get_filehandler(self.config['SOD']['last_file'])
             self.init_set_languages()
             self.cls()
-        except FileNotFoundError:
+        except (FileNotFoundError, AttributeError) as e:
             self.fh = get_filehandler('.void')
             self.init_set_languages()
-            self.cls(self.msg.FILE_MISSING, keep_content=True)
-            log.debug(f"Initialized {type(self.fh).__name__} for {self.fh.path}")
+            err_msgs = {
+                'FileNotFoundError': self.msg.FILE_MISSING,
+                'AttributeError': self.msg.FILE_INVALID,
+            }
+            self.cls(err_msgs[type(e).__name__], keep_content=True)
 
 
     def init_cli_args(self):

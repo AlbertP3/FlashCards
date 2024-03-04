@@ -22,7 +22,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         sys.excepthook = self.excepthook
 
     def launch_app(self):
-        main_window_logic.__init__(self)
         self.build_interface()      
         self.initiate_timer()
         self.initiate_pace_timer()

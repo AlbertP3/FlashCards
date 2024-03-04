@@ -248,11 +248,17 @@ class db_queries:
         self.db = self.__get_filtered_by_lng(lngs)
         self.filters["BY_LNG"] = lngs
 
-    def get_avg_cpm(self):
-        return self.db["TOTAL"].sum() / (self.db["SEC_SPENT"].sum() / 60)
+    def get_avg_cpm(self, default = 0) -> float:
+        if div := self.db["SEC_SPENT"].sum():
+            return self.db["TOTAL"].sum() / (div / 60)
+        else:
+            return default
 
-    def get_avg_score(self):
-        return self.db["POSITIVES"].sum() / self.db["TOTAL"].sum()
+    def get_avg_score(self, default = 0) -> float:
+        if div := self.db["TOTAL"].sum():
+            return self.db["POSITIVES"].sum() / div
+        else:
+            return default
 
     def get_all(self):
         return self.db

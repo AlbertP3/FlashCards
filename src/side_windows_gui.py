@@ -478,7 +478,7 @@ class stats_gui(stats):
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
         ax.set_ylim([0, self.total_words+2])
         ax.tick_params(colors=self.config['THEME']['stat_chart_text_color'],
-                        labelrotation=-20,
+                        labelrotation=0,
                         pad=1)
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)

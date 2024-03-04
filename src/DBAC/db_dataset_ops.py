@@ -118,11 +118,12 @@ class db_dataset_ops:
             log.error(e, exc_info=True)
         return opstatus
 
-    def save_mistakes(
-        self, mistakes_list: list, cols: list, offset: int
-    ) -> pd.DataFrame:
+    def save_mistakes(self, mistakes_list: list, offset: int) -> pd.DataFrame:
         """Dump dataset to the Mistakes file"""
-        mistakes_list: pd.DataFrame = pd.DataFrame(data=mistakes_list, columns=cols)
+        mistakes_list: pd.DataFrame = pd.DataFrame(
+            data=mistakes_list, 
+            columns=self.active_file.data.columns
+        )
         basename = f"{self.active_file.lng}_mistakes"
         mfd = FileDescriptor(
             basename=basename,

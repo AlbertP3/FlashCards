@@ -293,4 +293,5 @@ class CLI:
         self.send_output(
             f"Applied new {self.selected_approach} model: {self.selected_model}"
         )
+        self.db.refresh()
         self.step.done.disp = True

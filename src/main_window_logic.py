@@ -11,14 +11,15 @@ class main_window_logic():
 
     def __init__(self):
         self.config = Config()
+        self.current_index = 0
         self.words_back = 0
         self.cards_seen_sides = list()
         self.update_default_side()
+        self.add_default_side()
         self.default_side = self.get_default_side()
         self.side = self.default_side
         self.revmode = False
         self.total_words = 0
-        self.current_index = 0
         self.cards_seen = 0
         self.revision_summary = None
         self.is_saved = False
@@ -54,8 +55,8 @@ class main_window_logic():
 
     def goto_next_card(self):
         if self.total_words >= self.current_index + 1:
-            self.side = self.get_default_side()
             self.append_current_index()
+            self.side = self.get_default_side()
 
 
     def append_current_index(self):
@@ -63,6 +64,7 @@ class main_window_logic():
         # Track cards seen
         if self.current_index > self.cards_seen:
             self.cards_seen = self.current_index
+            self.add_default_side()
         
 
     def decrease_current_index(self, value=1):
@@ -71,12 +73,11 @@ class main_window_logic():
 
             
     def words_back_mode(self):
-        wordback_mode = False
         if self.words_back > 0:
             self.words_back-=1
             if self.words_back == 0 and self.revmode:
-                wordback_mode = True
-        return wordback_mode
+                return True
+        return False
 
 
     def record_revision_to_db(self, seconds_spent=0):
@@ -137,19 +138,20 @@ class main_window_logic():
     def update_backend_parameters(self):
         self.config.update({'onload_filepath': self.active_file.filepath})
         self.reset_flashcards_parameters()
-        fcc_queue.put(f'{"Revision" if self.is_revision else "Language"} loaded: {self.active_file.basename}')
+        fcc_queue.put(f'{self.db.KFN[self.active_file.kind]} loaded: {self.active_file.basename}')
 
 
     def reset_flashcards_parameters(self):
         self.current_index = 0
         self.cards_seen = 0
         self.cards_seen_sides = list()
+        self.add_default_side()
+        self.side = self.get_default_side()
         self.positives = 0
         self.negatives = 0
         self.words_back = 0
         self.mistakes_list = list()
         self.is_saved = False
-        self.side = self.get_default_side()
         self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
         self.auto_cfm_offset = 0
@@ -159,7 +161,6 @@ class main_window_logic():
     def save_to_mistakes_list(self):   
         mistakes_list = self.db.save_mistakes(
             mistakes_list = self.mistakes_list, 
-            cols = self.active_file.data.columns, 
             offset = self.auto_cfm_offset
         )
         self.auto_cfm_offset = mistakes_list.shape[0]  
@@ -191,26 +192,17 @@ class main_window_logic():
 
 
     def update_default_side(self):
-        # substitute get_default_side() via a first-class function
+        '''substitute add_default_side() via a first-class function'''
         default_side = self.config['card_default_side']
         if default_side.isnumeric():
             default_side = int(default_side)
-            self.get_default_side =  lambda: self.__get_default_side(default_side)
+            self.add_default_side =  lambda: self.cards_seen_sides.append(default_side)
         else:
-            self.get_default_side = lambda: self.__get_random_side()
+            self.add_default_side = lambda: self.cards_seen_sides.append(randint(0,1))
     
 
-    def __get_default_side(self, side) -> int:
-        if self.words_back == 0:
-            self.cards_seen_sides.append(side)
-        return side
-
-    def __get_random_side(self) -> int:
-        if self.words_back > 0:
-            return self.cards_seen_sides[-self.words_back]
-        else:
-            self.cards_seen_sides.append(randint(0,1))
-            return self.cards_seen_sides[-1]
+    def get_default_side(self):
+        return self.cards_seen_sides[self.current_index]
 
 
     def get_current_card(self):

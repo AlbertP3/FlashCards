@@ -57,7 +57,7 @@ class SummaryGenerator():
 
     def __setup_parameters(self):
         if self.config['opt']['dynamic_summary']:
-            self.db.filter_where_lng([self.signature])
+            self.db.filter_where_lng([self.db.active_file.lng])
             self.db.filter_where_positives_not_zero()
             avg_cpm = self.db.get_avg_cpm()
             avg_score = self.db.get_avg_score()
@@ -65,16 +65,16 @@ class SummaryGenerator():
             avg_cpm = 15
             avg_score = 0.6
 
-        self.PERCENTAGE_IMPRESSIVE = min(avg_score*1.182, 0.95)
-        self.PERCENTAGE_MEDIOCRE = avg_score
-        self.PERCENTAGE_BAD = avg_score*0.618
-        self.CPM_ULTRA_FAST = avg_cpm * 2.137
-        self.CPM_VERY_FAST = avg_cpm * 1.637
-        self.CPM_PRETTY_FAST = avg_cpm * 1.318
-        self.CPM_FAST = avg_cpm * 1.182
-        self.CPM_MEDIUM = avg_cpm
-        self.CPM_SLOW = avg_cpm * 0.818
-        self.CPM_ULTRA_SLOW = avg_cpm * 0.674
+        self.PERCENTAGE_IMPRESSIVE = avg_score*self.config["SUMMARY"]["astounding"]
+        self.PERCENTAGE_MEDIOCRE = avg_score * self.config["SUMMARY"]["mediocre"]
+        self.PERCENTAGE_BAD = avg_score * self.config["SUMMARY"]["awful"]
+        self.CPM_ULTRA_FAST = avg_cpm * self.config["SUMMARY"]["astounding"]
+        self.CPM_VERY_FAST = avg_cpm * self.config["SUMMARY"]["excellent"]
+        self.CPM_PRETTY_FAST = avg_cpm * self.config["SUMMARY"]["impressive"]
+        self.CPM_FAST = avg_cpm * self.config["SUMMARY"]["good"]
+        self.CPM_MEDIUM = avg_cpm * self.config["SUMMARY"]["mediocre"]
+        self.CPM_SLOW = avg_cpm * self.config["SUMMARY"]["bad"]
+        self.CPM_ULTRA_SLOW = avg_cpm * self.config["SUMMARY"]["awful"]
 
 
     def __get_summary_first_rev(self):
