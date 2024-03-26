@@ -253,7 +253,7 @@ class fcc():
         except KeyError:
             self.post_fcc("No cached data for current file. Use *lln* first to create it")
             return
-        diff = self.mw.active_file.data.shape[0] - i_prev + 1
+        diff = self.mw.active_file.data.shape[0] - i_prev
         if diff <= 1:
             self.post_fcc("No new cards")
             return
@@ -356,17 +356,20 @@ class fcc():
             self.post_fcc('cfn requires a filename arg')
             return
         new_filename = ' '.join(parsed_cmd[1:])
-        new_filepath = self.mw.active_file.filepath.replace(
-            self.mw.active_file.basename,
-            new_filename
-        )
         dbapi = api.DbOperator()
         if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
             return
+        new_filepath = os.path.join(
+            os.path.dirname(self.mw.active_file.filepath), 
+            f"{new_filename}{self.mw.active_file.ext}"
+        )
         os.rename(self.mw.active_file.filepath, new_filepath)
         if self.mw.active_file.kind in self.mw.db.GRADED:
             dbapi.rename_signature(self.mw.active_file.signature, new_filename)
+        if iln := self.config["ILN"].get(self.mw.active_file.filepath):
+            self.config["ILN"][new_filepath] = iln
+            del self.config["ILN"][self.mw.active_file.filepath]
         dbapi.reload_files_cache()
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
         self.post_fcc('Filename and Signature changed successfully')

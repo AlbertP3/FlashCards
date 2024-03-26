@@ -331,7 +331,6 @@ class DictDiki(TemplateDict):
         return res
 
 
-
     def fetch_data_target(self, bs:bs4.BeautifulSoup):
         if self.source_lng in self.diki_mapping.keys():
             res = self._fetch_data_target_incl(bs)
@@ -379,10 +378,11 @@ class DictLocal(TemplateDict):
 
     def get(self, word:str):
         try:
-            transl, orig = SOD.file_handler.ACTIVE_FH.get_translations_with_regex(
-                word, 
-                self.source_lng==SOD.file_handler.ACTIVE_FH.native_lng
-            )
+            from_native = self.source_lng == SOD.file_handler.ACTIVE_FH.native_lng
+            if self.config['SOD']['use_regex']:
+                transl, orig = SOD.file_handler.ACTIVE_FH.get_translations_with_regex(word, from_native)
+            else:
+                transl, orig = SOD.file_handler.ACTIVE_FH.get_translations(word, from_native)
             if transl:
                 err = []
             else:

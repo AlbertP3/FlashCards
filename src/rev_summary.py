@@ -101,11 +101,11 @@ class SummaryGenerator():
 
     def __get_summary_close_to_record(self):
         if self.diff_to_record == 0:
-            incentive = "Which is still completely pathetic." if self.score <= self.PERCENTAGE_MEDIOCRE else "Way to go!"
+            incentive = "Which is still completely pathetic." if self.score <= self.PERCENTAGE_BAD else "Way to go!"
             progress = f'You matched all-time record for this revision! {incentive}'
         elif self.diff_to_record > 0:
             suffix = '' if self.diff_to_record == 1 else 's'
-            incentive = "But it's still entirely pathetic." if self.score <= self.PERCENTAGE_MEDIOCRE else "But that's still an excellent score."
+            incentive = "But it's still entirely pathetic." if self.score <= self.PERCENTAGE_BAD else "But that's still an excellent score."
             progress = f"You missed all-time record by only {self.diff_to_record} card{suffix}. {incentive}"      
         return progress
 

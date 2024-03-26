@@ -31,7 +31,7 @@ class Timespent_BE:
             # create column with time for each lng in config
             grand_total_time = list()
             for l in lngs:  
-                db[l] = db.loc[db.iloc[:, 1].str.contains(l)]['SEC_SPENT']
+                db[l] = db[db["LNG"]==l]['SEC_SPENT']
                 grand_total_time.append(db[l].sum())
 
             # group by selected interval - removes SIGNATURE

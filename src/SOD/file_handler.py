@@ -60,7 +60,7 @@ class FileHandler(ABC):
         tran, orig = list(), list()
         i = int(is_from_native)
         for v in self.data.values():
-            if v[i] == phrase:
+            if phrase.lower() in v[i].lower():
                 tran.append(v[1 - i]), orig.append(v[i])
         return tran, orig
 

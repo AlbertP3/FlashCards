@@ -26,6 +26,7 @@ class fcc_gui():
         self.CMDS_LOG = ['']
         self.tmp_cmd = ""  # partial command typed before closing the console
         self.CMDS_CURSOR = 0
+        self.newline = "\n"  # TODO remove in python3.12
         self.rt_re = re.compile('[^\u0000-\uFFFF]')
         self.console = None
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'main')
@@ -46,7 +47,13 @@ class fcc_gui():
     
     @property
     def promptend(self) -> int:
-        return self.rt_re.sub('  ', self.console.toPlainText()).rfind(self.CONSOLE_PROMPT)+len(self.CONSOLE_PROMPT)
+        return (
+            self.rt_re.sub("  ", self.console.toPlainText()).rfind(
+                f"{self.newline}{self.CONSOLE_PROMPT}"
+            )
+            + len(self.CONSOLE_PROMPT)
+            + 1
+        )
 
     def get_input(self) -> str:
         return self.console.toPlainText()[self.promptend:]
@@ -86,6 +93,7 @@ class fcc_gui():
         self.console.setFont(self.CONSOLE_FONT)
         self.console.setAcceptRichText(False)
         self.console.setStyleSheet(self.textbox_stylesheet)
+        self.console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.fcc_inst.update_console_id(self.console)
        
 

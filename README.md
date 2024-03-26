@@ -1,4 +1,4 @@
-# FlashCards 1.3.8
+# FlashCards 1.3.9
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -73,6 +73,7 @@ Statistics shows scores for each time currently loaded *Revision* was reviewed. 
 ![SOD Window](src/res/imgs/ss_sod.png)
 
 Search Online Dictionaries facilitates managing cards in the datasets via a command line interface - translation for the searched phrase are fetched from the online/local service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the 'help' command - a local source can also be used. Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate. Ultimately, a card can be added relying solely on the user input by entering the manual mode (manual_mode_sep)
+- type \help to get a list of tips and available commands
 - It is normal for the separating line not to align perfectly, as shown above. It is due to different pixel widths of certain characters such as 車 compared to an 'a' (of which both have len()=1) or using non-monospaced fonts. To alleviate this issue, a Caliper is used to measure actual pixel widths of characters and pads the cell with \u2009 (half-width space) instead of \u0020 (normal whitespace) as some fonts may remain in the asian input mode thus using double-width space.
 
 ## EFC Model Optimizer

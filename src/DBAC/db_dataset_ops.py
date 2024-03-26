@@ -24,7 +24,7 @@ class FileDescriptor:
     signature: str = None
     tmp: bool = False
     mtime: int = None
-    parent: dict = None # {filepath: str, len_: int}
+    parent: dict = None  # {filepath: str, len_: int}
 
     def __str__(self) -> str:
         return f"{self.filepath}"
@@ -59,7 +59,7 @@ class db_dataset_ops:
                 f"{'Temporary' if self.__AF.tmp else 'Regular'} "
                 f"{self.KFN[self.__AF.kind]}: {self.__AF}"
             ),
-            stacklevel=3
+            stacklevel=3,
         )
         if (
             len(d := {f.basename for f in self.files.values() if f.data is not None})
@@ -121,8 +121,7 @@ class db_dataset_ops:
     def save_mistakes(self, mistakes_list: list, offset: int) -> pd.DataFrame:
         """Dump dataset to the Mistakes file"""
         mistakes_list: pd.DataFrame = pd.DataFrame(
-            data=mistakes_list, 
-            columns=self.active_file.data.columns
+            data=mistakes_list, columns=self.active_file.data.columns
         )
         basename = f"{self.active_file.lng}_mistakes"
         mfd = FileDescriptor(
@@ -192,7 +191,7 @@ class db_dataset_ops:
         fcc_queue.put(operation_status)
         return fd.data
 
-    def load_tempfile(self, data, kind, basename, lng,  parent:dict, signature=None):
+    def load_tempfile(self, data, kind, basename, lng, parent: dict, signature=None):
         fd = FileDescriptor(
             basename=basename,
             filepath=None,
@@ -292,7 +291,9 @@ class db_dataset_ops:
     def get_sorted_revisions(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.get_files().items() if v.kind == self.KINDS.rev],
-            key=lambda fd: self.get_first_datetime(fd.signature),
+            key=lambda fd: self.get_first_datetime(
+                fd.signature, default=datetime(2137, 12, 31)
+            ),
             reverse=True,
         )
 
@@ -349,8 +350,10 @@ class db_dataset_ops:
             ]
         return files_list
 
-    def get_all_files(self, dirs:set=None, use_basenames=False, excl_ext=False) -> set:
-        '''Returns files for all languages'''
+    def get_all_files(
+        self, dirs: set = None, use_basenames=False, excl_ext=False
+    ) -> set:
+        """Returns files for all languages"""
         out = set()
         dirs = dirs or {self.REV_DIR, self.LNG_DIR, self.MST_DIR}
         for lng in os.listdir(self.DATA_PATH):
@@ -358,10 +361,7 @@ class db_dataset_ops:
                 for kind in dirs:
                     for f in os.listdir(os.path.join(self.DATA_PATH, lng, kind)):
                         fp = os.path.join(os.path.join(self.DATA_PATH, lng, kind, f))
-                        if (
-                            os.path.isfile(fp) 
-                            and not f.startswith("__")
-                        ):
+                        if os.path.isfile(fp) and not f.startswith("__"):
                             out.add(fp)
             except FileNotFoundError:
                 pass
@@ -371,9 +371,5 @@ class db_dataset_ops:
             out = {os.path.splitext(f)[0] for f in out}
         return out
 
-    def get_available_languages(self, ignore:set={"arch"}) -> set:
-        return {
-            lng for lng 
-            in os.listdir(self.DATA_PATH) 
-            if lng not in ignore
-        }
+    def get_available_languages(self, ignore: set = {"arch"}) -> set:
+        return {lng for lng in os.listdir(self.DATA_PATH) if lng not in ignore}

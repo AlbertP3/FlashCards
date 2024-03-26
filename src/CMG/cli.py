@@ -23,7 +23,7 @@ class CLI:
 
     def get_card_prompt(self, side:int):
         prefix = 'First' if side==0 else 'Second'
-        return f'{prefix} side:'
+        return f'{prefix} side: '
 
     def reverse_current_card(self, parsed_cmd:list):
         side = self.sout.mw.side

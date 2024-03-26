@@ -158,6 +158,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.textbox.setReadOnly(True)
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
+        self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return self.textbox
 
 

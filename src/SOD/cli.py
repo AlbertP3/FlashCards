@@ -6,7 +6,7 @@ import os
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
 from DBAC.api import DbOperator
-from utils import Config, Caliper
+from utils import config, Caliper
 
 log = logging.getLogger("SOD")
 
@@ -37,20 +37,26 @@ class Message:
         self.FILE_INVALID = '⛌ Invalid File!'
         self.CANNOT_DELETE = '⛌ Cannot Delete'
         self.DELETE_COMPLETE = '🗑️ Deleted Record'
+        self.INVALID_INPUT = '⛌ Invalid Input!'
 
 class Prompt:
     def __init__(self) -> None:
-        self.PHRASE = 'Search: '
+        self.SEARCH = 'Search: '
+        self.MATCH = 'Match: '
         self.SELECT = 'Select for {}: '
         self.MANUAL_PH = 'Phrase: '
         self.MANUAL_TR = 'Transl: '
+        self.update_phrase_prompt()
+    
+    def update_phrase_prompt(self):
+        self.PHRASE = self.MATCH if config['SOD']['use_regex'] else self.SEARCH
 
 
 
 class CLI():
 
     def __init__(self, output) -> None:
-        self.config = Config()
+        self.config = config
         self.state = State()
         self.prompt = Prompt()
         self.msg = Message()
@@ -101,6 +107,8 @@ class CLI():
         self.queue_arg = self.config['SOD']['queue_start_arg']
         self.chg_db_arg = self.config['SOD']['change_db_arg']
         self.list_files_arg = self.config['SOD']['list_files_arg']
+        self.regex_arg = self.config['SOD']['regex_arg']
+        self.help_arg = self.config['SOD']['help_arg']
 
 
     def init_set_languages(self):
@@ -171,7 +179,7 @@ class CLI():
             self.setup_queue()
         elif parsed_phrase[0] == self.list_files_arg:
             self.list_files()
-        elif parsed_phrase[0] == 'help':
+        elif parsed_phrase[0] == self.help_arg:
             self.show_help()
         else:
             self.handle_single_entry(' '.join(parsed_phrase))
@@ -193,7 +201,10 @@ class CLI():
                 capture = 'change_db'
             elif i == self.dict_arg:
                 capture = 'change_dict'
-            else: break
+            elif i == self.regex_arg:
+                self.toggle_regex()
+            else:
+                break
             parsed_cmd = parsed_cmd[1:]
             if bool(src_lng) ^ bool(tgt_lng):
                 self.dicts.switch_languages(src_lng, tgt_lng)
@@ -203,8 +214,17 @@ class CLI():
                 self.dicts.set_languages(src_lng, tgt_lng)
                 self.update_last_source_lng()
                 self.cls()
-        return parsed_cmd
+        if capture:
+            self.cls(self.msg.INVALID_INPUT)
+            return ""
+        else:
+            return parsed_cmd
 
+    def toggle_regex(self):
+        self.config["SOD"]["use_regex"] = not self.config["SOD"]["use_regex"]
+        self.prompt.update_phrase_prompt()
+        self.set_output_prompt(self.prompt.PHRASE)
+        self.cls()
 
     def list_files(self):
         '''Send list of all available files to the console'''
@@ -655,30 +675,31 @@ class CLI():
 
 
     def show_help(self):
-        available_dicts = '\t'+'\n\t'.join([f"{k:<10} {v['shortname']}" for k, v in self.dicts.dicts.items()])
+        available_dicts = ' '+'\n '.join([f"{k:<10} {v['shortname']}" for k, v in self.dicts.dicts.items()])
         cmds = self.caliper.make_table([
-            [f'\t{self.chg_db_arg} <DB_NAME>', 'change database file'], 
-            [f'\t{self.dict_arg} <DICT>', 'switch current dictionary'], 
-            [f'\t{self.config["SOD"]["manual_mode_seq"]}', 'enter the manual input mode'],
-            [f"\t{self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"],
-            [f"\t{self.list_files_arg}", "list available files"],
-            ['\tQ', 'enter Queue mode'], 
-            ["\t(<SRC_LNG>^<TGT_LNG>)", "change source/target language"], 
-            ["\t<blank>", "exit SOD or finish Queue mode"]
+            [f' {self.chg_db_arg} <DB_NAME>', 'change database file'], 
+            [f' {self.dict_arg} <DICT>', 'switch current dictionary'], 
+            [f' {self.config["SOD"]["manual_mode_seq"]}', 'enter the manual input mode'],
+            [f" {self.sep_manual} <PHRASE> {self.sep_manual} <MEANING>", "manual input"],
+            [f" {self.list_files_arg}", "list available files"],
+            [f" {self.regex_arg}", f"toggle regex"],
+            [' Q', 'enter Queue mode'], 
+            [" (<SRC_LNG>^<TGT_LNG>)", "change source/target language"], 
+            [" <blank>", "exit SOD or finish Queue mode"]
             ],
             pixlim = self.pix_limit,
             sep=' --> ', align=['left', 'left'], keep_last_border=False)
         mods = self.caliper.make_table([
-            ["\te<N>", 'edit the N-th translation'],
-            ["\tm*<N>", 'modify searched phrase'],
-            ["\ta", 'add a new translation'],
-            ["\tr<N>", 'add a reversed translation'],
-            ["\td<N>", 'remove record from source file'],
-            ["\t<blank>", 'abort']
+            [" e<N>", 'edit the N-th translation'],
+            [" m*<N>", 'modify searched phrase'],
+            [" a", 'add a new translation'],
+            [" r<N>", 'add a reversed translation'],
+            [" d<N>", 'remove record from source file'],
+            [" <blank>", 'abort']
             ],
             pixlim = self.pix_limit,
             sep=' --> ', align=['left', 'left'], keep_last_border=False)
-        msg = f'''Commands:\n{cmds}\nSearch results modification:\n{mods}\nAvailable dicts:\n{available_dicts}'''
+        msg = f'''Commands:\n{cmds}\nSearch results mods:\n{mods}\nAvailable dicts:\n{available_dicts}'''
 
         self.cls()
         self.send_output(msg)
