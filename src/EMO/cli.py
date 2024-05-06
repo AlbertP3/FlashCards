@@ -262,7 +262,7 @@ class CLI:
         if self.step.examples.disp:
             self.set_output_prompt("Approve [Y/n]: ")
             self.cls()
-            self.send_output(f"______ {self.selected_model} ______")
+            self.send_output(f"_______ {self.selected_model} _______")
             *_, values, preds = self.models_creator.evaluation[self.selected_model]
 
             diffs = (preds - values) / values

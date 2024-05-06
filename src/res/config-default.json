@@ -1,5 +1,5 @@
 {
-    "version": "1.3.9",
+    "version": "1.3.10",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -30,6 +30,18 @@
     "after_face": "You have reached the world's edge, none but devils play past here",
     "cell_alignment": "left",
     "ILN": {},
+    "FAV": {
+        "headless": true,
+        "cmd": [
+            "mcr"
+        ]
+    },
+    "CRE": {
+        "reversed": true,
+        "last_completed": "never",
+        "count": 0,
+        "items": []
+    },
     "SOD": {
         "last_file": null,
         "exclude_pattern": "arch",
@@ -55,7 +67,6 @@
         "prev": "Left",
         "negative": "Down",
         "reverse": "Up",
-        "change_revmode": "x",
         "del_cur_card": "d",
         "load_again": "r",
         "timespent": "t",
@@ -67,7 +78,8 @@
         "load": "l",
         "mistakes": "m",
         "stats": "s",
-        "save": "w"
+        "save": "w",
+        "fav": "f"
     },
     "THEME": {
         "textbox_height": 280,
@@ -89,6 +101,25 @@
         "stat_chart_text_color": "#eeeeee",
         "default_ps1": "> ",
         "console_margin": 0.97
+    },
+    "ICONS": {
+        "next": "Next",
+        "prev": "Prev",
+        "reverse": "Reverse",
+        "positive": "✔️",
+        "negative": "❌",
+        "score": "<>",
+        "save": "💾",
+        "del": "🗑",
+        "again": "⟳",
+        "words": "-",
+        "timer": "⏲",
+        "efc": "📜",
+        "load": "📂",
+        "stats": "🎢",
+        "progress": "🏆",
+        "config": "⚙️",
+        "fav": "★"
     },
     "EMO": {
         "discretizer": "decision-tree",

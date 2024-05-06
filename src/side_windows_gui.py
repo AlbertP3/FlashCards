@@ -145,17 +145,9 @@ class fcc_gui():
         
 
     def run_command(self):
-        # format user input
-        trimmed_command = self.console.toPlainText()
-        
-        # get command from last line
-        trimmed_command = trimmed_command.split('\n')[-1][len(self.CONSOLE_PROMPT):].strip()
-        self.add_cmd_to_log(trimmed_command)
-
-        # execute command
-        parsed_command = [x for x in trimmed_command.split(' ')]
-        self.fcc_inst.execute_command(parsed_command)
-
+        cmd = self.console.toPlainText().split("\n")[-1][len(self.CONSOLE_PROMPT):]
+        self.add_cmd_to_log(cmd)
+        self.fcc_inst.execute_command(cmd.split(" "))
         self.move_cursor_to_end()
     
 
@@ -171,7 +163,7 @@ class efc_gui(EFC):
         self.side_window_titles['efc'] = 'EFC'
         self.cur_efc_index = 0
         # add button to main window
-        self.efc_button = self.create_button("📜", self.get_efc_sidewindow)
+        self.efc_button = self.create_button(self.config["ICONS"]["efc"], self.get_efc_sidewindow)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
         self.init_shortcuts_efc()
         
@@ -257,7 +249,7 @@ class load_gui:
         self.side_window_titles['load'] = 'Load'
         self.cur_load_index = 0
         # add button to main window
-        self.load_button = self.create_button('Load', self.get_load_sidewindow)
+        self.load_button = self.create_button(self.config["ICONS"]["load"], self.get_load_sidewindow)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
         self.init_shortcuts_load()
 
@@ -310,6 +302,7 @@ class load_gui:
 
 
     def fill_flashcard_files_list(self):
+        self.db.refresh()
         self.load_map, i = dict(), 0
         for fd in self.db.get_sorted_languages():
             self.flashcard_files_qlist.addItem(fd.basename)
@@ -413,7 +406,7 @@ class stats_gui(stats):
     def __init__(self):
         self.side_window_titles['stats'] = 'Statistics'
         stats.__init__(self)
-        self.stats_button = self.create_button('🎢', self.get_stats_sidewindow)
+        self.stats_button = self.create_button(self.config["ICONS"]["stats"], self.get_stats_sidewindow)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
         self.init_shortcuts_stats()
 
@@ -536,7 +529,7 @@ class progress_gui(stats):
     def __init__(self):
         stats.__init__(self)
         self.side_window_titles['progress'] = 'Progress'
-        self.progress_button = self.create_button('🏆', self.get_progress_sidewindow)
+        self.progress_button = self.create_button(self.config["ICONS"]["progress"], self.get_progress_sidewindow)
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
         self.init_shortcuts_progress()
     
@@ -639,7 +632,7 @@ class config_gui():
     def __init__(self):
         self.side_window_titles['config'] = 'Settings'
         self.config = Config()
-        self.config_button = self.create_button('⚙️', self.get_config_sidewindow)
+        self.config_button = self.create_button(self.config["ICONS"]['config'], self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         self.add_shortcut('config', self.get_config_sidewindow, 'main')
 
@@ -835,7 +828,7 @@ class timer_gui():
         self.side_window_titles['timer'] = 'Time Spent'
         self.data_getter = timer.Timespent_BE()
         self.TIMER_FONT_SIZE = 12
-        self.timer_button = self.create_button('⏲', self.get_timer_sidewindow)
+        self.timer_button = self.create_button(self.config["ICONS"]["timer"], self.get_timer_sidewindow)
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
         self.TIMER_FONT = QtGui.QFont('Consolas', self.TIMER_FONT_SIZE)
         self.init_shortcuts_timer()

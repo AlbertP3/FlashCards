@@ -1,0 +1,14 @@
+{
+    "font_color": "#E0E0E0",
+    "main_style_sheet": "background-color: #121212; margin:0px; border:1px solid #2C2C2C; padding:0px;",
+    "textbox_style_sheet": "color: #E0E0E0; background-color: #1C1C1E; border-radius: 5px; line-height: 150%; margin:0px;",
+    "button_style_sheet": "background-color: #242426; color: #E0E0E0; border-radius: 5px;",
+    "stat_bar_color": "#242426",
+    "stat_background_color": "#1C1C1E",
+    "stat_chart_background_color": "#1C1C1E",
+    "stat_chart_text_color": "#E0E0E0",
+    "font": "FiraCode Nerd Font",
+    "font_button_size": 14,
+    "default_suffix": "—",
+    "console_font_size": 14
+}

@@ -37,6 +37,7 @@ class db_dataset_ops:
     def __init__(self):
         self.empty_df = pd.DataFrame(data=[["-", "-"]])
         self.__AF = FileDescriptor(tmp=True, data=self.empty_df)
+        self.__nsre = re.compile(r"(\d+)")
 
     @property
     def active_file(self):
@@ -287,30 +288,34 @@ class db_dataset_ops:
         os.makedirs(self.make_filepath(lng, self.MST_DIR))
         fcc_queue.put(f"Created directory tree for {lng}")
 
+    def nat_sort(self, s: str):
+        return [
+            (int(text) if text.isdigit() else text.lower())
+            for text in self.__nsre.split(s)
+        ]
+
     @cache
     def get_sorted_revisions(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.get_files().items() if v.kind == self.KINDS.rev],
-            key=lambda fd: self.get_first_datetime(
-                fd.signature, default=datetime(2137, 12, 31)
-            ),
-            reverse=True,
+            key=lambda fd: self.nat_sort(fd.basename),
+            reverse=False,
         )
 
     @cache
     def get_sorted_languages(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.get_files().items() if v.kind == self.KINDS.lng],
-            key=lambda fd: fd.basename,
-            reverse=True,
+            key=lambda fd: self.nat_sort(fd.basename),
+            reverse=False,
         )
 
     @cache
     def get_sorted_mistakes(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.get_files().items() if v.kind == self.KINDS.mst],
-            key=lambda fd: fd.basename,
-            reverse=True,
+            key=lambda fd: self.nat_sort(fd.basename),
+            reverse=False,
         )
 
     def delete_card(self, i):

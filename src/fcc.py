@@ -23,8 +23,8 @@ class fcc():
                     'rcc':'Reverse Current Card - changes sides of currently displayed card and updates the source file',
                     'mcr':'Modify Card Result - allows changing pos/neg for the current card',
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
-                    'lln':'Load Last N, loads N-number of words from the original file, starting from the end',
-                    'iln':'Incremental Last N - executes *lln* with parameters stored in cache',
+                    'lbi':'Load By Index, loads a range of cards. Syntax: <start_index> *<end_index>',
+                    'iln':'Incremental Last N - executes *lbi* with parameters stored in cache. Syntax: *<lim_cards>',
                     'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of revisions displayed. Additionaly, shows predicted time until the next revision',
                     'mcp':'Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>',
                     'sck':'Show Config Key: Syntax: sck *<sub_dict> <key>',
@@ -33,7 +33,6 @@ class fcc():
                     'sah':'Show Progress Chart for all languages',
                     'scs':'Show Current Signature',
                     'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.',
-                    'sod':'Scrape online dictionary - *<word/s> *-d <dict name>. Default - curr card in google translate.',
                     'gwd':'Get Window Dimensions',
                     'pcc':'Pull Current Card - load the origin file and updates the currently displayed card',
                     'sod':'Scrape Online Dictionaries - fetch data from online sources using a cli',
@@ -47,11 +46,12 @@ class fcc():
                     'ssf':'Show Scanned Files - presents a list of all relevant files',
                     'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
                     'cem':'Create Ephemeral Mistakes - shows current mistakes as flashcards',
+                    'cre':'Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed <true,false>, stat',
                     }
 
 
     def execute_command(self, parsed_input:list, followup_prompt:bool=True):
-        if not parsed_input[-1]:
+        if not parsed_input[0]:
             return
         elif self.is_allowed_command(parsed_input[0]):
             methodcaller(parsed_input[0], parsed_input)(self)
@@ -81,21 +81,22 @@ class fcc():
 
 
     def help(self, parsed_cmd):
+        lim = self.config["GEOMETRY"]["fcc"][2] * self.config['THEME']['console_margin']
         if len(parsed_cmd) == 1:
             printout = self.mw.caliper.make_table(
                 data = self.DOCS,
-                pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                pixlim = [0.1*lim, 0.9*lim],
                 align=['left', 'left'], 
-                sep='-',
+                sep=' - ',
             )
         else:
             command = parsed_cmd[1]
             if command in self.DOCS.keys():
                 printout = self.mw.caliper.make_table(
                     data = [[command, self.DOCS[command]]],
-                    pixlim = self.mw.console.width()*self.config['THEME']['console_margin'],
+                    pixlim = [0.1*lim, 0.9*lim],
                     align=['left', 'left'], 
-                    sep='-',
+                    sep=' - ',
                 )
             else: # regex search command descriptions
                 try:
@@ -105,7 +106,6 @@ class fcc():
                         if rp.search(v) or rp.search(k):
                             matching.append([k, v])
                     try:
-                        lim = self.mw.console.width()*self.config['THEME']['console_margin']
                         printout = self.mw.caliper.make_table(
                             data = matching,
                             pixlim = [0.1*lim, 0.9*lim],
@@ -202,30 +202,27 @@ class fcc():
 
 
     @require_regular_file
-    def lln(self, parsed_cmd):
-        '''load last N cards from dataset'''
-        if len(parsed_cmd) in (2,3):
-            for i in parsed_cmd[1:]:
-                try:
-                    if abs(int(i)) < 1:
-                        self.post_fcc('Number of cards must be a number greater than 0')
-                        return
-                except ValueError:
-                    self.post_fcc(f'Invalid Syntax: {i} is not numeric')
-                    return
-        else:
-            self.post_fcc('Invalid Syntax! Expected: lln <num_of_cards> *<last_cards>')
+    def lbi(self, parsed_cmd):
+        '''Load By Index'''        
+        try:
+            start = int(parsed_cmd[1])
+            if len(parsed_cmd) == 3 and parsed_cmd[2]:
+                end = int(parsed_cmd[2])
+            else:
+                end = None
+        except ValueError:
+            self.post_fcc("Only numeric arguments are accepted")
+            return
+        except IndexError:
+            self.post_fcc('Invalid Syntax! Expected: <start_index> *<end_index>')
+            return
+
+        try:
+            data = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False).iloc[start:end, :]
+        except IndexError:
+            self.post_fcc("Index out of range!")
             return
         
-        # get last N records from the file -> shuffle only the part
-        n_cards = abs(int(parsed_cmd[1]))
-        l_cards = abs(int(parsed_cmd[2])) if len(parsed_cmd)==3 else 0
-
-        if l_cards == 0:
-            data = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False).iloc[-n_cards:, :]
-        else:
-            n_cards, l_cards = sorted([n_cards, l_cards], reverse=True)
-            data = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False).iloc[-n_cards:-l_cards, :]
         self.mw.db.load_tempfile(
             basename=f"{self.mw.active_file.lng}{len(data)}", 
             data=data,
@@ -233,7 +230,7 @@ class fcc():
             kind=self.mw.db.KINDS.lng,
             parent={
                 "filepath": self.mw.active_file.filepath, 
-                "len_":  self.mw.active_file.data.shape[0],
+                "len_":  end or self.mw.active_file.data.shape[0],
             },
         )
         self.mw.db.shuffle_dataset()
@@ -242,7 +239,7 @@ class fcc():
         self.refresh_interface()
         self.mw.reset_timer()
         self.mw.start_file_update_timer() 
-        self.post_fcc(f'Loaded last {len(data)} cards')
+        self.post_fcc(f'Loaded {len(data)} cards')
 
 
     @require_regular_file
@@ -250,15 +247,28 @@ class fcc():
         '''Incremental Load N'''
         try:
             i_prev = self.config["ILN"][self.mw.active_file.filepath]
+            self.post_fcc(f"Using cached data [{i_prev}]")
         except KeyError:
-            self.post_fcc("No cached data for current file. Use *lln* first to create it")
+            i_prev = 0
+            self.post_fcc("No cached data")
+        
+        try:
+            lim = int(parsed_cmd[1])
+            if lim <= 0:
+                self.post_fcc("Limit must be greater than 0")
+                return
+            end = lim + i_prev
+        except ValueError:
+            self.post_fcc("Limit must be a numeric!")
             return
+        except IndexError:
+            end = None
+
         diff = self.mw.active_file.data.shape[0] - i_prev
         if diff <= 1:
             self.post_fcc("No new cards")
             return
-        self.post_fcc(f"Using cached data [{i_prev}]")
-        self.lln(["lln", diff])
+        self.lbi(["lbi", i_prev, end])
         
 
     def efc(self, parsed_cmd):
@@ -310,7 +320,7 @@ class fcc():
         if len(parsed_cmd) == 1:
             msg = self.mw.caliper.make_table(
                 data=content,
-                pixlim = self.console.width()*self.config['THEME']['console_margin'],
+                pixlim = self.config["GEOMETRY"]["fcc"][2] * self.config['THEME']['console_margin'],
                 headers=headers,
                 align=['left', 'center', 'center'],
             )
@@ -324,7 +334,7 @@ class fcc():
             if content:
                 msg = self.mw.caliper.make_table(
                     data=content,
-                    pixlim = self.console.width()*self.config['THEME']['console_margin'],
+                    pixlim = self.config["GEOMETRY"]["fcc"][2] * self.config['THEME']['console_margin'],
                     headers=headers,
                     align=['left', 'center', 'center'],
                 )
@@ -550,3 +560,39 @@ class fcc():
         )
         self.mw.del_side_window()
         self.mw.load_ephemeral_file(data)
+
+    def cre(self, parsed_cmd:list):
+        '''Comprehensive Review'''
+        if len(parsed_cmd) >= 2:
+            if parsed_cmd[1] == "flush":
+                self.config["CRE"]["items"].clear()
+                self.config["CRE"]["count"] == 0
+                self.post_fcc("Flushed CRE queue")
+            elif parsed_cmd[1] == "stat":
+                if self.config["CRE"]["count"]:
+                    self.post_fcc(
+                        f"Revisions left: {len(self.config['CRE']['items'])}/{self.config['CRE']['count']}"
+                    )
+                else:
+                    self.post_fcc("CRE is not active!")
+                self.post_fcc(f"Last completed: {self.config['CRE']['last_completed']}")
+            elif parsed_cmd[1] == "reversed" and len(parsed_cmd) == 3:
+                rev = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
+                self.config["CRE"]["reversed"] = rev
+                self.post_fcc(f"CRE reverse order set to: {rev}")
+            else:
+                self.post_fcc("Unknown argument!")
+        elif self.config["CRE"]["items"]:
+            # items are removed only after the rev is recorded
+            next_rev = self.config["CRE"]["items"][-self.config["CRE"]["reversed"]]
+            if next_rev == self.mw.active_file.filepath:
+                self.post_fcc("Please finish your current revision to proceed to the next one")
+            else:
+                self.mw.initiate_flashcards(self.mw.db.files[next_rev])
+        else:
+            revs = [fd.filepath for fd in self.mw.db.get_sorted_revisions()]
+            self.config["CRE"]["items"] = revs
+            self.config["CRE"]["count"] = len(revs)
+            self.post_fcc(f"CRE initiated with {self.config['CRE']['count']} revisions")
+            next_rev = self.config["CRE"]["items"][-self.config["CRE"]["reversed"]]
+            self.mw.initiate_flashcards(self.mw.db.files[next_rev])

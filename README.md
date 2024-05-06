@@ -1,4 +1,4 @@
-# FlashCards 1.3.9
+# FlashCards 1.3.10
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -136,8 +136,8 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - rcc - Reverse Current Card - changes sides of currently displayed card and updates the source file
 - mcr - Modify Card Result - allows changing pos/neg for the current card
 - dcc - Delete Current Card - deletes card both in current set and in the file
-- lln - Load Last N, loads N-number of words from the original file, starting from the end
-- iln - Incremental Last N - executes *lln* with parameters stored in cache
+- lbi - Load By Index, loads a range of cards. Syntax: start_index *end_index
+- iln - Incremental Last N - executes *lbi* with parameters stored in cache. Syntax: *lim_cards
 - efc - Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of *Revisions* displayed. Additionaly, shows predicted time until the next revision,
 - mcp - Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}
 - sck - Show Config Key: Syntax: sck *{sub_dict} {key}
@@ -146,7 +146,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - sah - Show Progress Chart for all languages
 - scs - Show Current Signature
 - lor - List Obsolete Revisions - returns a list of *Revisions* that are in DB but not in *Revisions* folder.
-- sod - Scrape online dictionary - *{word/s} *-d {dict name}. Default - curr card in google translate.
 - gwd - Get Window Dimensions
 - pcc - Pull Current Card - load the origin file and updates the currently displayed card
 - sod - Scrape Online Dictionaries - fetch data from online sources using a cli
@@ -160,6 +159,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - ssf - Show Scanned Files - presents a list of all relevant files
 - clt - Create Language Tree - creates a directory tree for a new language and an example file
 - cem - Create Ephemeral Mistakes - shows current mistakes as flashcards
+- cre - Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed {true,false}, stat
     
 
 ## Optional Features
@@ -184,6 +184,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - csv_sniffer: allows use of custom separators eg. ';,'. Defaults to a comma if turned off
 - after_face: text to be displayed after *Language* cards range is exceeded
 - RECOMMENDATIONS: key-value pairs specyfing encouraging texts for recommend_new entries
+- FAV: determines behaviour of the Favourite button
 
 
 ## Known Bugs

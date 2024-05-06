@@ -71,8 +71,8 @@ class Timespent_BE:
             self.visible_total_time = [format_seconds_to(t, "hour", null_format="-", pref_len=col_space, sep=':', rem=2) for t in self.visible_total_time]
             self.gt_times = [format_seconds_to(t, "hour", null_format="-", pref_len=col_space, sep=':', rem=2) for t in self.gt_times]
             res += '\n' + '-'*len(res.split('\n')[1])
-            res += '\n∑       ' + ' '.join(self.visible_total_time)
-            res += '\nTOTAL   ' + ' '.join(self.gt_times)
+            res += '\n∑    ' + " "*(col_space-1) + ' '.join(self.visible_total_time)
+            res += '\nTOTAL' + " "*(col_space-1) + ' '.join(self.gt_times)
             return res
 
 

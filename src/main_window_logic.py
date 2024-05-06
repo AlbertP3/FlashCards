@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from random import randint
 from DBAC.api import DbOperator, FileDescriptor
 from utils import *
@@ -120,11 +121,25 @@ class main_window_logic():
         self.active_file.kind = self.db.KINDS.rev
         if isinstance(self.active_file.parent, dict):
             self.config["ILN"][self.active_file.parent["filepath"]] = self.active_file.parent["len_"]
+        self.__handle_cre()
         self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
         newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
 
+
+    def __handle_cre(self):
+        if self.active_file.filepath in self.config["CRE"]["items"]:
+            self.config["CRE"]["items"].remove(self.active_file.filepath)
+            if self.config["CRE"]["items"]:
+                self.fcc_inst.post_fcc(
+                f"Revisions left: {len(self.config['CRE']['items'])}/{self.config['CRE']['count']}"
+            )
+            else:
+                self.fcc_inst.post_fcc(f"CRE finished - {self.config['CRE']['count']} revisions completed")
+                self.fcc_inst.post_fcc(f"Congratulations!!!")
+                self.config["CRE"]["last_completed"] = datetime.now().strftime(f"%Y-%m-%d %H:%M:%S")
+                self.config["CRE"]["count"] == 0
 
     def change_revmode(self, force_which=None):
         if self.active_file.kind == self.db.KINDS.lng or self.is_saved:

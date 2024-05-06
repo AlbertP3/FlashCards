@@ -171,11 +171,11 @@ class db_queries:
         except:
             return 0
 
-    def get_first_datetime(self, signature, default=datetime(1900, 1, 1)) -> datetime:
+    def get_first_datetime(self, signature) -> datetime:
         try:
             return self.db[self.db["SIGNATURE"] == signature].iloc[0]["TIMESTAMP"]
         except IndexError:
-            return default
+            return self.DEFAULT_DATE
 
     def get_last_datetime(self, signature) -> datetime:
         try:

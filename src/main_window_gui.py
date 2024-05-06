@@ -46,9 +46,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def configure_window(self):
         # Window Parameters
-        self.C_MG = 5  # Content Margin
-        self.LEFT = 10
-        self.TOP = 10
+        self.LAYOUT_MARGINS = (1, 1, 1, 2)
         self.TEXTBOX_HEIGHT = self.config['THEME']['textbox_height']
         self.BUTTONS_HEIGHT = self.config['THEME']['buttons_height']
 
@@ -79,8 +77,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.layout is None:
             self.layout = widget.QGridLayout()
             self.setLayout(self.layout)
-        # left, top, right, bottom
-        self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
+        self.layout.setContentsMargins(*self.LAYOUT_MARGINS)
         self.FONT = self.config['THEME']['font']
         self.FONT_BUTTON_SIZE = self.config['THEME']['font_button_size']
         self.FONT_TEXTBOX_SIZE = self.config['THEME']['font_textbox_size']
@@ -105,17 +102,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout.addLayout(self.layout_fourth_row, 3, 0)
 
         # Buttons
-        self.next_button = self.create_button('Next', self.click_next_button)
-        self.prev_button = self.create_button('Prev', self.click_prev_button)
-        self.reverse_button = self.create_button('Reverse', self.reverse_side)
-        self.positive_button = self.create_button('✔️', self.click_positive)
-        self.negative_button = self.create_button('❌', self.click_negative)
-        self.score_button = self.create_button('<>')
-        self.save_button = self.create_button('Save', self.click_save_button)
-        self.del_button = self.create_button('🗑', self.delete_current_card)
-        self.load_again_button = self.create_button('⟳', self.load_again_click)
-        self.revmode_button = self.create_button('RM:OFF')  # TODO
-        self.words_button = self.create_button('-')
+        self.next_button = self.create_button(self.config["ICONS"]["next"], self.click_next_button)
+        self.prev_button = self.create_button(self.config["ICONS"]["prev"], self.click_prev_button)
+        self.reverse_button = self.create_button(self.config["ICONS"]["reverse"], self.reverse_side)
+        self.positive_button = self.create_button(self.config["ICONS"]["positive"], self.click_positive)
+        self.negative_button = self.create_button(self.config["ICONS"]["negative"], self.click_negative)
+        self.score_button = self.create_button(self.config["ICONS"]["score"])
+        self.save_button = self.create_button(self.config["ICONS"]["save"], self.click_save_button)
+        self.del_button = self.create_button(self.config["ICONS"]["del"], self.delete_current_card)
+        self.load_again_button = self.create_button(self.config["ICONS"]["again"], self.load_again_click)
+        self.words_button = self.create_button(self.config["ICONS"]["words"])
 
         # Widgets
         self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
@@ -136,7 +132,24 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
-        self.layout_fourth_row.addWidget(self.revmode_button, 3, 4)
+
+        self.create_favourite_button()
+
+
+    def __fav_button_action(self):
+            for msg in fcc_queue.dump():
+                self.fcc_inst.post_fcc(msg)
+            self.fcc_inst.execute_command(self.config["FAV"]["cmd"])
+            if not self.config["FAV"]["headless"]:
+                self.get_fcc_sidewindow()
+
+    def create_favourite_button(self):
+        self.fav_button = self.create_button(
+            self.config["ICONS"]["fav"],
+            self.__fav_button_action
+        )
+        self.add_shortcut('fav', self.__fav_button_action, 'main')
+        self.layout_fourth_row.addWidget(self.fav_button, 3, 4)
 
 
     def set_theme(self):
@@ -157,7 +170,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.textbox.setFont(self.TEXTBOX_FONT)
         self.textbox.setReadOnly(True)
         self.textbox.setStyleSheet(self.textbox_stylesheet)
-        self.textbox.setAlignment(QtCore.Qt.Alignment(QtCore.Qt.AlignCenter))
+        self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return self.textbox
 
@@ -174,7 +187,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def display_text(self, text:str):
-        width_factor =  max(int((self.frameGeometry().width())/43-len(text)/30), 0)
+        width_factor =  max(int((self.frameGeometry().width())/37-len(text)/30), 0)
         self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
         self.textbox.setText(text)
@@ -328,7 +341,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.add_shortcut('negative', self.ks_nav_negative, 'main')
         self.add_shortcut('prev', self.click_prev_button, 'main')
         self.add_shortcut('reverse', self.reverse_side, 'main')
-        self.add_shortcut('change_revmode', self.change_revmode, 'main')
         self.add_shortcut('del_cur_card', self.delete_current_card, 'main')
         self.add_shortcut('load_again', self.load_again_click, 'main')
         self.add_shortcut('save', self.click_save_button, 'main')
@@ -403,13 +415,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.add_window_in_place(layout, name)
         else:
             self.del_side_window_in_place()
-        self.move(self.pos()) 
     
     def add_window_in_place(self, layout, name):
         self.side_window_layout = layout
         self.toggle_primary_widgets_visibility(False)
-        self.layout.addLayout(self.side_window_layout, 0, 1, 5, 1)
-        self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG,self.C_MG)
+        self.layout.addLayout(self.side_window_layout, 0, 0)
         self.side_window_id = name
         self.set_geometry(self.config['GEOMETRY'][name])
     
@@ -417,9 +427,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.remove_layout(self.side_window_layout)
         self.toggle_primary_widgets_visibility(True)
         self.side_window_id = 'main'
-        self.layout.setContentsMargins(self.C_MG,self.C_MG,self.C_MG, self.C_MG)
         self.set_geometry(self.config['GEOMETRY']['main'])
-
 
     def open_side_by_side(self, layout, name):
         if self.side_window_id != name:
@@ -461,16 +469,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             else:
                 self.positive_button.show()
                 self.negative_button.show()
-            self.prev_button.show(); self.reverse_button.show(); self.score_button.show(); self.save_button.show()
-            self.del_button.show(); self.load_again_button.show(); self.revmode_button.show(); self.words_button.show(); 
-            self.textbox.show(); self.stats_button.show(); self.progress_button.show(); self.efc_button.show()
-            self.config_button.show(); self.timer_button.show(); self.load_button.show()
+
+            for widget in self.get_children_widgets(self.layout):
+                widget.show()
         else:
-            self.next_button.hide(); self.prev_button.hide(); self.reverse_button.hide(); self.positive_button.hide()
-            self.negative_button.hide(); self.score_button.hide(); self.save_button.hide(); self.del_button.hide()
-            self.load_again_button.hide(); self.revmode_button.hide(); self.words_button.hide(); self.textbox.hide()
-            self.stats_button.hide(); self.progress_button.hide(); self.efc_button.hide(); self.config_button.hide()
-            self.timer_button.hide(); self.load_button.hide()
+            for widget in self.get_children_widgets(self.layout):
+                widget.hide()
 
 
     def keyPressEvent(self, event):
@@ -494,10 +498,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
-            self.revmode_button.setText('RM:ON')
         else:
             self.nav_buttons_visibility_control(False, False, True)
-            self.revmode_button.setText('RM:OFF')
         
         if not self.is_revision and force_which is None:
             self.fcc_inst.post_fcc('Revision mode is unavailable for a Language.')
@@ -712,12 +714,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return layouts
 
 
-    def get_children_widgets(self, layout):
-        widgets = list()
+    def get_children_widgets(self, layout) -> set:
+        widgets = set()
         for i in range(layout.count()):
-                w = layout.itemAt(i)
-                if w is not None:
-                    widgets.append(w.widget())
+            item = layout.itemAt(i)
+            if item.widget():
+                widgets.add(item.widget())
+            elif item.layout():
+                widgets.update(
+                    self.get_children_widgets(item.layout())
+                )
         return widgets
 
 

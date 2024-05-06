@@ -186,11 +186,15 @@ class Caliper:
         if excess <= 0:
             return text
         else:
-            i = 0
-            while excess > 0:
-                i -= 1
-                excess -= self.strwidth(text[i])
-            return text[:i]
+            try:
+                i = 0
+                while excess > 0:
+                    i -= 1
+                    excess -= self.strwidth(text[i])
+            except IndexError:
+                return text
+            else:
+                return text[:i]
 
     def make_cell(self, text:str, pixlim:float, suffix:str='…', align:str='left', 
                   filler:str='\u2009'
@@ -215,8 +219,11 @@ class Caliper:
   
         if should_add_suffix:
             suf_len = self.strwidth(suffix)
-            while pixlim < suf_len:
-                pixlim+=self.pixlen(out.pop())
+            try:
+                while pixlim < suf_len:
+                    pixlim += self.pixlen(out.pop())
+            except IndexError:
+                pass
             out.append(suffix)
             pixlim -= suf_len
 
