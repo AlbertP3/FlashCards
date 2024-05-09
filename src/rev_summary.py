@@ -12,9 +12,9 @@ class SummaryGenerator():
     def get_summary_text(self, positives, total, time_spent):
             self.db.refresh()
             self.signature = self.db.active_file.signature
-            last_positives = self.db.get_last_positives(self.signature, req_pos=True)
+            last_positives = self.db.get_last_positives(self.signature, req_pos_not_zero=True)
             max_positives = self.db.get_max_positives_count(self.signature)
-            last_time_spent = self.db.get_last_time_spent(self.signature, req_pos=True)
+            last_time_spent = self.db.get_last_time_spent(self.signature, req_pos_not_zero=True)
 
             self.__setup_parameters()
 
@@ -146,7 +146,7 @@ class SummaryGenerator():
                     res = f"At the cost of time however - you were {abs(self.diff_time)} seconds slower than last time."
             else:
                 if self.cpm_score >= self.CPM_ULTRA_FAST:
-                    res = f"However I smell a rat here somewhere..."
+                    res = f"Testing on production again?"
                 elif self.cpm_score >= self.CPM_VERY_FAST:
                     res = f"{self.cpm_score:.0f} CPM - Faster than Light!"
                 elif self.cpm_score >= self.CPM_FAST:

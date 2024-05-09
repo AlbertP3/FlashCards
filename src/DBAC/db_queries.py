@@ -100,7 +100,7 @@ class db_queries:
         log.debug(f"Renamed signature '{old}' to '{new}'")
 
     def get_unique_signatures(self):
-        return self.db["SIGNATURE"].drop_duplicates()
+        return self.db["SIGNATURE"].drop_duplicates(inplace=False)
 
     def get_unique_signatures_with_existing_files(self) -> set:
         return set(self.db["SIGNATURE"].unique()).intersection(
@@ -134,40 +134,40 @@ class db_queries:
         else:
             return self.db[self.db[col] == condition]
 
-    def get_last_positives(self, signature=None, req_pos: bool = False):
+    def get_last_positives(self, signature=None, req_pos_not_zero=False) -> int:
         try:
             res = self.get_filtered_db_if("SIGNATURE", signature)
-            if req_pos:
+            if req_pos_not_zero:
                 for _, row in res.iloc[::-1].iterrows():
                     if row["POSITIVES"] != 0:
-                        return row["POSITIVES"]
-            return res["POSITIVES"].iloc[-1]
+                        return int(row["POSITIVES"])
+            return int(res["POSITIVES"].iloc[-1])
         except:
             return 0
 
-    def get_last_time_spent(self, signature=None, req_pos=False):
+    def get_last_time_spent(self, signature=None, req_pos_not_zero=False) -> int:
         try:
             res = self.get_filtered_db_if("SIGNATURE", signature)
-            if req_pos:
+            if req_pos_not_zero:
                 for _, row in res.iloc[::-1].iterrows():
                     if row["POSITIVES"] != 0:
-                        return row["SEC_SPENT"]
-            return res["SEC_SPENT"].iloc[-1]
+                        return int(row["SEC_SPENT"])
+            return int(res["SEC_SPENT"].iloc[-1])
         except:
             return 0
 
-    def get_total_words(self, signature=None):
+    def get_total_words(self, signature=None) -> int:
         try:
             res = self.get_filtered_db_if("SIGNATURE", signature)
-            return res["TOTAL"].iloc[-1]
+            return int(res["TOTAL"].iloc[-1])
         except:
             return 0
 
-    def get_max_positives_count(self, signature=None):
+    def get_max_positives_count(self, signature=None) -> int:
         try:
             positives_list = self.get_filtered_db_if("SIGNATURE", signature)
             positives_list = positives_list["POSITIVES"]
-            return positives_list.max()
+            return int(positives_list.max())
         except:
             return 0
 
@@ -265,3 +265,15 @@ class db_queries:
 
     def get_unique_languages(self) -> list:
         return self.db['LNG'].drop_duplicates(inplace=False).values.tolist()
+    
+    def get_cards_total(self, signatures:list) -> int:
+        db = self.db.drop_duplicates(subset="SIGNATURE", keep="last")
+        return int(db[db["SIGNATURE"].isin(signatures)]["TOTAL"].sum())
+
+    def get_cre_data(self, signature: str) -> dict:
+        """Fetch data for <signature> latest"""
+        return {
+            "cards_seen": self.get_total_words(signature),
+            "time_spent": self.get_last_time_spent(signature),
+            "positives": self.get_last_positives(signature),
+        }

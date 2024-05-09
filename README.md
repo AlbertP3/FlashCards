@@ -1,4 +1,4 @@
-# FlashCards 1.3.10
+# FlashCards 1.3.11
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -159,7 +159,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - ssf - Show Scanned Files - presents a list of all relevant files
 - clt - Create Language Tree - creates a directory tree for a new language and an example file
 - cem - Create Ephemeral Mistakes - shows current mistakes as flashcards
-- cre - Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed {true,false}, stat
+- cre - Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext {true,false}, stat
     
 
 ## Optional Features
@@ -184,7 +184,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - csv_sniffer: allows use of custom separators eg. ';,'. Defaults to a comma if turned off
 - after_face: text to be displayed after *Language* cards range is exceeded
 - RECOMMENDATIONS: key-value pairs specyfing encouraging texts for recommend_new entries
-- FAV: determines behaviour of the Favourite button
 
 
 ## Known Bugs

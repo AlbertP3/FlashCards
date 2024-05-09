@@ -1,5 +1,5 @@
 {
-    "version": "1.3.10",
+    "version": "1.3.11",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -30,16 +30,16 @@
     "after_face": "You have reached the world's edge, none but devils play past here",
     "cell_alignment": "left",
     "ILN": {},
-    "FAV": {
-        "headless": true,
-        "cmd": [
-            "mcr"
-        ]
-    },
     "CRE": {
-        "reversed": true,
+        "reversed": false,
+        "auto_save_mistakes": true,
+        "auto_next": true,
         "last_completed": "never",
         "count": 0,
+        "positives": 0,
+        "cards_total": 0,
+        "time_spent": 0,
+        "cards_seen": 0,
         "items": []
     },
     "SOD": {
@@ -79,7 +79,7 @@
         "mistakes": "m",
         "stats": "s",
         "save": "w",
-        "fav": "f"
+        "sod": "f"
     },
     "THEME": {
         "textbox_height": 280,
@@ -93,8 +93,8 @@
         "font_textbox_size": 32,
         "font_color": "#eeeeee",
         "main_style_sheet": "background-color: #383838; margin:0px; border:1px solid #000000; padding:0px;",
-        "textbox_style_sheet": "color: #eeeeee; background-color: #393939; border-radius: 5px;line-height: 12%; margin:0px;",
-        "button_style_sheet": "background-color: #434343; color: #eeeeee; border-radius: 5px;",
+        "textbox_style_sheet": "color: #eeeeee; background-color: #393939; border-radius: 1px;line-height: 12%; margin:0px;",
+        "button_style_sheet": "*{background-color: #242426; color: #E0E0E0; border-radius: 1px;} *:hover{background-color: #303032;} *:pressed {background-color: #343436;}",
         "stat_bar_color": "#434343",
         "stat_background_color": "#393939",
         "stat_chart_background_color": "#393939",
@@ -119,7 +119,7 @@
         "stats": "🎢",
         "progress": "🏆",
         "config": "⚙️",
-        "fav": "★"
+        "sod": "📖"
     },
     "EMO": {
         "discretizer": "decision-tree",
@@ -140,62 +140,42 @@
     },
     "GEOMETRY": {
         "default": [
-            722,
-            331,
             475,
             450
         ],
         "main": [
-            1068,
-            374,
             476,
             452
         ],
         "load": [
-            912,
-            1505,
             475,
             450
         ],
         "efc": [
-            870,
-            1447,
             475,
             450
         ],
         "config": [
-            10,
-            1280,
-            475,
-            468
+            675,
+            467
         ],
         "fcc": [
-            1416,
-            703,
             822,
             430
         ],
         "mistakes": [
-            912,
-            1505,
             878,
             498
         ],
         "stats": [
-            870,
-            1447,
             852,
             498
         ],
         "progress": [
-            1044,
-            1482,
             880,
             498
         ],
         "timer": [
-            870,
-            1447,
             362,
             415
         ]

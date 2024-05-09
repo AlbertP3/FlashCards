@@ -135,7 +135,7 @@ def format_seconds_to(
     if null_format is not None and tot_int + rem_int == 0:
         res = null_format
     elif rem:
-        res = f'{tot_int:.0f}{sep}{rem_int:0{rem}d}'
+        res = f'{tot_int:.0f}{sep}{rem_int:02d}'
     else:
         res = f"{total_seconds/_int:.0f}"
     

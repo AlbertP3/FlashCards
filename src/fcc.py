@@ -35,7 +35,6 @@ class fcc():
                     'lor':'List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.',
                     'gwd':'Get Window Dimensions',
                     'pcc':'Pull Current Card - load the origin file and updates the currently displayed card',
-                    'sod':'Scrape Online Dictionaries - fetch data from online sources using a cli',
                     'emo':'EFC Model Optimizer - employs regression and machine learning techniques to adjust efc model for the user needs',
                     'rgd':'Reset Geometry Defaults',
                     'err':'Raises an Exception',
@@ -46,7 +45,7 @@ class fcc():
                     'ssf':'Show Scanned Files - presents a list of all relevant files',
                     'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
                     'cem':'Create Ephemeral Mistakes - shows current mistakes as flashcards',
-                    'cre':'Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed <true,false>, stat',
+                    'cre':'Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext <true,false>, stat',
                     }
 
 
@@ -67,11 +66,7 @@ class fcc():
         return command in self.DOCS.keys()
     
 
-    def refresh_interface(self):
-        self.mw.update_interface_parameters()
-
-
-    def post_fcc(self, text:str): 
+    def post_fcc(self, text:str=""): 
         self.console.append(text)
         self.mw.CONSOLE_LOG.append(text)
     
@@ -81,7 +76,7 @@ class fcc():
 
 
     def help(self, parsed_cmd):
-        lim = self.config["GEOMETRY"]["fcc"][2] * self.config['THEME']['console_margin']
+        lim = self.config["GEOMETRY"]["fcc"][0] * self.config['THEME']['console_margin']
         if len(parsed_cmd) == 1:
             printout = self.mw.caliper.make_table(
                 data = self.DOCS,
@@ -156,7 +151,7 @@ class fcc():
         is_wordsback_mode = self.mw.words_back != 0
 
         if not is_wordsback_mode:
-            self.post_fcc('Card not yet checked.')
+            self.post_fcc('Card not yet checked')
         else:
             if is_mistake:
                 mistake_index = mistakes_one_side.index(self.mw.get_current_card().iloc[self.mw.side])
@@ -236,7 +231,7 @@ class fcc():
         self.mw.db.shuffle_dataset()
         self.mw.del_side_window()
         self.mw.update_backend_parameters()
-        self.refresh_interface()
+        self.mw.update_interface_parameters()
         self.mw.reset_timer()
         self.mw.start_file_update_timer() 
         self.post_fcc(f'Loaded {len(data)} cards')
@@ -320,7 +315,7 @@ class fcc():
         if len(parsed_cmd) == 1:
             msg = self.mw.caliper.make_table(
                 data=content,
-                pixlim = self.config["GEOMETRY"]["fcc"][2] * self.config['THEME']['console_margin'],
+                pixlim = self.config["GEOMETRY"]["fcc"][0] * self.config['THEME']['console_margin'],
                 headers=headers,
                 align=['left', 'center', 'center'],
             )
@@ -334,7 +329,7 @@ class fcc():
             if content:
                 msg = self.mw.caliper.make_table(
                     data=content,
-                    pixlim = self.config["GEOMETRY"]["fcc"][2] * self.config['THEME']['console_margin'],
+                    pixlim = self.config["GEOMETRY"]["fcc"][0] * self.config['THEME']['console_margin'],
                     headers=headers,
                     align=['left', 'center', 'center'],
                 )
@@ -477,7 +472,7 @@ class fcc():
         out, sep = list(), ' | '
         cell_args = {
             'pixlim':(
-                0.94 * (self.config['GEOMETRY']['fcc'][2]-self.mw.caliper.strwidth(sep))/2
+                0.94 * (self.config['GEOMETRY']['fcc'][0]-self.mw.caliper.strwidth(sep))/2
             ), 
             'suffix':self.config['THEME']['default_suffix'], 
             'align':self.config['cell_alignment']
@@ -565,21 +560,25 @@ class fcc():
         '''Comprehensive Review'''
         if len(parsed_cmd) >= 2:
             if parsed_cmd[1] == "flush":
-                self.config["CRE"]["items"].clear()
-                self.config["CRE"]["count"] == 0
+                self.mw._flush_cre()
                 self.post_fcc("Flushed CRE queue")
-            elif parsed_cmd[1] == "stat":
+            elif parsed_cmd[1].startswith("stat"):
                 if self.config["CRE"]["count"]:
-                    self.post_fcc(
-                        f"Revisions left: {len(self.config['CRE']['items'])}/{self.config['CRE']['count']}"
-                    )
+                    self.post_fcc(self.mw._get_cre_stat())
                 else:
-                    self.post_fcc("CRE is not active!")
-                self.post_fcc(f"Last completed: {self.config['CRE']['last_completed']}")
+                    self.post_fcc(f"Last finished on {self.config['CRE']['last_completed']}")
             elif parsed_cmd[1] == "reversed" and len(parsed_cmd) == 3:
                 rev = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
                 self.config["CRE"]["reversed"] = rev
                 self.post_fcc(f"CRE reverse order set to: {rev}")
+            elif parsed_cmd[1] == "autosave" and len(parsed_cmd) == 3:
+                auto_save = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
+                self.config["CRE"]["auto_save_mistakes"] = auto_save
+                self.post_fcc(f"CRE auto save mistakes set to: {auto_save}")
+            elif parsed_cmd[1] == "autonext" and len(parsed_cmd) == 3:
+                auto_next = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
+                self.config["CRE"]["auto_next"] = auto_next
+                self.post_fcc(f"CRE auto continue set to: {auto_next}")
             else:
                 self.post_fcc("Unknown argument!")
         elif self.config["CRE"]["items"]:
@@ -589,10 +588,18 @@ class fcc():
                 self.post_fcc("Please finish your current revision to proceed to the next one")
             else:
                 self.mw.initiate_flashcards(self.mw.db.files[next_rev])
-        else:
+        else:  # initiate CRE queue
             revs = [fd.filepath for fd in self.mw.db.get_sorted_revisions()]
             self.config["CRE"]["items"] = revs
             self.config["CRE"]["count"] = len(revs)
-            self.post_fcc(f"CRE initiated with {self.config['CRE']['count']} revisions")
+            self.config["CRE"]["cards_seen"] = 0
+            self.config["CRE"]["time_spent"] = 0
+            self.config["CRE"]["positives"] = 0
+            self.config["CRE"]["cards_total"] = self.mw.db.get_cards_total(
+                [fd.signature for fd in self.mw.db.get_sorted_revisions()]
+            )
+            self.post_fcc(
+                f"CRE initiated with {self.config['CRE']['cards_total']} cards in {self.config['CRE']['count']} revisions"
+            )
             next_rev = self.config["CRE"]["items"][-self.config["CRE"]["reversed"]]
             self.mw.initiate_flashcards(self.mw.db.files[next_rev])

@@ -46,7 +46,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def configure_window(self):
         # Window Parameters
-        self.LAYOUT_MARGINS = (1, 1, 1, 2)
+        self.LAYOUT_MARGINS = (1, 1, 1, 1)
         self.TEXTBOX_HEIGHT = self.config['THEME']['textbox_height']
         self.BUTTONS_HEIGHT = self.config['THEME']['buttons_height']
 
@@ -101,6 +101,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout.addLayout(self.layout_third_row, 2, 0)
         self.layout.addLayout(self.layout_fourth_row, 3, 0)
 
+        self.layout.setSpacing(2)
+        self.layout_first_row.setSpacing(2)
+        self.layout_second_row.setSpacing(2)
+        self.layout_third_row.setSpacing(2)
+        self.layout_fourth_row.setSpacing(2)
+        self.layout_next_navigation.setSpacing(2)
+        self.side_window_layout.setSpacing(2)
+
         # Buttons
         self.next_button = self.create_button(self.config["ICONS"]["next"], self.click_next_button)
         self.prev_button = self.create_button(self.config["ICONS"]["prev"], self.click_prev_button)
@@ -133,23 +141,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
 
-        self.create_favourite_button()
+        self.create_sod_button()
 
 
-    def __fav_button_action(self):
-            for msg in fcc_queue.dump():
-                self.fcc_inst.post_fcc(msg)
-            self.fcc_inst.execute_command(self.config["FAV"]["cmd"])
-            if not self.config["FAV"]["headless"]:
-                self.get_fcc_sidewindow()
-
-    def create_favourite_button(self):
-        self.fav_button = self.create_button(
-            self.config["ICONS"]["fav"],
-            self.__fav_button_action
+    def create_sod_button(self):
+        self.sod_button = self.create_button(
+            self.config["ICONS"]["sod"],
+            self.get_sod_sidewindow
         )
-        self.add_shortcut('fav', self.__fav_button_action, 'main')
-        self.layout_fourth_row.addWidget(self.fav_button, 3, 4)
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'main')
+        self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
 
 
     def set_theme(self):
@@ -175,7 +176,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return self.textbox
 
 
-    def create_button(self, text, function=None):
+    def create_button(self, text, function=None) -> widget.QPushButton:
         new_button = widget.QPushButton(self)
         new_button.setMinimumHeight(self.BUTTONS_HEIGHT)
         new_button.setFont(self.BUTTON_FONT)
@@ -247,7 +248,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.update_backend_parameters()
         self.update_interface_parameters()
-        self.change_revmode(self.active_file.kind in self.db.GRADED)
         self.start_file_update_timer()
 
 
@@ -263,7 +263,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def update_interface_parameters(self):
         self.window_title = self.active_file.basename
         self.setWindowTitle(self.window_title)
-            
+        self.change_revmode(self.active_file.kind in self.db.GRADED)
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
         self.update_score_button()
@@ -329,11 +329,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.display_text(self.get_current_card().iloc[self.side])
         self.is_saved = True
-        self.change_revmode()
+        self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
         self.stop_pace_timer()
         if self.negatives != 0 and self.config["opt"]["show_mistakes_after_revision"]:
             self.get_mistakes_sidewindow()
+        self.handle_comprehensive_revision(self.active_file)
 
 
     def add_shortcuts(self): 
@@ -442,9 +443,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.textbox.setFixedWidth(self.textbox.width())
         self.textbox.setFixedHeight(self.textbox.height())
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.config['GEOMETRY'][name][2])
-        self.setFixedHeight(self.config['GEOMETRY']['main'][3])
-        self.setMinimumWidth(self.config['GEOMETRY']['main'][2])
+        self.setFixedWidth(self.config['GEOMETRY'][name][0])
+        self.setFixedHeight(self.config['GEOMETRY']['main'][1])
+        self.setMinimumWidth(self.config['GEOMETRY']['main'][0])
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
     
     def del_side_window_side_by_side(self): 
@@ -462,16 +463,15 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         obj.setMaximumHeight(widget.QWIDGETSIZE_MAX)
 
 
-    def toggle_primary_widgets_visibility(self, target_mode):
-        if target_mode:
-            if not self.revmode or self.words_back or self.is_saved: 
-                self.next_button.show()
-            else:
-                self.positive_button.show()
-                self.negative_button.show()
-
+    def toggle_primary_widgets_visibility(self, rev_mode):
+        if rev_mode:
             for widget in self.get_children_widgets(self.layout):
                 widget.show()
+            if not self.revmode or self.words_back or self.is_saved: 
+                self.positive_button.hide()
+                self.negative_button.hide()
+            else:
+                self.next_button.hide()
         else:
             for widget in self.get_children_widgets(self.layout):
                 widget.hide()
@@ -492,17 +492,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.move(frame_geo.topLeft())
 
 
-    def change_revmode(self, force_which=None):
-        # Wrapper for main_window_logic.change_revmode. Beware of the MRO.
-        super().change_revmode(force_which)
-
+    def change_revmode(self, new_mode: bool):
+        self.revmode = new_mode
         if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
         else:
             self.nav_buttons_visibility_control(False, False, True)
-        
-        if not self.is_revision and force_which is None:
-            self.fcc_inst.post_fcc('Revision mode is unavailable for a Language.')
 
 
     def update_words_button(self):
@@ -523,10 +518,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.notify_on_error(err_traceback, exc_value)
 
 
-    def set_geometry(self, rect:tuple[int,int,int,int]):
-        # Change widht and height only
+    def set_geometry(self, rect:tuple[int,int]):
         cur_geo = self.geometry().getRect()
-        self.setGeometry(cur_geo[0], cur_geo[1], rect[2], rect[3])
+        # x_adj + int((cur_geo[2] - rect[0]) // 2)
+        # y_adj + int((cur_geo[3] - rect[1]) // 2)
+        self.setGeometry(cur_geo[0], cur_geo[1], rect[0], rect[1])
 
 
     # =============== FILE UPDATE TIMER ================
@@ -539,7 +535,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     
     def start_file_update_timer(self):
         if not self.condition_to_run_file_update_timer(): return
-        self.fcc_inst.post_fcc('File update timer: started')
+        fcc_queue.put('File update timer: started')
         self.last_file_update_seconds_ago = 0
         self.file_update_timer.timeout.connect(self.file_update_timer_handler)
         self.file_update_timer.start(1000)    
@@ -550,12 +546,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         interval_sec = self.config['file_update_interval']
         if interval_sec == 0 or self.active_file.tmp:
             self.file_update_timer.stop()
-            self.fcc_inst.post_fcc('File update timer: stopped')
+            fcc_queue.put('File update timer: stopped')
         elif interval_sec <= self.last_file_update_seconds_ago:
             mod_time = os.path.getmtime(self.active_file.filepath)
             if mod_time > self.active_file.mtime:
                 self.update_dataset()
-                self.fcc_inst.post_fcc('Dataset refreshed')
+                fcc_queue.put('Dataset refreshed')
             self.last_file_update_seconds_ago = 0
             self.active_file.mtime = mod_time
 
@@ -714,7 +710,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return layouts
 
 
-    def get_children_widgets(self, layout) -> set:
+    def get_children_widgets(self, layout) -> set[widget.QPushButton]:
         widgets = set()
         for i in range(layout.count()):
             item = layout.itemAt(i)
@@ -732,4 +728,4 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()
+        self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()[2:]

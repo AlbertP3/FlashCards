@@ -24,7 +24,7 @@ class State:
 class Message:
     def __init__(self) -> None:
         self.PHRASE_EXISTS_IN_DB = '⚐ Duplicate'
-        self.SAVE_ABORTED = '󠁿󠁿🗙 Not Saved'
+        self.SAVE_ABORTED = ''
         self.NO_TRANSLATIONS = '⚠ No Translations!'
         self.WRONG_EDIT = '⚠ Wrong Edit!'
         self.OK = '✅ OK'
@@ -687,7 +687,7 @@ class CLI():
             [" (<SRC_LNG>^<TGT_LNG>)", "change source/target language"], 
             [" <blank>", "exit SOD or finish Queue mode"]
             ],
-            pixlim = self.pix_limit,
+            pixlim = 1.1*self.pix_limit,
             sep=' --> ', align=['left', 'left'], keep_last_border=False)
         mods = self.caliper.make_table([
             [" e<N>", 'edit the N-th translation'],
@@ -697,7 +697,7 @@ class CLI():
             [" d<N>", 'remove record from source file'],
             [" <blank>", 'abort']
             ],
-            pixlim = self.pix_limit,
+            pixlim = 1.1*self.pix_limit,
             sep=' --> ', align=['left', 'left'], keep_last_border=False)
         msg = f'''Commands:\n{cmds}\nSearch results mods:\n{mods}\nAvailable dicts:\n{available_dicts}'''
 

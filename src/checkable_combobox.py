@@ -13,8 +13,10 @@ class CheckableComboBox(QComboBox):
             size.setHeight(20)
             return size
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, layout, allow_multichoice:bool=True, width:float=0):
+        self.allow_multichoice = allow_multichoice
+        self._width = width or self.lineEdit().width()
+        super().__init__(layout)
 
         # Make the combo editable to set a custom text, but readonly
         self.setEditable(True)
@@ -58,6 +60,10 @@ class CheckableComboBox(QComboBox):
                 index = self.view().indexAt(event.pos())
                 item = self.model().item(index.row())
 
+                if not self.allow_multichoice:
+                    for i in range(self.model().rowCount()):
+                        self.model().item(i).setCheckState(Qt.Unchecked)
+
                 if item.checkState() == Qt.Checked:
                     item.setCheckState(Qt.Unchecked)
                 else:
@@ -91,7 +97,7 @@ class CheckableComboBox(QComboBox):
 
         # Compute elided text (with "...")
         metrics = QFontMetrics(self.lineEdit().font())
-        elidedText = metrics.elidedText(text, Qt.ElideRight, self.lineEdit().width())
+        elidedText = metrics.elidedText(text, Qt.ElideRight, self._width)
         self.lineEdit().setText(elidedText)
 
     def addItem(self, text, data=None, is_checked=False):

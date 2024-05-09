@@ -17,7 +17,7 @@ class stats():
         # get data
         self.chart_values = self.db.get_chart_positives()
         self.chart_dates = self.db.get_chart_dates()
-        self.total_words = self.db.get_total_words()
+        self.total_cards = self.db.get_total_words()
         self.total_seconds_spent = self.db.get_total_time_spent_for_signature()
         self.time_spent_seconds = self.db.get_chart_time_spent()
         self.missing_records_cnt = self.db.get_count_of_records_missing_time()
@@ -46,13 +46,13 @@ class stats():
 
 
     def create_dynamic_chain_percentages(self, tight_format:bool=True):
-        self.dynamic_chain_index = ["{:.0%}".format(self.chart_values[0]/self.total_words) if len(self.chart_values)>=1 else '']
+        self.dynamic_chain_index = ["{:.0%}".format(self.chart_values[0]/self.total_cards) if len(self.chart_values)>=1 else '']
         tight_format = '\n' if tight_format else ' '
         [self.dynamic_chain_index.append('{main_val:.0%}{tf}{sign_}{dynamic:.0f}pp'.format(
-            main_val = self.chart_values[x]/self.total_words,
+            main_val = self.chart_values[x]/self.total_cards,
             tf = tight_format,
             sign_ = get_sign(self.chart_values[x] -  self.chart_values[x-1], neg_sign=''), 
-            dynamic = 100*(self.chart_values[x] - self.chart_values[x-1])/self.total_words)) 
+            dynamic = 100*(self.chart_values[x] - self.chart_values[x-1])/self.total_cards)) 
             for x in range(1, len( self.chart_values))]
 
 

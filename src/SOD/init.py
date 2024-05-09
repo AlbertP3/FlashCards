@@ -13,15 +13,12 @@ class sod_spawn:
         self.cli = CLI(output=self.sout)
         self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
         self.cli.send_output(self.sout.mw.CONSOLE_PROMPT)
-        self.sout.mw.side_window_titles['fcc'] = 'Search Online Dictionaries'
-        self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles['fcc'])
 
     def adapt(self):
         self.HISTORY:list = self.sout.mw.CONSOLE_LOG.copy()
         self.CMD_HISTORY:list = self.sout.mw.CMDS_LOG.copy()
         self.sout.mw.CMDS_LOG = [""]
         self.sout.mw.CONSOLE_LOG = []
-        self.prev_window_title = self.sout.mw.side_window_titles['fcc']
         self.orig_post_method = self.sout.post_fcc
         self.orig_execute_method = self.sout.execute_command
         self.sout.post_fcc = self.monkey_patch_post
@@ -45,7 +42,6 @@ class sod_spawn:
 
     def remove_adapter(self):
         self.sout.post_fcc = self.orig_post_method
-        self.sout.mw.side_window_titles['fcc'] = self.prev_window_title
         self.sout.execute_command = self.orig_execute_method
         self.sout.mw.CONSOLE_LOG = self.HISTORY
         self.sout.mw.console.setText('\n'.join(self.sout.mw.CONSOLE_LOG))
@@ -63,13 +59,13 @@ class sod_spawn:
                 self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
             elif self.cli.state.QUEUE_MODE:
                 self.cli.setup_queue_unpacking()
-            else: # Exit SOD
-                self.sout.cls()
-                self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
-                self.cli.close_wb()
-                self.sout.mw.setWindowTitle(self.prev_window_title)
-                self.remove_adapter()
-                del self
+            else: # Exit SOD - not available in dedicated tab
+                self.cli.cls()
+                # self.sout.cls()
+                # self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
+                # self.cli.close_wb()
+                # self.remove_adapter()
+                # del self
         else:
             self.manage_modes(cmd)
 

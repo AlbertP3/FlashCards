@@ -85,6 +85,52 @@ class main_window_logic():
         self.db.create_record(self.total_words, self.positives, seconds_spent)
 
 
+    def handle_comprehensive_revision(self, fd: FileDescriptor):
+        # It is assumed that the corresponding revision was saved
+        if self.active_file.filepath in self.config["CRE"]["items"]:
+            upd = self.db.get_cre_data(fd.signature)
+            self.config["CRE"]["items"].remove(fd.filepath)
+            self.config["CRE"]["cards_seen"] += upd["cards_seen"]
+            self.config["CRE"]["time_spent"] += upd["time_spent"]
+            self.config["CRE"]["positives"] += upd["positives"]
+
+            fcc_queue.put(self._get_cre_stat())
+
+            if self.config["CRE"]["items"]:
+                if self.config["CRE"]["auto_save_mistakes"] and self.mistakes_list:
+                    self.save_to_mistakes_list()
+                if self.config["CRE"]["auto_next"]:
+                    self.activate_tab("fcc")
+                    self.fcc_inst.execute_command(["cre"])
+            else:
+                fcc_queue.put("CRE finished - Congratulations!!!\n")
+                self._flush_cre()
+                self.config["CRE"]["last_completed"] = datetime.now().strftime(f"%Y-%m-%d %H:%M:%S")
+                
+
+    def _get_cre_stat(self) -> str:
+        accuracy = self.config['CRE']['positives'] / self.config['CRE']['cards_seen']
+        rev_done = self.config['CRE']['count'] - len(self.config['CRE']['items'])
+        return "\n".join([
+            "",
+            f"Progress : {100*(self.config['CRE']['cards_seen'] / self.config['CRE']['cards_total']):.0f}%",
+            f"Revisions: {rev_done}/{self.config['CRE']['count']}",
+            f"Cards    : {self.config['CRE']['cards_seen']}/{self.config['CRE']['cards_total']}",
+            f"Timer    : {format_seconds_to(self.config['CRE']['time_spent'], 'hour', sep=':')}",
+            f"Accuracy : {100*accuracy:.0f}%",
+            "",
+        ])
+
+
+    def _flush_cre(self):
+        self.config["CRE"]["items"].clear()
+        self.config["CRE"]["count"] = 0
+        self.config["CRE"]["cards_seen"] = 0
+        self.config["CRE"]["cards_total"] = 0
+        self.config["CRE"]["time_spent"] = 0
+        self.config["CRE"]["positives"] = 0
+
+
     def goto_prev_card(self):
         self.decrease_current_index()
         self.words_back+=1    
@@ -121,33 +167,10 @@ class main_window_logic():
         self.active_file.kind = self.db.KINDS.rev
         if isinstance(self.active_file.parent, dict):
             self.config["ILN"][self.active_file.parent["filepath"]] = self.active_file.parent["len_"]
-        self.__handle_cre()
         self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
         newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
-
-
-    def __handle_cre(self):
-        if self.active_file.filepath in self.config["CRE"]["items"]:
-            self.config["CRE"]["items"].remove(self.active_file.filepath)
-            if self.config["CRE"]["items"]:
-                self.fcc_inst.post_fcc(
-                f"Revisions left: {len(self.config['CRE']['items'])}/{self.config['CRE']['count']}"
-            )
-            else:
-                self.fcc_inst.post_fcc(f"CRE finished - {self.config['CRE']['count']} revisions completed")
-                self.fcc_inst.post_fcc(f"Congratulations!!!")
-                self.config["CRE"]["last_completed"] = datetime.now().strftime(f"%Y-%m-%d %H:%M:%S")
-                self.config["CRE"]["count"] == 0
-
-    def change_revmode(self, force_which=None):
-        if self.active_file.kind == self.db.KINDS.lng or self.is_saved:
-            self.revmode = False
-        elif force_which is None:
-            self.revmode = not self.revmode
-        else:
-            self.revmode = force_which
 
     
     def update_backend_parameters(self):
@@ -170,7 +193,6 @@ class main_window_logic():
         self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
         self.auto_cfm_offset = 0
-        self.change_revmode(self.active_file.kind in self.db.GRADED)
         
 
     def save_to_mistakes_list(self):   
@@ -232,8 +254,8 @@ class main_window_logic():
         else:
             err_msg = traceback
 
+        err_msg += '\n' + self.CONSOLE_PROMPT
+        fcc_queue.put(err_msg)
+
         if self.side_window_id != 'fcc':
             self.get_fcc_sidewindow()
-            
-        err_msg+='\n'+self.CONSOLE_PROMPT
-        self.fcc_inst.post_fcc(err_msg)
