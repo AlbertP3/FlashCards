@@ -1,3 +1,4 @@
+import re
 import logging
 from datetime import datetime
 from random import randint
@@ -23,11 +24,13 @@ class main_window_logic():
         self.total_words = 0
         self.cards_seen = 0
         self.revision_summary = None
-        self.is_saved = False
+        self.is_recorded = False
         self.db = DbOperator()
         self.summary_gen = SummaryGenerator()
         self.auto_cfm_offset = 0
         self.is_afterface = False
+        self.is_revision_summary = False
+        self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
 
 
     @property
@@ -83,30 +86,35 @@ class main_window_logic():
 
     def record_revision_to_db(self, seconds_spent=0):
         self.db.create_record(self.total_words, self.positives, seconds_spent)
+        self.is_recorded = True
 
 
     def handle_comprehensive_revision(self, fd: FileDescriptor):
         # It is assumed that the corresponding revision was saved
-        if self.active_file.filepath in self.config["CRE"]["items"]:
-            upd = self.db.get_cre_data(fd.signature)
-            self.config["CRE"]["items"].remove(fd.filepath)
-            self.config["CRE"]["cards_seen"] += upd["cards_seen"]
-            self.config["CRE"]["time_spent"] += upd["time_spent"]
-            self.config["CRE"]["positives"] += upd["positives"]
-
-            fcc_queue.put(self._get_cre_stat())
-
-            if self.config["CRE"]["items"]:
-                if self.config["CRE"]["auto_save_mistakes"] and self.mistakes_list:
-                    self.save_to_mistakes_list()
-                if self.config["CRE"]["auto_next"]:
-                    self.activate_tab("fcc")
-                    self.fcc_inst.execute_command(["cre"])
-            else:
-                fcc_queue.put("CRE finished - Congratulations!!!\n")
-                self._flush_cre()
-                self.config["CRE"]["last_completed"] = datetime.now().strftime(f"%Y-%m-%d %H:%M:%S")
+        self._update_cre(fd)
+        fcc_queue.put(self._get_cre_stat())
+        if self.config["CRE"]["items"]:
+            if self.config["CRE"]["auto_save_mistakes"] and self.mistakes_list:
+                self.db.save_mistakes(
+                    mistakes_list = self.mistakes_list, 
+                    offset = self.auto_cfm_offset
+                )
+                self.init_eph_from_mistakes()
+            if self.config["CRE"]["auto_next"]:
+                self.activate_tab("fcc")
+                self.fcc_inst.execute_command(["cre"])
+        else:
+            fcc_queue.put("CRE finished - Congratulations!!!\n")
+            self._flush_cre()
+            self.config["CRE"]["last_completed"] = datetime.now().strftime(f"%Y-%m-%d %H:%M:%S")
                 
+    def _update_cre(self, fd: FileDescriptor):
+        upd = self.db.get_cre_data(fd.signature)
+        self.config["CRE"]["items"].remove(fd.filepath)
+        self.config["CRE"]["cards_seen"] += upd["cards_seen"]
+        self.config["CRE"]["time_spent"] += upd["time_spent"]
+        self.config["CRE"]["positives"] += upd["positives"]
+
 
     def _get_cre_stat(self) -> str:
         accuracy = self.config['CRE']['positives'] / self.config['CRE']['cards_seen']
@@ -156,7 +164,7 @@ class main_window_logic():
 
     def should_create_db_record(self):
         return (
-            not self.is_saved
+            not self.is_recorded
             and self.total_words - self.current_index - 1 == 0 
             and self.active_file.kind in self.db.GRADED 
         )
@@ -189,25 +197,25 @@ class main_window_logic():
         self.negatives = 0
         self.words_back = 0
         self.mistakes_list = list()
-        self.is_saved = False
+        self.is_recorded = False
         self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
         self.auto_cfm_offset = 0
-        
 
-    def save_to_mistakes_list(self):   
-        mistakes_list = self.db.save_mistakes(
+
+    def save_current_mistakes(self):
+        self.db.save_mistakes(
             mistakes_list = self.mistakes_list, 
             offset = self.auto_cfm_offset
         )
-        self.auto_cfm_offset = mistakes_list.shape[0]  
-        self.load_ephemeral_file(mistakes_list)
-        self.cards_seen = mistakes_list.shape[0]-1
-
-
-    def load_ephemeral_file(self, data:pd.DataFrame):
+        
+    def init_eph_from_mistakes(self):
+        mistakes_df = pd.DataFrame(
+            data=self.mistakes_list, 
+            columns=self.active_file.data.columns,
+        )
         self.db.load_tempfile(
-            data = data,
+            data = mistakes_df,
             kind = self.db.KINDS.eph,
             basename = f'{self.active_file.lng} Ephemeral',
             lng = self.active_file.lng,
@@ -217,7 +225,6 @@ class main_window_logic():
                 "len_": self.active_file.data.shape[0],
             },
         )
-        fcc_queue.put("Created an Ephemeral set")
         self.update_backend_parameters()
         self.update_interface_parameters()
 

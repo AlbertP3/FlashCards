@@ -94,7 +94,7 @@ class db_dataset_ops:
             )
             dataset.to_csv(fp, index=False, encoding="utf-8")
             fcc_queue.put(f"Created {self.active_file.signature}")
-            log.debug(f"Created a new File: {fp}")
+            log.debug(f"Created a new file: {fp}")
             self.reload_files_cache()
             return fp
         except Exception as e:
@@ -119,7 +119,7 @@ class db_dataset_ops:
             log.error(e, exc_info=True)
         return opstatus
 
-    def save_mistakes(self, mistakes_list: list, offset: int) -> pd.DataFrame:
+    def save_mistakes(self, mistakes_list: list, offset: int):
         """Dump dataset to the Mistakes file"""
         mistakes_list: pd.DataFrame = pd.DataFrame(
             data=mistakes_list, columns=self.active_file.data.columns
@@ -141,7 +141,7 @@ class db_dataset_ops:
                 mfd.filepath, index=False, mode="w", header=True
             )
         else:
-            mistakes_list.iloc[: self.config["mistakes_buffer"]].to_csv(
+            mistakes_list.iloc[:self.config["mistakes_buffer"]].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
             )
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
@@ -150,7 +150,6 @@ class db_dataset_ops:
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
         fcc_queue.put(msg)
         log.debug(msg)
-        return mistakes_list
 
     def validate_dataset(self, fd: FileDescriptor) -> bool:
         if not isinstance(fd.data, pd.DataFrame):
@@ -192,7 +191,15 @@ class db_dataset_ops:
         fcc_queue.put(operation_status)
         return fd.data
 
-    def load_tempfile(self, data, kind, basename, lng, parent: dict, signature=None):
+    def load_tempfile(
+        self,
+        data: pd.DataFrame,
+        kind: str,
+        basename: str,
+        lng: str,
+        parent: dict,
+        signature=None,
+    ):
         fd = FileDescriptor(
             basename=basename,
             filepath=None,

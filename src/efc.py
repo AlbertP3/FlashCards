@@ -69,7 +69,7 @@ class EFC:
         rev_table_data = list()
         self.db.filter_for_efc_model()
         unqs = self.db.gather_efc_record_data()
-        init_revs = self.config["init_revs_cnt"]
+        init_revs_cnt = self.config["init_revs_cnt"]
         init_revs_inth = self.config["init_revs_inth"]
 
         for fd in self.db.get_sorted_revisions():
@@ -77,8 +77,8 @@ class EFC:
             data = unqs.get(fd.signature)
             if data:
                 since_last_rev = (datetime.now() - data[-1][0]).total_seconds() / 3600
-                cnt = len(data) + 1
-                if cnt <= init_revs:
+                cnt = len(data)
+                if cnt < init_revs_cnt:
                     efc = [[0 if since_last_rev >= init_revs_inth else 100]]
                     pred = (
                         init_revs_inth - since_last_rev

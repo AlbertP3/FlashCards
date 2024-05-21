@@ -1,5 +1,5 @@
 {
-    "version": "1.3.11",
+    "version": "1.3.12",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -41,6 +41,10 @@
         "time_spent": 0,
         "cards_seen": 0,
         "items": []
+    },
+    "hide_tips": {
+        "allow": false,
+        "pattern": "\\([^{}]*\\)"
     },
     "SOD": {
         "last_file": null,
@@ -95,6 +99,7 @@
         "main_style_sheet": "background-color: #383838; margin:0px; border:1px solid #000000; padding:0px;",
         "textbox_style_sheet": "color: #eeeeee; background-color: #393939; border-radius: 1px;line-height: 12%; margin:0px;",
         "button_style_sheet": "*{background-color: #242426; color: #E0E0E0; border-radius: 1px;} *:hover{background-color: #303032;} *:pressed {background-color: #343436;}",
+        "scrollbar_style_sheet": "QScrollBar:vertical{background-color: #242426;width: 15px;margin: 0px;border: 1px solid #1C1C1E;} QScrollBar::handle:vertical{background-color: #303032; min-height: 20px; border: 1px solid #1C1C1E;} QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {background: none; border: none;} QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical{background: none;}",
         "stat_bar_color": "#434343",
         "stat_background_color": "#393939",
         "stat_chart_background_color": "#393939",
@@ -156,8 +161,8 @@
             450
         ],
         "config": [
-            675,
-            467
+            682,
+            689
         ],
         "fcc": [
             822,

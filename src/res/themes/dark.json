@@ -3,6 +3,7 @@
     "main_style_sheet": "background-color: #121212; margin:0px; border:1px solid #2C2C2C; padding:0px;",
     "textbox_style_sheet": "color: #E0E0E0; background-color: #1C1C1E; border-radius: 1px; line-height: 150%; margin:0px;",
     "button_style_sheet": "*{background-color: #242426; color: #E0E0E0; border-radius: 1px;} *:hover{background-color: #303032;} *:pressed {background-color: #343436;}",
+    "scrollbar_style_sheet": "QScrollBar:vertical{background-color: #242426;width: 15px;margin: 0px;border: 1px solid #1C1C1E;} QScrollBar::handle:vertical{background-color: #303032; min-height: 20px; border: 1px solid #1C1C1E;} QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {background: none; border: none;} QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical{background: none;}",
     "stat_bar_color": "#242426",
     "stat_background_color": "#1C1C1E",
     "stat_chart_background_color": "#1C1C1E",

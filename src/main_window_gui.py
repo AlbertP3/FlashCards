@@ -153,6 +153,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
 
 
+    def get_scrollbar(self) -> widget.QScrollBar:
+        scrollbar = widget.QScrollBar()
+        scrollbar.setStyleSheet(self.config["THEME"]["scrollbar_style_sheet"])
+        return scrollbar
+    
+
     def set_theme(self):
         for i in self.get_children_layouts(self.layout):
             self.remove_layout(i)
@@ -191,35 +197,51 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         width_factor =  max(int((self.frameGeometry().width())/37-len(text)/30), 0)
         self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
+        if self.config["hide_tips"]["allow"] and not self.is_afterface and not self.is_revision_summary:
+            text = self.tips_hide_re.sub("", text)
         self.textbox.setText(text)
         padding = max(0, 90 - len(text)*0.7)
         self.textbox.setStyleSheet(f'{self.textbox_stylesheet} padding-top: {padding}%;')
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.is_afterface = False
-        if not self.TIMER_RUNNING_FLAG and not self.is_saved: 
+        self.is_revision_summary = False
+        if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
             self.start_timer()
             self.start_pace_timer()
     
 
     def click_save_button(self):
         if self.active_file.kind == self.db.KINDS.rev:
-            if self.mistakes_list[self.auto_cfm_offset:]:
-                self.save_to_mistakes_list()
+
+            if not self.is_recorded:
+                fcc_queue.put("Complete the revision before saving")
+            elif self.mistakes_list[self.auto_cfm_offset:]:
+                if self.active_file.filepath in self.config["CRE"]["items"]:
+                    self._update_cre(self.active_file)
+                    fcc_queue.put(self._get_cre_stat())
+                if not self.db.is_initial_rev(self.active_file.signature):
+                    self.save_current_mistakes()
+                self.init_eph_from_mistakes()
             else:
                 fcc_queue.put('No mistakes to save')
+
         elif self.active_file.kind == self.db.KINDS.lng:
+
             if self.cards_seen != 0:
                 super().handle_creating_revision(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
                 fcc_queue.put('Unable to save an empty file')
+
         elif self.active_file.kind == self.db.KINDS.mst:
-            self.load_ephemeral_file(
-                pd.DataFrame(data=self.mistakes_list, 
-                columns=self.active_file.data.columns,
-                )
-            )
+
+            if self.is_recorded:
+                self.init_eph_from_mistakes()
+            else:
+                fcc_queue.put("Review all mistakes before saving")
+
         else:
+
             fcc_queue.put(f"Unable to save a {self.db.KFN[self.active_file.kind]}")
                 
 
@@ -301,7 +323,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         elif self.should_create_db_record():
             self.handle_graded_complete()
         elif self.revision_summary:
-            self.display_text(self.revision_summary)
+            if self.is_revision_summary:
+                if self.active_file.filepath in self.config["CRE"]["items"]:
+                    self.handle_comprehensive_revision(self.active_file)
+                else:
+                    ...  # TODO auto_mistakes, auto_eph
+            else:
+                self.display_text(self.revision_summary)
+                self.is_revision_summary = True
         else:
             self.display_text(self.config['after_face'])
             self.is_afterface = True
@@ -325,16 +354,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             if self.active_file.kind in {self.db.KINDS.rev, self.db.KINDS.mst}:
                 self.revision_summary = self.get_rating_message()
                 self.display_text(self.revision_summary)
+                self.is_revision_summary = True
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
         else:
             self.display_text(self.get_current_card().iloc[self.side])
-        self.is_saved = True
         self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
+        self.stop_timer()
         self.stop_pace_timer()
         if self.negatives != 0 and self.config["opt"]["show_mistakes_after_revision"]:
             self.get_mistakes_sidewindow()
-        self.handle_comprehensive_revision(self.active_file)
 
 
     def add_shortcuts(self): 
@@ -467,7 +496,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if rev_mode:
             for widget in self.get_children_widgets(self.layout):
                 widget.show()
-            if not self.revmode or self.words_back or self.is_saved: 
+            if not self.revmode or self.words_back or self.is_recorded: 
                 self.positive_button.hide()
                 self.negative_button.hide()
             else:
@@ -590,7 +619,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def conditions_to_resume_timer_are_met(self):
         if self.seconds_spent != 0 \
-            and self.is_saved is False \
+            and self.is_recorded is False \
             and self.side_window_id == 'main':
             conditions_met = True
         else:
@@ -602,7 +631,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = False
         if not self.revtimer_hide_timer:
             self.timer_prev_text = self.timer_button.text()
-            self.timer_button.setText('⏲' if self.is_saved or not self.seconds_spent else '⏸')
+            self.timer_button.setText('⏲' if self.is_recorded or not self.seconds_spent else '⏸')
 
     def reset_timer(self, clear_indicator=True):
         self.timer.stop()
@@ -665,7 +694,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.click_negative()
 
     def _resume_pace_timer(self):
-        if not self.is_saved and self.cards_seen!=0 and self.side_window_id=='main':
+        if not self.is_recorded and self.cards_seen!=0 and self.side_window_id=='main':
             self.start_pace_timer()
         
     def _stop_pace_timer(self):

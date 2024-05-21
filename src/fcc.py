@@ -44,7 +44,7 @@ class fcc():
                     'cac':'Clear Application Cache - *key^help - runs cache_clear on an optional key',
                     'ssf':'Show Scanned Files - presents a list of all relevant files',
                     'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
-                    'cem':'Create Ephemeral Mistakes - shows current mistakes as flashcards',
+                    'eph':'Create Ephemeral Mistakes - shows current mistakes as flashcards',
                     'cre':'Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext <true,false>, stat',
                     }
 
@@ -435,7 +435,7 @@ class fcc():
 
     def emo(self, parsed_cmd:list):
         '''EFC Model Optimizer'''
-        self.emo_object = emo_spawn(stream_out=self)
+        emo_spawn(stream_out=self)
 
 
     def err(self, parsed_cmd:list):
@@ -541,9 +541,9 @@ class fcc():
         self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
         self.mw.db.reload_files_cache()
 
-    def cem(self, parsed_cmd:list):
+    def eph(self, parsed_cmd:list):
         '''Create Ephemeral Mistakes'''
-        if not self.mw.is_saved:
+        if not self.mw.is_recorded:
             self.post_fcc("All cards must be reviewed before running this command")
             return
         elif not self.mw.mistakes_list:

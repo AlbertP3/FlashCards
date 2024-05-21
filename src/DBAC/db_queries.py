@@ -56,13 +56,19 @@ class db_queries:
         for key in self.filters.keys():
             self.filters[key] = False
 
+    def require_refresh(func):
+        def inner(self, *args, **kwargs):
+            self.refresh()
+            res = func(self, *args, **kwargs)
+            return res
+        return inner
+
     def write_op(func):
         def inner(self, *args, **kwargs):
             res = func(self, *args, **kwargs)
             self.last_update = monotonic()
             self.refresh()
             return res
-
         return inner
 
     @write_op
@@ -277,3 +283,17 @@ class db_queries:
             "time_spent": self.get_last_time_spent(signature),
             "positives": self.get_last_positives(signature),
         }
+    
+    def get_seconds_spent_today(self, lng: str) -> int:
+        today = datetime.now().date()
+        filtered = self.db[
+            (self.db["TIMESTAMP"].dt.date == today) & (self.db["LNG"] == lng)
+        ]["SEC_SPENT"]
+        return int(
+            filtered.sum()
+        )
+
+    @require_refresh
+    def is_initial_rev(self, signature: str) -> bool:
+        cnt = self.db[self.db["SIGNATURE"] == signature].shape[0]
+        return cnt <= self.config["init_revs_cnt"]

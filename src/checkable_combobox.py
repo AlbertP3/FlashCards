@@ -19,6 +19,7 @@ class CheckableComboBox(QComboBox):
         super().__init__(layout)
 
         # Make the combo editable to set a custom text, but readonly
+        self.setMinimumWidth(1)
         self.setEditable(True)
         self.lineEdit().setReadOnly(True)
         # Make the lineedit the same color as QPushButton
@@ -89,11 +90,15 @@ class CheckableComboBox(QComboBox):
         self.closeOnLineEditClick = False
 
     def updateText(self):
-        texts = []
+        checked_items = []
         for i in range(self.model().rowCount()):
             if self.model().item(i).checkState() == Qt.Checked:
-                texts.append(self.model().item(i).text())
-        text = ", ".join(texts)
+                checked_items.append(self.model().item(i).text())
+
+        if len(checked_items) == 1:
+            text = checked_items[0]
+        else:
+            text = f"{len(checked_items) or 'No'} items selected"
 
         # Compute elided text (with "...")
         metrics = QFontMetrics(self.lineEdit().font())
@@ -133,3 +138,7 @@ class CheckableComboBox(QComboBox):
         for i in range(self.model().rowCount()):
             res[self.model().item(i).data()] = self.model().item(i).checkState() == Qt.Checked
         return res
+
+    def wheelEvent(self, *args, **kwargs):
+        """Disable scrolling"""
+        return

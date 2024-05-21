@@ -1,8 +1,10 @@
 import os
 import sys
 import json
+import signal
 import logging
 import matplotlib
+from types import FrameType
 
 CWD = os.path.dirname(os.path.abspath(__file__))
 
@@ -20,6 +22,12 @@ def configure_logging(log_level, plt_log_level="error"):
     matplotlib.set_loglevel(plt_log_level)
 
 
+def handle_termination_signal(signum, frame:FrameType):
+    utils.config.save()
+    log.critical(f"Application terminated with signal {signal.Signals(signum).name}")
+    sys.exit(0)
+
+
 try:
     if not os.path.exists("./src/res/config.json"):
         json.dump(
@@ -31,6 +39,8 @@ try:
     import utils
 
     configure_logging(utils.config["log_level"])
+    signal.signal(signal.SIGTERM, handle_termination_signal)
+    signal.signal(signal.SIGINT, handle_termination_signal)
 except Exception as e:
     configure_logging("DEBUG", "DEBUG")
     log = logging.getLogger(__name__)

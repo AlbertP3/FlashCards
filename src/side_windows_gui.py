@@ -16,6 +16,38 @@ from typing import Callable
 
 
 
+class ScrollableOptionsWidget(widget.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.config = config
+        self.font = self.config['THEME']['font']
+        self.font_button_size = self.config['THEME']['font_button_size']
+        self.button_height = self.config['THEME']['buttons_height']
+        self.BUTTON_FONT = QtGui.QFont(self.font, self.font_button_size)
+        self.button_style_sheet = self.config['THEME']['button_style_sheet']
+        self.__create_layout()
+        self.pos = self.__list_pos_gen()
+        
+    def __create_layout(self):
+        self.layout = widget.QGridLayout()
+        self.layout.setHorizontalSpacing(1)
+        self.layout.setVerticalSpacing(1)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.layout)
+
+    def add_widget(self, button: widget.QPushButton, label: widget.QLabel):
+        self.layout.addWidget(label, next(self.pos), 0)
+        self.layout.addWidget(button, next(self.pos), 1)
+
+    def __list_pos_gen(self):
+        """increments iterator every 2 calls"""
+        i = 0
+        while True:
+            yield int(i)
+            i+=0.5
+
+
+
 class fcc_gui():
 
     def __init__(self):
@@ -264,6 +296,7 @@ class efc_gui(EFC):
         self.add_shortcut('stats', self.get_stats_sidewindow, 'efc')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'efc')
         self.add_shortcut('fcc', self.get_terminal_sidewindow, 'efc')
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'efc')
 
 
     def get_efc_sidewindow(self):
@@ -275,7 +308,7 @@ class efc_gui(EFC):
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.button_font = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
+        self.BUTTON_FONT = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
         self.textbox_width = 275
         self.textbox_height = 200
         self.buttons_height = 45
@@ -296,7 +329,7 @@ class efc_gui(EFC):
     def create_recommendations_list(self):
         self.recommendation_list = widget.QListWidget(self)
         self.recommendation_list.setFixedWidth(self.textbox_width)
-        self.recommendation_list.setFont(self.button_font)
+        self.recommendation_list.setFont(self.BUTTON_FONT)
         self.recommendation_list.setStyleSheet(self.textbox_stylesheet)
         return self.recommendation_list
 
@@ -305,7 +338,7 @@ class efc_gui(EFC):
         efc_button = widget.QPushButton(self)
         efc_button.setFixedHeight(self.buttons_height)
         efc_button.setFixedWidth(self.textbox_width)
-        efc_button.setFont(self.button_font)
+        efc_button.setFont(self.BUTTON_FONT)
         efc_button.setText('Load')
         efc_button.setStyleSheet(self.button_style_sheet)
         efc_button.clicked.connect(self.load_selected_efc)
@@ -350,6 +383,7 @@ class load_gui:
         self.add_shortcut('stats', self.get_stats_sidewindow, 'load')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'load')
         self.add_shortcut('fcc', self.get_terminal_sidewindow, 'load')
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'load')
     
 
     def get_load_sidewindow(self):
@@ -365,7 +399,7 @@ class load_gui:
         # Style
         self.textbox_stylesheet = (self.config['THEME']['textbox_style_sheet'])
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.button_font = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
+        self.BUTTON_FONT = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
 
         # Elements
         self.load_layout = widget.QGridLayout()
@@ -380,8 +414,9 @@ class load_gui:
     def get_flashcard_files_list(self):
         self.flashcard_files_qlist = widget.QListWidget(self)
         self.flashcard_files_qlist.setFixedWidth(self.textbox_width)
-        self.flashcard_files_qlist.setFont(self.button_font)
+        self.flashcard_files_qlist.setFont(self.BUTTON_FONT)
         self.flashcard_files_qlist.setStyleSheet(self.textbox_stylesheet)
+        self.flashcard_files_qlist.setVerticalScrollBar(self.get_scrollbar())
         return self.flashcard_files_qlist
 
 
@@ -407,7 +442,7 @@ class load_gui:
         load_button = widget.QPushButton(self)
         load_button.setFixedHeight(self.buttons_height)
         load_button.setFixedWidth(self.textbox_width)
-        load_button.setFont(self.button_font)
+        load_button.setFont(self.BUTTON_FONT)
         load_button.setText('Load')
         load_button.setStyleSheet(self.button_style_sheet)
         load_button.clicked.connect(self.load_selected_file)
@@ -449,6 +484,7 @@ class mistakes_gui():
         self.add_shortcut('config', self.get_config_sidewindow, 'mistakes')
         self.add_shortcut('stats', self.get_stats_sidewindow, 'mistakes')
         self.add_shortcut('fcc', self.get_terminal_sidewindow, 'mistakes')
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'mistakes')
     
     def get_mistakes_sidewindow(self):
         if self.active_file.kind in self.db.GRADED:
@@ -504,6 +540,7 @@ class stats_gui(stats):
         self.add_shortcut('config', self.get_config_sidewindow, 'stats')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'stats')
         self.add_shortcut('fcc', self.get_terminal_sidewindow, 'stats')
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'stats')
 
 
     def get_stats_sidewindow(self):
@@ -627,6 +664,7 @@ class progress_gui(stats):
         self.add_shortcut('config', self.get_config_sidewindow, 'progress')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'progress')
         self.add_shortcut('fcc', self.get_terminal_sidewindow, 'progress')
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'progress')
 
 
     def get_progress_sidewindow(self, lngs:set=None):
@@ -735,83 +773,135 @@ class config_gui():
         # Style
         self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
         self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.button_font = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
+        self.BUTTON_FONT = QtGui.QFont(self.config['THEME']['font'], self.config['THEME']['font_button_size'])
 
         # Elements
         self.config_layout = widget.QGridLayout()
-        self.options_layout = widget.QGridLayout()
-        self.config_layout.addLayout(self.options_layout, 0, 0)
+        self.opt_scroll_area = widget.QScrollArea()
+        self.opt_scroll_area.setWidgetResizable(True)
+        self.opt_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.opt_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.opt_scroll_area.setVerticalScrollBar(self.get_scrollbar())
+        self.options_layout = ScrollableOptionsWidget()
+        self.opt_scroll_area.setWidget(self.options_layout)
+        self.config_layout.addWidget(self.opt_scroll_area)
         self.fill_config_list()
 
 
     def fill_config_list(self):
         # initate labels and comboboxes
         self.confirm_and_close_button = self.create_button('Confirm changes', self.commit_config_update)
-        self.card_default_combobox = self.create_combobox('card_default_side', ['0','1','Random'], multi_choice=False)
-        self.card_default_label = self.create_label('Card default side')
-        self.lngs_checkablecombobox = self.create_combobox('languages', self.db.get_available_languages())
-        self.lngs_label = self.create_label('Languages')
-        self.efc_threshold_qlineedit = self.create_config_qlineedit('efc_threshold')
-        self.efc_threshold_label = self.create_label('EFC threshold')
-        self.days_to_new_rev_qlineedit = self.create_config_qlineedit('days_to_new_rev')
-        self.days_to_new_rev_label = self.create_label('Days between new revisions')
-        self.optional_checkablecombobox = self.create_combobox('opt', list(self.config["opt"].keys()))
-        self.optional_label = self.create_label('Optional features')
-        self.init_rep_qline = self.create_config_qlineedit('init_revs_cnt')
-        self.init_rep_label = self.create_label("Initial revisions")
-        self.init_revh_qline = self.create_config_qlineedit('init_revs_inth')
-        self.init_revh_label = self.create_label("Initial revision interval")
-        self.check_for_file_updates_combobox = self.create_config_qlineedit('file_update_interval')
-        self.check_for_file_updates_label = self.create_label('Check file updates')
-        self.mistakes_buffer_qline = self.create_config_qlineedit('mistakes_buffer')
-        self.mistakes_buffer_label = self.create_label('Mistakes buffer')
-        self.theme_combobox = self.create_combobox('active_theme', self.themes_dict.keys(), multi_choice=False)
-        self.theme_label = self.create_label('Theme')
-        self.pace_card_qline = self.create_config_qlineedit('pace_card_interval')
-        self.pace_card_label = self.create_label('Card pacing')
-        self.csv_sniffer_qlineedit = self.create_config_qlineedit('csv_sniffer')
-        self.csv_sniffer_label = self.create_label('CSV sniffer')
-        self.cre_settings_label = self.create_label('Comprehensive Review')
-        self.cre_settings_combobox = self.create_combobox(
-            'CRE', ['reversed', 'auto_save_mistakes', 'auto_next'],  multi_choice=True
-        )
-        self.initial_lng_combobox = self.create_combobox(
+        self.card_default_cbx = self.create_combobox('card_default_side', ['0','1','Random'], multi_choice=False)
+        self.languages_cbx = self.create_combobox('languages', self.db.get_available_languages())
+        self.efc_threshold_qle = self.create_config_qlineedit('efc_threshold')
+        self.days_to_new_rev_qle = self.create_config_qlineedit('days_to_new_rev')
+        self.optional_featuers_cbx = self.create_combobox('opt', list(self.config["opt"].keys()))
+        self.init_rep_qle = self.create_config_qlineedit('init_revs_cnt')
+        self.init_revh_qle = self.create_config_qlineedit('init_revs_inth')
+        self.check_file_updates_cbx = self.create_config_qlineedit('file_update_interval')
+        self.mistakes_buffer_qle = self.create_config_qlineedit('mistakes_buffer')
+        self.theme_cbx = self.create_combobox('active_theme', self.themes_dict.keys(), multi_choice=False)
+        self.pace_card_qle = self.create_config_qlineedit('pace_card_interval')
+        self.csv_sniffer_qle = self.create_config_qlineedit('csv_sniffer')
+        self.initial_lng_cbx = self.create_combobox(
             'initial_language', ['auto', 'native', 'foreign'], subdict='SOD', multi_choice=False
         )
-        self.initial_lng_label = self.create_label('SOD initial language')
+        self.cre_settings_cbx = self.create_combobox(
+            'CRE', ['reversed', 'auto_save_mistakes', 'auto_next'],  multi_choice=True
+        )
+        self.hide_tips_allow_cbx = self.create_combobox("allow", ["True", "False"], subdict="hide_tips", multi_choice=False)
+        self.hide_tips_pattern_qle = self.create_config_qlineedit('pattern', "hide_tips")
+        self.timespent_len_qle = self.create_config_qlineedit("timespent_len")
+        self.afterface_qle = self.create_config_qlineedit("after_face")
+        self.cell_alignment_cbx = self.create_combobox("cell_alignment", ["left", "right"], multi_choice=False)
+        self.emo_discretizer_cbx = self.create_combobox("discretizer", 
+            ["yeo-johnson", "decision-tree"], subdict="EMO", multi_choice=False
+        )
+        self.emo_cap_fold_qle = self.create_config_qlineedit("cap_fold", subdict="EMO")
+        self.emo_min_records_qle = self.create_config_qlineedit("min_records", subdict="EMO")
 
-        # add widgets
-        p = self.list_pos_gen()
-        self.options_layout.addWidget(self.card_default_label, next(p), 0)
-        self.options_layout.addWidget(self.card_default_combobox, next(p), 1)
-        self.options_layout.addWidget(self.lngs_label, next(p), 0)
-        self.options_layout.addWidget(self.lngs_checkablecombobox, next(p), 1)
-        self.options_layout.addWidget(self.efc_threshold_label, next(p), 0)
-        self.options_layout.addWidget(self.efc_threshold_qlineedit, next(p), 1)
-        self.options_layout.addWidget(self.days_to_new_rev_label, next(p), 0)
-        self.options_layout.addWidget(self.days_to_new_rev_qlineedit, next(p), 1)
-        self.options_layout.addWidget(self.optional_label, next(p), 0)
-        self.options_layout.addWidget(self.optional_checkablecombobox, next(p), 1)
-        self.options_layout.addWidget(self.init_rep_label, next(p), 0)
-        self.options_layout.addWidget(self.init_rep_qline, next(p), 1)
-        self.options_layout.addWidget(self.init_revh_label, next(p), 0)
-        self.options_layout.addWidget(self.init_revh_qline, next(p), 1)
-        self.options_layout.addWidget(self.check_for_file_updates_label, next(p), 0)
-        self.options_layout.addWidget(self.check_for_file_updates_combobox, next(p), 1)
-        self.options_layout.addWidget(self.mistakes_buffer_label, next(p), 0)
-        self.options_layout.addWidget(self.mistakes_buffer_qline, next(p), 1)
-        self.options_layout.addWidget(self.theme_label, next(p), 0)
-        self.options_layout.addWidget(self.theme_combobox, next(p), 1)
-        self.options_layout.addWidget(self.pace_card_label, next(p), 0)
-        self.options_layout.addWidget(self.pace_card_qline, next(p), 1)
-        self.options_layout.addWidget(self.csv_sniffer_label, next(p), 0)
-        self.options_layout.addWidget(self.csv_sniffer_qlineedit, next(p), 1)
-        self.options_layout.addWidget(self.initial_lng_label, next(p), 0)
-        self.options_layout.addWidget(self.initial_lng_combobox, next(p), 1)
-        self.options_layout.addWidget(self.cre_settings_label, next(p), 0)
-        self.options_layout.addWidget(self.cre_settings_combobox, next(p), 1)
-        # self.options_layout.addWidget(self.create_blank_widget(),next(p),0)
-        self.options_layout.addWidget(self.confirm_and_close_button, next(p)+2, 0, 1, 2)
+        self.options_layout.add_widget(self.card_default_cbx, self.create_label('Card default side'))
+        self.options_layout.add_widget(self.languages_cbx, self.create_label('Languages'))
+        self.options_layout.add_widget(self.efc_threshold_qle, self.create_label('EFC threshold'))
+        self.options_layout.add_widget(self.days_to_new_rev_qle, self.create_label('Days between new revisions'))
+        self.options_layout.add_widget(self.optional_featuers_cbx, self.create_label('Optional features'))
+        self.options_layout.add_widget(self.init_rep_qle, self.create_label("Initial revision count"))
+        self.options_layout.add_widget(self.init_revh_qle, self.create_label("Initial revision interval"))
+        self.options_layout.add_widget(self.check_file_updates_cbx, self.create_label('Check file updates'))
+        self.options_layout.add_widget(self.mistakes_buffer_qle, self.create_label('Mistakes buffer'))
+        self.options_layout.add_widget(self.theme_cbx, self.create_label('Theme'))
+        self.options_layout.add_widget(self.pace_card_qle, self.create_label('Card pacing'))
+        self.options_layout.add_widget(self.csv_sniffer_qle, self.create_label('CSV sniffer'))
+        self.options_layout.add_widget(self.initial_lng_cbx, self.create_label('SOD initial language'))
+        self.options_layout.add_widget(self.cre_settings_cbx, self.create_label('Comprehensive review'))
+        self.options_layout.add_widget(self.hide_tips_allow_cbx, self.create_label('Allow hiding tips'))
+        self.options_layout.add_widget(self.hide_tips_pattern_qle, self.create_label('Hide tips pattern'))
+        self.options_layout.add_widget(self.timespent_len_qle, self.create_label('Timespent display length'))
+        self.options_layout.add_widget(self.afterface_qle, self.create_label('Afterface'))
+        self.options_layout.add_widget(self.cell_alignment_cbx, self.create_label('Cell alignment'))
+        self.options_layout.add_widget(self.emo_discretizer_cbx, self.create_label('EMO discretizer'))
+        self.options_layout.add_widget(self.emo_cap_fold_qle, self.create_label('EMO cap fold'))
+        self.options_layout.add_widget(self.emo_min_records_qle, self.create_label('EMO min records'))
+        self.config_layout.addWidget(self.confirm_and_close_button)
+
+
+    def commit_config_update(self):
+        funcs_to_restart = list()
+        modified_config = deepcopy(self.config)
+        modified_config['card_default_side'] = self.card_default_cbx.currentDataList()[0]
+        modified_config['languages'] = self.languages_cbx.currentDataList()
+        modified_config['efc_threshold'] = int(self.efc_threshold_qle.text())
+        modified_config['days_to_new_rev'] = int(self.days_to_new_rev_qle.text())
+        modified_config['opt'] = self.optional_featuers_cbx.currentDataDict()
+        modified_config['init_revs_cnt'] = int(self.init_rep_qle.text())
+        modified_config['init_revs_inth'] = int(self.init_revh_qle.text())
+        modified_config['file_update_interval'] = int(self.check_file_updates_cbx.text())
+        modified_config['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qle.text()))
+        modified_config['active_theme'] = self.theme_cbx.currentDataList()[0]
+        modified_config['THEME'].update(self.themes_dict[modified_config['active_theme']])
+        modified_config['pace_card_interval'] = int(self.pace_card_qle.text())
+        modified_config['csv_sniffer'] = self.csv_sniffer_qle.text()
+        modified_config['SOD']['initial_language'] = self.initial_lng_cbx.currentDataList()[0]
+        modified_config["CRE"].update(self.cre_settings_cbx.currentDataDict())
+        modified_config["hide_tips"]["allow"] = self.hide_tips_allow_cbx.currentDataList()[0] == "True"
+        modified_config["hide_tips"]["pattern"] = self.hide_tips_pattern_qle.text()
+        modified_config["timespent_len"] = int(self.timespent_len_qle.text())
+        modified_config["after_face"] = self.afterface_qle.text()
+        modified_config["cell_alignment"] = self.cell_alignment_cbx.currentDataList()[0]
+        modified_config["EMO"]["discretizer"] = self.emo_discretizer_cbx.currentDataList()[0]
+        modified_config["EMO"]["cap_fold"] = float(self.emo_cap_fold_qle.text())
+        modified_config["EMO"]["min_records"] = int(self.emo_min_records_qle.text())
+
+        if not self.config['opt']['side_by_side'] and modified_config['opt']['side_by_side']:
+            self.toggle_primary_widgets_visibility(True)
+        else:
+            self.unfix_size(self)
+            self.unfix_size(self.textbox)
+
+        if modified_config['active_theme'] != self.config['active_theme']:
+            funcs_to_restart.append(self.set_theme)
+
+        self.config.update(modified_config)
+        self.config_manual_update()
+
+        self.del_side_window()
+        self.get_config_sidewindow()
+
+        if funcs_to_restart:
+            self.confirm_and_close_button.setText("Restart required")
+            self.confirm_and_close_button.clicked.disconnect()
+            self.confirm_and_close_button.clicked.connect(
+                lambda: self.__on_config_commit_restart(funcs_to_restart)
+            )
+        else:
+            self.confirm_and_close_button.setText("Config saved")
+            self.confirm_and_close_button.clicked.disconnect()
+
+
+    def __on_config_commit_restart(self, funcs: list[Callable]):
+        for f in funcs:
+            f()
+        self.del_side_window()
 
 
     def create_combobox(self, key:str, content:list, subdict:str=None, multi_choice:bool=True):
@@ -826,7 +916,10 @@ class config_gui():
         if isinstance(k, dict):
             k = [k for k, v in k.items() if v is True]
         for i in content:
-            cb.addItem(i, is_checked= i in k)
+            try:
+                cb.addItem(i, is_checked= i in k)
+            except TypeError:
+                cb.addItem(i, is_checked= i == str(k))
         return cb
 
 
@@ -848,7 +941,7 @@ class config_gui():
         label.setText(text)
         label.setStyleSheet(self.button_style_sheet)
         return label
-
+    
     def create_blank_widget(self):
         blank = widget.QLabel(self)
         blank.setStyleSheet("border: 0px")
@@ -864,48 +957,6 @@ class config_gui():
             themes_dict[theme_name] = theme
         return themes_dict
 
-
-    def commit_config_update(self):
-        modified_dict = deepcopy(self.config)
-        modified_dict['card_default_side'] = self.card_default_combobox.currentDataList()[0]
-        modified_dict['languages'] = self.lngs_checkablecombobox.currentDataList()
-        modified_dict['efc'] = int(self.efc_threshold_qlineedit.text())
-        modified_dict['days_to_new_rev'] = int(self.days_to_new_rev_qlineedit.text())
-        modified_dict['opt'] = self.optional_checkablecombobox.currentDataDict()
-        modified_dict['init_revs_cnt'] = int(self.init_rep_qline.text())
-        modified_dict['init_revs_inth'] = int(self.init_revh_qline.text())
-        modified_dict['file_update_interval'] = int(self.check_for_file_updates_combobox.text())
-        modified_dict['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qline.text()))
-        modified_dict['active_theme'] = self.theme_combobox.currentDataList()[0]
-        modified_dict['THEME'].update(self.themes_dict[modified_dict['active_theme']])
-        modified_dict['pace_card_interval'] = int(self.pace_card_qline.text())
-        modified_dict['csv_sniffer'] = self.csv_sniffer_qlineedit.text()
-        modified_dict['SOD']['initial_language'] = self.initial_lng_combobox.currentDataList()[0]
-        modified_dict["CRE"].update(self.cre_settings_combobox.currentDataDict())
-    
-        if not self.config['opt']['side_by_side'] and modified_dict['opt']['side_by_side']:
-            self.toggle_primary_widgets_visibility(True)
-        else:
-            self.unfix_size(self)
-            self.unfix_size(self.textbox)
-
-        self.config.update(modified_dict)
-        self.config_manual_update()
-        self.set_theme()
-        self.del_side_window()
-        self.get_config_sidewindow()
-        self.confirm_and_close_button.setText("Config Saved")
-        self.confirm_and_close_button.clicked.disconnect()
-
-
-    def list_pos_gen(self):
-        # increments iterator every 2 calls
-        i = 0
-        while True:
-            yield int(i)
-            i+=0.5
-
-
     def config_manual_update(self, key:str=None, subdict:str=None):
         if subdict == 'THEME':
             if key == 'console_font_size':
@@ -919,6 +970,7 @@ class config_gui():
             self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
+            self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
 
 
 
@@ -944,6 +996,7 @@ class timer_gui():
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'timer')
         self.add_shortcut('config', self.get_config_sidewindow, 'timer')
         self.add_shortcut('fcc', self.get_terminal_sidewindow, 'timer')
+        self.add_shortcut('sod', self.get_sod_sidewindow, 'timer')
 
 
     def get_timer_sidewindow(self):
