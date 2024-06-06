@@ -1,5 +1,10 @@
+import os
+import logging
+from time import time
 from utils import Config
 from SOD.cli import CLI
+
+log = logging.getLogger("SOD")
 
 
 
@@ -69,6 +74,10 @@ class sod_spawn:
         else:
             self.manage_modes(cmd)
 
+    def refresh_db(self):
+        if os.path.getmtime(self.config["SOD"]["last_file"]) + self.config["SOD"]["debounce"] < time():
+            self.cli.refresh_file_handler()
+            self.cli.cls(self.cli.msg.DB_REFRESH, keep_content=True, keep_cmd=True)
 
     def manage_modes(self, cmd:list):
         if cmd[0] == 'cls':

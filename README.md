@@ -1,4 +1,4 @@
-# FlashCards 1.3.12
+# FlashCards 1.3.13
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -173,7 +173,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - show_percent_stats: on Statistics chart, displays percentage scores and pp. diffrences instead of plain numbers
 - days_to_new_rev: After specified amount of days a notification prompting to create a new revision will be shown in the Load menu
 - pace_card_interval: Specifies amount of seconds between card switches. Set to 0 in order to disable the timer
-- file_update_interval: Specifies amount of seconds between checking for the source file changes. Set to 0 in order to disable the timer
+- allow_file_monitor: Toggles a watcher that automatically updates loaded files on source change
 - init_revs_cnt: Specifies amount of revisions that are supposed to be recommended in init_revs_inth hours intervals, ignoring the EFC model
 - init_revs_inth: Hourly Interval between initial revisions, ignoring the EFC model
 - mistakes_buffer: Specifies amount of cards that are kept in the *_mistakes.csv files. The queue follows the FIFO logic
@@ -184,6 +184,9 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - csv_sniffer: allows use of custom separators eg. ';,'. Defaults to a comma if turned off
 - after_face: text to be displayed after *Language* cards range is exceeded
 - RECOMMENDATIONS: key-value pairs specyfing encouraging texts for recommend_new entries
+- SOD files_list: faciliate switching by specifying files available to SOD. Skipped if empty
+- mistakes_review_interval_days - recommend the mistakes file to be reviewed each N days
+- hiding_tips - remove *pattern* from the displayed text by following the *policy*
 
 
 ## Known Bugs

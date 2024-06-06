@@ -57,9 +57,15 @@ class EFC:
         recommendations = list()
         self.new_revs = 0
         self.db.refresh()
+        if self.config["mistakes_review_interval_days"] > 0:
+            cur = datetime.now()
+            for lng in self.config["languages"]:
+                sig, lmt = self.db.get_last_mistakes_signature_and_datetime(lng)
+                if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
+                    recommendations.append(sig)
         if self.config["days_to_new_rev"] > 0:
             recommendations.extend(self.is_it_time_for_something_new())
-        for rev in self.get_complete_efc_table():
+        for rev in sorted(self.get_complete_efc_table(), key=lambda x: x[2]):
             efc_critera_met = rev[2] < self.config["efc_threshold"]
             if efc_critera_met:
                 recommendations.append(rev[0])

@@ -5,7 +5,7 @@ db.csv
 .vscode
 desktop.ini
 config.json
-fcs.log
+fcs.log*
 test.log
 tests
 pytest.ini

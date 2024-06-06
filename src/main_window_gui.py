@@ -10,7 +10,7 @@ from side_windows_gui import *
 from utils import fcc_queue
 from DBAC.api import FileDescriptor
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("GUI")
 
 
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
@@ -22,10 +22,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         sys.excepthook = self.excepthook
 
     def launch_app(self):
+        self.initiate_file_monitor()
         self.build_interface()      
         self.initiate_timer()
         self.initiate_pace_timer()
-        self.initiate_cyclic_file_update()
         self.initiate_flashcards(
             self.db.files.get(  
                 self.config['onload_filepath'],
@@ -187,6 +187,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         new_button.setMinimumHeight(self.BUTTONS_HEIGHT)
         new_button.setFont(self.BUTTON_FONT)
         new_button.setText(text)
+        new_button.setFocusPolicy(Qt.NoFocus)
         new_button.setStyleSheet(self.button_style_sheet)
         if function is not None:
             new_button.clicked.connect(function)
@@ -197,7 +198,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         width_factor =  max(int((self.frameGeometry().width())/37-len(text)/30), 0)
         self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
-        if self.config["hide_tips"]["allow"] and not self.is_afterface and not self.is_revision_summary:
+        if self.allow_hiding_tips and not self.is_afterface and not self.is_revision_summary:
             text = self.tips_hide_re.sub("", text)
         self.textbox.setText(text)
         padding = max(0, 90 - len(text)*0.7)
@@ -219,7 +220,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 if self.active_file.filepath in self.config["CRE"]["items"]:
                     self._update_cre(self.active_file)
                     fcc_queue.put(self._get_cre_stat())
-                if not self.db.is_initial_rev(self.active_file.signature):
+                if not self.is_initial_rev:
                     self.save_current_mistakes()
                 self.init_eph_from_mistakes()
             else:
@@ -270,16 +271,18 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.update_backend_parameters()
         self.update_interface_parameters()
-        self.start_file_update_timer()
 
 
     def initiate_flashcards(self, fd):
-        # Manage whole process of loading flashcards file
+        """Manage the whole process of loading a flashcards file"""
+        if not self.active_file.tmp:
+            self.file_monitor_del_path(self.active_file.filepath)
         super().load_flashcards(fd)
         self.update_backend_parameters()
         self.update_interface_parameters()
         self.del_side_window()
-        self.start_file_update_timer()
+        if not self.active_file.tmp:
+            self.file_monitor_add_path(self.active_file.filepath)
 
 
     def update_interface_parameters(self):
@@ -554,47 +557,40 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.setGeometry(cur_geo[0], cur_geo[1], rect[0], rect[1])
 
 
-    # =============== FILE UPDATE TIMER ================
-    def initiate_cyclic_file_update(self):
-        if self.config['file_update_interval']==0:
-            self.file_update_timer = None
-        else:
-            self.file_update_timer = QTimer()
-
-    
-    def start_file_update_timer(self):
-        if not self.condition_to_run_file_update_timer(): return
-        fcc_queue.put('File update timer: started')
-        self.last_file_update_seconds_ago = 0
-        self.file_update_timer.timeout.connect(self.file_update_timer_handler)
-        self.file_update_timer.start(1000)    
-
-
-    def file_update_timer_handler(self):
-        self.last_file_update_seconds_ago+=1
-        interval_sec = self.config['file_update_interval']
-        if interval_sec == 0 or self.active_file.tmp:
-            self.file_update_timer.stop()
-            fcc_queue.put('File update timer: stopped')
-        elif interval_sec <= self.last_file_update_seconds_ago:
-            mod_time = os.path.getmtime(self.active_file.filepath)
-            if mod_time > self.active_file.mtime:
-                self.update_dataset()
-                fcc_queue.put('Dataset refreshed')
-            self.last_file_update_seconds_ago = 0
-            self.active_file.mtime = mod_time
-
-
-    def condition_to_run_file_update_timer(self):
-        c = self.file_update_timer is not None \
-            and not self.active_file.tmp and \
-            self.config['file_update_interval']!=0
-        return c
-
-
-    def update_dataset(self):
+    # =============== FILE UPDATE MONITOR ================ 
+    def file_monitor_handler(self, path):
+        if path == self.active_file.filepath and not self.active_file.tmp:
             self.db.load_dataset(self.active_file, seed=self.config['pd_random_seed'])
             self.display_text(self.get_current_card().iloc[self.side])
+            fcc_queue.put('Dataset refreshed')
+        elif path == self.config["SOD"]["last_file"]:
+            self.tabs["sod"]["fcc_instance"].sod_object.refresh_db()
+        # elif path == "./src/res/config.json":
+        #     log.debug("Config updated")  # TODO
+
+    def initiate_file_monitor(self):
+        if not self.config['allow_file_monitor']:
+            self.file_watcher = None
+        else:
+            self.file_watcher = QtCore.QFileSystemWatcher()
+            self.file_watcher.fileChanged.connect(self.file_monitor_handler)
+            # self.file_watcher.addPath("./src/res/config.json")
+            log.debug("FileMonitor.init Started the watcher")
+
+    def file_monitor_add_path(self, path:str):
+        if self.file_watcher:
+            self.file_watcher.addPath(path)
+            log.debug(f"FileMonitor.add Watched files: {self.file_watcher.files()}", stacklevel=2)
+    
+    def file_monitor_del_path(self, path:str):
+        if self.file_watcher:
+            self.file_watcher.removePath(path)
+            log.debug(f"FileMonitor.del Watched files: {self.file_watcher.files()}", stacklevel=2)
+    
+    def file_monitor_clear(self):
+        if self.file_watcher:
+            self.file_watcher.removePaths(self.file_watcher.files())
+            log.debug(f"FileMonitor.clear Unwatched all files: {self.file_watcher.files()}", stacklevel=2)
 
 
     #  ============= REVISION TIMER ==================
@@ -753,6 +749,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def closeEvent(self, event):
+        self.file_monitor_clear()
         self.config.save()
 
 

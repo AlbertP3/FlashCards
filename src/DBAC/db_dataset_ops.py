@@ -23,7 +23,6 @@ class FileDescriptor:
     data: pd.DataFrame = None
     signature: str = None
     tmp: bool = False
-    mtime: int = None
     parent: dict = None  # {filepath: str, len_: int}
 
     def __str__(self) -> str:
@@ -121,9 +120,6 @@ class db_dataset_ops:
 
     def save_mistakes(self, mistakes_list: list, offset: int):
         """Dump dataset to the Mistakes file"""
-        mistakes_list: pd.DataFrame = pd.DataFrame(
-            data=mistakes_list, columns=self.active_file.data.columns
-        )
         basename = f"{self.active_file.lng}_mistakes"
         mfd = FileDescriptor(
             basename=basename,
@@ -136,17 +132,21 @@ class db_dataset_ops:
         )
         if mfd.filepath in self.files.keys():
             buffer = self.load_dataset(mfd, do_shuffle=False, activate=False)
-            buffer = pd.concat([buffer, mistakes_list.iloc[offset:]], ignore_index=True)
+            mistakes_df = pd.DataFrame(data=mistakes_list, columns=buffer.columns)
+            buffer = pd.concat([buffer, mistakes_df.iloc[offset:]], ignore_index=True)
             buffer.iloc[-self.config["mistakes_buffer"] :].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
             )
-        else:
-            mistakes_list.iloc[:self.config["mistakes_buffer"]].to_csv(
+        else:  # create a new mistakes file
+            mistakes_df = pd.DataFrame(
+                data=mistakes_list, columns=self.active_file.data.columns
+            )
+            mistakes_df.iloc[: self.config["mistakes_buffer"]].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
             )
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
             self.reload_files_cache()
-        m_cnt = mistakes_list.shape[0] - offset
+        m_cnt = mistakes_df.shape[0] - offset
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
         fcc_queue.put(msg)
         log.debug(msg)
@@ -154,13 +154,17 @@ class db_dataset_ops:
     def validate_dataset(self, fd: FileDescriptor) -> bool:
         if not isinstance(fd.data, pd.DataFrame):
             fd.valid = False
+            fcc_queue.put(
+                f"Invalid data: expected DataFrame, got {type(fd.data).__name__}"
+            )
         else:
-            if fd.data.shape[0] < 1:
-                fd.valid = False
-            elif fd.data.shape[1] >= 2:
+            if fd.data.shape[1] == 2:
                 fd.valid = True
             else:
                 fd.valid = False
+                fcc_queue.put(
+                    f"Invalid data: expected 2 columns, got {fd.data.shape[1]}"
+                )
         return fd.valid
 
     def load_dataset(
@@ -210,17 +214,16 @@ class db_dataset_ops:
             valid=True,
             signature=signature,
             tmp=True,
-            mtime=99999999999,
             parent=parent,
         )
         log.debug(f"Mocked a temporary file: {fd.basename}")
         self.active_file = fd
 
     def shuffle_dataset(self, seed=None):
-        if not seed:
-            pd_random_seed = random.randrange(10000)
-        else:
+        if seed:
             pd_random_seed = self.config["pd_random_seed"]
+        else:
+            pd_random_seed = random.randrange(10000)
         self.config.update({"pd_random_seed": pd_random_seed})
         self.__AF.data = self.__AF.data.sample(
             frac=1, random_state=pd_random_seed
@@ -230,6 +233,7 @@ class db_dataset_ops:
         dataset = pd.read_csv(
             file_path,
             encoding="utf-8",
+            dtype=str,
             sep=(
                 self.get_dialect(file_path)
                 if self.config.translate("csv_sniffer")
@@ -256,12 +260,12 @@ class db_dataset_ops:
         )
 
     def read_excel(self, file_path):
-        return pd.read_excel(file_path, sheet_name=0)
+        return pd.read_excel(file_path, sheet_name=0, dtype=str)
 
     @cache
     def get_files(self) -> dict[str, FileDescriptor]:
         """Finds files matching active Languages"""
-        self.files = dict()
+        self.files:dict[os.PathLike, FileDescriptor] = dict()
         for lng in self.config["languages"]:
             self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)
             self.__update_files(lng, self.LNG_DIR, kind=self.KINDS.lng)
@@ -281,7 +285,6 @@ class db_dataset_ops:
                     kind=kind,
                     ext=ext,
                     signature=basename,
-                    mtime=os.stat(filepath).st_mtime,
                 )
         except FileNotFoundError:
             log.warning(
@@ -354,7 +357,7 @@ class db_dataset_ops:
         if not include_extension:
             files_list = [f.split(".")[0] for f in files_list]
         if exclude_open:
-            # exclude locks for open files for OS: Linux, Windows
+            # exclude locks for: Linux, Windows
             files_list[:] = [
                 f
                 for f in files_list

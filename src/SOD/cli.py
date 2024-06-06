@@ -38,6 +38,7 @@ class Message:
         self.CANNOT_DELETE = '⛌ Cannot Delete'
         self.DELETE_COMPLETE = '🗑️ Deleted Record'
         self.INVALID_INPUT = '⛌ Invalid Input!'
+        self.DB_REFRESH = "🔃 Refreshed Database"
 
 class Prompt:
     def __init__(self) -> None:
@@ -89,6 +90,7 @@ class CLI():
     def init_file_handler(self):
         try:
             self.fh = get_filehandler(self.config['SOD']['last_file'])
+            self.output.mw.file_monitor_add_path(self.config["SOD"]["last_file"])
             self.init_set_languages()
             self.cls()
         except (FileNotFoundError, AttributeError) as e:
@@ -131,17 +133,38 @@ class CLI():
         return self.dicts.dict_service == 'local'
 
 
+    def refresh_file_handler(self):
+        self.fh.close()
+        self.fh = get_filehandler(self.config["SOD"]["last_file"])
+        self.output.mw.file_monitor_add_path(self.config["SOD"]["last_file"])
+        self.init_set_languages()
+
+
     def update_file_handler(self, filepath:str) -> FileHandler:
+        """
+            Searches for a matching file using regex. 
+            Uses files_list if available, else all language files
+        """
         try:
-            if not os.path.exists(filepath):
+            pattern = re.compile(filepath, re.IGNORECASE)
+            if self.config["SOD"]["files_list"]:
+                for f in self.config["SOD"]["files_list"]:
+                    if pattern.search(f):
+                        filepath = f
+                        break
+                else:
+                    raise KeyError
+            elif not os.path.exists(filepath):
                 filepath = self.dbapi.match_from_all_languages(
-                    repat=re.compile(filepath, re.IGNORECASE),
+                    repat=pattern,
                     exclude_dirs=self.re_excl_dirs
                 ).pop()
+            self.output.mw.file_monitor_del_path(self.config["SOD"]["last_file"])
             fh = get_filehandler(filepath)
             if self.fh:
                 self.fh.close()
             self.fh = fh
+            self.output.mw.file_monitor_add_path(self.config["SOD"]["last_file"])
             self.init_set_languages()
             self.cls()
         except re.error:

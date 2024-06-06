@@ -3,6 +3,7 @@ import sys
 import json
 import signal
 import logging
+from logging.handlers import RotatingFileHandler
 import matplotlib
 from types import FrameType
 
@@ -11,18 +12,24 @@ CWD = os.path.dirname(os.path.abspath(__file__))
 
 def configure_logging(log_level, plt_log_level="error"):
     logging.basicConfig(
-        filename=os.path.realpath(f"{CWD}/../fcs.log"),
-        filemode="a",
         format="%(asctime)s.%(msecs)03d [%(name)s] %(levelname)s %(message)s <%(filename)s(%(lineno)d)>",
         datefmt="%Y-%m-%dT%H:%M:%S",
         level=log_level,
+        handlers=(
+            RotatingFileHandler(
+                filename=os.path.realpath(f"{CWD}/../fcs.log"),
+                mode="a",
+                maxBytes=1024**2,
+                backupCount=1,
+            ),
+        ),
     )
     LOGGER = logging.getLogger("FCS")
     sys.stderr.write = LOGGER.critical
     matplotlib.set_loglevel(plt_log_level)
 
 
-def handle_termination_signal(signum, frame:FrameType):
+def handle_termination_signal(signum, frame: FrameType):
     utils.config.save()
     log.critical(f"Application terminated with signal {signal.Signals(signum).name}")
     sys.exit(0)

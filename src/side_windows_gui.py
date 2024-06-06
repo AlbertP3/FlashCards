@@ -421,7 +421,7 @@ class load_gui:
 
 
     def fill_flashcard_files_list(self):
-        self.db.refresh()
+        self.db.reload_files_cache()
         self.load_map, i = dict(), 0
         for fd in self.db.get_sorted_languages():
             self.flashcard_files_qlist.addItem(fd.basename)
@@ -785,6 +785,7 @@ class config_gui():
         self.options_layout = ScrollableOptionsWidget()
         self.opt_scroll_area.setWidget(self.options_layout)
         self.config_layout.addWidget(self.opt_scroll_area)
+        self.db.reload_files_cache()
         self.fill_config_list()
 
 
@@ -795,21 +796,26 @@ class config_gui():
         self.languages_cbx = self.create_combobox('languages', self.db.get_available_languages())
         self.efc_threshold_qle = self.create_config_qlineedit('efc_threshold')
         self.days_to_new_rev_qle = self.create_config_qlineedit('days_to_new_rev')
+        self.mst_rev_int_qle = self.create_config_qlineedit('mistakes_review_interval_days')
         self.optional_featuers_cbx = self.create_combobox('opt', list(self.config["opt"].keys()))
         self.init_rep_qle = self.create_config_qlineedit('init_revs_cnt')
         self.init_revh_qle = self.create_config_qlineedit('init_revs_inth')
-        self.check_file_updates_cbx = self.create_config_qlineedit('file_update_interval')
+        self.check_file_monitor_cbx = self.create_combobox(
+            'allow_file_monitor', ["True", "False"], multi_choice=False
+        )
         self.mistakes_buffer_qle = self.create_config_qlineedit('mistakes_buffer')
         self.theme_cbx = self.create_combobox('active_theme', self.themes_dict.keys(), multi_choice=False)
         self.pace_card_qle = self.create_config_qlineedit('pace_card_interval')
         self.csv_sniffer_qle = self.create_config_qlineedit('csv_sniffer')
-        self.initial_lng_cbx = self.create_combobox(
+        self.sod_init_lng_cbx = self.create_combobox(
             'initial_language', ['auto', 'native', 'foreign'], subdict='SOD', multi_choice=False
         )
         self.cre_settings_cbx = self.create_combobox(
             'CRE', ['reversed', 'auto_save_mistakes', 'auto_next'],  multi_choice=True
         )
-        self.hide_tips_allow_cbx = self.create_combobox("allow", ["True", "False"], subdict="hide_tips", multi_choice=False)
+        self.hide_tips_policy_cbx = self.create_combobox(
+            "policy", ["always", "never", "standard-rev-only"], subdict="hide_tips", multi_choice=False
+        )
         self.hide_tips_pattern_qle = self.create_config_qlineedit('pattern', "hide_tips")
         self.timespent_len_qle = self.create_config_qlineedit("timespent_len")
         self.afterface_qle = self.create_config_qlineedit("after_face")
@@ -819,22 +825,28 @@ class config_gui():
         )
         self.emo_cap_fold_qle = self.create_config_qlineedit("cap_fold", subdict="EMO")
         self.emo_min_records_qle = self.create_config_qlineedit("min_records", subdict="EMO")
+        self.sod_files_cbx = self.create_combobox(
+            "files_list", subdict="SOD", multi_choice=True, 
+            content=sorted(self.db.get_all_files(dirs={self.db.LNG_DIR}))
+        )
 
         self.options_layout.add_widget(self.card_default_cbx, self.create_label('Card default side'))
         self.options_layout.add_widget(self.languages_cbx, self.create_label('Languages'))
         self.options_layout.add_widget(self.efc_threshold_qle, self.create_label('EFC threshold'))
         self.options_layout.add_widget(self.days_to_new_rev_qle, self.create_label('Days between new revisions'))
+        self.options_layout.add_widget(self.mst_rev_int_qle, self.create_label('Days between mistake reviews'))
         self.options_layout.add_widget(self.optional_featuers_cbx, self.create_label('Optional features'))
         self.options_layout.add_widget(self.init_rep_qle, self.create_label("Initial revision count"))
         self.options_layout.add_widget(self.init_revh_qle, self.create_label("Initial revision interval"))
-        self.options_layout.add_widget(self.check_file_updates_cbx, self.create_label('Check file updates'))
+        self.options_layout.add_widget(self.check_file_monitor_cbx, self.create_label('File monitor'))
         self.options_layout.add_widget(self.mistakes_buffer_qle, self.create_label('Mistakes buffer'))
         self.options_layout.add_widget(self.theme_cbx, self.create_label('Theme'))
         self.options_layout.add_widget(self.pace_card_qle, self.create_label('Card pacing'))
         self.options_layout.add_widget(self.csv_sniffer_qle, self.create_label('CSV sniffer'))
-        self.options_layout.add_widget(self.initial_lng_cbx, self.create_label('SOD initial language'))
+        self.options_layout.add_widget(self.sod_files_cbx, self.create_label('SOD files list'))
+        self.options_layout.add_widget(self.sod_init_lng_cbx, self.create_label('SOD initial language'))
         self.options_layout.add_widget(self.cre_settings_cbx, self.create_label('Comprehensive review'))
-        self.options_layout.add_widget(self.hide_tips_allow_cbx, self.create_label('Allow hiding tips'))
+        self.options_layout.add_widget(self.hide_tips_policy_cbx, self.create_label('Allow hiding tips'))
         self.options_layout.add_widget(self.hide_tips_pattern_qle, self.create_label('Hide tips pattern'))
         self.options_layout.add_widget(self.timespent_len_qle, self.create_label('Timespent display length'))
         self.options_layout.add_widget(self.afterface_qle, self.create_label('Afterface'))
@@ -852,18 +864,20 @@ class config_gui():
         modified_config['languages'] = self.languages_cbx.currentDataList()
         modified_config['efc_threshold'] = int(self.efc_threshold_qle.text())
         modified_config['days_to_new_rev'] = int(self.days_to_new_rev_qle.text())
+        modified_config['mistakes_review_interval_days'] = int(self.mst_rev_int_qle.text())
         modified_config['opt'] = self.optional_featuers_cbx.currentDataDict()
         modified_config['init_revs_cnt'] = int(self.init_rep_qle.text())
         modified_config['init_revs_inth'] = int(self.init_revh_qle.text())
-        modified_config['file_update_interval'] = int(self.check_file_updates_cbx.text())
+        modified_config['allow_file_monitor'] = self.check_file_monitor_cbx.currentDataList()[0] == "True"
         modified_config['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qle.text()))
         modified_config['active_theme'] = self.theme_cbx.currentDataList()[0]
         modified_config['THEME'].update(self.themes_dict[modified_config['active_theme']])
         modified_config['pace_card_interval'] = int(self.pace_card_qle.text())
         modified_config['csv_sniffer'] = self.csv_sniffer_qle.text()
-        modified_config['SOD']['initial_language'] = self.initial_lng_cbx.currentDataList()[0]
+        modified_config['SOD']['initial_language'] = self.sod_init_lng_cbx.currentDataList()[0]
+        modified_config['SOD']['files_list'] = self.sod_files_cbx.currentDataList()
         modified_config["CRE"].update(self.cre_settings_cbx.currentDataDict())
-        modified_config["hide_tips"]["allow"] = self.hide_tips_allow_cbx.currentDataList()[0] == "True"
+        modified_config["hide_tips"]["policy"] = self.hide_tips_policy_cbx.currentDataList()[0]
         modified_config["hide_tips"]["pattern"] = self.hide_tips_pattern_qle.text()
         modified_config["timespent_len"] = int(self.timespent_len_qle.text())
         modified_config["after_face"] = self.afterface_qle.text()
@@ -881,10 +895,14 @@ class config_gui():
         if modified_config['active_theme'] != self.config['active_theme']:
             funcs_to_restart.append(self.set_theme)
 
+        if modified_config['allow_file_monitor'] != self.config['allow_file_monitor']:
+            funcs_to_restart.append(self.initiate_file_monitor)
+
         self.config.update(modified_config)
         self.config_manual_update()
 
         self.del_side_window()
+        self.display_text(self.get_current_card().iloc[self.side])
         self.get_config_sidewindow()
 
         if funcs_to_restart:
@@ -970,6 +988,7 @@ class config_gui():
             self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
+            self.set_allow_hiding_tips()
             self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
 
 

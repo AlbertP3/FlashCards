@@ -30,6 +30,7 @@ class main_window_logic():
         self.auto_cfm_offset = 0
         self.is_afterface = False
         self.is_revision_summary = False
+        self.allow_hiding_tips = False
         self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
 
 
@@ -40,6 +41,13 @@ class main_window_logic():
     @property
     def active_file(self):
         return self.db.active_file
+    
+    @property
+    def is_initial_rev(self) -> bool:
+        return (
+            self.active_file.kind == self.db.KINDS.rev and 
+            self.db.get_sum_repeated(self.active_file.signature) - int(self.is_recorded) <= self.config["init_revs_cnt"]
+        )
 
 
     def result_positive(self):
@@ -201,6 +209,18 @@ class main_window_logic():
         self.total_words = self.active_file.data.shape[0]
         self.revision_summary = None
         self.auto_cfm_offset = 0
+        self.set_allow_hiding_tips()
+
+
+    def set_allow_hiding_tips(self):
+        if self.config["hide_tips"]["policy"] == "always":
+            self.allow_hiding_tips = True
+        elif self.config["hide_tips"]["policy"] == "never":
+            self.allow_hiding_tips = False
+        elif self.config["hide_tips"]["policy"] == "standard-rev-only":
+            self.allow_hiding_tips = self.is_revision and not self.is_initial_rev
+        else:
+            fcc_queue.put(f"Unknown hide_tips policy: {self.config['hide_tips']['policy']}")
 
 
     def save_current_mistakes(self):

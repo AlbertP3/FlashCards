@@ -113,11 +113,9 @@ class db_queries:
             fd.signature for fd in self.files.values() if fd.kind == self.KINDS.rev
         )
 
-    def get_sum_repeated(self, signature=None) -> int:
-        repeated_times = self.get_filtered_db_if("SIGNATURE", signature)
-        repeated_times = repeated_times.count().iloc[0] - 1
-        repeated_times = 0 if repeated_times is None else int(repeated_times)
-        return repeated_times
+    def get_sum_repeated(self, signature) -> int:
+        cnt = self.db[self.db["SIGNATURE"] == signature].shape[0] - 1
+        return int(cnt)
 
     def get_total_time_spent_for_signature(self, signature=None):
         time_spent = self.get_filtered_db_if("SIGNATURE", signature)
@@ -188,6 +186,15 @@ class db_queries:
             return self.db[self.db["SIGNATURE"] == signature].iloc[-1]["TIMESTAMP"]
         except IndexError:
             return self.DEFAULT_DATE
+
+    def get_last_mistakes_signature_and_datetime(self, lng:str) -> tuple[str, datetime]:
+        try:
+            df = self.db[
+                (self.db["LNG"] == lng) & (self.db["KIND"] == self.KINDS.mst)
+            ].iloc[-1]
+            return df["SIGNATURE"], df["TIMESTAMP"]
+        except IndexError:
+            return "", datetime(2137, 12, 31)
 
     def get_timedelta_from_creation(self, signature) -> timedelta:
         first_date = self.get_first_datetime(signature)
@@ -292,8 +299,3 @@ class db_queries:
         return int(
             filtered.sum()
         )
-
-    @require_refresh
-    def is_initial_rev(self, signature: str) -> bool:
-        cnt = self.db[self.db["SIGNATURE"] == signature].shape[0]
-        return cnt <= self.config["init_revs_cnt"]

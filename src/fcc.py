@@ -233,7 +233,6 @@ class fcc():
         self.mw.update_backend_parameters()
         self.mw.update_interface_parameters()
         self.mw.reset_timer()
-        self.mw.start_file_update_timer() 
         self.post_fcc(f'Loaded {len(data)} cards')
 
 
