@@ -53,7 +53,7 @@ class EFC:
             self.efc_model = StandardModel()
             log.warning("Custom EFC model not found. Recoursing to the Standard Model")
 
-    def get_recommendations(self):
+    def get_recommendations(self) -> list[str]:
         recommendations = list()
         self.new_revs = 0
         self.db.refresh()

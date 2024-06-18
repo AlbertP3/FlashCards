@@ -10,9 +10,30 @@ import inspect
 from time import perf_counter
 import logging
 from typing import Union
+from dataclasses import dataclass
 
 log = logging.getLogger(__name__)
 
+
+@dataclass
+class HIDE_TIPS_POLICIES():
+    always = "always"
+    never = "never"
+    reg_rev = "regular-rev"
+    new_card = "new-card"
+    foreign_side = "foreign-side"
+
+    @classmethod
+    def get_states(cls) -> set:
+        return {cls.reg_rev,}
+
+    @classmethod
+    def get_flux(cls) -> set:
+        return {cls.new_card, cls.foreign_side}
+
+    @classmethod
+    def get_common(cls) -> set:
+        return {cls.always, cls.never, cls.new_card, cls.foreign_side}
 
 
 class FccQueue:
@@ -59,14 +80,17 @@ def singleton(cls):
 @singleton
 class Config(UserDict):
     def __init__(self):
-        self.DICT_PATH = './src/res/config.json'
+        self.CFG_PATH = './src/res/config.json'
         self.default_off_values = {'off', 'no', 'none', ''}
-        self.data = json.load(open(self.DICT_PATH, 'r'))
+        self.data = json.load(open(self.CFG_PATH, 'r'))
+    
+    def reload(self):
+        self.data.update(json.load(open(self.CFG_PATH, 'r')))
 
     def save(self):
         json.dump(
             self.data, 
-            open(self.DICT_PATH, 'w'), 
+            open(self.CFG_PATH, 'w'), 
             indent=4, 
             ensure_ascii=False
         )

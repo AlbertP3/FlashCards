@@ -13,6 +13,7 @@ from efc import EFC
 from stats import stats
 from checkable_combobox import CheckableComboBox
 from typing import Callable
+from random import shuffle
 
 
 
@@ -286,6 +287,7 @@ class efc_gui(EFC):
 
     def init_shortcuts_efc(self):
         self.add_shortcut('efc', self.get_efc_sidewindow, 'main')
+        self.add_shortcut('next_efc', self.load_next_efc, 'main')
         self.add_shortcut('run_command', self.load_selected_efc, 'efc')
         self.add_shortcut('negative', lambda: self.nagivate_efc_list(1), 'efc')
         self.add_shortcut('reverse', lambda: self.nagivate_efc_list(-1), 'efc')
@@ -352,6 +354,42 @@ class efc_gui(EFC):
         else: self.cur_efc_index = new_index 
         self.recommendation_list.setCurrentRow(self.cur_efc_index)
 
+    def load_next_efc(self):
+
+        if self.config["next_efc"]["require_recorded"] and not self.is_recorded:
+            fcc_queue.put("Review current revision before proceeding")
+            return
+
+        fd = None
+        recs = self.get_recommendations()
+
+        if not recs:
+            fcc_queue.put("There are no EFC recommendations")
+            return
+
+        if self.config["next_efc"]["reversed"]:
+            recs = reversed(recs)
+        if self.config["next_efc"]["random"]:
+            shuffle(recs)
+        
+        for rec in recs:
+            try:
+                tmp_fd = [fd for fd in self.db.files.values() if fd.basename == rec][0]
+                if self.config["next_efc"]["skip_mistakes"] and tmp_fd.kind==self.db.KINDS.mst:
+                    continue
+                else:
+                    fd = tmp_fd
+                    break
+            except IndexError:
+                if not self.config["next_efc"]["skip_new"]:
+                    fd = self.db.files[self.paths_to_suggested_lngs[recs[0]]]
+                    break
+        
+        if fd:
+            self.initiate_flashcards(fd)
+            self.del_side_window()
+        else:
+            fcc_queue.put("There are no EFC recommendations")
 
     def load_selected_efc(self):
         if fd := self.get_fd_from_selected_file():
@@ -754,6 +792,7 @@ class config_gui():
     def __init__(self):
         self.side_window_titles['config'] = 'Settings'
         self.config = Config()
+        self.funcs_to_restart = list()
         self.config_button = self.create_button(self.config["ICONS"]['config'], self.get_config_sidewindow)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         self.add_shortcut('config', self.get_config_sidewindow, 'main')
@@ -789,50 +828,90 @@ class config_gui():
         self.fill_config_list()
 
 
+    def _init_confirm_and_close_button(self) -> widget.QPushButton:
+        if self.funcs_to_restart:
+            self.confirm_and_close_button = self.create_button(
+                "Restart required", 
+                lambda: self.__on_config_commit_restart(self.funcs_to_restart)
+            )
+        else:
+            self.confirm_and_close_button = self.create_button(
+                'Confirm changes', 
+                self.commit_config_update
+            )
+
     def fill_config_list(self):
         # initate labels and comboboxes
-        self.confirm_and_close_button = self.create_button('Confirm changes', self.commit_config_update)
-        self.card_default_cbx = self.create_combobox('card_default_side', ['0','1','Random'], multi_choice=False)
-        self.languages_cbx = self.create_combobox('languages', self.db.get_available_languages())
-        self.efc_threshold_qle = self.create_config_qlineedit('efc_threshold')
-        self.days_to_new_rev_qle = self.create_config_qlineedit('days_to_new_rev')
-        self.mst_rev_int_qle = self.create_config_qlineedit('mistakes_review_interval_days')
-        self.optional_featuers_cbx = self.create_combobox('opt', list(self.config["opt"].keys()))
-        self.init_rep_qle = self.create_config_qlineedit('init_revs_cnt')
-        self.init_revh_qle = self.create_config_qlineedit('init_revs_inth')
+        self._init_confirm_and_close_button()
+        self.card_default_cbx = self.create_combobox(self.config['card_default_side'], ['0','1','Random'], multi_choice=False)
+        self.languages_cbx = self.create_combobox(self.config['languages'], self.db.get_available_languages())
+        self.efc_threshold_qle = self.create_config_qlineedit(self.config['efc_threshold'])
+        self.next_efc_policy_cbx = self.create_combobox(self.config['next_efc'], list(self.config["next_efc"].keys()))
+        self.days_to_new_rev_qle = self.create_config_qlineedit(self.config['days_to_new_rev'])
+        self.mst_rev_int_qle = self.create_config_qlineedit(self.config['mistakes_review_interval_days'])
+        self.optional_featuers_cbx = self.create_combobox(self.config['opt'], list(self.config["opt"].keys()))
+        self.init_rep_qle = self.create_config_qlineedit(self.config['init_revs_cnt'])
+        self.init_revh_qle = self.create_config_qlineedit(self.config['init_revs_inth'])
         self.check_file_monitor_cbx = self.create_combobox(
-            'allow_file_monitor', ["True", "False"], multi_choice=False
+            self.config['allow_file_monitor'], ["True", "False"], multi_choice=False
         )
-        self.mistakes_buffer_qle = self.create_config_qlineedit('mistakes_buffer')
-        self.theme_cbx = self.create_combobox('active_theme', self.themes_dict.keys(), multi_choice=False)
-        self.pace_card_qle = self.create_config_qlineedit('pace_card_interval')
-        self.csv_sniffer_qle = self.create_config_qlineedit('csv_sniffer')
+        self.mistakes_buffer_qle = self.create_config_qlineedit(self.config['mistakes_buffer'])
+        self.theme_cbx = self.create_combobox(self.config['active_theme'], self.themes_dict.keys(), multi_choice=False)
+        self.final_actions_cbx = self.create_combobox(
+            self.config['final_actions'], 
+            list(self.config["final_actions"].keys()),
+            multi_choice=False,
+        )
+        self.pace_card_qle = self.create_config_qlineedit(self.config['pace_card_interval'])
+        self.csv_sniffer_qle = self.create_config_qlineedit(self.config['csv_sniffer'])
         self.sod_init_lng_cbx = self.create_combobox(
-            'initial_language', ['auto', 'native', 'foreign'], subdict='SOD', multi_choice=False
+            self.config["SOD"]['initial_language'], ['auto', 'native', 'foreign'], multi_choice=False
         )
         self.cre_settings_cbx = self.create_combobox(
-            'CRE', ['reversed', 'auto_save_mistakes', 'auto_next'],  multi_choice=True
+            self.config['CRE'], ['reversed', 'auto_save_mistakes', 'auto_next'],  multi_choice=True
         )
-        self.hide_tips_policy_cbx = self.create_combobox(
-            "policy", ["always", "never", "standard-rev-only"], subdict="hide_tips", multi_choice=False
+        self.hide_tips_policy_rev_cbx = self.create_combobox(
+            self.config["hide_tips"]["policy"][self.db.KINDS.rev], 
+            [
+                *HIDE_TIPS_POLICIES.get_common(),
+                HIDE_TIPS_POLICIES.reg_rev, 
+            ], 
+            multi_choice=True
         )
-        self.hide_tips_pattern_qle = self.create_config_qlineedit('pattern', "hide_tips")
-        self.timespent_len_qle = self.create_config_qlineedit("timespent_len")
-        self.afterface_qle = self.create_config_qlineedit("after_face")
-        self.cell_alignment_cbx = self.create_combobox("cell_alignment", ["left", "right"], multi_choice=False)
-        self.emo_discretizer_cbx = self.create_combobox("discretizer", 
-            ["yeo-johnson", "decision-tree"], subdict="EMO", multi_choice=False
+        self.hide_tips_policy_lng_cbx = self.create_combobox(
+            self.config["hide_tips"]["policy"][self.db.KINDS.lng], 
+            [*HIDE_TIPS_POLICIES.get_common()], 
+            multi_choice=True
         )
-        self.emo_cap_fold_qle = self.create_config_qlineedit("cap_fold", subdict="EMO")
-        self.emo_min_records_qle = self.create_config_qlineedit("min_records", subdict="EMO")
+        self.hide_tips_policy_mst_cbx = self.create_combobox(
+            self.config["hide_tips"]["policy"][self.db.KINDS.mst], 
+            [*HIDE_TIPS_POLICIES.get_common()], 
+            multi_choice=True
+        )
+        self.hide_tips_pattern_qle = self.create_config_qlineedit(self.config["hide_tips"]['pattern'])
+        self.hide_tips_connector_qle = self.create_combobox(
+            self.config["hide_tips"]['connector'],
+            ["and", "or"],
+            multi_choice=False
+        )
+        self.timespent_len_qle = self.create_config_qlineedit(self.config["timespent_len"])
+        self.afterface_qle = self.create_config_qlineedit(self.config["after_face"])
+        self.cell_alignment_cbx = self.create_combobox(self.config["cell_alignment"], ["left", "right"], multi_choice=False)
+        self.emo_discretizer_cbx = self.create_combobox(self.config["EMO"]["discretizer"], 
+            ["yeo-johnson", "decision-tree"],
+            multi_choice=False
+        )
+        self.emo_cap_fold_qle = self.create_config_qlineedit(self.config["EMO"]["cap_fold"])
+        self.emo_min_records_qle = self.create_config_qlineedit(self.config["EMO"]["min_records"])
         self.sod_files_cbx = self.create_combobox(
-            "files_list", subdict="SOD", multi_choice=True, 
+            self.config["SOD"]["files_list"], multi_choice=True, 
             content=sorted(self.db.get_all_files(dirs={self.db.LNG_DIR}))
         )
 
         self.options_layout.add_widget(self.card_default_cbx, self.create_label('Card default side'))
         self.options_layout.add_widget(self.languages_cbx, self.create_label('Languages'))
         self.options_layout.add_widget(self.efc_threshold_qle, self.create_label('EFC threshold'))
+        self.options_layout.add_widget(self.next_efc_policy_cbx, self.create_label('EFC next policy'))
         self.options_layout.add_widget(self.days_to_new_rev_qle, self.create_label('Days between new revisions'))
         self.options_layout.add_widget(self.mst_rev_int_qle, self.create_label('Days between mistake reviews'))
         self.options_layout.add_widget(self.optional_featuers_cbx, self.create_label('Optional features'))
@@ -841,13 +920,17 @@ class config_gui():
         self.options_layout.add_widget(self.check_file_monitor_cbx, self.create_label('File monitor'))
         self.options_layout.add_widget(self.mistakes_buffer_qle, self.create_label('Mistakes buffer'))
         self.options_layout.add_widget(self.theme_cbx, self.create_label('Theme'))
+        self.options_layout.add_widget(self.final_actions_cbx, self.create_label('Final actions'))
         self.options_layout.add_widget(self.pace_card_qle, self.create_label('Card pacing'))
         self.options_layout.add_widget(self.csv_sniffer_qle, self.create_label('CSV sniffer'))
         self.options_layout.add_widget(self.sod_files_cbx, self.create_label('SOD files list'))
         self.options_layout.add_widget(self.sod_init_lng_cbx, self.create_label('SOD initial language'))
         self.options_layout.add_widget(self.cre_settings_cbx, self.create_label('Comprehensive review'))
-        self.options_layout.add_widget(self.hide_tips_policy_cbx, self.create_label('Allow hiding tips'))
+        self.options_layout.add_widget(self.hide_tips_policy_rev_cbx, self.create_label('Hide tips policy: Rev'))
+        self.options_layout.add_widget(self.hide_tips_policy_lng_cbx, self.create_label('Hide tips policy: Lng'))
+        self.options_layout.add_widget(self.hide_tips_policy_mst_cbx, self.create_label('Hide tips policy: Mst'))
         self.options_layout.add_widget(self.hide_tips_pattern_qle, self.create_label('Hide tips pattern'))
+        self.options_layout.add_widget(self.hide_tips_connector_qle, self.create_label('Hide tips connector'))
         self.options_layout.add_widget(self.timespent_len_qle, self.create_label('Timespent display length'))
         self.options_layout.add_widget(self.afterface_qle, self.create_label('Afterface'))
         self.options_layout.add_widget(self.cell_alignment_cbx, self.create_label('Cell alignment'))
@@ -858,11 +941,11 @@ class config_gui():
 
 
     def commit_config_update(self):
-        funcs_to_restart = list()
         modified_config = deepcopy(self.config)
         modified_config['card_default_side'] = self.card_default_cbx.currentDataList()[0]
         modified_config['languages'] = self.languages_cbx.currentDataList()
         modified_config['efc_threshold'] = int(self.efc_threshold_qle.text())
+        modified_config['next_efc'] = self.next_efc_policy_cbx.currentDataDict()
         modified_config['days_to_new_rev'] = int(self.days_to_new_rev_qle.text())
         modified_config['mistakes_review_interval_days'] = int(self.mst_rev_int_qle.text())
         modified_config['opt'] = self.optional_featuers_cbx.currentDataDict()
@@ -871,14 +954,18 @@ class config_gui():
         modified_config['allow_file_monitor'] = self.check_file_monitor_cbx.currentDataList()[0] == "True"
         modified_config['mistakes_buffer'] = max(1, int(self.mistakes_buffer_qle.text()))
         modified_config['active_theme'] = self.theme_cbx.currentDataList()[0]
+        modified_config['final_actions'] = self.final_actions_cbx.currentDataDict()
         modified_config['THEME'].update(self.themes_dict[modified_config['active_theme']])
         modified_config['pace_card_interval'] = int(self.pace_card_qle.text())
         modified_config['csv_sniffer'] = self.csv_sniffer_qle.text()
         modified_config['SOD']['initial_language'] = self.sod_init_lng_cbx.currentDataList()[0]
         modified_config['SOD']['files_list'] = self.sod_files_cbx.currentDataList()
         modified_config["CRE"].update(self.cre_settings_cbx.currentDataDict())
-        modified_config["hide_tips"]["policy"] = self.hide_tips_policy_cbx.currentDataList()[0]
+        modified_config["hide_tips"]["policy"][self.db.KINDS.rev] = self.hide_tips_policy_rev_cbx.currentDataList()
+        modified_config["hide_tips"]["policy"][self.db.KINDS.lng] = self.hide_tips_policy_lng_cbx.currentDataList()
+        modified_config["hide_tips"]["policy"][self.db.KINDS.mst] = self.hide_tips_policy_mst_cbx.currentDataList()
         modified_config["hide_tips"]["pattern"] = self.hide_tips_pattern_qle.text()
+        modified_config["hide_tips"]["connector"] = self.hide_tips_connector_qle.currentDataList()[0]
         modified_config["timespent_len"] = int(self.timespent_len_qle.text())
         modified_config["after_face"] = self.afterface_qle.text()
         modified_config["cell_alignment"] = self.cell_alignment_cbx.currentDataList()[0]
@@ -893,10 +980,10 @@ class config_gui():
             self.unfix_size(self.textbox)
 
         if modified_config['active_theme'] != self.config['active_theme']:
-            funcs_to_restart.append(self.set_theme)
+            self.funcs_to_restart.append(self.set_theme)
 
         if modified_config['allow_file_monitor'] != self.config['allow_file_monitor']:
-            funcs_to_restart.append(self.initiate_file_monitor)
+            self.funcs_to_restart.append(self._modify_file_monitor)
 
         self.config.update(modified_config)
         self.config_manual_update()
@@ -904,25 +991,26 @@ class config_gui():
         self.del_side_window()
         self.display_text(self.get_current_card().iloc[self.side])
         self.get_config_sidewindow()
-
-        if funcs_to_restart:
-            self.confirm_and_close_button.setText("Restart required")
-            self.confirm_and_close_button.clicked.disconnect()
-            self.confirm_and_close_button.clicked.connect(
-                lambda: self.__on_config_commit_restart(funcs_to_restart)
-            )
-        else:
-            self.confirm_and_close_button.setText("Config saved")
-            self.confirm_and_close_button.clicked.disconnect()
+        self._init_confirm_and_close_button()
 
 
     def __on_config_commit_restart(self, funcs: list[Callable]):
         for f in funcs:
             f()
+        self.funcs_to_restart.clear()
+        self.confirm_and_close_button.setText("Config saved")
+        self.confirm_and_close_button.clicked.disconnect()
         self.del_side_window()
 
 
-    def create_combobox(self, key:str, content:list, subdict:str=None, multi_choice:bool=True):
+    def _modify_file_monitor(self):
+        self.initiate_file_monitor()
+        if not self.active_file.tmp:
+            self.file_monitor_add_path(self.active_file.filepath)
+        self.file_monitor_add_path(self.config["SOD"]["last_file"])
+
+
+    def create_combobox(self, value, content:list, multi_choice:bool=True):
         cb = CheckableComboBox(
             self, 
             allow_multichoice=multi_choice, 
@@ -930,23 +1018,19 @@ class config_gui():
         )
         cb.setStyleSheet(self.button_style_sheet)
         cb.setFont(self.BUTTON_FONT)
-        k = self.config[subdict][key] if subdict else self.config[key]
-        if isinstance(k, dict):
-            k = [k for k, v in k.items() if v is True]
+        if isinstance(value, dict):
+            value = [k for k, v in value.items() if v is True]
         for i in content:
             try:
-                cb.addItem(i, is_checked= i in k)
+                cb.addItem(i, is_checked= i in value)
             except TypeError:
-                cb.addItem(i, is_checked= i == str(k))
+                cb.addItem(i, is_checked= i == str(value))
         return cb
 
 
-    def create_config_qlineedit(self, key:str, subdict:str=None):
+    def create_config_qlineedit(self, value):
         qlineedit = widget.QLineEdit(self)
-        if subdict:
-            qlineedit.setText(str(self.config[subdict][key]))
-        else:
-            qlineedit.setText(str(self.config[key]))
+        qlineedit.setText(str(value))
         qlineedit.setFont(self.BUTTON_FONT)
         qlineedit.setStyleSheet(self.button_style_sheet)
         return qlineedit
@@ -988,8 +1072,8 @@ class config_gui():
             self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
-            self.set_allow_hiding_tips()
             self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
+            self.set_should_hide_tips()
 
 
 

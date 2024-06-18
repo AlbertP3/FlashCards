@@ -12,3 +12,4 @@ pytest.ini
 build/
 data/
 src/res/model.pkl
+src/res/tmp*

@@ -73,7 +73,6 @@ class db_dataset_ops:
 
     def reload_files_cache(self):
         self.get_files.cache_clear()
-        self.get_files()
         self.get_sorted_revisions.cache_clear()
         self.get_sorted_languages.cache_clear()
         self.get_sorted_mistakes.cache_clear()
@@ -150,6 +149,17 @@ class db_dataset_ops:
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
         fcc_queue.put(msg)
         log.debug(msg)
+    
+    def create_tmp_file_backup(self):
+        self.active_file.data.to_csv(self.TMP_BACKUP_PATH, index=False, mode="w", header=True)
+        self.config["tmp-backup"] = {
+            "filepath": self.TMP_BACKUP_PATH,
+            "kind": self.active_file.kind,
+            "basename": self.active_file.basename,
+            "lng": self.active_file.lng,
+            "parent": self.active_file.parent
+        }
+        log.debug(f"Created temporary backup file at {self.TMP_BACKUP_PATH}")
 
     def validate_dataset(self, fd: FileDescriptor) -> bool:
         if not isinstance(fd.data, pd.DataFrame):
@@ -182,7 +192,7 @@ class db_dataset_ops:
                 operation_status = f"Chosen extension is not (yet) supported: {fd.ext}"
         except FileNotFoundError as e:
             operation_status = f"File {fd.filepath} Not Found"
-            log.debug(operation_status)
+            log.debug(operation_status, stacklevel=2)
         except Exception as e:
             operation_status = f"Exception occurred: {e}"
             log.error(e, exc_info=True)
@@ -229,7 +239,7 @@ class db_dataset_ops:
             frac=1, random_state=pd_random_seed
         ).reset_index(drop=True)
 
-    def read_csv(self, file_path):
+    def read_csv(self, file_path) -> pd.DataFrame:
         dataset = pd.read_csv(
             file_path,
             encoding="utf-8",

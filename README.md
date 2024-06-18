@@ -1,8 +1,8 @@
-# FlashCards 1.3.13
+# FlashCards 1.3.14
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-137)
+- [FlashCards](#flashcards-1314)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -11,7 +11,9 @@
   - [Search Online Dictionaries](#search-online-dictionaries)
   - [EFC Model Optimizer](#efc-model-optimizer)
   - [Time Spent](#time-spent)
+  - [Monitoring](#monitoring)
   - [Settings](#settings)
+  - [Hiding Tips](#hiding-tips)
   - [Requirements](#requirements)
   - [How to install](#how-to-install)
   - [Console Commands](#console-commands)
@@ -100,11 +102,16 @@ Search Online Dictionaries facilitates managing cards in the datasets via a comm
 
 ![TimeSpent Window](src/res/imgs/ss_time.png)
 
-1. There are 3 independent timers available for:
-   - Recording time spent during a *Revision*
-   - Monitoring changes in the source file (optional, turn off by setting to 0)
-   - Pace Timer for switching cards after a specified time has passed (optional, turn off by setting to 0)
-2. Timers will stop whenever the Application window is not selected or a side-window is opened
+1. RevisionTimer for recording time spent during a *Revision*
+2. Pace Timer for switching cards after a specified time has passed (turn off by setting to 0)
+3. Timers will stop whenever the Application window is not selected or a side-window is opened
+
+
+## Monitoring
+1. FileMonitor is used to watch loaded files for changes
+2. Watched files: current flashcards file, SOD source file
+3. Turn off this setting by changing *allow_file_monitor* to false
+4. If current file is only temporary, it will be saved as a tmp-backup.csv and loaded on next startup. This file is then removed
 
 ## Settings
 
@@ -114,6 +121,17 @@ Search Online Dictionaries facilitates managing cards in the datasets via a comm
    - 'mcp' command [See: mcp](#console-commands)
    - manually editing the config.json before the application launch
 
+## Hiding Tips
+- The Hiding Tips feature allows you to hide parts of the text that match a given regex pattern
+- Policies are used to specify additional conditions. They are split into 3 levels:
+  - Level 0: These settings take absolute precedence over any other settings
+     - always, never
+  - Level 1: Conditions at this level refer to the immutable state of the loaded file
+     - regular_revision
+  - Level 2: Flux Rules are applied only if Level 1 conditions match and are dynamically evaluated
+     - new_card, foreign_side
+- Policies are defined per *kind*. Some rules are only available for specific *kinds*
+- Connector: used as a logical operator for Level 2 rules. Can be either *and* or *or*
 
 ## Requirements
 - Python3.10+
@@ -160,6 +178,8 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - clt - Create Language Tree - creates a directory tree for a new language and an example file
 - eph - Create Ephemeral Mistakes - shows current mistakes as flashcards
 - cre - Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext {true,false}, stat
+- cfg - Config - manage the config file. Arguments: save, load, restart
+- dbg - Debug - display debug info
     
 
 ## Optional Features
@@ -187,6 +207,8 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - SOD files_list: faciliate switching by specifying files available to SOD. Skipped if empty
 - mistakes_review_interval_days - recommend the mistakes file to be reviewed each N days
 - hiding_tips - remove *pattern* from the displayed text by following the *policy*
+- post_actions - action to be performed after pressing next_button on revision_summary. Example: create an *ephemeral* from mistakes
+- next_efc - on shortcut *next_efc* will load a recommended file by following the policy
 
 
 ## Known Bugs

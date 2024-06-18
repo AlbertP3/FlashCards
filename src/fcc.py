@@ -46,6 +46,8 @@ class fcc():
                     'clt':'Create Language Tree - creates a directory tree for a new language and an example file',
                     'eph':'Create Ephemeral Mistakes - shows current mistakes as flashcards',
                     'cre':'Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext <true,false>, stat',
+                    'cfg':'Config - manage the config file. Arguments: save, load, restart',
+                    'dbg':'Debug - display debug info',
                     }
 
 
@@ -602,3 +604,35 @@ class fcc():
             )
             next_rev = self.config["CRE"]["items"][-self.config["CRE"]["reversed"]]
             self.mw.initiate_flashcards(self.mw.db.files[next_rev])
+
+    def cfg(self, parsed_cmd:list):
+        """Configuration"""
+        if len(parsed_cmd) < 2:
+            self.post_fcc("cfg command requires at least 1 argument")
+        elif parsed_cmd[1] == "save":
+            self.config.save()
+            self.post_fcc("Config saved")
+        elif parsed_cmd[1] == "load":
+            self.config.reload()
+            self.post_fcc("Config reloaded")
+        elif parsed_cmd[1] == "restart":
+            self.mw.del_side_window()
+            self.mw._modify_file_monitor()
+            self.mw.config_manual_update()
+            self.mw.set_theme()
+            self.post_fcc("Application restarted")
+            self.mw.get_fcc_sidewindow()
+        else:
+            self.post_fcc("Usage: cfg anyOf(save,load,restart)")
+        
+    def dbg(self, parsed_cmd:list):
+        """Debug"""
+        self.post_fcc(f"{self.mw.current_index=}")
+        self.post_fcc(f"{self.mw.side=}")
+        self.post_fcc(f"{self.mw.revmode=}")
+        self.post_fcc(f"{self.mw.cards_seen=}")
+        self.post_fcc(f"{self.mw.words_back=}")
+        self.post_fcc(f"{self.mw.is_recorded=}")
+        self.post_fcc(f"{self.mw.is_afterface=}")
+        self.post_fcc(f"{self.mw.is_revision_summary=}")
+        self.post_fcc(f"{self.mw.is_initial_rev=}")
