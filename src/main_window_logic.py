@@ -240,6 +240,8 @@ class main_window_logic():
             data=self.mistakes_list, 
             columns=self.active_file.data.columns,
         )
+        if not self.active_file.tmp:
+            self.file_monitor_del_path(self.active_file.filepath)
         self.db.load_tempfile(
             data = mistakes_df,
             kind = self.db.KINDS.eph,
@@ -280,7 +282,7 @@ class main_window_logic():
 
 
     def notify_on_error(self, traceback, exc_value=None):
-        log.error(traceback, exc_info=True)
+        log.error(traceback, exc_info=True, stacklevel=2)
 
         if exc_value:  # is an error
             err_msg = f"{str(exc_value)}. See log file for more details."

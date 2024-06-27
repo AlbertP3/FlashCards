@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
 import pandas as pd
-from time import monotonic, perf_counter
 import logging
+from datetime import datetime, timedelta
+from time import time, perf_counter
+from csv import DictWriter
 from utils import fcc_queue
 
 log = logging.getLogger("DBAC")
@@ -36,7 +37,7 @@ class db_queries:
                 },
             )
             self.__db = self.db.copy(deep=True)
-            self.last_load = monotonic()
+            self.last_load = time()
             self.__reset_filters_flags()
             log.debug(
                 f"Reloaded database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3
@@ -61,36 +62,35 @@ class db_queries:
             self.refresh()
             res = func(self, *args, **kwargs)
             return res
+
         return inner
 
     def write_op(func):
         def inner(self, *args, **kwargs):
             res = func(self, *args, **kwargs)
-            self.last_update = monotonic()
+            self.last_update = time()
             self.refresh()
             return res
+
         return inner
 
     @write_op
     def create_record(self, words_total, positives, seconds_spent):
         """Appends a new record to the db for the active file"""
+        record = {
+            "TIMESTAMP": datetime.now().strftime(self.TSFORMAT),
+            "SIGNATURE": self.active_file.signature,
+            "LNG": self.active_file.lng,
+            "TOTAL": words_total,
+            "POSITIVES": positives,
+            "SEC_SPENT": seconds_spent,
+            "KIND": self.active_file.kind,
+        }
         with open(self.DB_PATH, "a") as fd:
-            record = self.make_record(
-                timestamp=datetime.now().strftime(self.TSFORMAT),
-                signature=self.active_file.signature,
-                lng=self.active_file.lng,
-                total=str(words_total),
-                positives=str(positives),
-                sec_spent=str(seconds_spent),
-                kind=self.active_file.kind,
-            )
-            fd.write(record + "\n")
+            dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
+            dw.writerow(record)
         fcc_queue.put(f"Recorded {self.active_file.signature}")
         log.debug(f"Created Record: {record}")
-
-    def make_record(self, **kwargs) -> str:
-        """Enforce proper format as specified by DB_COLS"""
-        return ";".join([kwargs[col.lower()] for col in self.DB_COLS])
 
     @write_op
     def rename_signature(self, old, new):
@@ -187,7 +187,9 @@ class db_queries:
         except IndexError:
             return self.DEFAULT_DATE
 
-    def get_last_mistakes_signature_and_datetime(self, lng:str) -> tuple[str, datetime]:
+    def get_last_mistakes_signature_and_datetime(
+        self, lng: str
+    ) -> tuple[str, datetime]:
         try:
             df = self.db[
                 (self.db["LNG"] == lng) & (self.db["KIND"] == self.KINDS.mst)
@@ -261,13 +263,13 @@ class db_queries:
         self.db = self.__get_filtered_by_lng(lngs)
         self.filters["BY_LNG"] = lngs
 
-    def get_avg_cpm(self, default = 0) -> float:
+    def get_avg_cpm(self, default=0) -> float:
         if div := self.db["SEC_SPENT"].sum():
             return self.db["TOTAL"].sum() / (div / 60)
         else:
             return default
 
-    def get_avg_score(self, default = 0) -> float:
+    def get_avg_score(self, default=0) -> float:
         if div := self.db["TOTAL"].sum():
             return self.db["POSITIVES"].sum() / div
         else:
@@ -277,9 +279,9 @@ class db_queries:
         return self.db
 
     def get_unique_languages(self) -> list:
-        return self.db['LNG'].drop_duplicates(inplace=False).values.tolist()
-    
-    def get_cards_total(self, signatures:list) -> int:
+        return self.db["LNG"].drop_duplicates(inplace=False).values.tolist()
+
+    def get_cards_total(self, signatures: list) -> int:
         db = self.db.drop_duplicates(subset="SIGNATURE", keep="last")
         return int(db[db["SIGNATURE"].isin(signatures)]["TOTAL"].sum())
 
@@ -290,12 +292,10 @@ class db_queries:
             "time_spent": self.get_last_time_spent(signature),
             "positives": self.get_last_positives(signature),
         }
-    
+
     def get_seconds_spent_today(self, lng: str) -> int:
         today = datetime.now().date()
         filtered = self.db[
             (self.db["TIMESTAMP"].dt.date == today) & (self.db["LNG"] == lng)
         ]["SEC_SPENT"]
-        return int(
-            filtered.sum()
-        )
+        return int(filtered.sum())

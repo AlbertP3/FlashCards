@@ -17,7 +17,7 @@ class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
         db_dataset_ops.__init__(self)
         db_queries.__init__(self)
         self.refresh()
-        self.get_files()
+        self.update_fds()
 
     def __configure(self):
         self.KINDS = type(

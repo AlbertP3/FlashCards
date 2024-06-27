@@ -1,8 +1,8 @@
-# FlashCards 1.3.14
+# FlashCards 1.3.15
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-1314)
+- [FlashCards](#flashcards-1315)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -207,7 +207,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - SOD files_list: faciliate switching by specifying files available to SOD. Skipped if empty
 - mistakes_review_interval_days - recommend the mistakes file to be reviewed each N days
 - hiding_tips - remove *pattern* from the displayed text by following the *policy*
-- post_actions - action to be performed after pressing next_button on revision_summary. Example: create an *ephemeral* from mistakes
+- post_actions - an action to be performed after pressing next_button on revision_summary. Example: create an *ephemeral* from mistakes
 - next_efc - on shortcut *next_efc* will load a recommended file by following the policy
 
 

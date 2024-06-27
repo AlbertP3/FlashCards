@@ -3,6 +3,7 @@ import logging
 import re
 import pandas as pd
 import openpyxl
+from time import time
 from collections import OrderedDict
 from utils import Config, get_filename_from_path
 from functools import cache
@@ -110,6 +111,7 @@ class XLSXFileHandler(FileHandler):
         self.wb = openpyxl.load_workbook(self.path)
         self.ws = self.wb[self.wb.sheetnames[0]]
         self.__load_data()
+        self.last_write_time = time()
         self.config["SOD"]["last_file"] = self.path
         self.native_lng = self.ws.cell(1, 2).value.lower()
         self.foreign_lng = self.ws.cell(1, 1).value.lower()
@@ -166,6 +168,7 @@ class XLSXFileHandler(FileHandler):
     def commit(self, msg: str = None):
         self.dtracker = None
         self.wb.save(self.path)
+        self.last_write_time = time()
         self.clear_cache()
         if msg:
             log.debug(msg)
@@ -182,6 +185,7 @@ class CSVFileHandler(FileHandler):
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
         self.__load_data()
+        self.last_write_time = time()
         self.config["SOD"]["last_file"] = self.path
         self.native_lng = self.raw_data.columns[1].lower()
         self.foreign_lng = self.raw_data.columns[0].lower()
@@ -236,6 +240,7 @@ class CSVFileHandler(FileHandler):
 
     def commit(self, msg: str = None):
         self.raw_data.to_csv(self.path, encoding="utf-8", index=False)
+        self.last_write_time = time()
         self.clear_cache()
         if msg:
             log.debug(msg)
@@ -251,6 +256,7 @@ class VoidFileHandler(FileHandler):
         self.filename = None
         self.native_lng = None
         self.foreign_lng = None
+        self.last_write_time = 0
 
     @property
     def total_rows(self):

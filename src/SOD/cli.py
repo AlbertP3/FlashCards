@@ -159,12 +159,12 @@ class CLI():
                     repat=pattern,
                     exclude_dirs=self.re_excl_dirs
                 ).pop()
-            self.output.mw.file_monitor_del_path(self.config["SOD"]["last_file"])
+            self.output.mw.file_monitor_del_protected_path(self.config["SOD"]["last_file"])
             fh = get_filehandler(filepath)
             if self.fh:
                 self.fh.close()
             self.fh = fh
-            self.output.mw.file_monitor_add_path(self.config["SOD"]["last_file"])
+            self.output.mw.file_monitor_add_protected_path(self.config["SOD"]["last_file"])
             self.init_set_languages()
             self.cls()
         except re.error:

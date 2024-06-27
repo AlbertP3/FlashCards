@@ -220,6 +220,8 @@ class fcc():
             self.post_fcc("Index out of range!")
             return
         
+        if not self.mw.active_file.tmp:
+            self.mw.file_monitor_del_path(self.mw.active_file.filepath)
         self.mw.db.load_tempfile(
             basename=f"{self.mw.active_file.lng}{len(data)}", 
             data=data,
@@ -376,7 +378,7 @@ class fcc():
         if iln := self.config["ILN"].get(self.mw.active_file.filepath):
             self.config["ILN"][new_filepath] = iln
             del self.config["ILN"][self.mw.active_file.filepath]
-        dbapi.reload_files_cache()
+        dbapi.update_fds()
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
         self.post_fcc('Filename and Signature changed successfully')
     
@@ -498,7 +500,7 @@ class fcc():
         run_all = len(parsed_cmd) == 1
         key = parsed_cmd[1] if len(parsed_cmd)==2 else None
         if run_all or key == 'files':
-            self.mw.db.reload_files_cache()
+            self.mw.db.update_fds()
             self.mw.db.refresh()
         if run_all or key == 'fonts':
             self.mw.caliper.pixlen.cache_clear()
@@ -540,7 +542,7 @@ class fcc():
         for msg in fcc_queue.dump():
             self.post_fcc(msg)
         self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
-        self.mw.db.reload_files_cache()
+        self.mw.db.update_fds()
 
     def eph(self, parsed_cmd:list):
         '''Create Ephemeral Mistakes'''

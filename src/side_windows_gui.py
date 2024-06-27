@@ -52,12 +52,10 @@ class ScrollableOptionsWidget(widget.QWidget):
 class fcc_gui():
 
     def __init__(self):
-        self.side_window_titles['fcc'] = 'Console'
         self.DEFAULT_PS1 = self.config['THEME']['default_ps1']
         self.init_font()
         self.__create_tabs()
         self.add_shortcut('fcc', self.get_fcc_sidewindow, 'main')
-        self.add_shortcut('run_command', self.run_command, 'fcc')
         self.newline = "\n"  # TODO remove in python3.12
         self.rt_re = re.compile('[^\u0000-\uFFFF]')
 
@@ -83,7 +81,7 @@ class fcc_gui():
             run_x_command=self.run_fcc_command
         )
         self.activate_tab("sod")
-        self.console.setGeometry(0, 0, *self.config["GEOMETRY"]["fcc"])
+        self.console.setGeometry(0, 0, *self.config["GEOMETRY"]["sod"])
         self.tabs["sod"]["fcc_instance"].sod([])
 
         self.activate_tab("fcc")
@@ -109,6 +107,9 @@ class fcc_gui():
             "run_x_command": run_x_command,
             "fcc_instance": fcc(self)
         }
+        self.side_window_titles[ident] = window_title
+        self.create_ks_mapping(ident)
+        self.add_shortcut('run_command', run_x_command, ident)
 
 
     def activate_tab(self, ident: str):
@@ -126,7 +127,6 @@ class fcc_gui():
         self.tmp_cmd = self.tabs[ident]["tmp_cmd"]
         self.get_terminal_sidewindow = self.tabs[ident]["get_x_sidewindow"]
         self.run_command = self.tabs[ident]["run_x_command"]
-        self.side_window_titles['fcc'] = self.tabs[ident]["window_title"]
         self.active_tab_ident = ident
 
     def _deactivate_tab(self):
@@ -143,7 +143,7 @@ class fcc_gui():
     def __get_fcc_sidewindow(self):
         """Shared method for initializing the terminal"""
         self.arrange_fcc_window()
-        self.open_side_window(self.fcc_layout, 'fcc')
+        self.open_side_window(self.fcc_layout, self.active_tab_ident)
         self.console.setFocus()
         self.move_cursor_to_end()
 
@@ -297,7 +297,7 @@ class efc_gui(EFC):
         self.add_shortcut('config', self.get_config_sidewindow, 'efc')
         self.add_shortcut('stats', self.get_stats_sidewindow, 'efc')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'efc')
-        self.add_shortcut('fcc', self.get_terminal_sidewindow, 'efc')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'efc')
         self.add_shortcut('sod', self.get_sod_sidewindow, 'efc')
 
 
@@ -420,7 +420,7 @@ class load_gui:
         self.add_shortcut('config', self.get_config_sidewindow, 'load')
         self.add_shortcut('stats', self.get_stats_sidewindow, 'load')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'load')
-        self.add_shortcut('fcc', self.get_terminal_sidewindow, 'load')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'load')
         self.add_shortcut('sod', self.get_sod_sidewindow, 'load')
     
 
@@ -459,7 +459,7 @@ class load_gui:
 
 
     def fill_flashcard_files_list(self):
-        self.db.reload_files_cache()
+        self.db.update_fds()
         self.load_map, i = dict(), 0
         for fd in self.db.get_sorted_languages():
             self.flashcard_files_qlist.addItem(fd.basename)
@@ -521,7 +521,7 @@ class mistakes_gui():
         self.add_shortcut('timespent', self.get_timer_sidewindow, 'mistakes')
         self.add_shortcut('config', self.get_config_sidewindow, 'mistakes')
         self.add_shortcut('stats', self.get_stats_sidewindow, 'mistakes')
-        self.add_shortcut('fcc', self.get_terminal_sidewindow, 'mistakes')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'mistakes')
         self.add_shortcut('sod', self.get_sod_sidewindow, 'mistakes')
     
     def get_mistakes_sidewindow(self):
@@ -577,7 +577,7 @@ class stats_gui(stats):
         self.add_shortcut('timespent', self.get_timer_sidewindow, 'stats')
         self.add_shortcut('config', self.get_config_sidewindow, 'stats')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'stats')
-        self.add_shortcut('fcc', self.get_terminal_sidewindow, 'stats')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'stats')
         self.add_shortcut('sod', self.get_sod_sidewindow, 'stats')
 
 
@@ -701,7 +701,7 @@ class progress_gui(stats):
         self.add_shortcut('timespent', self.get_timer_sidewindow, 'progress')
         self.add_shortcut('config', self.get_config_sidewindow, 'progress')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'progress')
-        self.add_shortcut('fcc', self.get_terminal_sidewindow, 'progress')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'progress')
         self.add_shortcut('sod', self.get_sod_sidewindow, 'progress')
 
 
@@ -824,7 +824,7 @@ class config_gui():
         self.options_layout = ScrollableOptionsWidget()
         self.opt_scroll_area.setWidget(self.options_layout)
         self.config_layout.addWidget(self.opt_scroll_area)
-        self.db.reload_files_cache()
+        self.db.update_fds()
         self.fill_config_list()
 
 
@@ -846,6 +846,7 @@ class config_gui():
         self.card_default_cbx = self.create_combobox(self.config['card_default_side'], ['0','1','Random'], multi_choice=False)
         self.languages_cbx = self.create_combobox(self.config['languages'], self.db.get_available_languages())
         self.efc_threshold_qle = self.create_config_qlineedit(self.config['efc_threshold'])
+        self.efc_cache_exp_qle = self.create_config_qlineedit(self.config['efc_cache_expiry_hours'])
         self.next_efc_policy_cbx = self.create_combobox(self.config['next_efc'], list(self.config["next_efc"].keys()))
         self.days_to_new_rev_qle = self.create_config_qlineedit(self.config['days_to_new_rev'])
         self.mst_rev_int_qle = self.create_config_qlineedit(self.config['mistakes_review_interval_days'])
@@ -888,6 +889,11 @@ class config_gui():
             [*HIDE_TIPS_POLICIES.get_common()], 
             multi_choice=True
         )
+        self.hide_tips_policy_eph_cbx = self.create_combobox(
+            self.config["hide_tips"]["policy"][self.db.KINDS.eph], 
+            [*HIDE_TIPS_POLICIES.get_common()], 
+            multi_choice=True
+        )
         self.hide_tips_pattern_qle = self.create_config_qlineedit(self.config["hide_tips"]['pattern'])
         self.hide_tips_connector_qle = self.create_combobox(
             self.config["hide_tips"]['connector'],
@@ -911,6 +917,7 @@ class config_gui():
         self.options_layout.add_widget(self.card_default_cbx, self.create_label('Card default side'))
         self.options_layout.add_widget(self.languages_cbx, self.create_label('Languages'))
         self.options_layout.add_widget(self.efc_threshold_qle, self.create_label('EFC threshold'))
+        self.options_layout.add_widget(self.efc_cache_exp_qle, self.create_label('EFC cache expiry (hours)'))
         self.options_layout.add_widget(self.next_efc_policy_cbx, self.create_label('EFC next policy'))
         self.options_layout.add_widget(self.days_to_new_rev_qle, self.create_label('Days between new revisions'))
         self.options_layout.add_widget(self.mst_rev_int_qle, self.create_label('Days between mistake reviews'))
@@ -929,6 +936,7 @@ class config_gui():
         self.options_layout.add_widget(self.hide_tips_policy_rev_cbx, self.create_label('Hide tips policy: Rev'))
         self.options_layout.add_widget(self.hide_tips_policy_lng_cbx, self.create_label('Hide tips policy: Lng'))
         self.options_layout.add_widget(self.hide_tips_policy_mst_cbx, self.create_label('Hide tips policy: Mst'))
+        self.options_layout.add_widget(self.hide_tips_policy_eph_cbx, self.create_label('Hide tips policy: Eph'))
         self.options_layout.add_widget(self.hide_tips_pattern_qle, self.create_label('Hide tips pattern'))
         self.options_layout.add_widget(self.hide_tips_connector_qle, self.create_label('Hide tips connector'))
         self.options_layout.add_widget(self.timespent_len_qle, self.create_label('Timespent display length'))
@@ -945,6 +953,7 @@ class config_gui():
         modified_config['card_default_side'] = self.card_default_cbx.currentDataList()[0]
         modified_config['languages'] = self.languages_cbx.currentDataList()
         modified_config['efc_threshold'] = int(self.efc_threshold_qle.text())
+        modified_config['efc_cache_expiry_hours'] = int(self.efc_cache_exp_qle.text())
         modified_config['next_efc'] = self.next_efc_policy_cbx.currentDataDict()
         modified_config['days_to_new_rev'] = int(self.days_to_new_rev_qle.text())
         modified_config['mistakes_review_interval_days'] = int(self.mst_rev_int_qle.text())
@@ -964,6 +973,7 @@ class config_gui():
         modified_config["hide_tips"]["policy"][self.db.KINDS.rev] = self.hide_tips_policy_rev_cbx.currentDataList()
         modified_config["hide_tips"]["policy"][self.db.KINDS.lng] = self.hide_tips_policy_lng_cbx.currentDataList()
         modified_config["hide_tips"]["policy"][self.db.KINDS.mst] = self.hide_tips_policy_mst_cbx.currentDataList()
+        modified_config["hide_tips"]["policy"][self.db.KINDS.eph] = self.hide_tips_policy_eph_cbx.currentDataList()
         modified_config["hide_tips"]["pattern"] = self.hide_tips_pattern_qle.text()
         modified_config["hide_tips"]["connector"] = self.hide_tips_connector_qle.currentDataList()[0]
         modified_config["timespent_len"] = int(self.timespent_len_qle.text())
@@ -987,11 +997,18 @@ class config_gui():
 
         self.config.update(modified_config)
         self.config_manual_update()
-
-        self.del_side_window()
         self.display_text(self.get_current_card().iloc[self.side])
-        self.get_config_sidewindow()
-        self._init_confirm_and_close_button()
+
+        # Reload config window
+        if not self.funcs_to_restart:
+            self.confirm_and_close_button.setText("Config saved")
+            self.confirm_and_close_button.clicked.disconnect()
+        else:
+            self.confirm_and_close_button.setText("Restart required")
+            self.confirm_and_close_button.clicked.disconnect()
+            self.confirm_and_close_button.clicked.connect(
+                lambda: self.__on_config_commit_restart(self.funcs_to_restart)
+            )
 
 
     def __on_config_commit_restart(self, funcs: list[Callable]):
@@ -1066,7 +1083,8 @@ class config_gui():
                 self.console.setFont(self.CONSOLE_FONT)
                 self.caliper.pixlen.cache_clear()
         elif not (key or subdict):
-            self.db.reload_files_cache()
+            self._efc_last_calc_time = 0
+            self.db.update_fds()
             self.update_default_side()
             self.revtimer_hide_timer = self.config['opt']['hide_timer']
             self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
@@ -1098,7 +1116,7 @@ class timer_gui():
         self.add_shortcut('load', self.get_load_sidewindow, 'timer')
         self.add_shortcut('mistakes', self.get_mistakes_sidewindow, 'timer')
         self.add_shortcut('config', self.get_config_sidewindow, 'timer')
-        self.add_shortcut('fcc', self.get_terminal_sidewindow, 'timer')
+        self.add_shortcut('fcc', self.get_fcc_sidewindow, 'timer')
         self.add_shortcut('sod', self.get_sod_sidewindow, 'timer')
 
 

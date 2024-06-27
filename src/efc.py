@@ -1,6 +1,7 @@
 import joblib  # type: ignore
 from random import choice
 from datetime import datetime
+from time import time
 from logging import log
 from math import exp
 import DBAC.api as api
@@ -40,6 +41,9 @@ class EFC:
         self.db = api.DbOperator()
         self.efc_model = StandardModel()
         self.load_pickled_model()
+        self._efc_last_calc_time = 0
+        self.__db_load_time = 0
+        self.__recommendations = list()
 
     def load_pickled_model(self):
         try:
@@ -54,7 +58,17 @@ class EFC:
             log.warning("Custom EFC model not found. Recoursing to the Standard Model")
 
     def get_recommendations(self) -> list[str]:
-        recommendations = list()
+        cache_valid = self._efc_last_calc_time + 3600*self.config["efc_cache_expiry_hours"] >= time()
+        db_current = self.__db_load_time == self.db.last_load
+        if cache_valid and db_current:
+            log.debug("Used cached EFC recommendations")
+            return self.__recommendations
+        else:
+            log.debug("Calculated new EFC recommendations")
+            return self.__get_recommendations()
+
+    def __get_recommendations(self) -> list[str]:
+        self.__recommendations = list()
         self.new_revs = 0
         self.db.refresh()
         if self.config["mistakes_review_interval_days"] > 0:
@@ -62,14 +76,16 @@ class EFC:
             for lng in self.config["languages"]:
                 sig, lmt = self.db.get_last_mistakes_signature_and_datetime(lng)
                 if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
-                    recommendations.append(sig)
+                    self.__recommendations.append(sig)
         if self.config["days_to_new_rev"] > 0:
-            recommendations.extend(self.is_it_time_for_something_new())
+            self.__recommendations.extend(self.is_it_time_for_something_new())
         for rev in sorted(self.get_complete_efc_table(), key=lambda x: x[2]):
             efc_critera_met = rev[2] < self.config["efc_threshold"]
             if efc_critera_met:
-                recommendations.append(rev[0])
-        return recommendations
+                self.__recommendations.append(rev[0])
+        self._efc_last_calc_time = time()
+        self.__db_load_time = self.db.last_load
+        return self.__recommendations
 
     def get_complete_efc_table(self, preds: bool = False) -> list[str, str, float]:
         rev_table_data = list()

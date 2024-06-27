@@ -78,22 +78,23 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH,'icon.ico')))
         self.set_geometry(self.config['GEOMETRY']['main']) 
 
-        # Initialize
+        # Shortcuts
         self.used_keybindings = set()
-        self.create_ks_mapping()
+        self.nav_mapping = dict()
+        for sw_id in {'main','load','efc','config','mistakes','stats','progress','timer'}:
+            self.create_ks_mapping(sw_id)
+
+        # Initialize
         self.layout = None
         self.side_window_id:str = 'main'
         self.center_window()
         self.show()
 
     
-    def create_ks_mapping(self):
+    def create_ks_mapping(self, ident: str):
         # create dict[window_id][nagivation]=dummy_function
         # for managing keybindings calls dependent on context of the current side_window
-        self.nav_mapping = dict()
-        sw_ids = {'main','load','efc','config','fcc','mistakes','stats','progress','timer'}
-        for id in sw_ids:
-            self.nav_mapping[id] = {k: lambda:'' for k in self.config['KEYBOARD_SHORTCUTS'].keys()} 
+        self.nav_mapping[ident] = {k: lambda:'' for k in self.config['KEYBOARD_SHORTCUTS'].keys()} 
 
 
     def build_layout(self):
@@ -219,11 +220,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def display_text(self, text:str):
+        if self.should_hide_tips():
+            text = self.tips_hide_re.sub("", text)
         width_factor =  max(int((self.frameGeometry().width())/37-len(text)/30), 0)
         self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
-        if self.should_hide_tips():
-            text = self.tips_hide_re.sub("", text)
         self.textbox.setText(text)
         padding = max(0, 90 - len(text)*0.7)
         self.textbox.setStyleSheet(f'{self.textbox_stylesheet} padding-top: {padding}%;')
@@ -292,7 +293,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.db.shuffle_dataset()
         else:
             self.db.load_dataset(self.active_file)
-
         self.update_backend_parameters()
         self.update_interface_parameters()
 
@@ -301,7 +301,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         """Manage the whole process of loading a flashcards file"""
         if not self.active_file.tmp:
             self.file_monitor_del_path(self.active_file.filepath)
-        super().load_flashcards(fd)
+        self.load_flashcards(fd)
         self.update_backend_parameters()
         self.update_interface_parameters()
         self.del_side_window()
@@ -588,6 +588,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         #     log.debug("Config updated")  # TODO
 
     def initiate_file_monitor(self):
+        self.protected_monitor_paths = set()
         if not self.config['allow_file_monitor']:
             self.file_watcher = None
         else:
@@ -599,17 +600,28 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def file_monitor_add_path(self, path:str):
         if self.file_watcher:
             self.file_watcher.addPath(path)
-            log.debug(f"FileMonitor Add Watched file: {self.file_watcher.files()}", stacklevel=2)
-    
+            log.debug(f"FileMonitor Add '{path}'. Status: {self.file_watcher.files()}", stacklevel=2)
+
     def file_monitor_del_path(self, path:str):
         if self.file_watcher:
-            self.file_watcher.removePath(path)
-            log.debug(f"FileMonitor Del Watched file: {self.file_watcher.files()}", stacklevel=2)
+            if path in self.protected_monitor_paths:
+                log.debug(f"FileMonitor Unable to delete a protected path '{path}'")
+            else:
+                self.file_watcher.removePath(path)
+                log.debug(f"FileMonitor Del '{path}'. Status: {self.file_watcher.files()}", stacklevel=2)
+
+    def file_monitor_add_protected_path(self, path:str):
+        self.protected_monitor_paths.add(path)
+        self.file_monitor_add_path(path)
+
+    def file_monitor_del_protected_path(self, path:str):
+        self.protected_monitor_paths.discard(path)
+        self.file_monitor_del_path(path)
     
     def file_monitor_clear(self):
         if self.file_watcher:
             self.file_watcher.removePaths(self.file_watcher.files())
-            log.debug(f"FileMonitor Unwatched all files: {self.file_watcher.files()}", stacklevel=2)
+            log.debug(f"FileMonitor Unwatched all files. Status: {self.file_watcher.files()}", stacklevel=2)
 
 
     #  ============= REVISION TIMER ==================

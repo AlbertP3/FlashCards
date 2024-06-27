@@ -75,7 +75,7 @@ class sod_spawn:
             self.manage_modes(cmd)
 
     def refresh_db(self):
-        if os.path.getmtime(self.config["SOD"]["last_file"]) + self.config["SOD"]["debounce"] < time():
+        if os.path.getmtime(self.cli.fh.path) - self.config["SOD"]["debounce"] > self.cli.fh.last_write_time:
             self.cli.refresh_file_handler()
             self.cli.cls(self.cli.msg.DB_REFRESH, keep_content=True, keep_cmd=True)
 

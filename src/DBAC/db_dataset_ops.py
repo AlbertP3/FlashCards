@@ -2,7 +2,6 @@ import re
 import random
 import logging
 import pandas as pd
-from functools import cache
 from datetime import datetime
 from dataclasses import dataclass
 import os
@@ -71,12 +70,6 @@ class db_dataset_ops:
         """Template for creating Paths"""
         return os.path.join(self.DATA_PATH, lng, subdir, filename)
 
-    def reload_files_cache(self):
-        self.get_files.cache_clear()
-        self.get_sorted_revisions.cache_clear()
-        self.get_sorted_languages.cache_clear()
-        self.get_sorted_mistakes.cache_clear()
-        self.match_from_all_languages.cache_clear()
 
     @staticmethod
     def gen_signature(language) -> str:
@@ -93,7 +86,7 @@ class db_dataset_ops:
             dataset.to_csv(fp, index=False, encoding="utf-8")
             fcc_queue.put(f"Created {self.active_file.signature}")
             log.debug(f"Created a new file: {fp}")
-            self.reload_files_cache()
+            self.update_fds()
             return fp
         except Exception as e:
             fcc_queue.put(f"Exception while creating File: {e}")
@@ -144,7 +137,7 @@ class db_dataset_ops:
                 mfd.filepath, index=False, mode="w", header=True
             )
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
-            self.reload_files_cache()
+            self.update_fds()
         m_cnt = mistakes_df.shape[0] - offset
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
         fcc_queue.put(msg)
@@ -272,16 +265,14 @@ class db_dataset_ops:
     def read_excel(self, file_path):
         return pd.read_excel(file_path, sheet_name=0, dtype=str)
 
-    @cache
-    def get_files(self) -> dict[str, FileDescriptor]:
+    def update_fds(self) -> None:
         """Finds files matching active Languages"""
-        self.files:dict[os.PathLike, FileDescriptor] = dict()
+        self.files: dict[os.PathLike, FileDescriptor] = dict()
         for lng in self.config["languages"]:
             self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)
             self.__update_files(lng, self.LNG_DIR, kind=self.KINDS.lng)
             self.__update_files(lng, self.MST_DIR, kind=self.KINDS.mst)
-        log.debug(f"Collected FileDescriptors for {len(self.files)} files")
-        return self.files
+        log.debug(f"Collected FileDescriptors for {len(self.files)} files", stacklevel=2)
 
     def __update_files(self, lng, subdir, kind):
         try:
@@ -314,26 +305,23 @@ class db_dataset_ops:
             for text in self.__nsre.split(s)
         ]
 
-    @cache
     def get_sorted_revisions(self) -> list[FileDescriptor]:
         return sorted(
-            [v for _, v in self.get_files().items() if v.kind == self.KINDS.rev],
+            [v for _, v in self.files.items() if v.kind == self.KINDS.rev],
             key=lambda fd: self.nat_sort(fd.basename),
             reverse=False,
         )
 
-    @cache
     def get_sorted_languages(self) -> list[FileDescriptor]:
         return sorted(
-            [v for _, v in self.get_files().items() if v.kind == self.KINDS.lng],
+            [v for _, v in self.files.items() if v.kind == self.KINDS.lng],
             key=lambda fd: self.nat_sort(fd.basename),
             reverse=False,
         )
 
-    @cache
     def get_sorted_mistakes(self) -> list[FileDescriptor]:
         return sorted(
-            [v for _, v in self.get_files().items() if v.kind == self.KINDS.mst],
+            [v for _, v in self.files.items() if v.kind == self.KINDS.mst],
             key=lambda fd: self.nat_sort(fd.basename),
             reverse=False,
         )
@@ -342,7 +330,6 @@ class db_dataset_ops:
         self.active_file.data.drop([i], inplace=True, axis=0)
         self.active_file.data.reset_index(inplace=True, drop=True)
 
-    @cache
     def match_from_all_languages(
         self, repat: re.Pattern, exclude_dirs: re.Pattern = re.compile(r".^")
     ) -> set[os.PathLike]:
