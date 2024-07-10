@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import logging
+from enum import Enum
 from collections import namedtuple
 from random import randint
 from sklearn.model_selection import train_test_split
@@ -17,13 +18,13 @@ from math import exp
 from utils import Config
 from DBAC.api import DbOperator
 
-log = logging.getLogger("EFC")
+log = logging.getLogger("EMO")
 
 
-MODEL_APPROACHES = (
-    "Universal",
-    "Language-Specific",
-)
+class EMOApproaches(Enum):
+    universal = "Universal"
+    language_specific = "Language-Specific"
+
 
 RECORD_COLS = [
     "TOTAL",
@@ -32,6 +33,13 @@ RECORD_COLS = [
     "TIMEDELTA_LAST_REV",
     "CUM_CNT_REVS",
     "PREV_SCORE",
+    "FIRST_SCORE",
+    "DOW",
+    "HOUR",
+    "MONTH",
+    "STD_SCORE",
+    "TOTAL_TIME",
+    "TREND_SCORE",
 ]
 
 
@@ -54,7 +62,7 @@ class Model:
         self.anc = kwargs
         self.approach = approach
         self.rec_cols = RECORD_COLS.copy()
-        if self.approach == MODEL_APPROACHES[1]:
+        if self.approach == EMOApproaches.language_specific:
             self.__language_specific_model = True
             self.lng_cols = lng_cols[:-1]
             self.rec_cols.extend(self.lng_cols)
@@ -66,6 +74,7 @@ class Model:
             "SVR": self._predict_svr,
             "LAS": self._predict_las,
             "RFR": self._predict_rfr,
+            "XGB": self._predict_xgb,
             "CST": Model._predict_cst,
         }[model_name]
 
@@ -94,6 +103,13 @@ class Model:
         return [self.model.predict([p]) for p in records]
 
     def _predict_rfr(self, records: list[list]):
+        if self.discretizer:
+            records = self.discretizer.transform(
+                pd.DataFrame(data=records, columns=self.rec_cols)
+            )
+        return self.model.predict(np.array(records)).reshape(-1, 1)
+
+    def _predict_xgb(self, records: list[list]):
         if self.discretizer:
             records = self.discretizer.transform(
                 pd.DataFrame(data=records, columns=self.rec_cols)
@@ -202,6 +218,30 @@ class Models:
             predictions,
         )
 
+    def prep_XGB(self, data: pd.DataFrame):
+        x, y = data.iloc[:, :-1], data.iloc[:, -1:]
+        x_train_xgb, self.x_test_xgb, y_train_xgb, self.y_test_xgb = train_test_split(
+            x.values, y.values, test_size=self.size_test, random_state=self.random_state
+        )
+        xgb_model = ensemble.GradientBoostingRegressor(
+            n_estimators=250, learning_rate=0.06, loss="huber"
+        )
+        xgb_model.fit(x_train_xgb, y_train_xgb.ravel())
+        self.y_test_xgb = np.array(self.y_test_xgb).reshape(-1, 1)
+        self.models["XGB"] = xgb_model
+
+    def eval_XGB(self):
+        predictions = (
+            self.models["XGB"].predict(np.array(self.x_test_xgb)).reshape(-1, 1)
+        )
+        self.evaluation["XGB"] = m_eval(
+            explained_variance_score(self.y_test_xgb, predictions),
+            mean_absolute_error(self.y_test_xgb, predictions),
+            mean_tweedie_deviance(self.y_test_xgb, predictions),
+            self.y_test_xgb,
+            predictions,
+        )
+
     def prep_CST(self, data: pd.DataFrame):
         x, y = data.iloc[:, :-1], data.iloc[:, -1:]
         _, self.x_test_cst, _, self.y_test_cst = train_test_split(
@@ -231,7 +271,7 @@ class Models:
                 scy_svr=self.scy_svr,
                 **kwargs,
             )
-        elif model_name in {"LAS", "RFR", "CST"}:
+        elif model_name in {"LAS", "RFR", "CST", "XGB"}:
             model = Model(
                 model_name,
                 self.models[model_name],

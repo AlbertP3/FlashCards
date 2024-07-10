@@ -90,10 +90,13 @@ class CLI:
             if any(path.endswith(ext) for ext in {'.xlsx','.xlsm','.xltx','.xltm'}):
                 fh = file_handler(path=path, sheet_name=self.mcc_sheet_name)
                 s, m = fh.modify_card(i, self.mod_card, old_card)
-                msg+=f' and updated the source file [{i+2}]' if s else '\n'+m
+                msg += f' and updated the source file [{i+2}]' if s else '\n'+m
             elif path.endswith('.csv'):
-                file_handler.unshuffle_dataframe(self.sout.mw.active_file.data, seed=self.config['pd_random_seed']).to_csv(path, index=False)
-                msg+=f' and updated the source file [{i+1}]'
+                file_handler.unshuffle_dataframe(
+                    self.sout.mw.active_file.data, 
+                    seed=self.config['pd_random_seed'],
+                ).to_csv(path, index=False)
+                msg += f' and updated the source file [{i+1}]'
             else:
                 msg = 'Aborted - invalid filetype'
         return msg

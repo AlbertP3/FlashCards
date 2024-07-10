@@ -8,45 +8,13 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
 from utils import * 
+from data_types import HIDE_TIPS_POLICIES
 from fcc import fcc
 from efc import EFC
 from stats import stats
-from checkable_combobox import CheckableComboBox
+from widgets import CheckableComboBox, ScrollableOptionsWidget
 from typing import Callable
 from random import shuffle
-
-
-
-class ScrollableOptionsWidget(widget.QWidget):
-    def __init__(self):
-        super().__init__()
-        self.config = config
-        self.font = self.config['THEME']['font']
-        self.font_button_size = self.config['THEME']['font_button_size']
-        self.button_height = self.config['THEME']['buttons_height']
-        self.BUTTON_FONT = QtGui.QFont(self.font, self.font_button_size)
-        self.button_style_sheet = self.config['THEME']['button_style_sheet']
-        self.__create_layout()
-        self.pos = self.__list_pos_gen()
-        
-    def __create_layout(self):
-        self.layout = widget.QGridLayout()
-        self.layout.setHorizontalSpacing(1)
-        self.layout.setVerticalSpacing(1)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(self.layout)
-
-    def add_widget(self, button: widget.QPushButton, label: widget.QLabel):
-        self.layout.addWidget(label, next(self.pos), 0)
-        self.layout.addWidget(button, next(self.pos), 1)
-
-    def __list_pos_gen(self):
-        """increments iterator every 2 calls"""
-        i = 0
-        while True:
-            yield int(i)
-            i+=0.5
-
 
 
 class fcc_gui():
@@ -187,7 +155,8 @@ class fcc_gui():
         if self.CONSOLE_LOG:
             self.CONSOLE_LOG[:-1] = [i for i in self.CONSOLE_LOG[:-1] if i != self.CONSOLE_PROMPT]
             if self.CONSOLE_LOG[-1].startswith(self.CONSOLE_PROMPT): 
-                self.CONSOLE_LOG[-1] = self.console.toPlainText().split('\n')[-1]
+                self.CONSOLE_LOG[-1] = self.CONSOLE_PROMPT
+                self.tmp_cmd = self.console.toPlainText().split('\n')[-1][len(self.CONSOLE_PROMPT):]
             else:
                 self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
@@ -199,7 +168,7 @@ class fcc_gui():
             self.console.setText('\n'.join(self.CONSOLE_LOG))
             for msg in fcc_queue.dump():
                self.fcc_inst.post_fcc(msg)
-            self.console.append(cmd)
+            self.console.append(cmd + self.tmp_cmd)
             self.CONSOLE_LOG.append(cmd)
         self.fcc_layout.addWidget(self.console, 0, 0)
 
@@ -212,29 +181,34 @@ class fcc_gui():
         console.setStyleSheet(self.textbox_stylesheet)
         console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return console
-       
+
 
     def cli_shortcuts(self, event:QtGui.QKeyEvent):
-        if (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_L:
+        event_key = event.key()
+        if (event.modifiers() & Qt.ControlModifier) and event_key == Qt.Key_L:
             self.fcc_inst.execute_command(['cls'], followup_prompt=False)
-        elif event.key() == Qt.Key_Home:
+        elif event_key == Qt.Key_Home:
             cur = self.console.textCursor()
             cur.setPosition(self.promptend)
             self.console.setTextCursor(cur)
-        elif event.key() == Qt.Key_Return:
+        elif event_key == Qt.Key_Return:
             self.nav_mapping[self.side_window_id]['run_command']()
-        elif event.key() == Qt.Key_Up:
+        elif event_key == Qt.Key_Up:
             if self.CMDS_CURSOR == 0: 
                 self.tmp_cmd = self.console.toPlainText()[self.promptend:]
             self.CMDS_CURSOR -= 1 if -self.CMDS_CURSOR < len(self.CMDS_LOG) else 0
             self.update_console_cmds_nav()
-        elif event.key() == Qt.Key_Down:
+        elif event_key == Qt.Key_Down:
             if self.CMDS_CURSOR != 0:
                 self.CMDS_CURSOR += 1
                 self.update_console_cmds_nav()
-        elif event.key() in {Qt.Key_Left, Qt.Key_Backspace}:
+        elif event_key in {Qt.Key_Left, Qt.Key_Backspace}:
             if self.curpos > self.promptend:
-                widget.QTextEdit.keyPressEvent(self.console, event) 
+                widget.QTextEdit.keyPressEvent(self.console, event)
+        elif event.matches(QtGui.QKeySequence.Paste):
+            self.console.textCursor().insertText(
+                widget.QApplication.clipboard().text().replace("\n", " ").strip()
+            )
         else: 
             widget.QTextEdit.keyPressEvent(self.console, event) 
 
@@ -895,7 +869,7 @@ class config_gui():
             multi_choice=True
         )
         self.hide_tips_pattern_qle = self.create_config_qlineedit(self.config["hide_tips"]['pattern'])
-        self.hide_tips_connector_qle = self.create_combobox(
+        self.hide_tips_connector_cbx = self.create_combobox(
             self.config["hide_tips"]['connector'],
             ["and", "or"],
             multi_choice=False
@@ -907,13 +881,28 @@ class config_gui():
             ["yeo-johnson", "decision-tree"],
             multi_choice=False
         )
+        self.emo_lngs_cbx = self.create_combobox(self.config["EMO"]["languages"], 
+            self.db.get_available_languages(),
+            multi_choice=True
+        )
+        self.emo_approach_cbx = self.create_combobox(self.config["EMO"]["approach"], 
+            ["Universal", "Language-Specific"],
+            multi_choice=False
+        )
         self.emo_cap_fold_qle = self.create_config_qlineedit(self.config["EMO"]["cap_fold"])
         self.emo_min_records_qle = self.create_config_qlineedit(self.config["EMO"]["min_records"])
         self.sod_files_cbx = self.create_combobox(
             self.config["SOD"]["files_list"], multi_choice=True, 
             content=sorted(self.db.get_all_files(dirs={self.db.LNG_DIR}))
         )
-
+        self.popup_timeout_qle = self.create_config_qlineedit(self.config["POPUPS"]["timeout_ms"])
+        self.popup_showani_qle = self.create_config_qlineedit(self.config["POPUPS"]["show_animation_ms"])
+        self.popup_hideani_qle = self.create_config_qlineedit(self.config["POPUPS"]["hide_animation_ms"])
+        self.popup_checkint_qle = self.create_config_qlineedit(self.config["POPUPS"]["check_interval_ms"])
+        self.popup_importance_cbx = self.create_combobox(self.config["POPUPS"]["importance"], multi_choice=False, 
+                                                    content=["0", "10", "20", "30", "40", "50"])
+        self.popup_trigger_unrevmistakes_qle = self.create_config_qlineedit(self.config["POPUPS"]["triggers"]["unreviewed_mistakes_cnt"])
+        
         self.options_layout.add_widget(self.card_default_cbx, self.create_label('Card default side'))
         self.options_layout.add_widget(self.languages_cbx, self.create_label('Languages'))
         self.options_layout.add_widget(self.efc_threshold_qle, self.create_label('EFC threshold'))
@@ -938,13 +927,21 @@ class config_gui():
         self.options_layout.add_widget(self.hide_tips_policy_mst_cbx, self.create_label('Hide tips policy: Mst'))
         self.options_layout.add_widget(self.hide_tips_policy_eph_cbx, self.create_label('Hide tips policy: Eph'))
         self.options_layout.add_widget(self.hide_tips_pattern_qle, self.create_label('Hide tips pattern'))
-        self.options_layout.add_widget(self.hide_tips_connector_qle, self.create_label('Hide tips connector'))
+        self.options_layout.add_widget(self.hide_tips_connector_cbx, self.create_label('Hide tips connector'))
         self.options_layout.add_widget(self.timespent_len_qle, self.create_label('Timespent display length'))
         self.options_layout.add_widget(self.afterface_qle, self.create_label('Afterface'))
         self.options_layout.add_widget(self.cell_alignment_cbx, self.create_label('Cell alignment'))
         self.options_layout.add_widget(self.emo_discretizer_cbx, self.create_label('EMO discretizer'))
+        self.options_layout.add_widget(self.emo_lngs_cbx, self.create_label('EMO languages'))
+        self.options_layout.add_widget(self.emo_approach_cbx, self.create_label('EMO approach'))
         self.options_layout.add_widget(self.emo_cap_fold_qle, self.create_label('EMO cap fold'))
         self.options_layout.add_widget(self.emo_min_records_qle, self.create_label('EMO min records'))
+        self.options_layout.add_widget(self.popup_timeout_qle, self.create_label('Popup timeout (msec)'))
+        self.options_layout.add_widget(self.popup_showani_qle, self.create_label('Popup enter (msec)'))
+        self.options_layout.add_widget(self.popup_hideani_qle, self.create_label('Popup hide (msec)'))
+        self.options_layout.add_widget(self.popup_checkint_qle, self.create_label('Popup check interval (msec)'))
+        self.options_layout.add_widget(self.popup_importance_cbx, self.create_label('Popup importance threshold'))
+        self.options_layout.add_widget(self.popup_trigger_unrevmistakes_qle, self.create_label('Popup Trigger mistakes cnt'))
         self.config_layout.addWidget(self.confirm_and_close_button)
 
 
@@ -975,13 +972,21 @@ class config_gui():
         modified_config["hide_tips"]["policy"][self.db.KINDS.mst] = self.hide_tips_policy_mst_cbx.currentDataList()
         modified_config["hide_tips"]["policy"][self.db.KINDS.eph] = self.hide_tips_policy_eph_cbx.currentDataList()
         modified_config["hide_tips"]["pattern"] = self.hide_tips_pattern_qle.text()
-        modified_config["hide_tips"]["connector"] = self.hide_tips_connector_qle.currentDataList()[0]
+        modified_config["hide_tips"]["connector"] = self.hide_tips_connector_cbx.currentDataList()[0]
         modified_config["timespent_len"] = int(self.timespent_len_qle.text())
         modified_config["after_face"] = self.afterface_qle.text()
         modified_config["cell_alignment"] = self.cell_alignment_cbx.currentDataList()[0]
         modified_config["EMO"]["discretizer"] = self.emo_discretizer_cbx.currentDataList()[0]
+        modified_config["EMO"]["languages"] = self.emo_lngs_cbx.currentDataList()
+        modified_config["EMO"]["approach"] = self.emo_approach_cbx.currentDataList()[0]
         modified_config["EMO"]["cap_fold"] = float(self.emo_cap_fold_qle.text())
         modified_config["EMO"]["min_records"] = int(self.emo_min_records_qle.text())
+        modified_config["POPUPS"]["timeout_ms"] = int(self.popup_timeout_qle.text())
+        modified_config["POPUPS"]["show_animation_ms"] = int(self.popup_showani_qle.text())
+        modified_config["POPUPS"]["hide_animation_ms"] = int(self.popup_hideani_qle.text())
+        modified_config["POPUPS"]["check_interval_ms"] = int(self.popup_checkint_qle.text())
+        modified_config["POPUPS"]["importance"] = int(self.popup_importance_cbx.currentDataList()[0])
+        modified_config["POPUPS"]["triggers"]["unreviewed_mistakes_cnt"] = int(self.popup_trigger_unrevmistakes_qle.text())
 
         if not self.config['opt']['side_by_side'] and modified_config['opt']['side_by_side']:
             self.toggle_primary_widgets_visibility(True)
@@ -1090,6 +1095,7 @@ class config_gui():
             self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
+            self.initiate_notification_timer()
             self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
             self.set_should_hide_tips()
 

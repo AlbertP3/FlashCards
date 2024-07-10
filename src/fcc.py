@@ -25,7 +25,7 @@ class fcc():
                     'dcc':'Delete Current Card - deletes card both in current set and in the file',
                     'lbi':'Load By Index, loads a range of cards. Syntax: <start_index> *<end_index>',
                     'iln':'Incremental Last N - executes *lbi* with parameters stored in cache. Syntax: *<lim_cards>',
-                    'efc':'Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of revisions displayed. Additionaly, shows predicted time until the next revision',
+                    'efc':'Ebbinghaus Forgetting Curve - Optional *[SIGNATURES] else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision',
                     'mcp':'Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>',
                     'sck':'Show Config Key: Syntax: sck *<sub_dict> <key>',
                     'cls':'Clear Screen',
@@ -271,13 +271,17 @@ class fcc():
 
     def efc(self, parsed_cmd):
         '''Show EFC Table'''
-        self.mw.db.refresh()
-        recommendations = self.mw.get_complete_efc_table(preds=True)
-        if len(parsed_cmd) >= 2 and parsed_cmd[1].isnumeric():
-            lim = int(parsed_cmd[1])
+        if self.mw.active_file.tmp:
+            self.post_fcc("Unable to calculate EFC for a temporary file")
+            return
+        elif len(parsed_cmd) >= 2:
+            signatures = parsed_cmd[1:]
         else:
-            lim = None
-        efc_table_printout = self.mw.get_efc_table_printout(recommendations, lim)
+            signatures = {self.mw.active_file.signature}
+        self.mw.db.refresh()
+        recommendations = self.mw.get_complete_efc_table(preds=True, signatures=signatures)
+        efc_table_printout = self.mw.get_efc_table_printout(recommendations)
+        self.mw.db.refresh()
         self.post_fcc(efc_table_printout)
         
 
@@ -380,7 +384,8 @@ class fcc():
             del self.config["ILN"][self.mw.active_file.filepath]
         dbapi.update_fds()
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
-        self.post_fcc('Filename and Signature changed successfully')
+        fcc_queue.put('Filename and Signature changed successfully')
+        self.mw.get_fcc_sidewindow()
     
 
     def sah(self, parsed_cmd):
@@ -504,6 +509,8 @@ class fcc():
             self.mw.db.refresh()
         if run_all or key == 'fonts':
             self.mw.caliper.pixlen.cache_clear()
+        if run_all or key == "efc":
+            self.mw._efc_last_calc_time = 0
         self.post_fcc('Reloaded cache')
 
 
@@ -638,3 +645,6 @@ class fcc():
         self.post_fcc(f"{self.mw.is_afterface=}")
         self.post_fcc(f"{self.mw.is_revision_summary=}")
         self.post_fcc(f"{self.mw.is_initial_rev=}")
+        self.post_fcc(f"{self.mw.should_hide_tips()=}")
+        self.post_fcc(f"{self.mw.db.filters=}")
+        self.post_fcc(f"db_rows={self.mw.db.db.shape[0]}")

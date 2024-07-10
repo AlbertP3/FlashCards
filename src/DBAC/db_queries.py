@@ -89,7 +89,7 @@ class db_queries:
         with open(self.DB_PATH, "a") as fd:
             dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
             dw.writerow(record)
-        fcc_queue.put(f"Recorded {self.active_file.signature}")
+        fcc_queue.put(f"Recorded {self.active_file.signature}", importance=20)
         log.debug(f"Created Record: {record}")
 
     @write_op
@@ -258,6 +258,10 @@ class db_queries:
     def filter_where_signature_is_equal_to(self, signature):
         self.db = self.db.loc[self.db["SIGNATURE"] == signature]
         self.filters["BY_SIGNATURE"] = signature
+
+    def filter_where_signature_in(self, signatures: set):
+        self.db = self.db.loc[self.db["SIGNATURE"].isin(signatures)]
+        self.filters["BY_SIGNATURE"] = signatures
 
     def filter_where_lng(self, lngs: list = []):
         self.db = self.__get_filtered_by_lng(lngs)

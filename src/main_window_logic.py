@@ -4,6 +4,7 @@ from datetime import datetime
 from random import randint
 from DBAC.api import DbOperator, FileDescriptor
 from utils import *
+from data_types import HIDE_TIPS_POLICIES
 from rev_summary import SummaryGenerator
 
 log = logging.getLogger(__name__)
@@ -84,6 +85,8 @@ class main_window_logic():
 
 
     def record_revision_to_db(self, seconds_spent=0):
+        if self.active_file.kind == self.db.KINDS.mst:
+            self.config["runtime"]["unreviewed_mistakes"] = 0
         self.db.create_record(self.total_words, self.positives, seconds_spent)
         self.is_recorded = True
 
@@ -98,6 +101,7 @@ class main_window_logic():
                     mistakes_list = self.mistakes_list, 
                     offset = self.auto_cfm_offset
                 )
+                self.notify_on_mistakes()
                 self.init_eph_from_mistakes()
             if self.config["CRE"]["auto_next"]:
                 self.activate_tab("fcc")
@@ -211,7 +215,7 @@ class main_window_logic():
             if policies.intersection(HIDE_TIPS_POLICIES.get_states()):
                 if HIDE_TIPS_POLICIES.reg_rev in policies:
                     state_matched = not self.is_initial_rev
-            # 2 level flux
+            # 2 Level flux
             if state_matched:
                 if policies.intersection(HIDE_TIPS_POLICIES.get_flux()):
                     conditions = set()
@@ -234,6 +238,25 @@ class main_window_logic():
             mistakes_list = self.mistakes_list, 
             offset = self.auto_cfm_offset
         )
+        self.notify_on_mistakes()
+
+    def notify_on_mistakes(self):
+        if self.config["runtime"]["unreviewed_mistakes"] >= self.config["POPUPS"]["triggers"]["unreviewed_mistakes_cnt"]:
+            try:
+                mistakes_fd = [
+                    fd for fd 
+                    in self.db.files.values() 
+                    if fd.lng == self.active_file.lng
+                    and fd.kind == self.db.KINDS.mst
+                ][0]
+                fcc_queue.put(
+                    f"There are {self.config['runtime']['unreviewed_mistakes']} unreviewed Mistakes!",
+                    importance=20,
+                    func=lambda: self.initiate_flashcards(mistakes_fd),
+                    persist=True,
+                )
+            except IndexError:
+                log.debug("No matching Mistakes file found")
         
     def init_eph_from_mistakes(self):
         mistakes_df = pd.DataFrame(
@@ -290,7 +313,8 @@ class main_window_logic():
             err_msg = traceback
 
         err_msg += '\n' + self.CONSOLE_PROMPT
-        fcc_queue.put(err_msg)
+        fcc_queue.put(err_msg, importance=50)
 
-        if self.side_window_id != 'fcc':
-            self.get_fcc_sidewindow()
+        if self.side_window_id == 'fcc':
+            self.del_side_window()
+        self.get_fcc_sidewindow()

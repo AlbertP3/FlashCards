@@ -9,52 +9,11 @@ import json
 import inspect
 from time import perf_counter
 import logging
-from typing import Union
+from typing import Union, Callable
 from dataclasses import dataclass
 
+
 log = logging.getLogger(__name__)
-
-
-@dataclass
-class HIDE_TIPS_POLICIES():
-    always = "always"
-    never = "never"
-    reg_rev = "regular-rev"
-    new_card = "new-card"
-    foreign_side = "foreign-side"
-
-    @classmethod
-    def get_states(cls) -> set:
-        return {cls.reg_rev,}
-
-    @classmethod
-    def get_flux(cls) -> set:
-        return {cls.new_card, cls.foreign_side}
-
-    @classmethod
-    def get_common(cls) -> set:
-        return {cls.always, cls.never, cls.new_card, cls.foreign_side}
-
-
-class FccQueue:
-    '''Collects messages to be displayed in the console'''
-
-    def __init__(self):
-        self.queue = deque()
-    
-    def put(self, record:str):
-        if record:
-            self.queue.append(record)
-        
-    def pull(self):
-        return self.queue.popleft()
-    
-    def dump(self):
-        res = list(self.queue)
-        self.queue.clear()
-        return res
-
-fcc_queue = FccQueue() 
 
 
 def perftm(func):
@@ -103,6 +62,44 @@ class Config(UserDict):
             return val_on or self.data[key]
 
 config = Config()
+
+
+@dataclass
+class QueueRecord:
+    message: str
+    importance: int = 10
+    func: Callable = None
+    persist: bool = False
+
+
+class FccQueue:
+    '''Collects messages to be displayed in the console'''
+
+    def __init__(self):
+        self.__fcc_queue: deque[QueueRecord] = deque()
+        self.__notification_queue: deque[QueueRecord] = deque()
+        self.unacked_notifications = 0
+
+    def put(self, msg:str, importance:int=10, func:Callable=None, persist: bool = False) -> None:
+        if msg:
+            record = QueueRecord(msg, importance, func, persist)
+            self.__fcc_queue.append(record)
+            if importance >= config["POPUPS"]["importance"]:
+                self.__notification_queue.append(record)
+                self.unacked_notifications += 1
+        
+    def pull(self) -> str:
+        return self.__fcc_queue.popleft().message
+    
+    def dump(self) -> list[str]:
+        res = list(x.message for x in self.__fcc_queue)
+        self.__fcc_queue.clear()
+        return res
+
+    def pull_notification(self) -> QueueRecord:
+        return self.__notification_queue.popleft()
+
+fcc_queue = FccQueue() 
 
 
 def get_filename_from_path(path, include_extension=False):

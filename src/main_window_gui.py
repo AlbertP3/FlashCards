@@ -9,6 +9,7 @@ from main_window_logic import main_window_logic
 from side_windows_gui import *
 from utils import fcc_queue
 from DBAC.api import FileDescriptor
+from widgets import NotificationPopup
 
 log = logging.getLogger("GUI")
 
@@ -32,7 +33,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.build_interface()      
         self.initiate_timer()
         self.initiate_pace_timer()
+        self.initiate_notification_timer()
         self.__onload_initiate_flashcards()
+        self.__onload_notifications()
+        self.start_notification_timer()
         self.q_app.exec()
 
 
@@ -43,7 +47,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 kind=self.config["tmp-backup"]["kind"],
                 basename=self.config["tmp-backup"]["basename"],
                 lng=self.config["tmp-backup"]["lng"],
-                parent=self.config["tmp-backup"]["parent"]
+                parent=self.config["tmp-backup"]["parent"],
+                signature=self.config["tmp-backup"]["signature"],
             )
             self.update_backend_parameters()
             self.update_interface_parameters()
@@ -59,6 +64,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                     )
                 )
             )
+
+
+    def __onload_notifications(self):
+        self.notify_on_mistakes()
 
 
     def build_interface(self):
@@ -85,6 +94,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.create_ks_mapping(sw_id)
 
         # Initialize
+        self.popup = NotificationPopup(self)
         self.layout = None
         self.side_window_id:str = 'main'
         self.center_window()
@@ -582,9 +592,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.db.load_dataset(self.active_file, seed=self.config['pd_random_seed'])
             self.display_text(self.get_current_card().iloc[self.side])
             fcc_queue.put('Dataset refreshed')
-        elif path == self.config["SOD"]["last_file"]:
+        if path == self.config["SOD"]["last_file"]:
             self.tabs["sod"]["fcc_instance"].sod_object.refresh_db()
-        # elif path == "./src/res/config.json":
+        # if path == "./src/res/config.json":
         #     log.debug("Config updated")  # TODO
 
     def initiate_file_monitor(self):
@@ -624,7 +634,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             log.debug(f"FileMonitor Unwatched all files. Status: {self.file_watcher.files()}", stacklevel=2)
 
 
-    #  ============= REVISION TIMER ==================
+    # region Revision Timer
     def initiate_timer(self):
         self.q_app.installEventFilter(self)
         self.seconds_spent = 0
@@ -692,9 +702,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def _revtimer_func_time(self):
         self.seconds_spent+=1
         self.timer_button.setText(format_seconds_to(self.seconds_spent, 'minute', rem=2, sep=':'))
+    # endregion
 
-
-    ############### PACE TIMER ############### 
+    # region Pace Timer
     def initiate_pace_timer(self):
         interval = self.config['pace_card_interval']
         self.pace_spent = 0
@@ -732,7 +742,47 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def _reset_pace_timer(self):
         self.pace_spent = 0
+    # endregion
+
+    # region Notification Timer
+    def initiate_notification_timer(self):
+        if self.config["POPUPS"]["check_interval_ms"] > 0:
+            self.notification_timer = QTimer()
+            self.start_notification_timer = self._start_notification_timer
+            self.resume_notification_timer = self._resume_notification_timer
+            self.stop_notification_timer = self._stop_notification_timer
+        else:
+            self.notification_timer = None
+            self.start_notification_timer = lambda: None
+            self.resume_notification_timer = lambda: None
+            self.stop_notification_timer = lambda: None
+
+    def _start_notification_timer(self):
+        self.notification_timer = QTimer()
+        self.notification_timer.timeout.connect(self.notification_timer_func)
+        self.notification_timer.start(self.config["POPUPS"]["check_interval_ms"])
+
+    def notification_timer_func(self):
+        try:
+            if fcc_queue.unacked_notifications > 0 and not self.popup.is_visible:
+                record = fcc_queue.pull_notification()
+                self.popup.show_notification(
+                    message=record.message, 
+                    func=record.func, 
+                    persist=record.persist
+                )
+                fcc_queue.unacked_notifications -= 1
+        except IndexError as e:
+            log.error(e, exc_info=True)
+            fcc_queue.put("IndexError raised while collecting notifications. See log file for more details.")
+
+    def _resume_notification_timer(self):
+        self.notification_timer.start()
         
+    def _stop_notification_timer(self):
+        self.notification_timer.stop()
+
+    # endregion
 
     def remove_layout(self, layout):
     # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
@@ -775,10 +825,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if event.type() == QtCore.QEvent.FocusOut and type(source) == QtGui.QWindow:
             self.stop_timer()
             self.stop_pace_timer()
+            self.stop_notification_timer()  # TODO remove after implementing sounds
         if event.type() == QtCore.QEvent.FocusIn and type(source) == QtGui.QWindow:
             if not self.is_afterface:
                 self.resume_timer()
                 self.resume_pace_timer()
+                self.resume_notification_timer()  # TODO remove after implementing sounds
         return super(main_window_gui, self).eventFilter(source, event)
 
 
@@ -791,3 +843,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
         self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()[2:]
+
+    def moveEvent(self, a0: QtGui.QMoveEvent) -> None:
+        if self.popup.is_visible:
+            self.popup.update_position()
+        return super().moveEvent(a0)

@@ -1,8 +1,8 @@
-# FlashCards 1.3.15
+# FlashCards 1.4.0
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-1315)
+- [FlashCards](#flashcards-140)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -156,7 +156,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - dcc - Delete Current Card - deletes card both in current set and in the file
 - lbi - Load By Index, loads a range of cards. Syntax: start_index *end_index
 - iln - Incremental Last N - executes *lbi* with parameters stored in cache. Syntax: *lim_cards
-- efc - Ebbinghaus Forgetting Curve *N - shows table with revs, days from last rev and efc score; optional N for number of *Revisions* displayed. Additionaly, shows predicted time until the next revision,
+- efc - Ebbinghaus Forgetting Curve - Optional *SIGNATURES else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision
 - mcp - Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}
 - sck - Show Config Key: Syntax: sck *{sub_dict} {key}
 - cls - Clear Screen

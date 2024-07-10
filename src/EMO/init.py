@@ -1,13 +1,13 @@
 import logging
-from utils import Config
-from EMO.cli import CLI
+from utils import Config, fcc_queue
+from EMO.cli import CLI, Steps
 
 
-log = logging.getLogger("EFC")
+log = logging.getLogger("EMO")
 
 
 class emo_spawn:
-    # EFC Model Enhancer
+    # EFC Model Optimizer
 
     def __init__(self, stream_out):
         self.config = Config()
@@ -16,8 +16,18 @@ class emo_spawn:
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles["fcc"])
         self.cli = CLI(sout=self.sout)
         self.adapt()
-        self.cli.step.configure_lngs.disp = True
-        self.run([""])
+        self.init_emo()
+
+    def init_emo(self):
+        try:
+            self.cli.set_emo_lngs(self.config["EMO"]["languages"])
+            self.cli.set_emo_approach(self.config["EMO"]["approach"])
+            self.cli.run_emo()
+            self.cli.show_model_stats()
+            self.cli.send_output(self.sout.mw.CONSOLE_PROMPT)
+        except Exception as e:
+            self.remove_adapter()
+            self.sout.mw.notify_on_error(e.__traceback__, e)
 
     def adapt(self):
         self.HISTORY: list = self.sout.mw.CONSOLE_LOG.copy()
@@ -45,41 +55,42 @@ class emo_spawn:
         self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
 
     def remove_adapter(self):
+        self.sout.cls()
         self.sout.post_fcc = self.orig_post_method
         self.sout.mw.side_window_titles["fcc"] = self.prev_window_title
         self.sout.mw.setWindowTitle(self.prev_window_title)
         self.sout.execute_command = self.orig_execute_method
+        self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
         self.sout.mw.CONSOLE_LOG = self.HISTORY
         self.sout.mw.console.setText("\n".join(self.sout.mw.CONSOLE_LOG))
         self.sout.mw.CONSOLE_LOG.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.CMDS_LOG = self.CMD_HISTORY
-
-    def _exit(self):
-        self.sout.cls()
-        self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
-        self.remove_adapter()
-        self.cli.step.done.disp = False
-        if self.cli.err_msg:
-            self.sout.post_fcc(self.cli.err_msg)
-        del self
+        self.sout.mw.db.refresh()
+        for msg in fcc_queue.dump():
+               self.sout.mw.fcc_inst.post_fcc(msg)
 
     def run(self, parsed_cmd: list):
         try:
-            if self.cli.step.configure_lngs:
-                self.cli.configure_emo_lngs(parsed_cmd)
-            if self.cli.step.configure_approach:
-                self.cli.configure_emo_approach(parsed_cmd)
-            if self.cli.step.run_emo.disp:
-                self.cli.run_emo(parsed_cmd)
-            if self.cli.step.model_selection:
+            if self.cli.step == Steps.model_display:
+                self.cli.show_model_stats()
+            elif self.cli.step == Steps.model_selection:
                 self.cli.model_selection(parsed_cmd)
-            if self.cli.step.examples:
-                self.cli.show_examples(parsed_cmd)
-            if self.cli.step.examples.accepted:
-                self.sout.mw.load_pickled_model()
-                self.cli.step.done.disp = True
-            if self.cli.step.done:
-                self._exit()
+            elif self.cli.step == Steps.examples_display:
+                self.cli.show_examples()
+            elif self.cli.step == Steps.decide_model:
+                self.cli.decide_model(parsed_cmd)
+            elif self.cli.step == Steps.decide_exit:
+                if parsed_cmd and parsed_cmd[0].lower() in {"yes", "y", "1"}:
+                    self.remove_adapter()
+                else:
+                    self.cli.show_model_stats()
+            # Immediately handle 'done' actions after status change
+            if self.cli.step == Steps.done:
+                if self.cli.accepted:
+                    self.sout.mw.load_pickled_model()
+                    self.remove_adapter()
+                else:
+                    self.cli.prepare_exit()
         except Exception as e:
-            log.error(e, exc_info=True)
-            self._exit()
+            self.remove_adapter()
+            self.sout.mw.notify_on_error(e.__traceback__, e)

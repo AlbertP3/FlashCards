@@ -32,6 +32,7 @@ class stats():
             self.create_dynamic_chain_percentages(tight_format=True)
         else:
             self.create_dynamic_chain_values(tight_format=True)
+        self.db.refresh()
 
 
     def create_dynamic_chain_values(self, tight_format:bool=True):

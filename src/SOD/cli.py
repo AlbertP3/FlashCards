@@ -90,7 +90,7 @@ class CLI():
     def init_file_handler(self):
         try:
             self.fh = get_filehandler(self.config['SOD']['last_file'])
-            self.output.mw.file_monitor_add_path(self.config["SOD"]["last_file"])
+            self.output.mw.file_monitor_add_protected_path(self.config["SOD"]["last_file"])
             self.init_set_languages()
             self.cls()
         except (FileNotFoundError, AttributeError) as e:
@@ -134,9 +134,10 @@ class CLI():
 
 
     def refresh_file_handler(self):
+        self.output.mw.file_monitor_del_protected_path(self.fh.path)
         self.fh.close()
         self.fh = get_filehandler(self.config["SOD"]["last_file"])
-        self.output.mw.file_monitor_add_path(self.config["SOD"]["last_file"])
+        self.output.mw.file_monitor_add_protected_path(self.fh.path)
         self.init_set_languages()
 
 
@@ -159,12 +160,12 @@ class CLI():
                     repat=pattern,
                     exclude_dirs=self.re_excl_dirs
                 ).pop()
-            self.output.mw.file_monitor_del_protected_path(self.config["SOD"]["last_file"])
             fh = get_filehandler(filepath)
-            if self.fh:
+            if self.fh: 
                 self.fh.close()
+                self.output.mw.file_monitor_del_protected_path(self.fh.path)
             self.fh = fh
-            self.output.mw.file_monitor_add_protected_path(self.config["SOD"]["last_file"])
+            self.output.mw.file_monitor_add_protected_path(self.fh.path)
             self.init_set_languages()
             self.cls()
         except re.error:

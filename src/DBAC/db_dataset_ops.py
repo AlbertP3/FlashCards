@@ -84,7 +84,7 @@ class db_dataset_ops:
                 self.active_file.lng, self.REV_DIR, f"{self.active_file.signature}.csv"
             )
             dataset.to_csv(fp, index=False, encoding="utf-8")
-            fcc_queue.put(f"Created {self.active_file.signature}")
+            fcc_queue.put(f"Created {self.active_file.signature}", importance=20)
             log.debug(f"Created a new file: {fp}")
             self.update_fds()
             return fp
@@ -139,6 +139,7 @@ class db_dataset_ops:
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
             self.update_fds()
         m_cnt = mistakes_df.shape[0] - offset
+        self.config["runtime"]["unreviewed_mistakes"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
         fcc_queue.put(msg)
         log.debug(msg)
@@ -150,7 +151,8 @@ class db_dataset_ops:
             "kind": self.active_file.kind,
             "basename": self.active_file.basename,
             "lng": self.active_file.lng,
-            "parent": self.active_file.parent
+            "parent": self.active_file.parent,
+            "signature": self.active_file.signature,
         }
         log.debug(f"Created temporary backup file at {self.TMP_BACKUP_PATH}")
 

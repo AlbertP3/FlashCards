@@ -3,6 +3,7 @@ import sys
 import json
 import signal
 import logging
+import builtins
 from logging.handlers import RotatingFileHandler
 import matplotlib
 from types import FrameType
@@ -50,11 +51,12 @@ try:
     signal.signal(signal.SIGINT, handle_termination_signal)
 except Exception as e:
     configure_logging("DEBUG", "DEBUG")
-    log = logging.getLogger(__name__)
+    log = logging.getLogger("FCS")
     log.critical(e, exc_info=True)
     sys.exit(1)
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("FCS")
+builtins.print = lambda *args, **kwargs: log.debug(' '.join(map(str, args)))
 log.debug(f"*** Flashcards {utils.config['version']} ***")
 
 from main_window_gui import main_window_gui

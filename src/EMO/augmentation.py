@@ -21,20 +21,25 @@ def cap_quantiles(df: pd.DataFrame):
     return df
 
 
-def decision_tree_discretizer(df, scoring="r2"):
+def decision_tree_discretizer(
+    df, scoring="r2", cols=RECORD_COLS
+) -> tuple[pd.DataFrame, DecisionTreeDiscretiser]:
     x, y = df.iloc[:, :-1], df.iloc[:, -1]
     dt_discretizer = DecisionTreeDiscretiser(
         cv=12,
         scoring=scoring,
         regression=True,
         param_grid={"max_depth": range(1, 12, 2), "min_samples_leaf": range(1, 12, 2)},
+        variables=cols,
     )
     dt_discretizer.fit(x, y)
     df.iloc[:, :-1] = dt_discretizer.transform(x)
     return df, dt_discretizer
 
 
-def transformation_yeo_johnson(df, cols=RECORD_COLS):
+def transformation_yeo_johnson(
+    df, cols=RECORD_COLS
+) -> tuple[pd.DataFrame, fet.YeoJohnsonTransformer]:
     yj_transformation = fet.YeoJohnsonTransformer(variables=cols)
     yj_transformation.fit(df.iloc[:, :-1])
     df.iloc[:, :-1] = yj_transformation.transform(df.iloc[:, :-1])
