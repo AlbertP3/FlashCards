@@ -1,5 +1,5 @@
 {
-    "version": "1.4.0",
+    "version": "1.4.1",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -167,7 +167,7 @@
         "check_interval_ms": 1000,
         "importance": 20,
         "triggers": {
-            "unreviewed_mistakes_cnt": 40
+            "unreviewed_mistakes_percent": 0.4
         }
     },
     "EMO": {

@@ -1,10 +1,12 @@
 from PyQt5.QtGui import QFontMetricsF
 from collections import UserDict, deque
 from functools import cache
-from datetime import timedelta
+from datetime import timedelta, datetime
 import unicodedata
 import os
 import pandas as pd
+import platform
+import re
 import json
 import inspect
 from time import perf_counter
@@ -67,6 +69,7 @@ config = Config()
 @dataclass
 class QueueRecord:
     message: str
+    timestamp: datetime
     importance: int = 10
     func: Callable = None
     persist: bool = False
@@ -82,17 +85,23 @@ class FccQueue:
 
     def put(self, msg:str, importance:int=10, func:Callable=None, persist: bool = False) -> None:
         if msg:
-            record = QueueRecord(msg, importance, func, persist)
+            record = QueueRecord(
+                message=msg, 
+                timestamp=datetime.now(), 
+                importance=importance,
+                func=func,
+                persist=persist
+            )
             self.__fcc_queue.append(record)
             if importance >= config["POPUPS"]["importance"]:
                 self.__notification_queue.append(record)
                 self.unacked_notifications += 1
-        
-    def pull(self) -> str:
-        return self.__fcc_queue.popleft().message
+
+    def pull_fcc(self) -> QueueRecord:
+        return self.__fcc_queue.popleft()
     
-    def dump(self) -> list[str]:
-        res = list(x.message for x in self.__fcc_queue)
+    def dump(self) -> list[QueueRecord]:
+        res = list(self.__fcc_queue)
         self.__fcc_queue.clear()
         return res
 
@@ -293,3 +302,28 @@ class Caliper:
                 new_row = new_row[:-len(sep)]
             out.append(new_row)
         return "\n".join(out)
+
+
+
+def is_valid_filename(filename: str) -> bool:
+    system = platform.system()
+
+    if filename == '':
+        return False
+
+    if len(filename) > 255:
+        return False
+
+    if re.search(r"""[<>:"/'\\|?!*().]""", filename):
+            return False
+    
+    if system == 'Windows':
+        reserved_names = [
+            'CON', 'PRN', 'AUX', 'NUL',
+            'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+            'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+        ]
+        if filename.upper() in reserved_names:
+            return False
+
+    return True

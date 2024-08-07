@@ -67,7 +67,7 @@ class emo_spawn:
         self.sout.mw.CMDS_LOG = self.CMD_HISTORY
         self.sout.mw.db.refresh()
         for msg in fcc_queue.dump():
-               self.sout.mw.fcc_inst.post_fcc(msg)
+               self.sout.mw.fcc_inst.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
 
     def run(self, parsed_cmd: list):
         try:

@@ -1,4 +1,4 @@
-# FlashCards 1.4.0
+# FlashCards 1.4.1
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
@@ -196,7 +196,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - allow_file_monitor: Toggles a watcher that automatically updates loaded files on source change
 - init_revs_cnt: Specifies amount of revisions that are supposed to be recommended in init_revs_inth hours intervals, ignoring the EFC model
 - init_revs_inth: Hourly Interval between initial revisions, ignoring the EFC model
-- mistakes_buffer: Specifies amount of cards that are kept in the *_mistakes.csv files. The queue follows the FIFO logic
+- mistakes_buffer: Specifies amount of cards that are kept in the *LNG*_mistakes.csv files. The queue follows the FIFO logic
 - card_default_side: Specifies with side of the card is displayed first. Valid choices are: 1, 0, random
 - timespent_len: count of months back that are shown on the TimeSpent window
 - emo_discretizer: which discretization function should EMO use: yeo-johnson, decision-tree

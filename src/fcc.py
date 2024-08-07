@@ -368,6 +368,9 @@ class fcc():
             self.post_fcc('cfn requires a filename arg')
             return
         new_filename = ' '.join(parsed_cmd[1:])
+        if not is_valid_filename(new_filename):
+            self.post_fcc(f"Invalid filename: {new_filename}")
+            return
         dbapi = api.DbOperator()
         if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
@@ -384,9 +387,7 @@ class fcc():
             del self.config["ILN"][self.mw.active_file.filepath]
         dbapi.update_fds()
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
-        fcc_queue.put('Filename and Signature changed successfully')
-        self.mw.get_fcc_sidewindow()
-    
+        fcc_queue.put('Filename and Signature changed successfully', importance=20)
 
     def sah(self, parsed_cmd):
         '''Show All (languages) History chart'''
@@ -547,7 +548,7 @@ class fcc():
             index=False,
         )
         for msg in fcc_queue.dump():
-            self.post_fcc(msg)
+            self.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
         self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
         self.mw.db.update_fds()
 
@@ -576,7 +577,13 @@ class fcc():
                 if self.config["CRE"]["count"]:
                     self.post_fcc(self.mw._get_cre_stat())
                 else:
-                    self.post_fcc(f"Last finished on {self.config['CRE']['last_completed']}")
+                    try:
+                        diff_days = (
+                            datetime.now() - datetime.strptime(self.config['CRE']['last_completed'], r"%Y-%m-%d %H:%M:%S")
+                        ).days
+                    except (TypeError, ValueError):
+                        diff_days = "∞"
+                    self.post_fcc(f"Last finished on {self.config['CRE']['last_completed']} ({diff_days} days ago)")
             elif parsed_cmd[1] == "reversed" and len(parsed_cmd) == 3:
                 rev = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
                 self.config["CRE"]["reversed"] = rev
@@ -645,6 +652,7 @@ class fcc():
         self.post_fcc(f"{self.mw.is_afterface=}")
         self.post_fcc(f"{self.mw.is_revision_summary=}")
         self.post_fcc(f"{self.mw.is_initial_rev=}")
+        self.post_fcc(f"{self.mw.seconds_spent=}")
         self.post_fcc(f"{self.mw.should_hide_tips()=}")
         self.post_fcc(f"{self.mw.db.filters=}")
         self.post_fcc(f"db_rows={self.mw.db.db.shape[0]}")

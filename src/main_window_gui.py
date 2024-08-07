@@ -42,28 +42,32 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def __onload_initiate_flashcards(self):
         if self.config["tmp-backup"]:
-            self.db.load_tempfile(
-                data=self.db.read_csv(self.config["tmp-backup"]["filepath"]),
-                kind=self.config["tmp-backup"]["kind"],
-                basename=self.config["tmp-backup"]["basename"],
-                lng=self.config["tmp-backup"]["lng"],
-                parent=self.config["tmp-backup"]["parent"],
-                signature=self.config["tmp-backup"]["signature"],
-            )
-            self.update_backend_parameters()
-            self.update_interface_parameters()
-            os.remove(self.db.TMP_BACKUP_PATH)
-            self.config["tmp-backup"] = None
-            log.debug(f"Used temporary backup file from {self.db.TMP_BACKUP_PATH}")
-        else:
-            self.initiate_flashcards(self.db.files.get(  
-                    self.config['onload_filepath'],
-                    FileDescriptor(
-                        filepath=self.config['onload_filepath'], 
-                        tmp=True
-                    )
+            try:
+                self.db.load_tempfile(
+                    data=self.db.read_csv(self.config["tmp-backup"]["filepath"]),
+                    kind=self.config["tmp-backup"]["kind"],
+                    basename=self.config["tmp-backup"]["basename"],
+                    lng=self.config["tmp-backup"]["lng"],
+                    parent=self.config["tmp-backup"]["parent"],
+                    signature=self.config["tmp-backup"]["signature"],
+                )
+                self.update_backend_parameters()
+                self.update_interface_parameters()
+                os.remove(self.db.TMP_BACKUP_PATH)
+                self.config["tmp-backup"] = None
+                log.debug(f"Used temporary backup file from {self.db.TMP_BACKUP_PATH}")
+                return
+            except Exception as e:
+                log.error(e)
+        # if tmp-backup fails to load or n/a, initiate an empty set
+        self.initiate_flashcards(self.db.files.get(  
+                self.config['onload_filepath'],
+                FileDescriptor(
+                    filepath=self.config['onload_filepath'], 
+                    tmp=True
                 )
             )
+        )
 
 
     def __onload_notifications(self):
@@ -285,9 +289,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.active_file.kind not in self.db.GRADED:
             super().delete_current_card()
             self.update_words_button()
+            fcc_queue.put("Card deleted", importance=20)
             self.display_text(self.get_current_card().iloc[self.side])
         else:
-            fcc_queue.put(f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}")
+            fcc_queue.put(f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}", importance=20)
 
 
     def reverse_side(self):
@@ -345,7 +350,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def click_next_button(self):
         if self.total_words - self.current_index - 1 > 0:
             self.goto_next_card()
-            if not self.revmode and self.words_back == 0:
+            if not self.revmode and self.words_back == 0 and not self.is_recorded:
                 self.change_revmode(True)
             self.display_text(self.get_current_card().iloc[self.side])
             self.update_words_button()
@@ -372,7 +377,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             if self.config["final_actions"]["next_efc"]:
                 self.load_next_efc()
-            elif self.config["final_actions"]["init_ephemeral"]:
+            elif self.config["final_actions"]["init_ephemeral"] and self.mistakes_list:
                 self.init_eph_from_mistakes()
 
 
@@ -591,9 +596,12 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if path == self.active_file.filepath and not self.active_file.tmp:
             self.db.load_dataset(self.active_file, seed=self.config['pd_random_seed'])
             self.display_text(self.get_current_card().iloc[self.side])
-            fcc_queue.put('Dataset refreshed')
+            fcc_queue.put('Active dataset refreshed', importance=20)
         if path == self.config["SOD"]["last_file"]:
+            prev_tab = self.active_tab_ident
+            self.activate_tab("sod")
             self.tabs["sod"]["fcc_instance"].sod_object.refresh_db()
+            self.activate_tab(prev_tab)
         # if path == "./src/res/config.json":
         #     log.debug("Config updated")  # TODO
 

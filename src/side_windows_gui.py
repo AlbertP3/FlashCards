@@ -8,7 +8,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
 from utils import * 
-from data_types import HIDE_TIPS_POLICIES
+from data_types import HIDE_TIPS_POLICIES, non_space_lng_re
 from fcc import fcc
 from efc import EFC
 from stats import stats
@@ -20,6 +20,8 @@ from random import shuffle
 class fcc_gui():
 
     def __init__(self):
+        self.console: widget.QTextEdit
+        self.cursor_moved_by_mouse = False
         self.DEFAULT_PS1 = self.config['THEME']['default_ps1']
         self.init_font()
         self.__create_tabs()
@@ -167,7 +169,7 @@ class fcc_gui():
             cmd = self.CONSOLE_LOG.pop()
             self.console.setText('\n'.join(self.CONSOLE_LOG))
             for msg in fcc_queue.dump():
-               self.fcc_inst.post_fcc(msg)
+               self.fcc_inst.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
             self.console.append(cmd + self.tmp_cmd)
             self.CONSOLE_LOG.append(cmd)
         self.fcc_layout.addWidget(self.console, 0, 0)
@@ -180,17 +182,44 @@ class fcc_gui():
         console.setAcceptRichText(False)
         console.setStyleSheet(self.textbox_stylesheet)
         console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        console.contextMenuEvent = lambda *args, **kwargs: None
+        self.overwrite_mouse_press_event(console)
         return console
+
+
+    def overwrite_mouse_press_event(self, console: widget.QTextEdit):
+        original_mouse_press_event = console.mousePressEvent
+        def func(event):
+            if event.button() == Qt.LeftButton:
+                self.cursor_moved_by_mouse = True
+            original_mouse_press_event(event)
+        console.mousePressEvent = func
 
 
     def cli_shortcuts(self, event:QtGui.QKeyEvent):
         event_key = event.key()
-        if (event.modifiers() & Qt.ControlModifier) and event_key == Qt.Key_L:
-            self.fcc_inst.execute_command(['cls'], followup_prompt=False)
+        if (event.modifiers() & Qt.ControlModifier):
+            if event_key == Qt.Key_L:
+                self.fcc_inst.execute_command(['cls'], followup_prompt=False)
+            elif event_key == Qt.Key_V:
+                if self.curpos < self.promptend:
+                    self.move_cursor_to_end()
+                self.console.textCursor().insertText(
+                    non_space_lng_re.sub(
+                        "", 
+                        widget.QApplication.clipboard().text().replace("\n", " ").strip()
+                    )
+                )
+            elif event_key == Qt.Key_X:
+                if self.console.textCursor().selectionStart() >= self.promptend:
+                    widget.QTextEdit.keyPressEvent(self.console, event)
+            elif event_key == Qt.Key_A:
+                self.cursor_moved_by_mouse = True
+                widget.QTextEdit.keyPressEvent(self.console, event)
+            else:
+                widget.QTextEdit.keyPressEvent(self.console, event)
         elif event_key == Qt.Key_Home:
-            cur = self.console.textCursor()
-            cur.setPosition(self.promptend)
-            self.console.setTextCursor(cur)
+            self.move_cursor_to_start()
         elif event_key == Qt.Key_Return:
             self.nav_mapping[self.side_window_id]['run_command']()
         elif event_key == Qt.Key_Up:
@@ -205,11 +234,11 @@ class fcc_gui():
         elif event_key in {Qt.Key_Left, Qt.Key_Backspace}:
             if self.curpos > self.promptend:
                 widget.QTextEdit.keyPressEvent(self.console, event)
-        elif event.matches(QtGui.QKeySequence.Paste):
-            self.console.textCursor().insertText(
-                widget.QApplication.clipboard().text().replace("\n", " ").strip()
-            )
-        else: 
+            elif self.cursor_moved_by_mouse:
+                self.move_cursor_to_start()
+        else:
+            if self.cursor_moved_by_mouse and self.curpos < self.promptend:
+                self.move_cursor_to_end()
             widget.QTextEdit.keyPressEvent(self.console, event) 
 
 
@@ -244,6 +273,13 @@ class fcc_gui():
 
     def move_cursor_to_end(self):
         self.console.moveCursor(QtGui.QTextCursor.End)
+        self.cursor_moved_by_mouse = False
+
+    def move_cursor_to_start(self):
+        cur = self.console.textCursor()
+        cur.setPosition(self.promptend)
+        self.console.setTextCursor(cur)
+        self.cursor_moved_by_mouse = False
     
 
 
@@ -901,7 +937,7 @@ class config_gui():
         self.popup_checkint_qle = self.create_config_qlineedit(self.config["POPUPS"]["check_interval_ms"])
         self.popup_importance_cbx = self.create_combobox(self.config["POPUPS"]["importance"], multi_choice=False, 
                                                     content=["0", "10", "20", "30", "40", "50"])
-        self.popup_trigger_unrevmistakes_qle = self.create_config_qlineedit(self.config["POPUPS"]["triggers"]["unreviewed_mistakes_cnt"])
+        self.popup_trigger_unrevmistakes_qle = self.create_config_qlineedit(self.config["POPUPS"]["triggers"]["unreviewed_mistakes_percent"])
         
         self.options_layout.add_widget(self.card_default_cbx, self.create_label('Card default side'))
         self.options_layout.add_widget(self.languages_cbx, self.create_label('Languages'))
@@ -941,7 +977,7 @@ class config_gui():
         self.options_layout.add_widget(self.popup_hideani_qle, self.create_label('Popup hide (msec)'))
         self.options_layout.add_widget(self.popup_checkint_qle, self.create_label('Popup check interval (msec)'))
         self.options_layout.add_widget(self.popup_importance_cbx, self.create_label('Popup importance threshold'))
-        self.options_layout.add_widget(self.popup_trigger_unrevmistakes_qle, self.create_label('Popup Trigger mistakes cnt'))
+        self.options_layout.add_widget(self.popup_trigger_unrevmistakes_qle, self.create_label('Popup trigger mistakes cnt'))
         self.config_layout.addWidget(self.confirm_and_close_button)
 
 
@@ -986,7 +1022,7 @@ class config_gui():
         modified_config["POPUPS"]["hide_animation_ms"] = int(self.popup_hideani_qle.text())
         modified_config["POPUPS"]["check_interval_ms"] = int(self.popup_checkint_qle.text())
         modified_config["POPUPS"]["importance"] = int(self.popup_importance_cbx.currentDataList()[0])
-        modified_config["POPUPS"]["triggers"]["unreviewed_mistakes_cnt"] = int(self.popup_trigger_unrevmistakes_qle.text())
+        modified_config["POPUPS"]["triggers"]["unreviewed_mistakes_percent"] = float(self.popup_trigger_unrevmistakes_qle.text())
 
         if not self.config['opt']['side_by_side'] and modified_config['opt']['side_by_side']:
             self.toggle_primary_widgets_visibility(True)

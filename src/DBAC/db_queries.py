@@ -95,7 +95,7 @@ class db_queries:
     @write_op
     def rename_signature(self, old, new):
         self.refresh()
-        self.db["SIGNATURE"] = self.db["SIGNATURE"].replace(old, new)
+        self.db["SIGNATURE"] = self.db["SIGNATURE"].replace(old, new, regex=False)
         self.db.to_csv(
             self.DB_PATH,
             encoding="utf-8",

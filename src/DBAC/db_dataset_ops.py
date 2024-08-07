@@ -140,8 +140,8 @@ class db_dataset_ops:
             self.update_fds()
         m_cnt = mistakes_df.shape[0] - offset
         self.config["runtime"]["unreviewed_mistakes"] += m_cnt
-        msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.filepath}'
-        fcc_queue.put(msg)
+        msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.basename}'
+        fcc_queue.put(msg, importance=20)
         log.debug(msg)
     
     def create_tmp_file_backup(self):

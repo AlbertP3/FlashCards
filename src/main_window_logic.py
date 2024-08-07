@@ -109,7 +109,7 @@ class main_window_logic():
         else:
             fcc_queue.put("CRE finished - Congratulations!!!\n")
             self._flush_cre()
-            self.config["CRE"]["last_completed"] = datetime.now().strftime(f"%Y-%m-%d %H:%M:%S")
+            self.config["CRE"]["last_completed"] = datetime.now().strftime(r"%Y-%m-%d %H:%M:%S")
                 
     def _update_cre(self, fd: FileDescriptor):
         upd = self.db.get_cre_data(fd.signature)
@@ -168,12 +168,12 @@ class main_window_logic():
 
 
     def handle_creating_revision(self, seconds_spent=0):
-        self.active_file.signature = self.db.gen_signature(self.active_file.lng)
-        self.active_file.kind = self.db.KINDS.rev
         if isinstance(self.active_file.parent, dict):
             self.config["ILN"][self.active_file.parent["filepath"]] = self.active_file.parent["len_"]
-        self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
+        self.active_file.signature = self.db.gen_signature(self.active_file.lng)
+        self.active_file.kind = self.db.KINDS.rev
         newfp = self.db.save_revision(self.active_file.data.iloc[:self.cards_seen+1, :])
+        self.db.create_record(self.cards_seen+1, self.positives, seconds_spent)
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
 
@@ -241,7 +241,7 @@ class main_window_logic():
         self.notify_on_mistakes()
 
     def notify_on_mistakes(self):
-        if self.config["runtime"]["unreviewed_mistakes"] >= self.config["POPUPS"]["triggers"]["unreviewed_mistakes_cnt"]:
+        if self.config["runtime"]["unreviewed_mistakes"] / self.config["mistakes_buffer"] >= self.config["POPUPS"]["triggers"]["unreviewed_mistakes_percent"]:
             try:
                 mistakes_fd = [
                     fd for fd 

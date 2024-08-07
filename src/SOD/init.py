@@ -1,7 +1,6 @@
 import os
 import logging
-from time import time
-from utils import Config
+from utils import Config, fcc_queue
 from SOD.cli import CLI
 
 log = logging.getLogger("SOD")
@@ -78,6 +77,7 @@ class sod_spawn:
         if os.path.getmtime(self.cli.fh.path) - self.config["SOD"]["debounce"] > self.cli.fh.last_write_time:
             self.cli.refresh_file_handler()
             self.cli.cls(self.cli.msg.DB_REFRESH, keep_content=True, keep_cmd=True)
+            fcc_queue.put('Refreshed SOD database', importance=20)
 
     def manage_modes(self, cmd:list):
         if cmd[0] == 'cls':

@@ -136,7 +136,7 @@ class XLSXFileHandler(FileHandler):
             self.ws.cell(row=target_row, column=2, value=domestic_word)
             self.data[target_row] = (foreign_word, domestic_word)
             self.commit(
-                f"Added [{target_row}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
+                f"Added [{target_row}] [{foreign_word}] - [{domestic_word}] to {self.filename}"
             )
             return True, ""
         else:
@@ -208,7 +208,7 @@ class CSVFileHandler(FileHandler):
         self.raw_data = pd.concat([self.raw_data, new_row], ignore_index=True)
         self.data[self.raw_data.index[-1]] = (foreign_word, domestic_word)
         self.commit(
-            f"Added [{self.raw_data.index[-1]}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
+            f"Added [{self.raw_data.index[-1]}] [{foreign_word}] - [{domestic_word}] to {self.filename}"
         )
         return True, ""
 
