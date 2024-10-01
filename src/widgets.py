@@ -199,7 +199,7 @@ class NotificationPopup(QWidget):
 
     def __init__(self, parent: QWidget = None):
         super(NotificationPopup, self).__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool | Qt.WindowDoesNotAcceptFocus)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.installEventFilter(self)
         layout = QVBoxLayout(self)

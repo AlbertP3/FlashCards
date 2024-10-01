@@ -70,9 +70,20 @@ class db_dataset_ops:
         """Template for creating Paths"""
         return os.path.join(self.DATA_PATH, lng, subdir, filename)
 
-
-    @staticmethod
-    def gen_signature(language) -> str:
+    # TODO add to settings and docs
+    def gen_signature(self, language) -> str:
+        """Create a globally unique identifier. Uses a custom pattern if available."""
+        try:
+            base = self.config["sigenpat"][language]
+            all_filenames = self.get_all_files(use_basenames=True, excl_ext=True)
+            for i in range(1, 1001):
+                tmp = f"{base}{i}"
+                if tmp not in all_filenames:
+                    return tmp
+            else:
+                fcc_queue.put("Failed to generate a signature using the custom pattern", importance=30)
+        except KeyError:
+            pass
         saving_date = datetime.now().strftime("%d%m%Y%H%M%S")
         signature = f"REV_{language}{saving_date}"
         return signature
@@ -110,7 +121,7 @@ class db_dataset_ops:
             log.error(e, exc_info=True)
         return opstatus
 
-    def save_mistakes(self, mistakes_list: list, offset: int):
+    def save_mistakes(self, mistakes_list: list):
         """Dump dataset to the Mistakes file"""
         basename = f"{self.active_file.lng}_mistakes"
         mfd = FileDescriptor(
@@ -125,7 +136,7 @@ class db_dataset_ops:
         if mfd.filepath in self.files.keys():
             buffer = self.load_dataset(mfd, do_shuffle=False, activate=False)
             mistakes_df = pd.DataFrame(data=mistakes_list, columns=buffer.columns)
-            buffer = pd.concat([buffer, mistakes_df.iloc[offset:]], ignore_index=True)
+            buffer = pd.concat([buffer, mistakes_df], ignore_index=True)
             buffer.iloc[-self.config["mistakes_buffer"] :].to_csv(
                 mfd.filepath, index=False, mode="w", header=True
             )
@@ -138,15 +149,17 @@ class db_dataset_ops:
             )
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
             self.update_fds()
-        m_cnt = mistakes_df.shape[0] - offset
-        self.config["runtime"]["unreviewed_mistakes"] += m_cnt
+        m_cnt = mistakes_df.shape[0]
+        self.config["cache"]["unreviewed_mistakes"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.basename}'
         fcc_queue.put(msg, importance=20)
         log.debug(msg)
-    
+
     def create_tmp_file_backup(self):
-        self.active_file.data.to_csv(self.TMP_BACKUP_PATH, index=False, mode="w", header=True)
-        self.config["tmp-backup"] = {
+        self.active_file.data.to_csv(
+            self.TMP_BACKUP_PATH, index=False, mode="w", header=True
+        )
+        self.config["cache"]["snapshot"]["file"] = {
             "filepath": self.TMP_BACKUP_PATH,
             "kind": self.active_file.kind,
             "basename": self.active_file.basename,
@@ -154,7 +167,7 @@ class db_dataset_ops:
             "parent": self.active_file.parent,
             "signature": self.active_file.signature,
         }
-        log.debug(f"Created temporary backup file at {self.TMP_BACKUP_PATH}")
+        log.debug(f"Created a temporary backup file at {self.TMP_BACKUP_PATH}")
 
     def validate_dataset(self, fd: FileDescriptor) -> bool:
         if not isinstance(fd.data, pd.DataFrame):
@@ -274,7 +287,9 @@ class db_dataset_ops:
             self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)
             self.__update_files(lng, self.LNG_DIR, kind=self.KINDS.lng)
             self.__update_files(lng, self.MST_DIR, kind=self.KINDS.mst)
-        log.debug(f"Collected FileDescriptors for {len(self.files)} files", stacklevel=2)
+        log.debug(
+            f"Collected FileDescriptors for {len(self.files)} files", stacklevel=2
+        )
 
     def __update_files(self, lng, subdir, kind):
         try:

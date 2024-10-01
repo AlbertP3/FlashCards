@@ -50,7 +50,7 @@ class FileHandler(ABC):
         """find duplicate, matching source_lng or native_lng"""
         i = int(is_from_native)
         for k, v in self.data.items():
-            if word == v[i]:
+            if word.lower() == v[i].lower():
                 self.dtracker = (k, word)
                 return True
         else:

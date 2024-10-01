@@ -7,7 +7,7 @@ from utils import *
 from data_types import HIDE_TIPS_POLICIES
 from rev_summary import SummaryGenerator
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("BKD")
 
 
 class main_window_logic():
@@ -28,7 +28,6 @@ class main_window_logic():
         self.is_recorded = False
         self.db = DbOperator()
         self.summary_gen = SummaryGenerator()
-        self.auto_cfm_offset = 0
         self.is_afterface = False
         self.is_revision_summary = False
         self.should_hide_tips = lambda: False
@@ -86,7 +85,7 @@ class main_window_logic():
 
     def record_revision_to_db(self, seconds_spent=0):
         if self.active_file.kind == self.db.KINDS.mst:
-            self.config["runtime"]["unreviewed_mistakes"] = 0
+            self.config["cache"]["unreviewed_mistakes"] = 0
         self.db.create_record(self.total_words, self.positives, seconds_spent)
         self.is_recorded = True
 
@@ -97,10 +96,7 @@ class main_window_logic():
         fcc_queue.put(self._get_cre_stat())
         if self.config["CRE"]["items"]:
             if self.config["CRE"]["auto_save_mistakes"] and self.mistakes_list:
-                self.db.save_mistakes(
-                    mistakes_list = self.mistakes_list, 
-                    offset = self.auto_cfm_offset
-                )
+                self.db.save_mistakes(mistakes_list=self.mistakes_list)
                 self.notify_on_mistakes()
                 self.init_eph_from_mistakes()
             if self.config["CRE"]["auto_next"]:
@@ -152,9 +148,10 @@ class main_window_logic():
         self.side = self.get_default_side()
         
 
-    def load_flashcards(self, fd:FileDescriptor):
+    def load_flashcards(self, fd:FileDescriptor, seed=None):
         try:
-            self.db.load_dataset(fd, do_shuffle=True)   
+            self.db.load_dataset(fd, do_shuffle=True, seed=seed)
+            fcc_queue.put(f'{self.db.KFN[self.active_file.kind]} loaded: {self.active_file.basename}')
         except FileNotFoundError:
             fcc_queue.put('File Not Found.')
 
@@ -181,23 +178,23 @@ class main_window_logic():
     def update_backend_parameters(self):
         self.config["onload_filepath"] = self.active_file.filepath
         self.reset_flashcards_parameters()
-        fcc_queue.put(f'{self.db.KFN[self.active_file.kind]} loaded: {self.active_file.basename}')
 
 
     def reset_flashcards_parameters(self):
+        self.is_recorded = False
+        self.is_afterface = False
+        self.is_revision_summary = False
+        self.revision_summary = None
         self.current_index = 0
         self.cards_seen = 0
-        self.cards_seen_sides = list()
-        self.add_default_side()
-        self.side = self.get_default_side()
         self.positives = 0
         self.negatives = 0
         self.words_back = 0
-        self.mistakes_list = list()
-        self.is_recorded = False
         self.total_words = self.active_file.data.shape[0]
-        self.revision_summary = None
-        self.auto_cfm_offset = 0
+        self.mistakes_list = list()
+        self.cards_seen_sides = list()
+        self.add_default_side()
+        self.side = self.get_default_side()
         self.set_should_hide_tips()
 
 
@@ -223,6 +220,7 @@ class main_window_logic():
                         conditions.add(lambda: self.revmode)
                     if HIDE_TIPS_POLICIES.foreign_side in policies:
                         conditions.add(lambda: self.side == 0)
+                    # Logical connector
                     if self.config["hide_tips"]["connector"] == "and":
                         self.should_hide_tips = lambda: all(f() for f in conditions) and nd()
                     else:  # or
@@ -234,14 +232,11 @@ class main_window_logic():
 
 
     def save_current_mistakes(self):
-        self.db.save_mistakes(
-            mistakes_list = self.mistakes_list, 
-            offset = self.auto_cfm_offset
-        )
+        self.db.save_mistakes(mistakes_list=self.mistakes_list)
         self.notify_on_mistakes()
 
     def notify_on_mistakes(self):
-        if self.config["runtime"]["unreviewed_mistakes"] / self.config["mistakes_buffer"] >= self.config["POPUPS"]["triggers"]["unreviewed_mistakes_percent"]:
+        if self.config["cache"]["unreviewed_mistakes"] / self.config["mistakes_buffer"] >= self.config["POPUPS"]["triggers"]["unreviewed_mistakes_percent"]:
             try:
                 mistakes_fd = [
                     fd for fd 
@@ -250,7 +245,7 @@ class main_window_logic():
                     and fd.kind == self.db.KINDS.mst
                 ][0]
                 fcc_queue.put(
-                    f"There are {self.config['runtime']['unreviewed_mistakes']} unreviewed Mistakes!",
+                    f"There are {self.config['cache']['unreviewed_mistakes']} unreviewed Mistakes!",
                     importance=20,
                     func=lambda: self.initiate_flashcards(mistakes_fd),
                     persist=True,
@@ -276,8 +271,7 @@ class main_window_logic():
                 "len_": self.active_file.data.shape[0],
             },
         )
-        self.update_backend_parameters()
-        self.update_interface_parameters()
+        self.load_again_click()
 
 
     def get_rating_message(self):
@@ -318,3 +312,66 @@ class main_window_logic():
         if self.side_window_id == 'fcc':
             self.del_side_window()
         self.get_fcc_sidewindow()
+
+
+    # TODO add snapshot params for SOD
+    def create_session_snapshot(self):
+        prev_tab = self.active_tab_ident
+        self._deactivate_tab()
+        snapshot = {
+            "timestamp": datetime.now().strftime(self.db.TSFORMAT),
+            "current_index": self.current_index,
+            "seconds_spent": self.seconds_spent,
+            "pd_random_seed": self.config["pd_random_seed"],
+            "cards_seen": self.cards_seen,
+            "words_back": self.words_back,
+            "positives": self.positives,
+            "negatives": self.negatives,
+            "total_words": self.total_words,
+            "mistakes_list": self.mistakes_list,
+            "cards_seen_sides": self.cards_seen_sides,
+            "side": self.side,
+            "cur_load_index": self.cur_load_index,
+            "cur_efc_index": self.cur_efc_index,
+            "is_recorded": self.is_recorded,
+            "revmode": self.revmode,
+            "is_afterface": self.is_afterface,
+            "is_revision_summary": self.is_revision_summary,
+            "revision_summary": self.revision_summary,
+            "fcc_cmds_cursor": self.tabs["fcc"]["cmds_cursor"],
+            "fcc_console_prompt": self.tabs["fcc"]["console_prompt"],
+            "fcc_console_log": self.tabs["fcc"]["console_log"],
+            "fcc_cmds_log": self.tabs["fcc"]["cmds_log"],
+        }
+        self.activate_tab(prev_tab)
+        self.config["cache"]["snapshot"]["session"] = snapshot
+        log.debug(f"Created a session snapshot")
+
+
+    def _apply_session_snapshot_backend(self):
+        metadata = self.config["cache"]["snapshot"]["session"]
+        self.current_index = metadata["current_index"]
+        self.seconds_spent = metadata["seconds_spent"]
+        self.config["pd_random_seed"] = metadata["pd_random_seed"]
+        self.is_recorded = metadata["is_recorded"]
+        self.revmode = metadata["revmode"]
+        self.is_afterface = metadata["is_afterface"]
+        self.is_revision_summary = metadata["is_revision_summary"]
+        self.revision_summary = metadata["revision_summary"]
+        self.cards_seen = metadata["cards_seen"]
+        self.words_back = metadata["words_back"]
+        self.positives = metadata["positives"]
+        self.negatives = metadata["negatives"]
+        self.total_words = metadata["total_words"]
+        self.mistakes_list = metadata["mistakes_list"]
+        self.cards_seen_sides = metadata["cards_seen_sides"]
+        self.side = metadata["side"]
+        self.cur_load_index = metadata["cur_load_index"]
+        self.cur_efc_index = metadata["cur_efc_index"]
+        self._deactivate_tab()
+        self.tabs["fcc"]["cmds_log"] = metadata["fcc_cmds_log"][-self.config["cache_history_size"]:]
+        self.tabs["fcc"]["console_log"] = metadata["fcc_console_log"][-self.config["cache_history_size"]:]
+        self.tabs["fcc"]["cmds_cursor"] = metadata["fcc_cmds_cursor"]
+        self.tabs["fcc"]["console_prompt"] = metadata["fcc_console_prompt"]
+        self.activate_tab("fcc")
+        self.set_should_hide_tips()

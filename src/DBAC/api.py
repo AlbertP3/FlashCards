@@ -32,7 +32,7 @@ class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
         self.RES_PATH = "./src/res/"
         self.DB_PATH = "./src/res/db.csv"
         self.DATA_PATH = "./data/"
-        self.TMP_BACKUP_PATH = "./src/res/tmp-backup.csv"
+        self.TMP_BACKUP_PATH = "./src/res/tmpfcs.csv"
         self.REV_DIR = "rev"
         self.LNG_DIR = "lng"
         self.MST_DIR = "mst"

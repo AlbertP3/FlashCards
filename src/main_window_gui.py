@@ -17,6 +17,7 @@ log = logging.getLogger("GUI")
 class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def __init__(self):
+        self.__last_focus_out_timer_state = False
         self.window_title = 'FlashCards'
         self.q_app = widget.QApplication([self.window_title])
         widget.QWidget.__init__(self)
@@ -30,45 +31,85 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def launch_app(self):
         self.initiate_file_monitor()
-        self.build_interface()      
+        self.build_interface()
         self.initiate_timer()
         self.initiate_pace_timer()
         self.initiate_notification_timer()
         self.__onload_initiate_flashcards()
         self.__onload_notifications()
         self.start_notification_timer()
+        self.q_app.installEventFilter(self)
         self.q_app.exec()
 
 
     def __onload_initiate_flashcards(self):
-        if self.config["tmp-backup"]:
+        if metadata := self.config["cache"]["snapshot"]["file"]:
             try:
                 self.db.load_tempfile(
-                    data=self.db.read_csv(self.config["tmp-backup"]["filepath"]),
-                    kind=self.config["tmp-backup"]["kind"],
-                    basename=self.config["tmp-backup"]["basename"],
-                    lng=self.config["tmp-backup"]["lng"],
-                    parent=self.config["tmp-backup"]["parent"],
-                    signature=self.config["tmp-backup"]["signature"],
+                    data=self.db.read_csv(metadata["filepath"]),
+                    kind=metadata["kind"],
+                    basename=metadata["basename"],
+                    lng=metadata["lng"],
+                    parent=metadata["parent"],
+                    signature=metadata["signature"],
                 )
-                self.update_backend_parameters()
-                self.update_interface_parameters()
+                if self.config["cache"]["snapshot"]["session"]:
+                    self.apply_session_snapshot()
+                else:
+                    self.db.shuffle_dataset()
+                    self.update_backend_parameters()
+                    self.update_interface_parameters()
                 os.remove(self.db.TMP_BACKUP_PATH)
-                self.config["tmp-backup"] = None
+                self.config["cache"]["snapshot"]["file"] = None
                 log.debug(f"Used temporary backup file from {self.db.TMP_BACKUP_PATH}")
                 return
             except Exception as e:
                 log.error(e)
-        # if tmp-backup fails to load or n/a, initiate an empty set
-        self.initiate_flashcards(self.db.files.get(  
-                self.config['onload_filepath'],
-                FileDescriptor(
-                    filepath=self.config['onload_filepath'], 
-                    tmp=True
-                )
+        # if cached snapshot file fails to load or n/a
+        fd = self.db.files.get(  
+            self.config['onload_filepath'],
+            FileDescriptor(
+                filepath=self.config['onload_filepath'], 
+                tmp=True
             )
         )
+        if self.config["cache"]["snapshot"]["session"]:
+            try:
+                self.load_flashcards(
+                    fd, 
+                    seed=self.config["cache"]["snapshot"]["session"]["pd_random_seed"]
+                )
+                self.apply_session_snapshot()
+                return
+            except Exception as e:
+                log.error(e)
+        # if cached snapshot session fails to load or n/a
+        self.initiate_flashcards(fd)
 
+    def apply_session_snapshot(self):
+        self._apply_session_snapshot_backend()
+        suffix = self.config["ICONS"]["init-rev-suffix"] if self.is_initial_rev else ""
+        self.window_title = str(self.active_file.basename) + suffix
+        self.setWindowTitle(self.window_title)
+        self.change_revmode(self.revmode)
+        self.update_words_button()
+        self.update_score_button()
+        if self.is_revision_summary:
+            self.display_text(self.revision_summary)
+            self.is_revision_summary = True
+        elif self.is_afterface:
+            self.display_text(self.config['after_face'])
+            self.is_afterface = True
+        else:
+            self.display_text(self.get_current_card().iloc[self.side])
+        if not self.active_file.tmp:
+            self.file_monitor_add_path(self.active_file.filepath)
+        ts = self.config['cache']['snapshot']['session']['timestamp']
+        log.debug(
+            f"Applied session snapshot from {ts}"
+        )
+        fcc_queue.put(f"Restored session from {ts}")
+        self.config["cache"]["snapshot"]["session"] = None
 
     def __onload_notifications(self):
         self.notify_on_mistakes()
@@ -245,17 +286,14 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.is_afterface = False
         self.is_revision_summary = False
-        if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
-            self.start_timer()
-            self.start_pace_timer()
-    
+
 
     def click_save_button(self):
         if self.active_file.kind == self.db.KINDS.rev:
 
             if not self.is_recorded:
-                fcc_queue.put("Complete the revision before saving")
-            elif self.mistakes_list[self.auto_cfm_offset:]:
+                fcc_queue.put("Complete the revision before saving", importance=20)
+            elif self.mistakes_list:
                 if self.active_file.filepath in self.config["CRE"]["items"]:
                     self._update_cre(self.active_file)
                     fcc_queue.put(self._get_cre_stat())
@@ -263,7 +301,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                     self.save_current_mistakes()
                 self.init_eph_from_mistakes()
             else:
-                fcc_queue.put('No mistakes to save')
+                fcc_queue.put('No mistakes to save', importance=20)
 
         elif self.active_file.kind == self.db.KINDS.lng:
 
@@ -271,18 +309,18 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 super().handle_creating_revision(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
-                fcc_queue.put('Unable to save an empty file')
+                fcc_queue.put('Unable to save an empty file', importance=20)
 
         elif self.active_file.kind == self.db.KINDS.mst:
 
             if self.is_recorded:
                 self.init_eph_from_mistakes()
             else:
-                fcc_queue.put("Review all mistakes before saving")
+                fcc_queue.put("Review all mistakes before saving", importance=20)
 
         else:
 
-            fcc_queue.put(f"Unable to save a {self.db.KFN[self.active_file.kind]}")
+            fcc_queue.put(f"Unable to save a {self.db.KFN[self.active_file.kind]}", importance=20)
                 
 
     def delete_current_card(self):
@@ -298,6 +336,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def reverse_side(self):
         super().reverse_side()
         self.display_text(self.get_current_card().iloc[self.side])
+        if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
+            self.start_timer()
+            self.start_pace_timer()
 
 
     def load_again_click(self):
@@ -325,7 +366,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def update_interface_parameters(self):
-        self.window_title = self.active_file.basename
+        suffix = self.config["ICONS"]["init-rev-suffix"] if self.is_initial_rev else ""
+        self.window_title = str(self.active_file.basename) + suffix
         self.setWindowTitle(self.window_title)
         self.change_revmode(self.active_file.kind in self.db.GRADED)
         self.display_text(self.get_current_card().iloc[self.side])
@@ -337,14 +379,17 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
 
     def click_prev_button(self):
-        if self.is_afterface:
-            self.current_index+=1
+        if self.is_afterface or self.is_revision_summary:
+            self.current_index += 1
         if self.current_index >= 1:
             self.goto_prev_card()
             if self.revmode and self.words_back == 1:
                 self.change_revmode(False)
             self.display_text(self.get_current_card().iloc[self.side])
             self.update_words_button()
+        if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
+            self.start_timer()
+            self.start_pace_timer()
 
 
     def click_next_button(self):
@@ -353,6 +398,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             if not self.revmode and self.words_back == 0 and not self.is_recorded:
                 self.change_revmode(True)
             self.display_text(self.get_current_card().iloc[self.side])
+            if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
+                self.start_timer()
+                self.start_pace_timer()
             self.update_words_button()
             self.update_score_button()
             self.reset_pace_timer()
@@ -591,7 +639,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.setGeometry(cur_geo[0], cur_geo[1], rect[0], rect[1])
 
 
-    # =============== FILE UPDATE MONITOR ================ 
+    # region File Update Monitor 
     def file_monitor_handler(self, path):
         if path == self.active_file.filepath and not self.active_file.tmp:
             self.db.load_dataset(self.active_file, seed=self.config['pd_random_seed'])
@@ -640,11 +688,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.file_watcher:
             self.file_watcher.removePaths(self.file_watcher.files())
             log.debug(f"FileMonitor Unwatched all files. Status: {self.file_watcher.files()}", stacklevel=2)
-
+    # endregion
 
     # region Revision Timer
     def initiate_timer(self):
-        self.q_app.installEventFilter(self)
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         self.timer_prev_text = self.config["ICONS"]["timer"]
@@ -828,17 +875,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         return widgets
 
 
-    # default methods overrides
     def eventFilter(self, source, event):
-        if event.type() == QtCore.QEvent.FocusOut and type(source) == QtGui.QWindow:
-            self.stop_timer()
-            self.stop_pace_timer()
-            self.stop_notification_timer()  # TODO remove after implementing sounds
-        if event.type() == QtCore.QEvent.FocusIn and type(source) == QtGui.QWindow:
-            if not self.is_afterface:
-                self.resume_timer()
-                self.resume_pace_timer()
-                self.resume_notification_timer()  # TODO remove after implementing sounds
+        if isinstance(source, QtGui.QWindow):
+            if event.type() == QtCore.QEvent.FocusOut:
+                self.__last_focus_out_timer_state = self.TIMER_RUNNING_FLAG
+                self.stop_timer()
+                self.stop_pace_timer()
+            elif event.type() == QtCore.QEvent.FocusIn:
+                if not self.is_afterface and self.__last_focus_out_timer_state:
+                    self.resume_timer()
+                    self.resume_pace_timer()
         return super(main_window_gui, self).eventFilter(source, event)
 
 
@@ -846,6 +892,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.file_monitor_clear()
         if self.active_file.tmp and self.active_file.data.shape[0] > 1:
             self.db.create_tmp_file_backup()
+        self.create_session_snapshot()
         self.config.save()
 
 

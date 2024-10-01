@@ -327,3 +327,7 @@ def is_valid_filename(filename: str) -> bool:
             return False
 
     return True
+
+
+def get_caller(frame:int=1) -> str:
+    return inspect.stack()[frame].function

@@ -1,9 +1,8 @@
 {
-    "version": "1.4.1",
+    "version": "1.4.2",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
-    "tmp-backup": null,
     "languages": [
         "EN"
     ],
@@ -149,16 +148,17 @@
         "del": "🗑",
         "again": "⟳",
         "words": "-",
-        "timer": "⏲",
-        "timer_stop": "⏸",
-        "timer_run": "⏳",
+        "timer": "⏹️",
+        "timer_stop": "⏸️",
+        "timer_run": "🕓",
         "efc": "📜",
         "load": "📂",
         "stats": "🎢",
         "progress": "🏆",
         "config": "⚙️",
         "sod": "📖",
-        "null-score": "<>"
+        "null-score": "<>",
+        "init-rev-suffix": "  🌱"
     },
     "POPUPS": {
         "timeout_ms": 3000,
@@ -235,7 +235,11 @@
             415
         ]
     },
-    "runtime": {
-        "unreviewed_mistakes": 0
+    "cache": {
+        "unreviewed_mistakes": 0,
+        "snapshot": {
+            "file": null,
+            "session": null
+        }
     }
 }

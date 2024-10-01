@@ -163,7 +163,6 @@ class fcc_gui():
                 self.CONSOLE_LOG.append(self.CONSOLE_PROMPT)
         else:
             self.CONSOLE_LOG = [self.CONSOLE_PROMPT]
-
         # Dump fcc_queue while preserving the prompt content
         if self.active_tab_ident == "fcc":
             cmd = self.CONSOLE_LOG.pop()
@@ -216,6 +215,9 @@ class fcc_gui():
             elif event_key == Qt.Key_A:
                 self.cursor_moved_by_mouse = True
                 widget.QTextEdit.keyPressEvent(self.console, event)
+            elif event_key in {Qt.Key_Backspace, Qt.Key_Left}:
+                if self.curpos > self.promptend:
+                    widget.QTextEdit.keyPressEvent(self.console, event)
             else:
                 widget.QTextEdit.keyPressEvent(self.console, event)
         elif event_key == Qt.Key_Home:
@@ -399,7 +401,7 @@ class efc_gui(EFC):
             self.initiate_flashcards(fd)
             self.del_side_window()
         else:
-            fcc_queue.put("There are no EFC recommendations")
+            fcc_queue.put("There are no EFC recommendations", importance=20)
 
     def load_selected_efc(self):
         if fd := self.get_fd_from_selected_file():

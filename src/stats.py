@@ -65,7 +65,7 @@ class stats():
 
         self.db.refresh()
 
-        # filter for specifc lng - CASE SENSITIVE!
+        # filter for specifc lng
         filtered_db = self.db.get_filtered_by_lng(lngs)
         filtered_db = filtered_db[(filtered_db['POSITIVES'] != 0)]
         if filtered_db.empty:

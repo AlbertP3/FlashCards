@@ -256,8 +256,12 @@ class fcc():
                 self.post_fcc("Limit must be greater than 0")
                 return
             end = lim + i_prev
-        except ValueError:
-            self.post_fcc("Limit must be a numeric!")
+        except ValueError:  # handle optional arguments
+            if parsed_cmd[1] == "stat":
+                new_cards = self.mw.active_file.data.shape[0] - i_prev
+                self.post_fcc(f"{new_cards} new cards")
+            else:
+                self.post_fcc("Limit must be a numeric!")
             return
         except IndexError:
             end = None
@@ -375,17 +379,27 @@ class fcc():
         if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
             return
+        old_filepath = self.mw.active_file.filepath
         new_filepath = os.path.join(
-            os.path.dirname(self.mw.active_file.filepath), 
+            os.path.dirname(old_filepath), 
             f"{new_filename}{self.mw.active_file.ext}"
         )
-        os.rename(self.mw.active_file.filepath, new_filepath)
+        self.mw.file_monitor_del_protected_path(old_filepath)
+        os.rename(old_filepath, new_filepath)
         if self.mw.active_file.kind in self.mw.db.GRADED:
             dbapi.rename_signature(self.mw.active_file.signature, new_filename)
-        if iln := self.config["ILN"].get(self.mw.active_file.filepath):
+        if iln := self.config["ILN"].get(old_filepath):
             self.config["ILN"][new_filepath] = iln
-            del self.config["ILN"][self.mw.active_file.filepath]
+            del self.config["ILN"][old_filepath]
         dbapi.update_fds()
+        if old_filepath == self.config["SOD"]["last_file"]:
+            prev_tab = self.mw.active_tab_ident
+            self.mw.activate_tab("sod")
+            if old_filepath in self.config["SOD"]["files_list"]:
+                self.config["SOD"]["files_list"].remove(old_filepath)
+                self.config["SOD"]["files_list"].append(new_filepath)
+            self.mw.tabs["sod"]["fcc_instance"].sod_object.cli.update_file_handler(new_filepath)
+            self.mw.activate_tab(prev_tab)
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
         fcc_queue.put('Filename and Signature changed successfully', importance=20)
 
@@ -560,12 +574,8 @@ class fcc():
         elif not self.mw.mistakes_list:
             self.post_fcc("No mistakes to save")
             return
-        data = pd.DataFrame(
-            data=self.mw.mistakes_list, 
-            columns=self.mw.active_file.data.columns
-        )
         self.mw.del_side_window()
-        self.mw.load_ephemeral_file(data)
+        self.mw.init_eph_from_mistakes()
 
     def cre(self, parsed_cmd:list):
         '''Comprehensive Review'''

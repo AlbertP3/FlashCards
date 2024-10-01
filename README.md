@@ -1,8 +1,8 @@
-# FlashCards 1.4.1
+# FlashCards 1.4.2
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-140)
+- [FlashCards](#flashcards-142)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -111,7 +111,7 @@ Search Online Dictionaries facilitates managing cards in the datasets via a comm
 1. FileMonitor is used to watch loaded files for changes
 2. Watched files: current flashcards file, SOD source file
 3. Turn off this setting by changing *allow_file_monitor* to false
-4. If current file is only temporary, it will be saved as a tmp-backup.csv and loaded on next startup. This file is then removed
+4. If current file is only temporary, it will be saved as a tmpfcs.csv and loaded on next startup. This file is then removed
 
 ## Settings
 
@@ -135,7 +135,7 @@ Search Online Dictionaries facilitates managing cards in the datasets via a comm
 
 ## Requirements
 - Python3.10+
-- Linux/Windows
+- *nix OS
 
 
 ## How to install
@@ -209,6 +209,10 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - hiding_tips - remove *pattern* from the displayed text by following the *policy*
 - post_actions - an action to be performed after pressing next_button on revision_summary. Example: create an *ephemeral* from mistakes
 - next_efc - on shortcut *next_efc* will load a recommended file by following the policy
+
+
+## ToDo
+- support for Windows
 
 
 ## Known Bugs
