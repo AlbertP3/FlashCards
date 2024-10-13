@@ -1,3 +1,4 @@
+import os
 import traceback
 import sys
 import logging
@@ -5,29 +6,27 @@ from PyQt5 import QtCore
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
-from main_window_logic import main_window_logic
-from side_windows_gui import *
-from utils import fcc_queue
+from main_window_logic import MainWindowLogic
+from sw import SideWindows
+from utils import fcc_queue, format_seconds_to
 from DBAC.api import FileDescriptor
 from widgets import NotificationPopup
 
 log = logging.getLogger("GUI")
 
 
-class main_window_gui(widget.QWidget, main_window_logic, side_windows):
+class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def __init__(self):
         self.__last_focus_out_timer_state = False
-        self.window_title = 'FlashCards'
+        self.window_title = "FlashCards"
         self.q_app = widget.QApplication([self.window_title])
         widget.QWidget.__init__(self)
         sys.excepthook = self.excepthook
 
-
     def excepthook(self, exc_type, exc_value, exc_tb):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
         self.notify_on_error(err_traceback, exc_value)
-
 
     def launch_app(self):
         self.initiate_file_monitor()
@@ -41,9 +40,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.q_app.installEventFilter(self)
         self.q_app.exec()
 
-
     def __onload_initiate_flashcards(self):
-        if metadata := self.config["cache"]["snapshot"]["file"]:
+        if metadata := self.config.cache["snapshot"]["file"]:
             try:
                 self.db.load_tempfile(
                     data=self.db.read_csv(metadata["filepath"]),
@@ -53,43 +51,41 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                     parent=metadata["parent"],
                     signature=metadata["signature"],
                 )
-                if self.config["cache"]["snapshot"]["session"]:
+                if self.config.cache["snapshot"]["session"]:
                     self.apply_session_snapshot()
                 else:
                     self.db.shuffle_dataset()
                     self.update_backend_parameters()
                     self.update_interface_parameters()
+                    log.debug("Started a new session")
                 os.remove(self.db.TMP_BACKUP_PATH)
-                self.config["cache"]["snapshot"]["file"] = None
+                self.config.cache["snapshot"]["file"] = None
                 log.debug(f"Used temporary backup file from {self.db.TMP_BACKUP_PATH}")
                 return
             except Exception as e:
-                log.error(e)
+                log.error(e, exc_info=True)
         # if cached snapshot file fails to load or n/a
-        fd = self.db.files.get(  
-            self.config['onload_filepath'],
-            FileDescriptor(
-                filepath=self.config['onload_filepath'], 
-                tmp=True
-            )
+        fd = self.db.files.get(
+            self.config["onload_filepath"],
+            FileDescriptor(filepath=self.config["onload_filepath"], tmp=True),
         )
-        if self.config["cache"]["snapshot"]["session"]:
+        if self.config.cache["snapshot"]["session"]:
             try:
                 self.load_flashcards(
-                    fd, 
-                    seed=self.config["cache"]["snapshot"]["session"]["pd_random_seed"]
+                    fd, seed=self.config.cache["snapshot"]["session"]["pd_random_seed"]
                 )
                 self.apply_session_snapshot()
                 return
             except Exception as e:
-                log.error(e)
+                log.error(e, exc_info=True)
         # if cached snapshot session fails to load or n/a
         self.initiate_flashcards(fd)
+        log.debug("Started a new session")
 
     def apply_session_snapshot(self):
         self._apply_session_snapshot_backend()
-        suffix = self.config["ICONS"]["init-rev-suffix"] if self.is_initial_rev else ""
-        self.window_title = str(self.active_file.basename) + suffix
+        suffix = self.config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
+        self.window_title = f"{self.active_file.basename}{suffix}"
         self.setWindowTitle(self.window_title)
         self.change_revmode(self.revmode)
         self.update_words_button()
@@ -98,59 +94,62 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.display_text(self.revision_summary)
             self.is_revision_summary = True
         elif self.is_afterface:
-            self.display_text(self.config['after_face'])
+            self.display_text(self.config["after_face"])
             self.is_afterface = True
         else:
             self.display_text(self.get_current_card().iloc[self.side])
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
-        ts = self.config['cache']['snapshot']['session']['timestamp']
-        log.debug(
-            f"Applied session snapshot from {ts}"
-        )
+        ts = self.config.cache["snapshot"]["session"]["timestamp"]
+        log.debug(f"Applied session snapshot from {ts}")
         fcc_queue.put(f"Restored session from {ts}")
-        self.config["cache"]["snapshot"]["session"] = None
+        self.config.cache["snapshot"]["session"] = None
 
     def __onload_notifications(self):
         self.notify_on_mistakes()
 
-
     def build_interface(self):
         self.configure_window()
-        self.build_layout()   
+        self.build_layout()
         self.add_shortcuts()
-        side_windows.__init__(self)
-
+        SideWindows.__init__(self)
 
     def configure_window(self):
         # Window Parameters
         self.LAYOUT_MARGINS = (1, 1, 1, 1)
-        self.TEXTBOX_HEIGHT = self.config['THEME']['textbox_height']
-        self.BUTTONS_HEIGHT = self.config['THEME']['buttons_height']
+        self.TEXTBOX_HEIGHT = self.config["theme"]["textbox_height"]
+        self.BUTTONS_HEIGHT = self.config["theme"]["buttons_height"]
 
         # Set Window Parameters
-        self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH,'icon.ico')))
-        self.set_geometry(self.config['GEOMETRY']['main']) 
+        self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH, "icon.ico")))
+        self.set_geometry(self.config["geo"]["main"])
 
         # Shortcuts
         self.used_keybindings = set()
         self.nav_mapping = dict()
-        for sw_id in {'main','load','efc','config','mistakes','stats','progress','timer'}:
+        for sw_id in {
+            "main",
+            "load",
+            "efc",
+            "config",
+            "mistakes",
+            "stats",
+            "progress",
+            "timer",
+        }:
             self.create_ks_mapping(sw_id)
 
         # Initialize
         self.popup = NotificationPopup(self)
         self.layout = None
-        self.side_window_id:str = 'main'
+        self.side_window_id: str = "main"
         self.center_window()
         self.show()
 
-    
     def create_ks_mapping(self, ident: str):
         # create dict[window_id][nagivation]=dummy_function
         # for managing keybindings calls dependent on context of the current side_window
-        self.nav_mapping[ident] = {k: lambda:'' for k in self.config['KEYBOARD_SHORTCUTS'].keys()} 
-
+        self.nav_mapping[ident] = {k: lambda: "" for k in self.config["kbsc"].keys()}
 
     def build_layout(self):
         # Layout & Style
@@ -158,16 +157,16 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.layout = widget.QGridLayout()
             self.setLayout(self.layout)
         self.layout.setContentsMargins(*self.LAYOUT_MARGINS)
-        self.FONT = self.config['THEME']['font']
-        self.FONT_BUTTON_SIZE = self.config['THEME']['font_button_size']
-        self.FONT_TEXTBOX_SIZE = self.config['THEME']['font_textbox_size']
+        self.FONT = self.config["theme"]["font"]
+        self.FONT_BUTTON_SIZE = self.config["theme"]["font_button_size"]
+        self.FONT_TEXTBOX_SIZE = self.config["theme"]["font_textbox_size"]
         self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
         self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
 
         # Organize Layout
-        self.setStyleSheet(self.config['THEME']['main_style_sheet'])
-        self.textbox_stylesheet = self.config['THEME']['textbox_style_sheet']
-        self.button_style_sheet = self.config['THEME']['button_style_sheet']
+        self.setStyleSheet(self.config["theme"]["main_style_sheet"])
+        self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
+        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
 
         self.layout_first_row = widget.QGridLayout()
         self.layout_second_row = widget.QGridLayout()
@@ -190,16 +189,32 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.side_window_layout.setSpacing(2)
 
         # Buttons
-        self.next_button = self.create_button(self.config["ICONS"]["next"], self.click_next_button)
-        self.prev_button = self.create_button(self.config["ICONS"]["prev"], self.click_prev_button)
-        self.reverse_button = self.create_button(self.config["ICONS"]["reverse"], self.reverse_side)
-        self.positive_button = self.create_button(self.config["ICONS"]["positive"], self.click_positive)
-        self.negative_button = self.create_button(self.config["ICONS"]["negative"], self.click_negative)
-        self.score_button = self.create_button(self.config["ICONS"]["score"])
-        self.save_button = self.create_button(self.config["ICONS"]["save"], self.click_save_button)
-        self.del_button = self.create_button(self.config["ICONS"]["del"], self.delete_current_card)
-        self.load_again_button = self.create_button(self.config["ICONS"]["again"], self.load_again_click)
-        self.words_button = self.create_button(self.config["ICONS"]["words"])
+        self.next_button = self.create_button(
+            self.config["icons"]["next"], self.click_next_button
+        )
+        self.prev_button = self.create_button(
+            self.config["icons"]["prev"], self.click_prev_button
+        )
+        self.reverse_button = self.create_button(
+            self.config["icons"]["reverse"], self.reverse_side
+        )
+        self.positive_button = self.create_button(
+            self.config["icons"]["positive"], self.click_positive
+        )
+        self.negative_button = self.create_button(
+            self.config["icons"]["negative"], self.click_negative
+        )
+        self.score_button = self.create_button(self.config["icons"]["score"])
+        self.save_button = self.create_button(
+            self.config["icons"]["save"], self.click_save_button
+        )
+        self.del_button = self.create_button(
+            self.config["icons"]["del"], self.delete_current_card
+        )
+        self.load_again_button = self.create_button(
+            self.config["icons"]["again"], self.load_again_click
+        )
+        self.words_button = self.create_button(self.config["icons"]["words"])
 
         # Widgets
         self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
@@ -207,13 +222,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.layout_second_row.addWidget(self.prev_button, 0, 0)
         self.layout_second_row.addWidget(self.reverse_button, 0, 1)
         self.layout_second_row.addLayout(self.layout_next_navigation, 0, 2)
-        
+
         self.layout_next_navigation.addWidget(self.next_button, 0, 0)
         self.layout_next_navigation.addWidget(self.negative_button, 0, 0)
         self.layout_next_navigation.addWidget(self.positive_button, 0, 1)
         self.negative_button.hide()
         self.positive_button.hide()
-        
+
         self.layout_third_row.addWidget(self.load_again_button, 2, 1)
         self.layout_third_row.addWidget(self.del_button, 2, 3)
         self.layout_third_row.addWidget(self.save_button, 2, 4)
@@ -223,35 +238,29 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         self.create_sod_button()
 
-
     def create_sod_button(self):
         self.sod_button = self.create_button(
-            self.config["ICONS"]["sod"],
-            self.get_sod_sidewindow
+            self.config["icons"]["sod"], self.get_sod_sidewindow
         )
-        self.add_shortcut('sod', self.get_sod_sidewindow, 'main')
+        self.add_shortcut("sod", self.get_sod_sidewindow, "main")
         self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
-
 
     def get_scrollbar(self) -> widget.QScrollBar:
         scrollbar = widget.QScrollBar()
-        scrollbar.setStyleSheet(self.config["THEME"]["scrollbar_style_sheet"])
+        scrollbar.setStyleSheet(self.config["theme"]["scrollbar_style_sheet"])
         return scrollbar
-    
 
     def set_theme(self):
         for i in self.get_children_layouts(self.layout):
             self.remove_layout(i)
         self.build_layout()
-        side_windows.__init__(self)
+        SideWindows.__init__(self)
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
-
 
     def update_default_side(self):
         super().update_default_side()
 
-    
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
         self.textbox.setFont(self.TEXTBOX_FONT)
@@ -260,7 +269,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return self.textbox
-
 
     def create_button(self, text, function=None) -> widget.QPushButton:
         new_button = widget.QPushButton(self)
@@ -273,20 +281,20 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             new_button.clicked.connect(function)
         return new_button
 
-
-    def display_text(self, text:str):
+    def display_text(self, text: str):
         if self.should_hide_tips():
             text = self.tips_hide_re.sub("", text)
-        width_factor =  max(int((self.frameGeometry().width())/37-len(text)/30), 0)
-        self.FONT_TEXTBOX_SIZE = self.config["THEME"]["min_font_size"] + width_factor
+        width_factor = max(int((self.frameGeometry().width()) / 37 - len(text) / 30), 0)
+        self.FONT_TEXTBOX_SIZE = self.config["theme"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
         self.textbox.setText(text)
-        padding = max(0, 90 - len(text)*0.7)
-        self.textbox.setStyleSheet(f'{self.textbox_stylesheet} padding-top: {padding}%;')
+        padding = max(0, 90 - len(text) * 0.7)
+        self.textbox.setStyleSheet(
+            f"{self.textbox_stylesheet} padding-top: {padding}%;"
+        )
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.is_afterface = False
         self.is_revision_summary = False
-
 
     def click_save_button(self):
         if self.active_file.kind == self.db.KINDS.rev:
@@ -301,7 +309,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                     self.save_current_mistakes()
                 self.init_eph_from_mistakes()
             else:
-                fcc_queue.put('No mistakes to save', importance=20)
+                fcc_queue.put("No mistakes to save", importance=20)
 
         elif self.active_file.kind == self.db.KINDS.lng:
 
@@ -309,7 +317,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 super().handle_creating_revision(seconds_spent=self.seconds_spent)
                 self.update_interface_parameters()
             else:
-                fcc_queue.put('Unable to save an empty file', importance=20)
+                fcc_queue.put("Unable to save an empty file", importance=20)
 
         elif self.active_file.kind == self.db.KINDS.mst:
 
@@ -320,8 +328,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
         else:
 
-            fcc_queue.put(f"Unable to save a {self.db.KFN[self.active_file.kind]}", importance=20)
-                
+            fcc_queue.put(
+                f"Unable to save a {self.db.KFN[self.active_file.kind]}", importance=20
+            )
 
     def delete_current_card(self):
         if self.active_file.kind not in self.db.GRADED:
@@ -330,20 +339,21 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             fcc_queue.put("Card deleted", importance=20)
             self.display_text(self.get_current_card().iloc[self.side])
         else:
-            fcc_queue.put(f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}", importance=20)
-
+            fcc_queue.put(
+                f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}",
+                importance=20,
+            )
 
     def reverse_side(self):
         super().reverse_side()
         self.display_text(self.get_current_card().iloc[self.side])
-        if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
+        if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
             self.start_timer()
             self.start_pace_timer()
 
-
     def load_again_click(self):
         if not self.active_file.valid:
-            fcc_queue.put('Cannot reload an empty file')
+            fcc_queue.put("Cannot reload an empty file")
             return
         elif self.active_file.tmp:
             self.db.shuffle_dataset()
@@ -351,7 +361,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             self.db.load_dataset(self.active_file)
         self.update_backend_parameters()
         self.update_interface_parameters()
-
 
     def initiate_flashcards(self, fd):
         """Manage the whole process of loading a flashcards file"""
@@ -364,10 +373,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
 
-
     def update_interface_parameters(self):
-        suffix = self.config["ICONS"]["init-rev-suffix"] if self.is_initial_rev else ""
-        self.window_title = str(self.active_file.basename) + suffix
+        suffix = self.config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
+        self.window_title = f"{self.active_file.basename}{suffix}"
         self.setWindowTitle(self.window_title)
         self.change_revmode(self.active_file.kind in self.db.GRADED)
         self.display_text(self.get_current_card().iloc[self.side])
@@ -376,7 +384,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.reset_timer(clear_indicator=True)
         self.reset_pace_timer()
         self.stop_pace_timer()
-
 
     def click_prev_button(self):
         if self.is_afterface or self.is_revision_summary:
@@ -387,10 +394,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 self.change_revmode(False)
             self.display_text(self.get_current_card().iloc[self.side])
             self.update_words_button()
-        if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
+        if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
             self.start_timer()
             self.start_pace_timer()
-
 
     def click_next_button(self):
         if self.total_words - self.current_index - 1 > 0:
@@ -398,7 +404,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             if not self.revmode and self.words_back == 0 and not self.is_recorded:
                 self.change_revmode(True)
             self.display_text(self.get_current_card().iloc[self.side])
-            if not self.TIMER_RUNNING_FLAG and not self.is_recorded: 
+            if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
                 self.start_pace_timer()
             self.update_words_button()
@@ -413,11 +419,10 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 self.display_text(self.revision_summary)
                 self.is_revision_summary = True
         else:
-            self.display_text(self.config['after_face'])
+            self.display_text(self.config["after_face"])
             self.is_afterface = True
             self.stop_timer()
             self.stop_pace_timer()
-
 
     def __handle_post_actions(self):
         if self.active_file.filepath in self.config["CRE"]["items"]:
@@ -428,16 +433,13 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             elif self.config["final_actions"]["init_ephemeral"] and self.mistakes_list:
                 self.init_eph_from_mistakes()
 
-
     def click_negative(self):
         self.result_negative()
         self.click_next_button()
-    
 
     def click_positive(self):
         self.result_positive()
         self.click_next_button()
-
 
     def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
@@ -456,30 +458,26 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         if self.negatives != 0 and self.config["opt"]["show_mistakes_after_revision"]:
             self.get_mistakes_sidewindow()
 
+    def add_shortcuts(self):
+        self.add_shortcut("next", self.ks_nav_next, "main")
+        self.add_shortcut("negative", self.ks_nav_negative, "main")
+        self.add_shortcut("prev", self.click_prev_button, "main")
+        self.add_shortcut("reverse", self.reverse_side, "main")
+        self.add_shortcut("del_cur_card", self.delete_current_card, "main")
+        self.add_shortcut("load_again", self.load_again_click, "main")
+        self.add_shortcut("save", self.click_save_button, "main")
 
-    def add_shortcuts(self): 
-        self.add_shortcut('next', self.ks_nav_next, 'main')
-        self.add_shortcut('negative', self.ks_nav_negative, 'main')
-        self.add_shortcut('prev', self.click_prev_button, 'main')
-        self.add_shortcut('reverse', self.reverse_side, 'main')
-        self.add_shortcut('del_cur_card', self.delete_current_card, 'main')
-        self.add_shortcut('load_again', self.load_again_click, 'main')
-        self.add_shortcut('save', self.click_save_button, 'main')
-        
-
-    def add_shortcut(self, action:str, function, sw_id:str='main'):
+    def add_shortcut(self, action: str, function, sw_id: str = "main"):
         # binding twice on the same key breaks the shortcut permanently
-        key = self.config['KEYBOARD_SHORTCUTS'][action]
+        key = self.config["kbsc"][action]
         self.nav_mapping[sw_id][action] = function
         if key not in self.used_keybindings:
             self.used_keybindings.add(key)
             shortcut = widget.QShortcut(QtGui.QKeySequence(key), self)
             shortcut.activated.connect(lambda: self._exec_ks(action))
 
-
     def _exec_ks(self, action):
         self.nav_mapping[self.side_window_id][action]()
-
 
     def ks_nav_next(self):
         if self.revmode:
@@ -487,26 +485,23 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.click_next_button()
 
-
     def ks_nav_negative(self):
         if self.revmode:
             self.click_negative()
         else:
             pass
 
-
     def open_side_window(self, layout, name):
-        if self.config['opt']['side_by_side']:
+        if self.config["opt"]["side_by_side"]:
             self.open_side_by_side(layout, name)
         else:
             self.open_in_place(layout, name)
         self.setWindowTitle(self.side_window_titles[name])
         self.stop_timer()
         self.stop_pace_timer()
-        
 
     def del_side_window(self):
-        if self.config['opt']['side_by_side']:
+        if self.config["opt"]["side_by_side"]:
             self.del_side_window_side_by_side()
         else:
             self.del_side_window_in_place()
@@ -514,30 +509,31 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.resume_timer()
         self.resume_pace_timer()
 
-
     def open_in_place(self, layout, name):
         if self.side_window_id != name:
-            if self.side_window_id != 'main': self.del_side_window_in_place()
+            if self.side_window_id != "main":
+                self.del_side_window_in_place()
             self.add_window_in_place(layout, name)
         else:
             self.del_side_window_in_place()
-    
+
     def add_window_in_place(self, layout, name):
         self.side_window_layout = layout
         self.toggle_primary_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 0)
         self.side_window_id = name
-        self.set_geometry(self.config['GEOMETRY'][name])
-    
+        self.set_geometry(self.config["geo"][name])
+
     def del_side_window_in_place(self):
         self.remove_layout(self.side_window_layout)
         self.toggle_primary_widgets_visibility(True)
-        self.side_window_id = 'main'
-        self.set_geometry(self.config['GEOMETRY']['main'])
+        self.side_window_id = "main"
+        self.set_geometry(self.config["geo"]["main"])
 
     def open_side_by_side(self, layout, name):
         if self.side_window_id != name:
-            if self.side_window_id != 'main': self.del_side_window_side_by_side()
+            if self.side_window_id != "main":
+                self.del_side_window_side_by_side()
             self.add_window_to_side(layout, name)
         else:
             self.del_side_window_side_by_side()
@@ -548,18 +544,17 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.textbox.setFixedWidth(self.textbox.width())
         self.textbox.setFixedHeight(self.textbox.height())
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.config['GEOMETRY'][name][0])
-        self.setFixedHeight(self.config['GEOMETRY']['main'][1])
-        self.setMinimumWidth(self.config['GEOMETRY']['main'][0])
+        self.setFixedWidth(self.config["geo"][name][0])
+        self.setFixedHeight(self.config["geo"]["main"][1])
+        self.setMinimumWidth(self.config["geo"]["main"][0])
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-    
-    def del_side_window_side_by_side(self): 
+
+    def del_side_window_side_by_side(self):
         self.unfix_size(self)
         self.unfix_size(self.textbox)
         self.remove_layout(self.side_window_layout)
-        self.side_window_id = 'main'
-        self.set_geometry(self.config['GEOMETRY']['main'])
-    
+        self.side_window_id = "main"
+        self.set_geometry(self.config["geo"]["main"])
 
     def unfix_size(self, obj):
         obj.setMinimumWidth(0)
@@ -567,12 +562,11 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         obj.setMinimumHeight(0)
         obj.setMaximumHeight(widget.QWIDGETSIZE_MAX)
 
-
     def toggle_primary_widgets_visibility(self, rev_mode):
         if rev_mode:
             for widget in self.get_children_widgets(self.layout):
                 widget.show()
-            if not self.revmode or self.words_back or self.is_recorded: 
+            if not self.revmode or self.words_back or self.is_recorded:
                 self.positive_button.hide()
                 self.negative_button.hide()
             else:
@@ -581,21 +575,18 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             for widget in self.get_children_widgets(self.layout):
                 widget.hide()
 
-
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            if self.side_window_id != 'main':
+            if self.side_window_id != "main":
                 self.del_side_window()
         elif event.key() == Qt.Key_Return:
-            self.nav_mapping[self.side_window_id]['run_command']()
-
+            self.nav_mapping[self.side_window_id]["run_command"]()
 
     def center_window(self):
         frame_geo = self.frameGeometry()
         target_pos = widget.QDesktopWidget().availableGeometry().center()
         frame_geo.moveCenter(target_pos)
         self.move(frame_geo.topLeft())
-
 
     def change_revmode(self, new_mode: bool):
         self.revmode = new_mode if self.active_file.kind in self.db.GRADED else False
@@ -604,47 +595,44 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         else:
             self.nav_buttons_visibility_control(False, False, True)
 
-
-    def nav_buttons_visibility_control(self, pos_button:bool, neg_button:bool, next_button:bool):
+    def nav_buttons_visibility_control(
+        self, pos_button: bool, neg_button: bool, next_button: bool
+    ):
         if pos_button is True:
             self.positive_button.show()
         else:
-            self.positive_button.hide()   
+            self.positive_button.hide()
         if neg_button is True:
             self.negative_button.show()
         else:
-            self.negative_button.hide()     
+            self.negative_button.hide()
         if next_button is True:
             self.next_button.show()
         else:
             self.next_button.hide()
 
-
     def update_words_button(self):
-        self.words_button.setText(f'{self.current_index+1}/{self.total_words}')
+        self.words_button.setText(f"{self.current_index+1}/{self.total_words}")
 
-    
     def update_score_button(self):
         total = self.positives + self.negatives
         try:
             self.score_button.setText(f"{self.positives/total:.0%}")
         except ZeroDivisionError:
-            self.score_button.setText(self.config["ICONS"]["null-score"])
+            self.score_button.setText(self.config["icons"]["null-score"])
 
-
-    def set_geometry(self, rect:tuple[int,int]):
+    def set_geometry(self, rect: tuple[int, int]):
         cur_geo = self.geometry().getRect()
         # x_adj + int((cur_geo[2] - rect[0]) // 2)
         # y_adj + int((cur_geo[3] - rect[1]) // 2)
         self.setGeometry(cur_geo[0], cur_geo[1], rect[0], rect[1])
 
-
-    # region File Update Monitor 
+    # region File Update Monitor
     def file_monitor_handler(self, path):
         if path == self.active_file.filepath and not self.active_file.tmp:
-            self.db.load_dataset(self.active_file, seed=self.config['pd_random_seed'])
+            self.db.load_dataset(self.active_file, seed=self.config["pd_random_seed"])
             self.display_text(self.get_current_card().iloc[self.side])
-            fcc_queue.put('Active dataset refreshed', importance=20)
+            fcc_queue.put("Active dataset refreshed", importance=20)
         if path == self.config["SOD"]["last_file"]:
             prev_tab = self.active_tab_ident
             self.activate_tab("sod")
@@ -655,7 +643,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
 
     def initiate_file_monitor(self):
         self.protected_monitor_paths = set()
-        if not self.config['allow_file_monitor']:
+        if not self.config["allow_file_monitor"]:
             self.file_watcher = None
         else:
             self.file_watcher = QtCore.QFileSystemWatcher()
@@ -663,56 +651,67 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             # self.file_watcher.addPath("./src/res/config.json")
             log.debug("FileMonitor Started the watcher", stacklevel=2)
 
-    def file_monitor_add_path(self, path:str):
+    def file_monitor_add_path(self, path: str):
         if self.file_watcher:
             self.file_watcher.addPath(path)
-            log.debug(f"FileMonitor Add '{path}'. Status: {self.file_watcher.files()}", stacklevel=2)
+            log.debug(
+                f"FileMonitor Add '{path}'. Status: {self.file_watcher.files()}",
+                stacklevel=2,
+            )
 
-    def file_monitor_del_path(self, path:str):
+    def file_monitor_del_path(self, path: str):
         if self.file_watcher:
             if path in self.protected_monitor_paths:
                 log.debug(f"FileMonitor Unable to delete a protected path '{path}'")
             else:
                 self.file_watcher.removePath(path)
-                log.debug(f"FileMonitor Del '{path}'. Status: {self.file_watcher.files()}", stacklevel=2)
+                log.debug(
+                    f"FileMonitor Del '{path}'. Status: {self.file_watcher.files()}",
+                    stacklevel=2,
+                )
 
-    def file_monitor_add_protected_path(self, path:str):
+    def file_monitor_add_protected_path(self, path: str):
         self.protected_monitor_paths.add(path)
         self.file_monitor_add_path(path)
 
-    def file_monitor_del_protected_path(self, path:str):
+    def file_monitor_del_protected_path(self, path: str):
         self.protected_monitor_paths.discard(path)
         self.file_monitor_del_path(path)
-    
+
     def file_monitor_clear(self):
         if self.file_watcher:
             self.file_watcher.removePaths(self.file_watcher.files())
-            log.debug(f"FileMonitor Unwatched all files. Status: {self.file_watcher.files()}", stacklevel=2)
+            log.debug(
+                f"FileMonitor Unwatched all files. Status: {self.file_watcher.files()}",
+                stacklevel=2,
+            )
+
     # endregion
 
     # region Revision Timer
     def initiate_timer(self):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
-        self.timer_prev_text = self.config["ICONS"]["timer"]
-        self.revtimer_hide_timer = self.config['opt']['hide_timer']
-        self.revtimer_show_cpm_timer = self.config['opt']['show_cpm_timer']
+        self.timer_prev_text = self.config["icons"]["timer"]
+        self.revtimer_hide_timer = self.config["opt"]["hide_timer"]
+        self.revtimer_show_cpm_timer = self.config["opt"]["show_cpm_timer"]
         self.set_append_seconds_spent_function()
-
 
     def start_timer(self):
         self.timer.start(1000)
         self.TIMER_RUNNING_FLAG = True
-    
+
     def resume_timer(self):
         if self.conditions_to_resume_timer_are_met():
             self.timer_button.setText(self.timer_prev_text)
             self.start_timer()
 
     def conditions_to_resume_timer_are_met(self):
-        if self.seconds_spent != 0 \
-            and self.is_recorded is False \
-            and self.side_window_id == 'main':
+        if (
+            self.seconds_spent != 0
+            and self.is_recorded is False
+            and self.side_window_id == "main"
+        ):
             conditions_met = True
         else:
             conditions_met = False
@@ -723,9 +722,9 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.TIMER_RUNNING_FLAG = False
         self.timer_prev_text = self.timer_button.text()
         self.timer_button.setText(
-            self.config["ICONS"]["timer"]
+            self.config["icons"]["timer"]
             if self.is_recorded or not self.seconds_spent
-            else self.config["ICONS"]["timer_stop"]
+            else self.config["icons"]["timer_stop"]
         )
 
     def reset_timer(self, clear_indicator=True):
@@ -733,35 +732,38 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         if clear_indicator:
-            self.timer_button.setText(self.config["ICONS"]["timer"])
+            self.timer_button.setText(self.config["icons"]["timer"])
 
     def set_append_seconds_spent_function(self):
         self.timer = QTimer()
-        if self.revtimer_hide_timer: 
+        if self.revtimer_hide_timer:
             self.append_seconds_spent = self._revtimer_func_hidden
-        elif self.revtimer_show_cpm_timer: 
+        elif self.revtimer_show_cpm_timer:
             self.append_seconds_spent = self._revtimer_func_cpm
-        else: 
+        else:
             self.append_seconds_spent = self._revtimer_func_time
         self.timer.timeout.connect(self.append_seconds_spent)
 
     def _revtimer_func_hidden(self):
-        self.seconds_spent+=1
-        self.timer_button.setText(self.config["ICONS"]["timer_run"])
-        
+        self.seconds_spent += 1
+        self.timer_button.setText(self.config["icons"]["timer_run"])
+
     def _revtimer_func_cpm(self):
-        self.seconds_spent+=1
-        cpm = self.cards_seen/(self.seconds_spent/60)
-        self.timer_button.setText(f'{cpm:.0f}')
+        self.seconds_spent += 1
+        cpm = self.cards_seen / (self.seconds_spent / 60)
+        self.timer_button.setText(f"{cpm:.0f}")
 
     def _revtimer_func_time(self):
-        self.seconds_spent+=1
-        self.timer_button.setText(format_seconds_to(self.seconds_spent, 'minute', rem=2, sep=':'))
+        self.seconds_spent += 1
+        self.timer_button.setText(
+            format_seconds_to(self.seconds_spent, "minute", rem=2, sep=":")
+        )
+
     # endregion
 
     # region Pace Timer
     def initiate_pace_timer(self):
-        interval = self.config['pace_card_interval']
+        interval = self.config["pace_card_interval"]
         self.pace_spent = 0
         if interval > 0:
             self.pace_timer = QTimer()
@@ -783,25 +785,31 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.pace_timer.start(1000)
 
     def pace_timer_func(self):
-        if self.words_back > 0: return
-        self.pace_spent+=1
+        if self.words_back > 0:
+            return
+        self.pace_spent += 1
         if self.pace_spent >= self.pace_timer_interval:
             self.click_negative()
 
     def _resume_pace_timer(self):
-        if not self.is_recorded and self.cards_seen!=0 and self.side_window_id=='main':
+        if (
+            not self.is_recorded
+            and self.cards_seen != 0
+            and self.side_window_id == "main"
+        ):
             self.start_pace_timer()
-        
+
     def _stop_pace_timer(self):
         self.pace_timer.stop()
 
     def _reset_pace_timer(self):
         self.pace_spent = 0
+
     # endregion
 
     # region Notification Timer
     def initiate_notification_timer(self):
-        if self.config["POPUPS"]["check_interval_ms"] > 0:
+        if self.config["popups"]["check_interval_ms"] > 0:
             self.notification_timer = QTimer()
             self.start_notification_timer = self._start_notification_timer
             self.resume_notification_timer = self._resume_notification_timer
@@ -815,42 +823,41 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
     def _start_notification_timer(self):
         self.notification_timer = QTimer()
         self.notification_timer.timeout.connect(self.notification_timer_func)
-        self.notification_timer.start(self.config["POPUPS"]["check_interval_ms"])
+        self.notification_timer.start(self.config["popups"]["check_interval_ms"])
 
     def notification_timer_func(self):
         try:
             if fcc_queue.unacked_notifications > 0 and not self.popup.is_visible:
                 record = fcc_queue.pull_notification()
                 self.popup.show_notification(
-                    message=record.message, 
-                    func=record.func, 
-                    persist=record.persist
+                    message=record.message, func=record.func, persist=record.persist
                 )
                 fcc_queue.unacked_notifications -= 1
         except IndexError as e:
             log.error(e, exc_info=True)
-            fcc_queue.put("IndexError raised while collecting notifications. See log file for more details.")
+            fcc_queue.put(
+                "IndexError raised while collecting notifications. See log file for more details."
+            )
 
     def _resume_notification_timer(self):
         self.notification_timer.start()
-        
+
     def _stop_notification_timer(self):
         self.notification_timer.stop()
 
     # endregion
 
     def remove_layout(self, layout):
-    # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
-     if layout is not None:
-         while layout.count():
-             item = layout.takeAt(0)
-             widget = item.widget()
-             if widget is not None:
-                 widget.setParent(None)
-             else:
-                 self.remove_layout(item.layout())
+        # https://stackoverflow.com/questions/37564728/pyqt-how-to-remove-a-layout-from-a-layout
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.setParent(None)
+                else:
+                    self.remove_layout(item.layout())
 
-    
     def get_children_layouts(self, layout):
         layouts = list()
         for l in layout.children():
@@ -861,7 +868,6 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                     layouts.append(l.itemAt(w))
         return layouts
 
-
     def get_children_widgets(self, layout) -> set[widget.QPushButton]:
         widgets = set()
         for i in range(layout.count()):
@@ -869,11 +875,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
             if item.widget():
                 widgets.add(item.widget())
             elif item.layout():
-                widgets.update(
-                    self.get_children_widgets(item.layout())
-                )
+                widgets.update(self.get_children_widgets(item.layout()))
         return widgets
-
 
     def eventFilter(self, source, event):
         if isinstance(source, QtGui.QWindow):
@@ -885,8 +888,7 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
                 if not self.is_afterface and self.__last_focus_out_timer_state:
                     self.resume_timer()
                     self.resume_pace_timer()
-        return super(main_window_gui, self).eventFilter(source, event)
-
+        return super(MainWindowGUI, self).eventFilter(source, event)
 
     def closeEvent(self, event):
         self.file_monitor_clear()
@@ -895,9 +897,8 @@ class main_window_gui(widget.QWidget, main_window_logic, side_windows):
         self.create_session_snapshot()
         self.config.save()
 
-
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        self.config['GEOMETRY'][self.side_window_id] = self.geometry().getRect()[2:]
+        self.config["geo"][self.side_window_id] = self.geometry().getRect()[2:]
 
     def moveEvent(self, a0: QtGui.QMoveEvent) -> None:
         if self.popup.is_visible:

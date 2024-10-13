@@ -1,21 +1,22 @@
 import pandas as pd
 import os
-from utils import fcc_queue, singleton, Config
-from DBAC.db_queries import db_queries
-from DBAC.db_efc import db_efc_queries
-from DBAC.db_dataset_ops import db_dataset_ops, FileDescriptor
+from utils import fcc_queue, singleton
+from cfg import config
+from DBAC.db_queries import DBQueries
+from DBAC.db_efc import DbEFCQueries
+from DBAC.db_dataset_ops import DbDatasetOps, FileDescriptor
 
 pd.options.mode.chained_assignment = None
 
 
 @singleton
-class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
+class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
     def __init__(self):
-        self.config = Config()
+        self.config = config
         self.__configure()
         self.__validate_env()
-        db_dataset_ops.__init__(self)
-        db_queries.__init__(self)
+        DbDatasetOps.__init__(self)
+        DBQueries.__init__(self)
         self.refresh()
         self.update_fds()
 
@@ -26,7 +27,11 @@ class DbOperator(db_queries, db_efc_queries, db_dataset_ops):
             {"mst": "M", "lng": "L", "rev": "R", "eph": "E", "unk": "U"},
         )()
         self.KFN = {
-            "M": "Mistakes", "L": "Language", "R": "Revision", "E": "Ephemeral", "U": "Unknown"
+            "M": "Mistakes",
+            "L": "Language",
+            "R": "Revision",
+            "E": "Ephemeral",
+            "U": "Unknown",
         }
         self.GRADED = {self.KINDS.rev, self.KINDS.mst, self.KINDS.eph}
         self.RES_PATH = "./src/res/"

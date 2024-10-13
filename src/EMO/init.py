@@ -1,16 +1,17 @@
 import logging
-from utils import Config, fcc_queue
+from utils import fcc_queue
+from cfg import config
 from EMO.cli import CLI, Steps
 
 
 log = logging.getLogger("EMO")
 
 
-class emo_spawn:
+class EMOSpawn:
     # EFC Model Optimizer
 
     def __init__(self, stream_out):
-        self.config = Config()
+        self.config = config
         self.sout = stream_out
         self.sout.mw.side_window_titles["fcc"] = "EFC Model Optimizer"
         self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles["fcc"])
@@ -67,7 +68,9 @@ class emo_spawn:
         self.sout.mw.CMDS_LOG = self.CMD_HISTORY
         self.sout.mw.db.refresh()
         for msg in fcc_queue.dump():
-               self.sout.mw.fcc_inst.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
+            self.sout.mw.fcc_inst.post_fcc(
+                f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}"
+            )
 
     def run(self, parsed_cmd: list):
         try:

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import logging
-from utils import Config, fcc_queue
+from utils import fcc_queue
+from cfg import config
 from DBAC.api import DbOperator
 from EMO.models import Models, EMOApproaches
 import EMO.augmentation as augmentation
@@ -20,7 +21,7 @@ class Steps:
 
 class CLI:
     def __init__(self, sout):
-        self.config = Config()
+        self.config = config
         self.err_msg = ""
         self.step = None
         self.discretizer = None

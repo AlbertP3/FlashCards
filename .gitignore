@@ -5,6 +5,7 @@ db.csv
 .vscode
 desktop.ini
 config.json
+cache.json
 fcs.log*
 test.log
 tests

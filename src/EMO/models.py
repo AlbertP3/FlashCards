@@ -15,7 +15,7 @@ from sklearn.metrics import (
     mean_tweedie_deviance,
 )
 from math import exp
-from utils import Config
+from cfg import config
 from DBAC.api import DbOperator
 
 log = logging.getLogger("EMO")
@@ -137,7 +137,7 @@ class Model:
 
 class Models:
     def __init__(self):
-        self.config = Config()
+        self.config = config
         self.size_test = 0.2
         self.random_state = randint(0, 2137)
         self.models = dict()

@@ -31,7 +31,7 @@ class FileDescriptor:
         return self.filepath == __value.filepath
 
 
-class db_dataset_ops:
+class DbDatasetOps:
     def __init__(self):
         self.empty_df = pd.DataFrame(data=[["-", "-"]])
         self.__AF = FileDescriptor(tmp=True, data=self.empty_df)
@@ -70,20 +70,19 @@ class db_dataset_ops:
         """Template for creating Paths"""
         return os.path.join(self.DATA_PATH, lng, subdir, filename)
 
-    # TODO add to settings and docs
     def gen_signature(self, language) -> str:
         """Create a globally unique identifier. Uses a custom pattern if available."""
-        try:
-            base = self.config["sigenpat"][language]
+        if base := self.config["sigenpat"].get(language):
             all_filenames = self.get_all_files(use_basenames=True, excl_ext=True)
             for i in range(1, 1001):
                 tmp = f"{base}{i}"
                 if tmp not in all_filenames:
                     return tmp
             else:
-                fcc_queue.put("Failed to generate a signature using the custom pattern", importance=30)
-        except KeyError:
-            pass
+                fcc_queue.put(
+                    "Failed to generate a signature using the custom pattern",
+                    importance=30,
+                )
         saving_date = datetime.now().strftime("%d%m%Y%H%M%S")
         signature = f"REV_{language}{saving_date}"
         return signature
@@ -150,7 +149,7 @@ class db_dataset_ops:
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
             self.update_fds()
         m_cnt = mistakes_df.shape[0]
-        self.config["cache"]["unreviewed_mistakes"] += m_cnt
+        self.config.cache["unreviewed_mistakes"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.basename}'
         fcc_queue.put(msg, importance=20)
         log.debug(msg)
@@ -159,7 +158,7 @@ class db_dataset_ops:
         self.active_file.data.to_csv(
             self.TMP_BACKUP_PATH, index=False, mode="w", header=True
         )
-        self.config["cache"]["snapshot"]["file"] = {
+        self.config.cache["snapshot"]["file"] = {
             "filepath": self.TMP_BACKUP_PATH,
             "kind": self.active_file.kind,
             "basename": self.active_file.basename,

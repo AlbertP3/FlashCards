@@ -28,7 +28,7 @@ class HIDE_TIPS_POLICIES:
 # Define the regex pattern for languages that do not use spaces
 non_space_lng_re = re.compile(
     r"(?<=({0}))\s+(?=({0}))".format(
-        r"[\u4E00-\u9FFF]"   # Chinese characters
+        r"[\u4E00-\u9FFF]"  # Chinese characters
         r"|[\u3040-\u309F]"  # Japanese Hiragana
         r"|[\u30A0-\u30FF]"  # Japanese Katakana
         r"|[\uAC00-\uD7AF]"  # Korean Hangul Syllables

@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import signal
 import logging
 import builtins
@@ -30,38 +29,33 @@ def configure_logging(log_level, plt_log_level="error"):
     matplotlib.set_loglevel(plt_log_level)
 
 
-def handle_termination_signal(signum, frame: FrameType):
-    utils.config.save()
-    log.critical(f"Application terminated with signal {signal.Signals(signum).name}")
-    sys.exit(0)
-
-
 try:
-    if not os.path.exists("./src/res/config.json"):
-        json.dump(
-            json.load(open("./src/res/config-default.json", "r")),
-            open("./src/res/config.json", "w"),
-            indent=4,
-            ensure_ascii=False,
-        )
-    import utils
-
-    configure_logging(utils.config["log_level"])
-    signal.signal(signal.SIGTERM, handle_termination_signal)
-    signal.signal(signal.SIGINT, handle_termination_signal)
+    import cfg
 except Exception as e:
     configure_logging("DEBUG", "DEBUG")
     log = logging.getLogger("FCS")
     log.critical(e, exc_info=True)
     sys.exit(1)
 
+configure_logging(cfg.config["log_level"])
 log = logging.getLogger("FCS")
-builtins.print = lambda *args, **kwargs: log.debug(' '.join(map(str, args)))
-log.debug(f"*** Flashcards {utils.config['version']} ***")
+builtins.print = lambda *args, **kwargs: log.debug(" ".join(map(str, args)))
+log.debug(f"*** Flashcards {cfg.config['version']} ***")
 
-from main_window_gui import main_window_gui
+from main_window_gui import MainWindowGUI
 
-mw = main_window_gui()
+mw = MainWindowGUI()
+
+
+def handle_termination_signal(signum, frame: FrameType):
+    mw.closeEvent(None)
+    log.critical(f"Application terminated with signal {signal.Signals(signum).name}")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGTERM, handle_termination_signal)
+signal.signal(signal.SIGINT, handle_termination_signal)
+
 mw.launch_app()
 
 log.debug("*** Application shutdown ***")

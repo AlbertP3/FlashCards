@@ -1,5 +1,5 @@
 {
-    "version": "1.4.2",
+    "version": "1.4.3",
     "log_level": "WARNING",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -95,7 +95,7 @@
         "use_regex": false,
         "files_list": []
     },
-    "KEYBOARD_SHORTCUTS": {
+    "kbsc": {
         "next": "Right",
         "prev": "Left",
         "negative": "Down",
@@ -115,7 +115,7 @@
         "save": "w",
         "sod": "f"
     },
-    "THEME": {
+    "theme": {
         "textbox_height": 280,
         "buttons_height": 45,
         "min_font_size": 18,
@@ -137,7 +137,7 @@
         "default_ps1": "> ",
         "console_margin": 0.97
     },
-    "ICONS": {
+    "icons": {
         "next": "Next",
         "prev": "Prev",
         "reverse": "Reverse",
@@ -160,7 +160,7 @@
         "null-score": "<>",
         "init-rev-suffix": "  🌱"
     },
-    "POPUPS": {
+    "popups": {
         "timeout_ms": 3000,
         "show_animation_ms": 100,
         "hide_animation_ms": 100,
@@ -177,10 +177,10 @@
         "languages": [],
         "approach": "Universal"
     },
-    "RECOMMENDATIONS": {
+    "recoms": {
         "EN": "Oi mate, take a gander"
     },
-    "SUMMARY": {
+    "summary": {
         "astounding": 2.137,
         "excellent": 1.637,
         "impressive": 1.318,
@@ -189,7 +189,7 @@
         "bad": 0.818,
         "awful": 0.618
     },
-    "GEOMETRY": {
+    "geo": {
         "default": [
             475,
             450
@@ -234,12 +234,5 @@
             362,
             415
         ]
-    },
-    "cache": {
-        "unreviewed_mistakes": 0,
-        "snapshot": {
-            "file": null,
-            "session": null
-        }
     }
 }

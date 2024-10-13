@@ -18,7 +18,7 @@ from PyQt5.QtCore import (
 )
 from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem, QFont
 from typing import Callable
-from utils import config
+from cfg import config
 
 
 class CheckableComboBox(QComboBox):
@@ -167,11 +167,11 @@ class ScrollableOptionsWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.config = config
-        self.font = self.config["THEME"]["font"]
-        self.font_button_size = self.config["THEME"]["font_button_size"]
-        self.button_height = self.config["THEME"]["buttons_height"]
+        self.font = self.config["theme"]["font"]
+        self.font_button_size = self.config["theme"]["font_button_size"]
+        self.button_height = self.config["theme"]["buttons_height"]
         self.BUTTON_FONT = QFont(self.font, self.font_button_size)
-        self.button_style_sheet = self.config["THEME"]["button_style_sheet"]
+        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
         self.__create_layout()
         self.pos = self.__list_pos_gen()
 
@@ -199,7 +199,9 @@ class NotificationPopup(QWidget):
 
     def __init__(self, parent: QWidget = None):
         super(NotificationPopup, self).__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool | Qt.WindowDoesNotAcceptFocus)
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.Tool | Qt.WindowDoesNotAcceptFocus
+        )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.installEventFilter(self)
         layout = QVBoxLayout(self)
@@ -207,21 +209,21 @@ class NotificationPopup(QWidget):
         self.label = QLabel("", self)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setWordWrap(True)
-        self.label.setFont(QFont(config["THEME"]["font"], 12))
+        self.label.setFont(QFont(config["theme"]["font"], 12))
         self.setFixedSize(int(self.parent().width() // 1.8), 45)
         layout.addWidget(self.label)
-        self.setStyleSheet(config["THEME"]["button_style_sheet"])
+        self.setStyleSheet(config["theme"]["button_style_sheet"])
         self.__configure_animations()
         self.__func = lambda: None
         self.is_visible = False
 
     def __configure_animations(self):
         self.enter_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.enter_animation.setDuration(config["POPUPS"]["show_animation_ms"])
+        self.enter_animation.setDuration(config["popups"]["show_animation_ms"])
         self.enter_animation.setStartValue(0.8)
         self.enter_animation.setEndValue(1)
         self.exit_animation = QPropertyAnimation(self, b"windowOpacity")
-        self.exit_animation.setDuration(config["POPUPS"]["hide_animation_ms"])
+        self.exit_animation.setDuration(config["popups"]["hide_animation_ms"])
         self.exit_animation.setStartValue(1)
         self.exit_animation.setEndValue(0.8)
 
@@ -246,7 +248,7 @@ class NotificationPopup(QWidget):
         self.timer.setSingleShot(True)
         if not persist:
             self.timer.timeout.connect(self.hide_notification)
-            self.timer.start(config["POPUPS"]["timeout_ms"])
+            self.timer.start(config["popups"]["timeout_ms"])
         self.is_visible = True
 
     def _get_x_y(self) -> tuple[int, int]:
@@ -268,7 +270,7 @@ class NotificationPopup(QWidget):
         else:
             if self.timer.isActive():
                 self.timer.stop()
-            self.timer.start(config["POPUPS"]["timeout_ms"])
+            self.timer.start(config["popups"]["timeout_ms"])
 
     def close_notification(self):
         """Immediately hide the popup"""
@@ -289,5 +291,5 @@ class NotificationPopup(QWidget):
         if event.type() == QEvent.Enter:
             self.timer.stop()
         elif event.type() == QEvent.Leave:
-            self.timer.start(config["POPUPS"]["timeout_ms"])
+            self.timer.start(config["popups"]["timeout_ms"])
         return super(NotificationPopup, self).eventFilter(source, event)

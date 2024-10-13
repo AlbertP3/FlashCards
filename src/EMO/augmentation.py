@@ -4,9 +4,7 @@ from feature_engine.outliers import Winsorizer
 from feature_engine.discretisation import DecisionTreeDiscretiser
 import feature_engine.transformation as fet
 from EMO.models import RECORD_COLS
-from utils import Config
-
-config = Config()
+from cfg import config
 
 
 def cap_quantiles(df: pd.DataFrame):

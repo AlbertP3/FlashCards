@@ -1,11 +1,13 @@
+import pandas as pd
 from utils import *
+from cfg import config
 import DBAC.api as api
 
 
 class Timespent_BE:
 
     def __init__(self):
-        self.config = Config()
+        self.config = config
 
     def get_timespent_printout(self, last_n, interval):
         self.dbapi = api.DbOperator()

@@ -6,7 +6,7 @@ import statistics
 log = logging.getLogger("DBAC")
 
 
-class db_efc_queries:
+class DbEFCQueries:
     def filter_for_efc_model(self, lngs: list = None):
         # Remove mistakes, obsolete lngs and revs with POSITIVES=0
         self.db = self.db[self.db["LNG"].isin(lngs or self.config["languages"])]

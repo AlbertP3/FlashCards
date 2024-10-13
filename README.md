@@ -1,8 +1,8 @@
-# FlashCards 1.4.2
+# FlashCards 1.4.3
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-142)
+- [FlashCards](#flashcards-143)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -56,7 +56,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 ![Load Window](src/res/imgs/ss_load.png)
 
 - Allows picking all *kinds* of flashcard files that were matched by the 'languages' setting i.e. are on proper path. New *Revisions* can be created only from *Languages* and Revision Mode (Positive/Negative) is available only for the *Revisions* and *Mistakes*. 
-- If optional feature "recommend_new" is given a value greater than 0 (days), reminders to create a new revision will also appear there - specific texts can be customized in the 'RECOMMENDATIONS' section of the config
+- If optional feature "recommend_new" is given a value greater than 0 (days), reminders to create a new revision will also appear there - specific texts can be customized in the 'recoms' section of the config
 
 ## Progress Window
 
@@ -203,12 +203,13 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 - emo_cap_fold: determines the quantile cap on both sides of the data distribution
 - csv_sniffer: allows use of custom separators eg. ';,'. Defaults to a comma if turned off
 - after_face: text to be displayed after *Language* cards range is exceeded
-- RECOMMENDATIONS: key-value pairs specyfing encouraging texts for recommend_new entries
+- recoms: key-value pairs specyfing encouraging texts for recommend_new entries
 - SOD files_list: faciliate switching by specifying files available to SOD. Skipped if empty
 - mistakes_review_interval_days - recommend the mistakes file to be reviewed each N days
 - hiding_tips - remove *pattern* from the displayed text by following the *policy*
 - post_actions - an action to be performed after pressing next_button on revision_summary. Example: create an *ephemeral* from mistakes
 - next_efc - on shortcut *next_efc* will load a recommended file by following the policy
+- sigenpat - defines pattern used for naming new *Revision* files. It is appended with NUM on creation
 
 
 ## ToDo

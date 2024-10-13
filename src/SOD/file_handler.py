@@ -5,7 +5,8 @@ import pandas as pd
 import openpyxl
 from time import time
 from collections import OrderedDict
-from utils import Config, get_filename_from_path
+from utils import get_filename_from_path
+from cfg import config
 from functools import cache
 
 log = logging.getLogger("SOD")
@@ -25,7 +26,7 @@ class FileHandler(ABC):
         pass
 
     @abstractmethod
-    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+    def delete_record(self, r0: str, r1: str, is_from_native: bool) -> bool:
         pass
 
     @abstractmethod
@@ -105,7 +106,7 @@ class FileHandler(ABC):
 
 class XLSXFileHandler(FileHandler):
     def __init__(self, path):
-        self.config = Config()
+        self.config = config
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
         self.wb = openpyxl.load_workbook(self.path)
@@ -151,10 +152,15 @@ class XLSXFileHandler(FileHandler):
         )
         return True, ""
 
-    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+    def delete_record(self, r0: str, r1: str, is_from_native: bool) -> bool:
         if self.is_duplicate(r0, is_from_native):
-            if (self.ws.cell(row=self.dtracker[0], column=int(is_from_native)+1).value == r0 and
-                self.ws.cell(row=self.dtracker[0], column=2-int(is_from_native)).value == r1
+            if (
+                self.ws.cell(row=self.dtracker[0], column=int(is_from_native) + 1).value
+                == r0
+                and self.ws.cell(
+                    row=self.dtracker[0], column=2 - int(is_from_native)
+                ).value
+                == r1
             ):
                 self.ws.delete_rows(self.dtracker[0], 1)
                 self.commit(f"Deleted [{self.dtracker[0]}] [{r0}] in {self.filename}")
@@ -181,7 +187,7 @@ class XLSXFileHandler(FileHandler):
 
 class CSVFileHandler(FileHandler):
     def __init__(self, path):
-        self.config = Config()
+        self.config = config
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
         self.__load_data()
@@ -220,16 +226,13 @@ class CSVFileHandler(FileHandler):
         )
         return True, ""
 
-    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+    def delete_record(self, r0: str, r1: str, is_from_native: bool) -> bool:
         if self.is_duplicate(r0, is_from_native):
-            if (self.raw_data.iloc[self.dtracker[0], int(is_from_native)] == r0 and
-                self.raw_data.iloc[self.dtracker[0], 1-int(is_from_native)] == r1
+            if (
+                self.raw_data.iloc[self.dtracker[0], int(is_from_native)] == r0
+                and self.raw_data.iloc[self.dtracker[0], 1 - int(is_from_native)] == r1
             ):
-                self.raw_data.drop(
-                    index=self.dtracker[0], 
-                    axis = 0,
-                    inplace=True
-                )
+                self.raw_data.drop(index=self.dtracker[0], axis=0, inplace=True)
                 self.commit(f"Deleted [{self.dtracker[0]}] [{r0}] in {self.filename}")
                 self.__load_data()
                 return True
@@ -293,10 +296,10 @@ class VoidFileHandler(FileHandler):
     def validate_dtracker(self, searched_phrase: str):
         return
 
-    def delete_record(self, r0:str, r1:str, is_from_native:bool) -> bool:
+    def delete_record(self, r0: str, r1: str, is_from_native: bool) -> bool:
         return False
 
-    def commit(self, msg:str = None):
+    def commit(self, msg: str = None):
         return
 
 

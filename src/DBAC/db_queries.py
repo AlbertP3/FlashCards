@@ -8,7 +8,7 @@ from utils import fcc_queue
 log = logging.getLogger("DBAC")
 
 
-class db_queries:
+class DBQueries:
     def __init__(self):
         self.db = pd.DataFrame()
         self.filters = dict(

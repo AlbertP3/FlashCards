@@ -8,6 +8,7 @@ import DBAC.api as api
 import statistics
 import numpy as np
 from utils import *
+from cfg import config
 
 log = logging.getLogger("EFC")
 
@@ -47,14 +48,14 @@ class EFC:
     """
 
     def __init__(self):
-        self.config = Config()
+        self.config = config
         self.paths_to_suggested_lngs = dict()
         self.db = api.DbOperator()
         self.efc_model = StandardModel()
         self.load_pickled_model()
         self._efc_last_calc_time = 0
-        self.__db_load_time = 0
-        self.__recommendations = list()
+        self._db_load_time_efc = 0
+        self._recommendations = list()
 
     def load_pickled_model(self):
         try:
@@ -73,16 +74,16 @@ class EFC:
             self._efc_last_calc_time + 3600 * self.config["efc_cache_expiry_hours"]
             >= time()
         )
-        db_current = self.__db_load_time == self.db.last_load
+        db_current = self._db_load_time_efc == self.db.last_load
         if cache_valid and db_current:
             log.debug("Used cached EFC recommendations")
-            return self.__recommendations
+            return self._recommendations
         else:
             log.debug("Calculated new EFC recommendations")
             return self.__get_recommendations()
 
     def __get_recommendations(self) -> list[str]:
-        self.__recommendations = list()
+        self._recommendations = list()
         self.new_revs = 0
         self.db.refresh()
         if self.config["mistakes_review_interval_days"] > 0:
@@ -90,17 +91,17 @@ class EFC:
             for lng in self.config["languages"]:
                 sig, lmt = self.db.get_last_mistakes_signature_and_datetime(lng)
                 if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
-                    self.__recommendations.append(sig)
+                    self._recommendations.append(sig)
         if self.config["days_to_new_rev"] > 0:
-            self.__recommendations.extend(self.is_it_time_for_something_new())
+            self._recommendations.extend(self.is_it_time_for_something_new())
         for rev in sorted(self.get_complete_efc_table(), key=lambda x: x[2]):
             efc_critera_met = rev[2] < self.config["efc_threshold"]
             if efc_critera_met:
-                self.__recommendations.append(rev[0])
+                self._recommendations.append(rev[0])
         self._efc_last_calc_time = time()
-        self.__db_load_time = self.db.last_load
+        self._db_load_time_efc = self.db.last_load
         self.db.refresh()
-        return self.__recommendations
+        return self._recommendations
 
     def get_complete_efc_table(
         self, preds: bool = False, signatures: set = None
@@ -257,7 +258,7 @@ class EFC:
     def get_recommendation_text(self, lng: str):
         # adding key to the dictionary facilitates matching
         # recommendation text with the lng file
-        text = self.config["RECOMMENDATIONS"].get(lng, f"It's time for {lng}")
+        text = self.config["recoms"].get(lng, f"It's time for {lng}")
         self.paths_to_suggested_lngs[text] = choice(
             [
                 fd.filepath
