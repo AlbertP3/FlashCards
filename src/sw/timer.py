@@ -12,7 +12,7 @@ class TimerSideWindow:
         self.data_getter = timer.Timespent_BE()
         self.TIMER_FONT_SIZE = 12
         self.timer_button = self.create_button(
-            self.config["icons"]["timer"], self.get_timer_sidewindow
+            self.config["icons"]["timer_stop"], self.get_timer_sidewindow
         )
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
         self.TIMER_FONT = QtGui.QFont("Consolas", self.TIMER_FONT_SIZE)

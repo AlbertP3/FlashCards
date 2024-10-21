@@ -2,7 +2,7 @@ import joblib  # type: ignore
 from random import choice
 from datetime import datetime
 from time import time
-from logging import log
+import logging
 from math import exp
 import DBAC.api as api
 import statistics
@@ -49,13 +49,12 @@ class EFC:
 
     def __init__(self):
         self.config = config
-        self.paths_to_suggested_lngs = dict()
         self.db = api.DbOperator()
         self.efc_model = StandardModel()
         self.load_pickled_model()
         self._efc_last_calc_time = 0
         self._db_load_time_efc = 0
-        self._recommendations = list()
+        self._recoms: list[dict] = list()  # {fp, disp, score, is_init}
 
     def load_pickled_model(self):
         try:
@@ -69,7 +68,7 @@ class EFC:
             self.efc_model = StandardModel()
             log.warning("Custom EFC model not found. Recoursing to the Standard Model")
 
-    def get_recommendations(self) -> list[str]:
+    def get_recommendations(self) -> list[dict]:
         cache_valid = (
             self._efc_last_calc_time + 3600 * self.config["efc_cache_expiry_hours"]
             >= time()
@@ -77,35 +76,60 @@ class EFC:
         db_current = self._db_load_time_efc == self.db.last_load
         if cache_valid and db_current:
             log.debug("Used cached EFC recommendations")
-            return self._recommendations
+            return self._recoms
         else:
             log.debug("Calculated new EFC recommendations")
             return self.__get_recommendations()
 
-    def __get_recommendations(self) -> list[str]:
-        self._recommendations = list()
-        self.new_revs = 0
+    def __get_recommendations(self) -> list[dict]:
+        self._recoms = list()
         self.db.refresh()
         if self.config["mistakes_review_interval_days"] > 0:
             cur = datetime.now()
             for lng in self.config["languages"]:
-                sig, lmt = self.db.get_last_mistakes_signature_and_datetime(lng)
+                sig = self.db.MST_BASENAME.format(lng=lng)
+                lmt = self.db.get_last_datetime(sig)
                 if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
-                    self._recommendations.append(sig)
+                    self._recoms.append(
+                        {
+                            "fp": self.db.make_filepath(
+                                lng=lng, subdir=self.db.MST_DIR, filename=f"{sig}.csv"
+                            ),
+                            "disp": f"{self.config['icons']['mistakes']} {sig}",
+                            "score": 0,
+                            "is_init": False,
+                        }
+                    )
         if self.config["days_to_new_rev"] > 0:
-            self._recommendations.extend(self.is_it_time_for_something_new())
-        for rev in sorted(self.get_complete_efc_table(), key=lambda x: x[2]):
-            efc_critera_met = rev[2] < self.config["efc_threshold"]
-            if efc_critera_met:
-                self._recommendations.append(rev[0])
+            self._recoms.extend(self.get_new_recoms())
+        for rev in sorted(self.get_efc_data(), key=lambda x: x[2]):
+            if rev[2] < self.config["efc_threshold"]:
+                prefix = (
+                    self.config["icons"]["initial"]
+                    if rev[5]
+                    else self.config["icons"]["revision"]
+                )
+                self._recoms.append(
+                    {
+                        "fp": rev[4],
+                        "disp": f"{prefix} {rev[0]}",
+                        "score": rev[2],
+                        "is_init": rev[5],
+                    }
+                )
         self._efc_last_calc_time = time()
         self._db_load_time_efc = self.db.last_load
         self.db.refresh()
-        return self._recommendations
+        return self._recoms
 
-    def get_complete_efc_table(
+    def get_efc_data(
         self, preds: bool = False, signatures: set = None
-    ) -> list[str, str, float]:
+    ) -> list[str, float, str, float, str, bool]:
+        """
+        Calculates EFC scores for Revisions.
+        Returns: list[signature, days_since_last_rev, efc_score, pred_due_hours, filepath, is_initial].
+        Optionally: predicts hours to EFC score falling below the threshold.
+        """
         rev_table_data = list()
         if signatures:
             self.db.filter_where_signature_in(signatures)
@@ -129,6 +153,7 @@ class EFC:
                 since_last_rev = (now - data[-1][0]).total_seconds() / 3600
                 cnt = len(data)
                 if cnt < self.config["init_revs_cnt"]:
+                    is_initial = True
                     efc = [
                         [0 if since_last_rev >= self.config["init_revs_inth"] else 100]
                     ]
@@ -138,6 +163,7 @@ class EFC:
                         else 0
                     )
                 else:
+                    is_initial = False
                     total = data[-1][1]
                     since_creation = (now - data[0][0]).total_seconds() / 3600
                     prev_wpm = 60 * data[-1][1] / data[-1][3] if data[-1][3] != 0 else 0
@@ -174,9 +200,16 @@ class EFC:
                         )
                     else:
                         pred = 0
-                s_efc = [fd.signature, since_last_rev / 24, efc[0][0], pred]
+                s_efc = [
+                    fd.signature,
+                    since_last_rev / 24,
+                    efc[0][0],
+                    pred,
+                    fd.filepath,
+                    is_initial,
+                ]
             else:
-                s_efc = [fd.signature, "inf", 0, 0]
+                s_efc = [fd.signature, "inf", 0, 0, fd.filepath, True]
             rev_table_data.append(s_efc)
 
         return rev_table_data
@@ -191,11 +224,13 @@ class EFC:
         t_tol=0.01,
         lng=None,
     ):
-        # returns #hours to efc falling below the threshold
-        # resh - step resolution in hours
-        # warm_start - initial efc value
-        # prog_resh - factor for adjusting resh
-        # t_tol - target diff tolerance in points
+        """
+        returns #hours to efc falling below the threshold
+        resh - step resolution in hours
+        warm_start - initial efc value
+        prog_resh - factor for adjusting resh
+        t_tol - target diff tolerance in points
+        """
         efc_ = warm_start or 1
         init = record[3]
         cycles = 0
@@ -234,37 +269,36 @@ class EFC:
 
     def get_fd_from_selected_file(self):
         try:
-            i = self.recommendation_list.currentItem().text()
-            if self.recommendation_list.currentRow() >= self.new_revs:
-                fd = [fd for fd in self.db.files.values() if fd.basename == i][0]
-            else:  # Select New Recommendation
-                fd = self.db.files[self.paths_to_suggested_lngs[i]]
+            fd = self.db.files[self._recoms[self.recoms_qlist.currentRow()]["fp"]]
         except AttributeError:  # if no item is selected
             fd = None
         return fd
 
-    def is_it_time_for_something_new(self):
-        # Periodically recommend to create new revision for every lng
-        new_recommendations = list()
+    def get_new_recoms(self) -> list[dict]:
+        """Periodically recommend to create new revision for every lng"""
+        recoms = list()
         for lng in self.config["languages"]:
             for fd in self.db.get_sorted_revisions():
                 if fd.lng == lng:
                     time_delta = self.db.get_timedelta_from_creation(fd.signature)
                     if time_delta.days >= self.config["days_to_new_rev"]:
-                        new_recommendations.append(self.get_recommendation_text(lng))
+                        recom_text = self.config["recoms"].get(
+                            lng, f"It's time for {lng}"
+                        )
+                        recoms.append(
+                            {
+                                "fp": choice(
+                                    [
+                                        fd.filepath
+                                        for fd in self.db.files.values()
+                                        if fd.lng == lng
+                                        and fd.kind == self.db.KINDS.lng
+                                    ]
+                                ),
+                                "disp": recom_text,
+                                "score": 0,
+                                "is_init": False,
+                            }
+                        )
                     break
-        return new_recommendations
-
-    def get_recommendation_text(self, lng: str):
-        # adding key to the dictionary facilitates matching
-        # recommendation text with the lng file
-        text = self.config["recoms"].get(lng, f"It's time for {lng}")
-        self.paths_to_suggested_lngs[text] = choice(
-            [
-                fd.filepath
-                for fd in self.db.files.values()
-                if fd.lng == lng and fd.kind == self.db.KINDS.lng
-            ]
-        )
-        self.new_revs += 1
-        return text
+        return recoms

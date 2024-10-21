@@ -21,7 +21,6 @@ class Config(UserDict):
             self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
         except FileNotFoundError:
             self.cache = {
-                "unreviewed_mistakes": 0,
                 "snapshot": {"file": None, "session": None},
             }
 
@@ -59,7 +58,10 @@ def __validate(cfg: dict) -> tuple[bool, set]:
             "unreviewed_mistakes_percent"
         ]
     }
-    int_gte_0 = {"init_revs_cnt": cfg["init_revs_cnt"]}
+    int_gte_0 = {
+        "init_revs_cnt": cfg["init_revs_cnt"],
+        "min_eph_cards": cfg["min_eph_cards"],
+    }
     numeric_gte_0 = {"init_revs_inth": cfg["init_revs_inth"]}
     numeric_any = {
         "days_to_new_rev": cfg["days_to_new_rev"],

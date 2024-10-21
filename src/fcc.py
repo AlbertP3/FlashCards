@@ -1,6 +1,7 @@
 import re
 import logging
 from operator import methodcaller
+from random import shuffle
 import pandas as pd
 from utils import *
 from cfg import config
@@ -276,9 +277,7 @@ class FCC:
         else:
             signatures = {self.mw.active_file.signature}
         self.mw.db.refresh()
-        recommendations = self.mw.get_complete_efc_table(
-            preds=True, signatures=signatures
-        )
+        recommendations = self.mw.get_efc_data(preds=True, signatures=signatures)
         efc_table_printout = self.mw.get_efc_table_printout(recommendations)
         self.mw.db.refresh()
         self.post_fcc(efc_table_printout)
@@ -617,40 +616,41 @@ class FCC:
                         diff_days = (
                             datetime.now()
                             - datetime.strptime(
-                                self.config["CRE"]["last_completed"],
+                                self.config["CRE"]["prev"]["date"],
                                 r"%Y-%m-%d %H:%M:%S",
                             )
                         ).days
                     except (TypeError, ValueError):
                         diff_days = "∞"
-                    self.post_fcc(
-                        f"Last finished on {self.config['CRE']['last_completed']} ({diff_days} days ago)"
+                    ld = self.config["CRE"]["prev"]["date"]
+                    ts = format_seconds_to(
+                        self.config["CRE"]["prev"]["time_spent"],
+                        "hour",
+                        sep=":",
+                        int_name="hour",
                     )
-            elif parsed_cmd[1] == "reversed" and len(parsed_cmd) == 3:
-                rev = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
-                self.config["CRE"]["reversed"] = rev
-                self.post_fcc(f"CRE reverse order set to: {rev}")
-            elif parsed_cmd[1] == "autosave" and len(parsed_cmd) == 3:
-                auto_save = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
-                self.config["CRE"]["auto_save_mistakes"] = auto_save
-                self.post_fcc(f"CRE auto save mistakes set to: {auto_save}")
-            elif parsed_cmd[1] == "autonext" and len(parsed_cmd) == 3:
-                auto_next = parsed_cmd[2].lower() in {"on", "yes", "1", "true", "y"}
-                self.config["CRE"]["auto_next"] = auto_next
-                self.post_fcc(f"CRE auto continue set to: {auto_next}")
+                    rc = self.config["CRE"]["prev"]["count"]
+                    try:
+                        ac = (
+                            self.config["CRE"]["prev"]["positives"]
+                            / self.config["CRE"]["prev"]["cards_seen"]
+                        )
+                    except ZeroDivisionError:
+                        ac = 0
+                    self.post_fcc(
+                        f"Last finished on {ld} ({diff_days} days ago) took {ts} to complete {rc} Revisions with {ac:.0%} accuracy"
+                    )
             else:
                 self.post_fcc("Unknown argument!")
-        elif self.config["CRE"]["items"]:
-            # items are removed only after the rev is recorded
-            next_rev = self.config["CRE"]["items"][-self.config["CRE"]["reversed"]]
-            if next_rev == self.mw.active_file.filepath:
-                self.post_fcc(
-                    "Please finish your current revision to proceed to the next one"
-                )
-            else:
-                self.mw.initiate_flashcards(self.mw.db.files[next_rev])
+        elif self.config["CRE"]["items"]:  # continue CRE queue
+            next_rev = self.config["CRE"]["items"][
+                -self.config["CRE"]["opt"]["reversed"]
+            ]
+            self.mw.initiate_flashcards(self.mw.db.files[next_rev])
         else:  # initiate CRE queue
             revs = [fd.filepath for fd in self.mw.db.get_sorted_revisions()]
+            if self.config["CRE"]["opt"]["random"]:
+                shuffle(revs)
             self.config["CRE"]["items"] = revs
             self.config["CRE"]["count"] = len(revs)
             self.config["CRE"]["cards_seen"] = 0
@@ -662,7 +662,9 @@ class FCC:
             self.post_fcc(
                 f"CRE initiated with {self.config['CRE']['cards_total']} cards in {self.config['CRE']['count']} revisions"
             )
-            next_rev = self.config["CRE"]["items"][-self.config["CRE"]["reversed"]]
+            next_rev = self.config["CRE"]["items"][
+                -self.config["CRE"]["opt"]["reversed"]
+            ]
             self.mw.initiate_flashcards(self.mw.db.files[next_rev])
 
     def cfg(self, parsed_cmd: list):
@@ -693,8 +695,7 @@ class FCC:
         self.post_fcc(f"{self.mw.cards_seen=}")
         self.post_fcc(f"{self.mw.words_back=}")
         self.post_fcc(f"{self.mw.is_recorded=}")
-        self.post_fcc(f"{self.mw.is_afterface=}")
-        self.post_fcc(f"{self.mw.is_revision_summary=}")
+        self.post_fcc(f"{self.mw.is_synopsis=}")
         self.post_fcc(f"{self.mw.is_initial_rev=}")
         self.post_fcc(f"{self.mw.seconds_spent=}")
         self.post_fcc(f"{self.mw.should_hide_tips()=}")

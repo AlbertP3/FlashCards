@@ -1,5 +1,5 @@
 import PyQt5.QtWidgets as widget
-from PyQt5 import QtGui
+from PyQt5.QtGui import QFont
 from utils import fcc_queue
 from efc import EFC
 from random import shuffle
@@ -41,12 +41,12 @@ class EFCSideWindow(EFC):
         # Style
         self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
         self.button_style_sheet = self.config["theme"]["button_style_sheet"]
-        self.BUTTON_FONT = QtGui.QFont(
+        self.__efc_sw_font = QFont(
             self.config["theme"]["font"], self.config["theme"]["font_button_size"]
         )
-        self.textbox_width = 275
+        self.textbox_width = 375
         self.textbox_height = 200
-        self.buttons_height = 45
+        self.buttons_height = 40
 
         # Elements
         self.efc_layout = widget.QGridLayout()
@@ -54,24 +54,29 @@ class EFCSideWindow(EFC):
         self.efc_layout.addWidget(self.create_load_efc_button(), 1, 0, 1, 1)
 
         # Fill List Widget
-        [self.recommendation_list.addItem(str(r)) for r in self.get_recommendations()]
-        self.files_count = self.recommendation_list.count()
+        for r in self.get_recommendations():
+            self.recoms_qlist.addItem(r["disp"])
+        self.files_count = self.recoms_qlist.count()
         if self.files_count:
             self.cur_efc_index = min(self.files_count - 1, self.cur_efc_index)
-            self.recommendation_list.setCurrentRow(self.cur_efc_index)
+            self.recoms_qlist.setCurrentRow(self.cur_efc_index)
 
     def create_recommendations_list(self):
-        self.recommendation_list = widget.QListWidget(self)
-        self.recommendation_list.setFixedWidth(self.textbox_width)
-        self.recommendation_list.setFont(self.BUTTON_FONT)
-        self.recommendation_list.setStyleSheet(self.textbox_stylesheet)
-        return self.recommendation_list
+        self.recoms_qlist = widget.QListWidget(self)
+        self.recoms_qlist.setFixedWidth(self.textbox_width)
+        self.recoms_qlist.setFont(self.__efc_sw_font)
+        self.recoms_qlist.setStyleSheet(self.textbox_stylesheet)
+        self.recoms_qlist.itemClicked.connect(self.__recoms_qlist_onclick)
+        return self.recoms_qlist
+
+    def __recoms_qlist_onclick(self, item):
+        self.cur_efc_index = self.recoms_qlist.currentRow()
 
     def create_load_efc_button(self):
         efc_button = widget.QPushButton(self)
         efc_button.setFixedHeight(self.buttons_height)
         efc_button.setFixedWidth(self.textbox_width)
-        efc_button.setFont(self.BUTTON_FONT)
+        efc_button.setFont(self.__efc_sw_font)
         efc_button.setText("Load")
         efc_button.setStyleSheet(self.button_style_sheet)
         efc_button.clicked.connect(self.load_selected_efc)
@@ -85,14 +90,25 @@ class EFCSideWindow(EFC):
             self.cur_efc_index = 0
         else:
             self.cur_efc_index = new_index
-        self.recommendation_list.setCurrentRow(self.cur_efc_index)
+        self.recoms_qlist.setCurrentRow(self.cur_efc_index)
+
+    def load_selected_efc(self):
+        if fd := self.get_fd_from_selected_file():
+            self.initiate_flashcards(fd)
+            self.del_side_window()
 
     def load_next_efc(self):
-
         if self.config["next_efc"]["require_recorded"] and not self.is_recorded:
-            fcc_queue.put("Review current revision before proceeding")
+            fcc_queue.put("Finish your current revision before proceeding", importance=30)
             return
 
+        if self.config["CRE"]["items"]:
+            self.activate_tab("fcc")
+            self.fcc_inst.execute_command(["cre"])
+        else:
+            self.__load_next_efc()
+
+    def __load_next_efc(self):
         fd = None
         recs = self.get_recommendations()
 
@@ -106,28 +122,18 @@ class EFCSideWindow(EFC):
             shuffle(recs)
 
         for rec in recs:
-            try:
-                tmp_fd = [fd for fd in self.db.files.values() if fd.basename == rec][0]
-                if (
-                    self.config["next_efc"]["skip_mistakes"]
-                    and tmp_fd.kind == self.db.KINDS.mst
-                ):
-                    continue
-                else:
-                    fd = tmp_fd
-                    break
-            except IndexError:
-                if not self.config["next_efc"]["skip_new"]:
-                    fd = self.db.files[self.paths_to_suggested_lngs[recs[0]]]
-                    break
+            _fd = self.db.files[rec["fp"]]
+            if (
+                self.config["next_efc"]["skip_mistakes"]
+                and _fd.kind == self.db.KINDS.mst
+            ):
+                continue
+            else:
+                fd = _fd
+                break
 
         if fd:
             self.initiate_flashcards(fd)
             self.del_side_window()
         else:
             fcc_queue.put("There are no EFC recommendations", importance=20)
-
-    def load_selected_efc(self):
-        if fd := self.get_fd_from_selected_file():
-            self.initiate_flashcards(fd)
-            self.del_side_window()

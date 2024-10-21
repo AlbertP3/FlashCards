@@ -42,6 +42,7 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
         self.LNG_DIR = "lng"
         self.MST_DIR = "mst"
         self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"
+        self.MST_BASENAME = "{lng}_mistakes"
         self.DB_COLS = (
             "TIMESTAMP",
             "SIGNATURE",

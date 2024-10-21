@@ -26,14 +26,14 @@ class MainWindowLogic:
         self.revmode = False
         self.total_words = 0
         self.cards_seen = 0
-        self.revision_summary = None
+        self.synopsis = None
         self.is_recorded = False
         self.db = DbOperator()
         self.summary_gen = SummaryGenerator()
-        self.is_afterface = False
-        self.is_revision_summary = False
+        self.is_synopsis = False
         self.should_hide_tips = lambda: False
         self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
+        self.allow_hide_tips = True
 
     @property
     def is_revision(self):
@@ -82,50 +82,52 @@ class MainWindowLogic:
 
     def record_revision_to_db(self, seconds_spent=0):
         if self.active_file.kind == self.db.KINDS.mst:
-            self.config.cache["unreviewed_mistakes"] = 0
+            self.config["unreviewed_mistakes"] = 0
         self.db.create_record(self.total_words, self.positives, seconds_spent)
         self.is_recorded = True
+        if self.active_file.filepath in self.config["CRE"]["items"]:
+            self._update_cre()
+            fcc_queue.put(self._get_cre_stat())
+            if not self.config["CRE"]["items"]:
+                self._cre_finalize()
 
-    def handle_comprehensive_revision(self, fd: FileDescriptor):
-        # It is assumed that the corresponding revision was saved
-        self._update_cre(fd)
-        fcc_queue.put(self._get_cre_stat())
-        if self.config["CRE"]["items"]:
-            if self.config["CRE"]["auto_save_mistakes"] and self.mistakes_list:
-                self.db.save_mistakes(mistakes_list=self.mistakes_list)
-                self.notify_on_mistakes()
-                self.init_eph_from_mistakes()
-            if self.config["CRE"]["auto_next"]:
-                self.activate_tab("fcc")
-                self.fcc_inst.execute_command(["cre"])
-        else:
-            fcc_queue.put("CRE finished - Congratulations!!!\n")
-            self._flush_cre()
-            self.config["CRE"]["last_completed"] = datetime.now().strftime(
-                r"%Y-%m-%d %H:%M:%S"
-            )
+    def _update_cre(self):
+        self.config["CRE"]["items"].remove(self.active_file.filepath)
+        self.config["CRE"]["cards_seen"] += self.cards_seen
+        self.config["CRE"]["time_spent"] += self.seconds_spent
+        self.config["CRE"]["positives"] += self.positives
 
-    def _update_cre(self, fd: FileDescriptor):
-        upd = self.db.get_cre_data(fd.signature)
-        self.config["CRE"]["items"].remove(fd.filepath)
-        self.config["CRE"]["cards_seen"] += upd["cards_seen"]
-        self.config["CRE"]["time_spent"] += upd["time_spent"]
-        self.config["CRE"]["positives"] += upd["positives"]
+    def _cre_finalize(self):
+        fcc_queue.put("CRE finished - Congratulations!!!", importance=30)
+        self.config["CRE"]["prev"]["date"] = datetime.now().strftime(
+            r"%Y-%m-%d %H:%M:%S"
+        )
+        self.config["CRE"]["prev"]["count"] = self.config["CRE"]["count"]
+        self.config["CRE"]["prev"]["positives"] = self.config["CRE"]["positives"]
+        self.config["CRE"]["prev"]["cards_seen"] = self.config["CRE"]["cards_seen"]
+        self.config["CRE"]["prev"]["time_spent"] = self.config["CRE"]["time_spent"]
+        self._flush_cre()
 
     def _get_cre_stat(self) -> str:
-        accuracy = self.config["CRE"]["positives"] / self.config["CRE"]["cards_seen"]
-        rev_done = self.config["CRE"]["count"] - len(self.config["CRE"]["items"])
-        return "\n".join(
-            [
-                "",
-                f"Progress : {100*(self.config['CRE']['cards_seen'] / self.config['CRE']['cards_total']):.0f}%",
-                f"Revisions: {rev_done}/{self.config['CRE']['count']}",
-                f"Cards    : {self.config['CRE']['cards_seen']}/{self.config['CRE']['cards_total']}",
-                f"Timer    : {format_seconds_to(self.config['CRE']['time_spent'], 'hour', sep=':')}",
-                f"Accuracy : {100*accuracy:.0f}%",
-                "",
-            ]
-        )
+        try:
+            accuracy = (
+                self.config["CRE"]["positives"] / self.config["CRE"]["cards_seen"]
+            )
+            rev_done = self.config["CRE"]["count"] - len(self.config["CRE"]["items"])
+            return "\n".join(
+                [
+                    "",
+                    "    CRE Report",
+                    f"Progress : {100*(self.config['CRE']['cards_seen'] / self.config['CRE']['cards_total']):.0f}%",
+                    f"Revisions: {rev_done}/{self.config['CRE']['count']}",
+                    f"Cards    : {self.config['CRE']['cards_seen']}/{self.config['CRE']['cards_total']}",
+                    f"Timer    : {format_seconds_to(self.config['CRE']['time_spent'], 'hour', sep=':')}",
+                    f"Accuracy : {100*accuracy:.0f}%",
+                ]
+            )
+        except ZeroDivisionError as e:
+            log.error(e, exc_info=True)
+            return "CRE statistics are unavailable at the moment"
 
     def _flush_cre(self):
         self.config["CRE"]["items"].clear()
@@ -179,9 +181,8 @@ class MainWindowLogic:
 
     def reset_flashcards_parameters(self):
         self.is_recorded = False
-        self.is_afterface = False
-        self.is_revision_summary = False
-        self.revision_summary = None
+        self.is_synopsis = False
+        self.synopsis = None
         self.current_index = 0
         self.cards_seen = 0
         self.positives = 0
@@ -192,10 +193,11 @@ class MainWindowLogic:
         self.cards_seen_sides = list()
         self.add_default_side()
         self.side = self.get_default_side()
+        self.allow_hide_tips = True
         self.set_should_hide_tips()
 
     def set_should_hide_tips(self):
-        nd = lambda: not self.is_afterface and not self.is_revision_summary
+        nd = lambda: self.allow_hide_tips and not self.is_synopsis
         policies = set(
             self.config["hide_tips"]["policy"].get(
                 self.active_file.kind, [HIDE_TIPS_POLICIES.never]
@@ -240,8 +242,9 @@ class MainWindowLogic:
 
     def notify_on_mistakes(self):
         if (
-            self.config.cache["unreviewed_mistakes"] / self.config["mistakes_buffer"]
+            self.config["unreviewed_mistakes"] / self.config["mistakes_buffer"]
             >= self.config["popups"]["triggers"]["unreviewed_mistakes_percent"]
+            > 0
         ):
             try:
                 mistakes_fd = [
@@ -250,7 +253,7 @@ class MainWindowLogic:
                     if fd.lng == self.active_file.lng and fd.kind == self.db.KINDS.mst
                 ][0]
                 fcc_queue.put(
-                    f"There are {self.config.cache['unreviewed_mistakes']} unreviewed Mistakes!",
+                    f"There are {self.config['unreviewed_mistakes']} unreviewed Mistakes!",
                     importance=20,
                     func=lambda: self.initiate_flashcards(mistakes_fd),
                     persist=True,
@@ -317,6 +320,11 @@ class MainWindowLogic:
     def create_session_snapshot(self):
         prev_tab = self.active_tab_ident
         self._deactivate_tab()
+        _fcc_log = self.tabs["fcc"]["console_log"]
+        if len(_fcc_log) > 0 and _fcc_log[-1] == self.tabs["fcc"]["console_prompt"]:
+            _fcc_log.pop()
+        for m in fcc_queue.get_all():
+            _fcc_log.append(f"[{m.timestamp.strftime('%H:%M:%S')}] {m.message}")
         snapshot = {
             "timestamp": datetime.now().strftime(self.db.TSFORMAT),
             "current_index": self.current_index,
@@ -334,15 +342,15 @@ class MainWindowLogic:
             "cur_efc_index": self.cur_efc_index,
             "is_recorded": self.is_recorded,
             "revmode": self.revmode,
-            "is_afterface": self.is_afterface,
-            "is_revision_summary": self.is_revision_summary,
-            "revision_summary": self.revision_summary,
+            "is_synopsis": self.is_synopsis,
+            "allow_hide_tips": self.allow_hide_tips,
+            "synopsis": self.synopsis,
             "efc_last_calc_time": self._efc_last_calc_time,
             "efc_db_is_current": self._db_load_time_efc == self.db.last_load,
-            "efc_recommendations": self._recommendations,
+            "efc_recommendations": self._recoms,
             "fcc_cmds_cursor": self.tabs["fcc"]["cmds_cursor"],
             "fcc_console_prompt": self.tabs["fcc"]["console_prompt"],
-            "fcc_console_log": self.tabs["fcc"]["console_log"],
+            "fcc_console_log": _fcc_log,
             "fcc_cmds_log": self.tabs["fcc"]["cmds_log"],
         }
         self.activate_tab(prev_tab)
@@ -356,9 +364,9 @@ class MainWindowLogic:
         self.config["pd_random_seed"] = metadata["pd_random_seed"]
         self.is_recorded = metadata["is_recorded"]
         self.revmode = metadata["revmode"]
-        self.is_afterface = metadata["is_afterface"]
-        self.is_revision_summary = metadata["is_revision_summary"]
-        self.revision_summary = metadata["revision_summary"]
+        self.is_synopsis = metadata["is_synopsis"]
+        self.allow_hide_tips = metadata["allow_hide_tips"]
+        self.synopsis = metadata["synopsis"]
         self.cards_seen = metadata["cards_seen"]
         self.words_back = metadata["words_back"]
         self.positives = metadata["positives"]
@@ -372,7 +380,7 @@ class MainWindowLogic:
         self._efc_last_calc_time = metadata["efc_last_calc_time"]
         if metadata["efc_db_is_current"]:
             self._db_load_time_efc = self.db.last_load
-        self._recommendations = metadata["efc_recommendations"]
+        self._recoms = metadata["efc_recommendations"]
         self._deactivate_tab()
         self.tabs["fcc"]["cmds_log"] = metadata["fcc_cmds_log"][
             -self.config["cache_history_size"] :

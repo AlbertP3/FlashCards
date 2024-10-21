@@ -7,7 +7,6 @@ class LoadSideWindow:
     def __init__(self):
         self.side_window_titles["load"] = "Load"
         self.cur_load_index = 0
-        # add button to main window
         self.load_button = self.create_button(
             self.config["icons"]["load"], self.get_load_sidewindow
         )
@@ -34,8 +33,8 @@ class LoadSideWindow:
 
     def arrange_load_window(self):
         # Window Parameters
-        self.buttons_height = 45
-        self.textbox_width = 275
+        self.buttons_height = 40
+        self.textbox_width = 375
 
         # Style
         self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
@@ -60,21 +59,34 @@ class LoadSideWindow:
         self.flashcard_files_qlist.setFont(self.BUTTON_FONT)
         self.flashcard_files_qlist.setStyleSheet(self.textbox_stylesheet)
         self.flashcard_files_qlist.setVerticalScrollBar(self.get_scrollbar())
+        self.flashcard_files_qlist.itemClicked.connect(self.__lsw_qlist_onclick)
         return self.flashcard_files_qlist
+
+    def __lsw_qlist_onclick(self, item):
+        self.cur_load_index = self.flashcard_files_qlist.currentRow()
 
     def fill_flashcard_files_list(self):
         self.db.update_fds()
         self.load_map, i = dict(), 0
         for fd in self.db.get_sorted_languages():
-            self.flashcard_files_qlist.addItem(fd.basename)
+            self.flashcard_files_qlist.addItem(
+                f"{self.config['icons']['language']} {fd.basename}"
+            )
             self.load_map[i] = fd.filepath
             i += 1
         for fd in self.db.get_sorted_mistakes():
-            self.flashcard_files_qlist.addItem(fd.basename)
+            self.flashcard_files_qlist.addItem(
+                f"{self.config['icons']['mistakes']} {fd.basename}"
+            )
             self.load_map[i] = fd.filepath
             i += 1
+        _new_revs = {r["fp"] for r in self.get_recommendations() if r["is_init"]}
         for fd in self.db.get_sorted_revisions():
-            self.flashcard_files_qlist.addItem(fd.basename)
+            if fd.filepath in _new_revs:
+                prefix = self.config["icons"]["initial"]
+            else:
+                prefix = self.config["icons"]["revision"]
+            self.flashcard_files_qlist.addItem(f"{prefix} {fd.basename}")
             self.load_map[i] = fd.filepath
             i += 1
         self.files_count = self.flashcard_files_qlist.count()

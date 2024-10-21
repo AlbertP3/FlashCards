@@ -3,6 +3,7 @@
     "main_style_sheet": "background-color: #383838; margin:0px; border:1px solid #000000; padding:0px;",
     "textbox_style_sheet": "color: #eeeeee; background-color: #393939; border-radius: 5px;line-height: 12%; margin:0px;",
     "button_style_sheet": "background-color: #434343; color: #eeeeee; border-radius: 5px;",
+    "hint_style_sheet": "background-color: #393939; color: #eeeeee; border-radius: 5px;",
     "stat_bar_color": "#434343",
     "stat_background_color": "#393939",
     "stat_chart_background_color": "#393939",

@@ -88,6 +88,9 @@ class FccQueue:
         self.__fcc_queue.clear()
         return res
 
+    def get_all(self) -> list[QueueRecord]:
+        return list(self.__fcc_queue)
+
     def pull_notification(self) -> QueueRecord:
         return self.__notification_queue.popleft()
 
@@ -143,7 +146,7 @@ SECONDS_CONVERTERS = {
 def format_seconds_to(
     total_seconds: int,
     interval: str,
-    rem: int = 1,
+    rem: int = 2,
     int_name: str = None,
     null_format: str = None,
     pref_len=0,
@@ -156,7 +159,7 @@ def format_seconds_to(
     if null_format is not None and tot_int + rem_int == 0:
         res = null_format
     elif rem:
-        res = f"{tot_int:.0f}{sep}{rem_int:02d}"
+        res = f"{tot_int:.0f}{sep}{rem_int:0{rem}d}"
     else:
         res = f"{total_seconds/_int:.0f}"
 

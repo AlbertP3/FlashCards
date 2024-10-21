@@ -122,7 +122,7 @@ class DbDatasetOps:
 
     def save_mistakes(self, mistakes_list: list):
         """Dump dataset to the Mistakes file"""
-        basename = f"{self.active_file.lng}_mistakes"
+        basename = self.MST_BASENAME.format(lng=self.active_file.lng)
         mfd = FileDescriptor(
             basename=basename,
             filepath=self.make_filepath(
@@ -149,7 +149,7 @@ class DbDatasetOps:
             log.debug(f"Created new Mistakes File: {mfd.filepath}")
             self.update_fds()
         m_cnt = mistakes_df.shape[0]
-        self.config.cache["unreviewed_mistakes"] += m_cnt
+        self.config["unreviewed_mistakes"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.basename}'
         fcc_queue.put(msg, importance=20)
         log.debug(msg)

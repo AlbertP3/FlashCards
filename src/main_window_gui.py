@@ -90,12 +90,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.change_revmode(self.revmode)
         self.update_words_button()
         self.update_score_button()
-        if self.is_revision_summary:
-            self.display_text(self.revision_summary)
-            self.is_revision_summary = True
-        elif self.is_afterface:
-            self.display_text(self.config["after_face"])
-            self.is_afterface = True
+        if self.is_synopsis:
+            self.display_text(self.synopsis or self.config["synopsis"])
         else:
             self.display_text(self.get_current_card().iloc[self.side])
         if not self.active_file.tmp:
@@ -237,6 +233,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
 
         self.create_sod_button()
+        self.create_hint_qbutton()
 
     def create_sod_button(self):
         self.sod_button = self.create_button(
@@ -244,6 +241,18 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         )
         self.add_shortcut("sod", self.get_sod_sidewindow, "main")
         self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
+
+    def create_hint_qbutton(self):
+        self.hint_qbutton = widget.QPushButton(self.config["icons"]["hint"], self)
+        self.hint_qbutton.setFont(QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE))
+        self.hint_qbutton.setFixedSize(25, 25)
+        self.hint_qbutton.setFocusPolicy(Qt.NoFocus)
+        self.hint_qbutton.setStyleSheet(self.config["theme"]["hint_style_sheet"])
+        self.hint_qbutton.clicked.connect(self.show_hint)
+        self.layout_first_row.addWidget(
+            self.hint_qbutton, 0, 0, Qt.AlignBottom | Qt.AlignRight
+        )
+        self.hint_qbutton.hide()
 
     def get_scrollbar(self) -> widget.QScrollBar:
         scrollbar = widget.QScrollBar()
@@ -281,9 +290,16 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             new_button.clicked.connect(function)
         return new_button
 
+    def show_hint(self):
+        if not self.is_synopsis:
+            self.allow_hide_tips = not self.allow_hide_tips
+            self.display_text(self.get_current_card().iloc[self.side])
+
     def display_text(self, text: str):
-        if self.should_hide_tips():
-            text = self.tips_hide_re.sub("", text)
+        if self.allow_hide_tips and self.should_hide_tips():
+            text, chg = self.tips_hide_re.subn("", text)
+        else:
+            chg = 0
         width_factor = max(int((self.frameGeometry().width()) / 37 - len(text) / 30), 0)
         self.FONT_TEXTBOX_SIZE = self.config["theme"]["min_font_size"] + width_factor
         self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
@@ -293,8 +309,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             f"{self.textbox_stylesheet} padding-top: {padding}%;"
         )
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
-        self.is_afterface = False
-        self.is_revision_summary = False
+        if chg:
+            self.hint_qbutton.show()
+        else:
+            self.hint_qbutton.hide()
 
     def click_save_button(self):
         if self.active_file.kind == self.db.KINDS.rev:
@@ -307,7 +325,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                     fcc_queue.put(self._get_cre_stat())
                 if not self.is_initial_rev:
                     self.save_current_mistakes()
-                self.init_eph_from_mistakes()
+                if len(self.mistakes_list) >= self.config["min_eph_cards"]:
+                    self.init_eph_from_mistakes()
             else:
                 fcc_queue.put("No mistakes to save", importance=20)
 
@@ -321,7 +340,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
         elif self.active_file.kind == self.db.KINDS.mst:
 
-            if self.is_recorded:
+            if (
+                self.is_recorded
+                and len(self.mistakes_list) >= self.config["min_eph_cards"]
+            ):
                 self.init_eph_from_mistakes()
             else:
                 fcc_queue.put("Review all mistakes before saving", importance=20)
@@ -334,22 +356,25 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def delete_current_card(self):
         if self.active_file.kind not in self.db.GRADED:
-            super().delete_current_card()
-            self.update_words_button()
-            fcc_queue.put("Card deleted", importance=20)
-            self.display_text(self.get_current_card().iloc[self.side])
+            if not self.is_synopsis:
+                super().delete_current_card()
+                self.update_words_button()
+                fcc_queue.put("Card deleted", importance=20)
+                self.allow_hide_tips = True
+                self.display_text(self.get_current_card().iloc[self.side])
         else:
             fcc_queue.put(
                 f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}",
-                importance=20,
+                importance=30,
             )
 
     def reverse_side(self):
-        super().reverse_side()
-        self.display_text(self.get_current_card().iloc[self.side])
-        if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
-            self.start_timer()
-            self.start_pace_timer()
+        if not self.is_synopsis:
+            super().reverse_side()
+            self.display_text(self.get_current_card().iloc[self.side])
+            if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
+                self.start_timer()
+                self.start_pace_timer()
 
     def load_again_click(self):
         if not self.active_file.valid:
@@ -386,9 +411,11 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.stop_pace_timer()
 
     def click_prev_button(self):
-        if self.is_afterface or self.is_revision_summary:
+        if self.is_synopsis:
             self.current_index += 1
+            self.is_synopsis = False
         if self.current_index >= 1:
+            self.allow_hide_tips = True
             self.goto_prev_card()
             if self.revmode and self.words_back == 1:
                 self.change_revmode(False)
@@ -398,8 +425,21 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.start_timer()
             self.start_pace_timer()
 
+    def goto_last_seen_card(self):
+        if self.words_back > 0:
+            if self.synopsis:
+                self.current_index = self.cards_seen
+                self.words_back = 0
+            else:
+                self.current_index = self.cards_seen - 1
+                self.words_back = 1
+            self.click_next_button()
+            self.update_words_button()
+            self.update_score_button()
+
     def click_next_button(self):
         if self.total_words - self.current_index - 1 > 0:
+            self.allow_hide_tips = True
             self.goto_next_card()
             if not self.revmode and self.words_back == 0 and not self.is_recorded:
                 self.change_revmode(True)
@@ -412,26 +452,58 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.reset_pace_timer()
         elif self.should_create_db_record():
             self.handle_graded_complete()
-        elif self.revision_summary:
-            if self.is_revision_summary:
-                self.__handle_post_actions()
+        else:
+            if self.is_synopsis:
+                self.handle_final_actions()
             else:
-                self.display_text(self.revision_summary)
-                self.is_revision_summary = True
-        else:
-            self.display_text(self.config["after_face"])
-            self.is_afterface = True
-            self.stop_timer()
-            self.stop_pace_timer()
+                self.is_synopsis = True
+                self.display_text(self.synopsis or self.config["synopsis"])
+                self.stop_timer()
+                self.stop_pace_timer()
 
-    def __handle_post_actions(self):
-        if self.active_file.filepath in self.config["CRE"]["items"]:
-            self.handle_comprehensive_revision(self.active_file)
-        else:
-            if self.config["final_actions"]["next_efc"]:
-                self.load_next_efc()
-            elif self.config["final_actions"]["init_ephemeral"] and self.mistakes_list:
-                self.init_eph_from_mistakes()
+    def handle_final_actions(self):
+        if self.active_file.kind == self.db.KINDS.rev:
+            self._handle_final_actions_rev()
+        elif self.active_file.kind == self.db.KINDS.mst:
+            self._handle_final_actions_mst()
+        elif self.active_file.kind == self.db.KINDS.eph:
+            self._handle_final_actions_eph()
+
+    def _handle_final_actions_rev(self):
+        if (
+            self.config["final_actions"]["save_mistakes"]
+            and not self.is_initial_rev
+            and self.mistakes_list
+        ):
+            self.save_current_mistakes()
+        if (
+            self.config["final_actions"]["init_ephemeral"]
+            and len(self.mistakes_list) >= self.config["min_eph_cards"]
+        ):
+            self.init_eph_from_mistakes()
+            return
+        if self.config["final_actions"]["next_efc"]:
+            self.load_next_efc()
+
+    def _handle_final_actions_mst(self):
+        if (
+            self.config["final_actions"]["init_ephemeral"]
+            and len(self.mistakes_list) >= self.config["min_eph_cards"]
+        ):
+            self.init_eph_from_mistakes()
+            return
+        if self.config["final_actions"]["next_efc"]:
+            self.load_next_efc()
+        
+    def _handle_final_actions_eph(self):
+        if (
+            self.config["final_actions"]["init_ephemeral"]
+            and len(self.mistakes_list) >= self.config["min_eph_cards"]
+        ):
+            self.init_eph_from_mistakes()
+            return
+        if self.config["final_actions"]["next_efc"]:
+            self.load_next_efc()
 
     def click_negative(self):
         self.result_negative()
@@ -444,13 +516,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
             self.update_score_button()
-            if self.active_file.kind in {self.db.KINDS.rev, self.db.KINDS.mst}:
-                self.revision_summary = self.get_rating_message()
-                self.display_text(self.revision_summary)
-                self.is_revision_summary = True
+            self.synopsis = self.get_rating_message()
+            self.is_synopsis = True
+            self.display_text(self.synopsis)
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
-        else:
-            self.display_text(self.get_current_card().iloc[self.side])
         self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
         self.stop_timer()
@@ -466,6 +535,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.add_shortcut("del_cur_card", self.delete_current_card, "main")
         self.add_shortcut("load_again", self.load_again_click, "main")
         self.add_shortcut("save", self.click_save_button, "main")
+        self.add_shortcut("hint", self.show_hint, "main")
+        self.add_shortcut("last_seen", self.goto_last_seen_card, "main")
 
     def add_shortcut(self, action: str, function, sw_id: str = "main"):
         # binding twice on the same key breaks the shortcut permanently
@@ -519,14 +590,14 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def add_window_in_place(self, layout, name):
         self.side_window_layout = layout
-        self.toggle_primary_widgets_visibility(False)
+        self.set_main_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 0)
         self.side_window_id = name
         self.set_geometry(self.config["geo"][name])
 
     def del_side_window_in_place(self):
         self.remove_layout(self.side_window_layout)
-        self.toggle_primary_widgets_visibility(True)
+        self.set_main_widgets_visibility(True)
         self.side_window_id = "main"
         self.set_geometry(self.config["geo"]["main"])
 
@@ -562,8 +633,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         obj.setMinimumHeight(0)
         obj.setMaximumHeight(widget.QWIDGETSIZE_MAX)
 
-    def toggle_primary_widgets_visibility(self, rev_mode):
-        if rev_mode:
+    def set_main_widgets_visibility(self, show: bool):
+        if show:
             for widget in self.get_children_widgets(self.layout):
                 widget.show()
             if not self.revmode or self.words_back or self.is_recorded:
@@ -571,6 +642,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                 self.negative_button.hide()
             else:
                 self.next_button.hide()
+            if not self.tips_hide_re.match(self.textbox.toPlainText()):
+                self.hint_qbutton.hide()
         else:
             for widget in self.get_children_widgets(self.layout):
                 widget.hide()
@@ -631,7 +704,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def file_monitor_handler(self, path):
         if path == self.active_file.filepath and not self.active_file.tmp:
             self.db.load_dataset(self.active_file, seed=self.config["pd_random_seed"])
-            self.display_text(self.get_current_card().iloc[self.side])
+            if not self.is_synopsis:
+                self.display_text(self.get_current_card().iloc[self.side])
             fcc_queue.put("Active dataset refreshed", importance=20)
         if path == self.config["SOD"]["last_file"]:
             prev_tab = self.active_tab_ident
@@ -692,7 +766,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def initiate_timer(self):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
-        self.timer_prev_text = self.config["icons"]["timer"]
+        self.timer_prev_text = self.config["icons"]["timer_stop"]
         self.revtimer_hide_timer = self.config["opt"]["hide_timer"]
         self.revtimer_show_cpm_timer = self.config["opt"]["show_cpm_timer"]
         self.set_append_seconds_spent_function()
@@ -722,9 +796,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.TIMER_RUNNING_FLAG = False
         self.timer_prev_text = self.timer_button.text()
         self.timer_button.setText(
-            self.config["icons"]["timer"]
+            self.config["icons"]["timer_stop"]
             if self.is_recorded or not self.seconds_spent
-            else self.config["icons"]["timer_stop"]
+            else self.config["icons"]["timer_pause"]
         )
 
     def reset_timer(self, clear_indicator=True):
@@ -732,7 +806,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.seconds_spent = 0
         self.TIMER_RUNNING_FLAG = False
         if clear_indicator:
-            self.timer_button.setText(self.config["icons"]["timer"])
+            self.timer_button.setText(self.config["icons"]["timer_stop"])
 
     def set_append_seconds_spent_function(self):
         self.timer = QTimer()
@@ -833,10 +907,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                     message=record.message, func=record.func, persist=record.persist
                 )
                 fcc_queue.unacked_notifications -= 1
-        except IndexError as e:
+        except Exception as e:
             log.error(e, exc_info=True)
             fcc_queue.put(
-                "IndexError raised while collecting notifications. See log file for more details."
+                "Exception raised while pulling a notification. See log file for more details."
             )
 
     def _resume_notification_timer(self):
@@ -885,7 +959,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                 self.stop_timer()
                 self.stop_pace_timer()
             elif event.type() == QtCore.QEvent.FocusIn:
-                if not self.is_afterface and self.__last_focus_out_timer_state:
+                if not self.is_synopsis and self.__last_focus_out_timer_state:
                     self.resume_timer()
                     self.resume_pace_timer()
         return super(MainWindowGUI, self).eventFilter(source, event)

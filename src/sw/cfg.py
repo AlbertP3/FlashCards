@@ -109,7 +109,7 @@ class ConfigSideWindow:
         self.final_actions_cbx = self.cfg_cbx(
             self.config["final_actions"],
             list(self.config["final_actions"].keys()),
-            multi_choice=False,
+            multi_choice=True,
             text="Final actions",
         )
         self.pace_card_qle = self.cfg_qle(
@@ -142,10 +142,10 @@ class ConfigSideWindow:
             text="SOD files list",
         )
         self.cre_settings_cbx = self.cfg_cbx(
-            self.config["CRE"],
-            ["reversed", "auto_save_mistakes", "auto_next"],
+            self.config["CRE"]["opt"],
+            list(self.config["CRE"]["opt"].keys()),
             multi_choice=True,
-            text="Comprehensive review",
+            text="CRE options",
         )
         self.hide_tips_policy_rev_cbx = self.cfg_cbx(
             self.config["hide_tips"]["policy"][self.db.KINDS.rev],
@@ -186,7 +186,7 @@ class ConfigSideWindow:
         self.timespent_len_qle = self.cfg_qle(
             self.config["timespent_len"], text="Timespent display length"
         )
-        self.afterface_qle = self.cfg_qle(self.config["after_face"], text="Afterface")
+        self.synopsis_qle = self.cfg_qle(self.config["synopsis"], text="Synopsis")
         self.cell_alignment_cbx = self.cfg_cbx(
             self.config["cell_alignment"],
             ["left", "right"],
@@ -247,6 +247,14 @@ class ConfigSideWindow:
             )
             for lng in self.config["languages"]
         }
+        self.cache_hist_size_qle = self.cfg_qle(
+            self.config["cache_history_size"],
+            text="Cache history size",
+        )
+        self.min_eph_cards_qle = self.cfg_qle(
+            self.config["min_eph_cards"],
+            text="Ephemeral min cards",
+        )
         self.config_layout.addWidget(self.confirm_and_close_button)
 
     def collect_settings(self) -> dict:
@@ -272,7 +280,7 @@ class ConfigSideWindow:
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.text()
         new_cfg["SOD"]["initial_language"] = self.sod_init_lng_cbx.currentDataList()[0]
         new_cfg["SOD"]["files_list"] = self.sod_files_cbx.currentDataList()
-        new_cfg["CRE"].update(self.cre_settings_cbx.currentDataDict())
+        new_cfg["CRE"]["opt"].update(self.cre_settings_cbx.currentDataDict())
         new_cfg["hide_tips"]["policy"][
             self.db.KINDS.rev
         ] = self.hide_tips_policy_rev_cbx.currentDataList()
@@ -290,7 +298,7 @@ class ConfigSideWindow:
             "connector"
         ] = self.hide_tips_connector_cbx.currentDataList()[0]
         new_cfg["timespent_len"] = int(self.timespent_len_qle.text())
-        new_cfg["after_face"] = self.afterface_qle.text()
+        new_cfg["synopsis"] = self.synopsis_qle.text()
         new_cfg["cell_alignment"] = self.cell_alignment_cbx.currentDataList()[0]
         new_cfg["EMO"]["discretizer"] = self.emo_discretizer_cbx.currentDataList()[0]
         new_cfg["EMO"]["languages"] = self.emo_lngs_cbx.currentDataList()
@@ -309,6 +317,8 @@ class ConfigSideWindow:
         )
         for k, v in self.sigenpat_qle_group.items():
             new_cfg["sigenpat"][k] = v.text()
+        new_cfg["cache_history_size"] = int(self.cache_hist_size_qle.text())
+        new_cfg["min_eph_cards"] = int(self.min_eph_cards_qle.text())
 
         if new_cfg["active_theme"] != self.config["active_theme"]:
             self.funcs_to_restart.append(self.set_theme)
@@ -435,5 +445,6 @@ class ConfigSideWindow:
             self.set_append_seconds_spent_function()
             self.initiate_pace_timer()
             self.initiate_notification_timer()
+            self.start_notification_timer()
             self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
             self.set_should_hide_tips()
