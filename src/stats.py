@@ -85,49 +85,20 @@ class Stats:
             for x in range(1, len(self.chart_values))
         ]
 
-    def get_data_for_progress(self, lngs: set, interval="monthly"):
-        date_format_dict = {
-            "monthly": "%m/%y",
-            "daily": "%d/%m/%y",
-        }
-
+    def get_data_for_progress(self, lngs: set):
         self.db.refresh()
-
-        # filter for specifc lng
-        filtered_db = self.db.get_filtered_by_lng(lngs)
-        filtered_db = filtered_db[(filtered_db["POSITIVES"] != 0)]
-        if filtered_db.empty:
+        self.db.filter_for_progress(lngs)
+        if self.db.db.empty:
             raise ValueError
+        df = self.db.db
 
-        # format dates
-        date_format = date_format_dict[interval]
-        filtered_db["TIMESTAMP"] = pd.to_datetime(filtered_db["TIMESTAMP"]).dt.strftime(
-            date_format
-        )
-        unique_timestamps = filtered_db.drop_duplicates(
-            subset=["TIMESTAMP"], keep="first", inplace=False
-        )["TIMESTAMP"].to_frame()
+        df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"]).dt.strftime("%m/%y")
+        counted = df["TIMESTAMP"].value_counts(sort=False)
+        self.revision_count = counted.values
+        self.formatted_dates = counted.index
 
-        # transform data
-        counted_db = filtered_db.groupby(
-            filtered_db["TIMESTAMP"], as_index=False, sort=False
-        ).count()
-        filtered_db.drop_duplicates(["SIGNATURE"], keep="first", inplace=True)
-        filtered_db["LAST_POSITIVES"] = filtered_db["SIGNATURE"].apply(
-            lambda x: self.db.get_last_positives(x)
-        )
-        filtered_db["TOTAL"] = filtered_db["TOTAL"].astype("Int64")
-        grouped_db = filtered_db.groupby(
-            filtered_db["TIMESTAMP"], as_index=False, sort=False
-        ).sum()
-
-        # join dataframes
-        grouped_db.set_index("TIMESTAMP", inplace=True)
-        grouped_db = unique_timestamps.join(grouped_db, on="TIMESTAMP")
-        grouped_db.fillna(0, inplace=True)
-
-        # assign values
-        self.chart_values = grouped_db["LAST_POSITIVES"]
-        self.second_chart_values = grouped_db["TOTAL"]
-        self.revision_count = counted_db["TOTAL"]
-        self.formatted_dates = grouped_db["TIMESTAMP"]
+        df.drop_duplicates(["SIGNATURE", "TIMESTAMP"], inplace=True, keep="last")
+        df.drop_duplicates("SIGNATURE", inplace=True, keep="first")
+        grouped = df.groupby("TIMESTAMP", sort=False)
+        self.chart_values = grouped["POSITIVES"].sum()
+        self.second_chart_values = grouped["TOTAL"].sum()

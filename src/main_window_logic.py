@@ -174,6 +174,7 @@ class MainWindowLogic:
         self.db.create_record(self.cards_seen + 1, self.positives, seconds_spent)
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
+        self.update_interface_parameters()
 
     def update_backend_parameters(self):
         self.config["onload_filepath"] = self.active_file.filepath

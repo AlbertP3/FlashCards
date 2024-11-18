@@ -99,7 +99,9 @@ class EFCSideWindow(EFC):
 
     def load_next_efc(self):
         if self.config["next_efc"]["require_recorded"] and not self.is_recorded:
-            fcc_queue.put("Finish your current revision before proceeding", importance=30)
+            fcc_queue.put(
+                "Finish your current revision before proceeding", importance=30
+            )
             return
 
         if self.config["CRE"]["items"]:

@@ -16,6 +16,7 @@ class DBQueries:
             BY_LNG=False,
             BY_SIGNATURE=False,
             EFC_MODEL=False,
+            PROGRESS=False,
         )
         self.last_update: float = 0
         self.last_load: float = -1
@@ -266,6 +267,14 @@ class DBQueries:
     def filter_where_lng(self, lngs: list = []):
         self.db = self.__get_filtered_by_lng(lngs)
         self.filters["BY_LNG"] = lngs
+
+    def filter_for_progress(self, lngs: set):
+        self.db = self.db[
+            (self.db["KIND"] == self.KINDS.rev)
+            & (self.db["LNG"].isin(lngs))
+            & (self.db["POSITIVES"] != 0)
+        ]
+        self.filters["PROGRESS"] = True
 
     def get_avg_cpm(self, default=0) -> float:
         if div := self.db["SEC_SPENT"].sum():

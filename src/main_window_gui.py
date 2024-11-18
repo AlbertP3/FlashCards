@@ -277,7 +277,37 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.__attach_textbox_ctx()
         return self.textbox
+
+    def __attach_textbox_ctx(self):
+        self.textbox_ctx = widget.QMenu()
+        self.textbox_ctx.setStyleSheet(self.config["theme"]["ctx_style_sheet"])
+        self.textbox.setContextMenuPolicy(Qt.CustomContextMenu)
+        copy_action = widget.QAction("Copy", self)
+        copy_action.triggered.connect(self.textbox.copy)
+        self.textbox_ctx.addAction(copy_action)
+        sod_lookup = widget.QAction("Lookup", self)
+        sod_lookup.triggered.connect(self.__search_sod)
+        self.textbox_ctx.addAction(sod_lookup)
+        self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
+
+    def textbox_ctx_menu_open(self, position):
+        self.textbox_ctx.exec_(self.mapToGlobal(position))
+
+    def __search_sod(self):
+        sel = self.textbox.textCursor().selectedText()
+        if len(sel) > 0:
+            self.activate_tab("sod")
+            self.get_sod_sidewindow()
+            self.add_cmd_to_log(sel)
+            if self.side == 0:
+                lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.foreign_lng
+            else:
+                lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.native_lng
+            self.fcc_inst.execute_command(f"{lng} {sel}".split(" "))
+            self.move_cursor_to_end()
+
 
     def create_button(self, text, function=None) -> widget.QPushButton:
         new_button = widget.QPushButton(self)
@@ -334,7 +364,6 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
             if self.cards_seen != 0:
                 super().handle_creating_revision(seconds_spent=self.seconds_spent)
-                self.update_interface_parameters()
             else:
                 fcc_queue.put("Unable to save an empty file", importance=20)
 
@@ -468,6 +497,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self._handle_final_actions_mst()
         elif self.active_file.kind == self.db.KINDS.eph:
             self._handle_final_actions_eph()
+        elif self.active_file.kind == self.db.KINDS.lng:
+            self._handle_final_actions_lng()
 
     def _handle_final_actions_rev(self):
         if (
@@ -494,7 +525,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             return
         if self.config["final_actions"]["next_efc"]:
             self.load_next_efc()
-        
+
     def _handle_final_actions_eph(self):
         if (
             self.config["final_actions"]["init_ephemeral"]
@@ -504,6 +535,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             return
         if self.config["final_actions"]["next_efc"]:
             self.load_next_efc()
+
+    def _handle_final_actions_lng(self):
+        if self.config["final_actions"]["create_revision"]:
+            super().handle_creating_revision(seconds_spent=self.seconds_spent)
 
     def click_negative(self):
         self.result_negative()
@@ -516,7 +551,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
             self.update_score_button()
-            self.synopsis = self.get_rating_message()
+            if self.active_file.kind in {self.db.KINDS.rev, self.db.KINDS.mst}:
+                self.synopsis = self.get_rating_message()
+            else:
+                self.synopsis = self.config["synopsis"]
             self.is_synopsis = True
             self.display_text(self.synopsis)
             self.record_revision_to_db(seconds_spent=self.seconds_spent)
@@ -710,7 +748,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         if path == self.config["SOD"]["last_file"]:
             prev_tab = self.active_tab_ident
             self.activate_tab("sod")
-            self.tabs["sod"]["fcc_instance"].sod_object.refresh_db()
+            self.tabs["sod"]["fcc_ins"].sod_object.refresh_db()
             self.activate_tab(prev_tab)
         # if path == "./src/res/config.json":
         #     log.debug("Config updated")  # TODO

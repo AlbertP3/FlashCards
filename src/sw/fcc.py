@@ -30,7 +30,7 @@ class FccSideWindow:
             window_title="Console",
             console_prompt=self.DEFAULT_PS1,
             get_x_sidewindow=self.__get_fcc_sidewindow,
-            run_x_command=self.run_fcc_command,
+            run_x_command=self.run_cmd,
         )
 
         self.create_tab(
@@ -38,11 +38,11 @@ class FccSideWindow:
             window_title="Search Online Dictionaries",
             console_prompt=self.DEFAULT_PS1,
             get_x_sidewindow=self.__get_fcc_sidewindow,
-            run_x_command=self.run_fcc_command,
+            run_x_command=self.run_cmd,
         )
         self.activate_tab("sod")
         self.console.setGeometry(0, 0, *self.config["geo"]["sod"])
-        self.tabs["sod"]["fcc_instance"].sod([])
+        self.tabs["sod"]["fcc_ins"].sod([])
 
         self.activate_tab("fcc")
 
@@ -64,7 +64,7 @@ class FccSideWindow:
             "cmds_cursor": 0,
             "get_x_sidewindow": get_x_sidewindow,
             "run_x_command": run_x_command,
-            "fcc_instance": FCC(self),
+            "fcc_ins": FCC(self),
         }
         self.side_window_titles[ident] = window_title
         self.create_ks_mapping(ident)
@@ -80,7 +80,7 @@ class FccSideWindow:
         self.CMDS_LOG = self.tabs[ident]["cmds_log"]
         self.CMDS_CURSOR = self.tabs[ident]["cmds_cursor"]
         self.console = self.tabs[ident]["console"]
-        self.fcc_inst = self.tabs[ident]["fcc_instance"]
+        self.fcc_inst = self.tabs[ident]["fcc_ins"]
         self.fcc_inst.update_console_id(self.tabs[ident]["console"])
         self.tmp_cmd = self.tabs[ident]["tmp_cmd"]
         self.get_terminal_sidewindow = self.tabs[ident]["get_x_sidewindow"]
@@ -258,7 +258,7 @@ class FccSideWindow:
                 self.CONSOLE_LOG[-1] += cmd
         self.CMDS_CURSOR = 0
 
-    def run_fcc_command(self):
+    def run_cmd(self):
         cmd = self.console.toPlainText().split("\n")[-1][len(self.CONSOLE_PROMPT) :]
         self.add_cmd_to_log(cmd)
         self.fcc_inst.execute_command(cmd.split(" "))

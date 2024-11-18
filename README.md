@@ -1,8 +1,8 @@
-# FlashCards 1.4.4
+# FlashCards 1.4.5
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-144)
+- [FlashCards](#flashcards-145)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -77,6 +77,7 @@ Statistics shows scores for each time currently loaded *Revision* was reviewed. 
 
 Search Online Dictionaries facilitates managing cards in the datasets via a command line interface - translation for the searched phrase are fetched from the online/local service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the 'help' command - a local source can also be used. Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate. Ultimately, a card can be added relying solely on the user input by entering the manual mode (manual_mode_sep)
 - type \help to get a list of tips and available commands
+- Quick lookup is available by selecting a part of the displayed card's text and clicking RMB
 - It is normal for the separating line not to align perfectly, as shown above. It is due to different pixel widths of certain characters such as 車 compared to an 'a' (of which both have len()=1) or using non-monospaced fonts. To alleviate this issue, a Caliper is used to measure actual pixel widths of characters and pads the cell with \u2009 (half-width space) instead of \u0020 (normal whitespace) as some fonts may remain in the asian input mode thus using double-width space.
 
 ## EFC Model Optimizer
@@ -169,8 +170,8 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | rcc       | Reverse Current Card - changes sides of currently displayed card and updates the source file                                              |
 | mcr       | Modify Card Result - allows changing pos/neg for the current card                                                                         |
 | dcc       | Delete Current Card - deletes card both in current set and in the file                                                                    |
-| lbi       | Load By Index, loads a range of cards. Syntax: start_index *end_index                                                                     |
-| iln       | Incremental Last N - executes *lbi* with parameters stored in cache. Syntax: *lim_cards                                                   |
+| cfi       | Create From ILN - creates a new temporary Language set using ILN cache. Syntax: *<signature>                                              |
+| sis       | Show ILN Statistics - display number of new cards for each cached set                                                                     |
 | efc       | Ebbinghaus Forgetting Curve - Optional *SIGNATURES else select active - shows table with EFC data                                         |
 | mcp       | Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}                                  |
 | sck       | Show Config Key: Syntax: sck *{sub_dict} {key}                                                                                            |
@@ -195,6 +196,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | cre       | Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, stat |
 | cfg       | Config - manage the config file. Arguments: save, load, restart                                                                           |
 | dbg       | Debug - display debug info                                                                                                                |
+| dmp       | Dump Session Data - save config, update cache and create a tmpfcs file                                                                    |
     
 
 ## Optional Features
@@ -224,35 +226,35 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | SOD files_list                | faciliate switching by specifying files available to SOD. Skipped if empty                                                  |
 | mistakes_review_interval_days | recommend the mistakes file to be reviewed each N days                                                                      |
 | hiding_tips                   | remove *pattern* from the displayed text by following the *policy*                                                          |
-| final_actions                  | an action to be performed after pressing next_button on synopsis. Example: create an *ephemeral* from mistakes             |
+| final_actions                 | an action to be performed after pressing next_button on synopsis. Example: create an *ephemeral* from mistakes              |
 | next_efc                      | on shortcut *next_efc* will load a recommended file by following the policy                                                 |
 | sigenpat                      | defines pattern used for naming new *Revision* files. It is appended with NUM on creation                                   |
 | min_eph_cards                 | minimum number of mistakes that triggers creation of an *Ephemeral*                                                         |
 
 
 ## Keyboard Shortcuts
-| *Name*       | *Key*    | *Description*                                                  |
-| ------------ | -------- | -------------------------------------------------------------- |
-| next         | "Right"  | go to next card or mark as posivite                            |
-| prev         | "Left"   | go to previous card                                            |
-| negative     | "Down"   | mark current card as negative                                  |
-| reverse      | "Up"     | reverse side of the current card                               |
-| del_cur_card | "d"      | remove current card from the set (does not affect source file) |
-| load_again   | "r"      | load again the current set                                     |
-| timespent    | "t"      | open TimeSpent sidewindow                                      |
-| progress     | "p"      | open Progress sidewindow                                       |
-| config       | "q"      | open Settings sidewindow                                       |
-| fcc          | "c"      | open Console sidewindow                                        |
-| efc          | "e"      | open EFC sidewindow                                            |
-| load         | "l"      | open Load sidewindow                                           |
-| mistakes     | "m"      | open Mistakes sidewindow                                       |
-| stats        | "s"      | open Statistics sidewindow                                     |
-| next_efc     | "n"      | load next recommendation                                       |
-| run_command  | "Insert" | placeholder. Executed on 'Enter'                               |
-| save         | "w"      | save current file or create a revision                         |
-| sod          | "f"      | open SOD sidewindow                                            |
-| hint         | "h"      | show a hint for current card                                   |
-| last_seen    | "g"      | go to the last seen card                                       |
+| *Name*       | *Key*  | *Description*                                                  |
+| ------------ | ------ | -------------------------------------------------------------- |
+| next         | Right  | go to next card or mark as posivite                            |
+| prev         | Left   | go to previous card                                            |
+| negative     | Down   | mark current card as negative                                  |
+| reverse      | Up     | reverse side of the current card                               |
+| del_cur_card | d      | remove current card from the set (does not affect source file) |
+| load_again   | r      | load again the current set                                     |
+| timespent    | t      | open TimeSpent sidewindow                                      |
+| progress     | p      | open Progress sidewindow                                       |
+| config       | q      | open Settings sidewindow                                       |
+| fcc          | c      | open Console sidewindow                                        |
+| efc          | e      | open EFC sidewindow                                            |
+| load         | l      | open Load sidewindow                                           |
+| mistakes     | m      | open Mistakes sidewindow                                       |
+| stats        | s      | open Statistics sidewindow                                     |
+| next_efc     | n      | load next recommendation                                       |
+| run_command  | Insert | placeholder. Executed on 'Enter'                               |
+| save         | w      | save current file or create a revision                         |
+| sod          | f      | open SOD sidewindow                                            |
+| hint         | h      | show a hint for current card                                   |
+| last_seen    | g      | go to the last seen card                                       |
 
 
 ## ToDo

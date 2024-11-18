@@ -1,3 +1,4 @@
+import logging
 import PyQt5.QtWidgets as widget
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -6,6 +7,7 @@ from utils import fcc_queue
 from cfg import config
 from stats import Stats
 
+log = logging.getLogger("GUI")
 
 class ProgressSideWindow(Stats):
 
@@ -33,8 +35,9 @@ class ProgressSideWindow(Stats):
         try:
             self.arrange_progress_sidewindow(lngs or self.config["languages"])
             self.open_side_window(self.progress_layout, "progress")
-        except ValueError:
-            fcc_queue.put("No data found for Progress")
+        except ValueError as e:
+            fcc_queue.put("No data found for Progress", importance=30)
+            log.error(e, exc_info=True)
 
     def arrange_progress_sidewindow(self, lngs: set):
         self.get_data_for_progress(lngs)

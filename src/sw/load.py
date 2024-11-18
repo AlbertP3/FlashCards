@@ -51,31 +51,39 @@ class LoadSideWindow:
         # Fill
         self.fill_flashcard_files_list()
         if self.files_count:
-            self.flashcard_files_qlist.setCurrentRow(self.cur_load_index)
+            self._files_qlist.setCurrentRow(self.cur_load_index)
 
     def get_flashcard_files_list(self):
-        self.flashcard_files_qlist = widget.QListWidget(self)
-        self.flashcard_files_qlist.setFixedWidth(self.textbox_width)
-        self.flashcard_files_qlist.setFont(self.BUTTON_FONT)
-        self.flashcard_files_qlist.setStyleSheet(self.textbox_stylesheet)
-        self.flashcard_files_qlist.setVerticalScrollBar(self.get_scrollbar())
-        self.flashcard_files_qlist.itemClicked.connect(self.__lsw_qlist_onclick)
-        return self.flashcard_files_qlist
+        self._files_qlist = widget.QListWidget(self)
+        self._files_qlist.setFixedWidth(self.textbox_width)
+        self._files_qlist.setFont(self.BUTTON_FONT)
+        self._files_qlist.setStyleSheet(self.textbox_stylesheet)
+        self._files_qlist.setVerticalScrollBar(self.get_scrollbar())
+        self._files_qlist.itemClicked.connect(self.__lsw_qlist_onclick)
+        widget.QShortcut(
+            QtGui.QKeySequence("Home"), self._files_qlist
+        ).activated.connect(lambda: self._files_qlist.setCurrentRow(0))
+        widget.QShortcut(
+            QtGui.QKeySequence("End"), self._files_qlist
+        ).activated.connect(
+            lambda: self._files_qlist.setCurrentRow(self._files_qlist.count() - 1)
+        )
+        return self._files_qlist
 
     def __lsw_qlist_onclick(self, item):
-        self.cur_load_index = self.flashcard_files_qlist.currentRow()
+        self.cur_load_index = self._files_qlist.currentRow()
 
     def fill_flashcard_files_list(self):
         self.db.update_fds()
         self.load_map, i = dict(), 0
         for fd in self.db.get_sorted_languages():
-            self.flashcard_files_qlist.addItem(
+            self._files_qlist.addItem(
                 f"{self.config['icons']['language']} {fd.basename}"
             )
             self.load_map[i] = fd.filepath
             i += 1
         for fd in self.db.get_sorted_mistakes():
-            self.flashcard_files_qlist.addItem(
+            self._files_qlist.addItem(
                 f"{self.config['icons']['mistakes']} {fd.basename}"
             )
             self.load_map[i] = fd.filepath
@@ -86,10 +94,10 @@ class LoadSideWindow:
                 prefix = self.config["icons"]["initial"]
             else:
                 prefix = self.config["icons"]["revision"]
-            self.flashcard_files_qlist.addItem(f"{prefix} {fd.basename}")
+            self._files_qlist.addItem(f"{prefix} {fd.basename}")
             self.load_map[i] = fd.filepath
             i += 1
-        self.files_count = self.flashcard_files_qlist.count()
+        self.files_count = self._files_qlist.count()
 
     def create_load_button(self):
         load_button = widget.QPushButton(self)
@@ -109,9 +117,9 @@ class LoadSideWindow:
             self.cur_load_index = 0
         else:
             self.cur_load_index = new_index
-        self.flashcard_files_qlist.setCurrentRow(self.cur_load_index)
+        self._files_qlist.setCurrentRow(self.cur_load_index)
 
     def load_selected_file(self):
         self.initiate_flashcards(
-            self.db.files[self.load_map[self.flashcard_files_qlist.currentRow()]]
+            self.db.files[self.load_map[self._files_qlist.currentRow()]]
         )

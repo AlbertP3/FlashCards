@@ -4,6 +4,7 @@
     "textbox_style_sheet": "color: #e8e8e8; background-color: #14213d; border-radius: 5px;line-height: 12%; margin:0px;",
     "button_style_sheet": "background-color: #14213d; color: #e8e8e8; border-radius: 5px;",
     "hint_style_sheet": "background-color: #14213d; color: #e8e8e8; border-radius: 5px;",
+    "ctx_style_sheet": "*{background-color: #242426; color: #E0E0E0;} QMenu::item {background-color: #242426; color: #E0E0E0;} QMenu::item:selected {background-color: #303032;}",
     "stat_bar_color": "#9c5300",
     "stat_background_color": "#14213f",
     "stat_chart_background_color": "#14213f",

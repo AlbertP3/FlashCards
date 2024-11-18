@@ -9,6 +9,7 @@ import DBAC.api as api
 from SOD.init import SODspawn
 from EMO.init import EMOSpawn
 from CMG.init import CMGSpawn
+from main_window_logic import MainWindowLogic
 
 log = logging.getLogger("FCC")
 
@@ -16,7 +17,7 @@ log = logging.getLogger("FCC")
 class FCC:
     # Flashcards console commands allows access to extra functionality
 
-    def __init__(self, mw):
+    def __init__(self, mw: MainWindowLogic):
         self.mw = mw
         self.config = config
         self.console = self.mw.console
@@ -26,8 +27,8 @@ class FCC:
             "rcc": "Reverse Current Card - changes sides of currently displayed card and updates the source file",
             "mcr": "Modify Card Result - allows changing pos/neg for the current card",
             "dcc": "Delete Current Card - deletes card both in current set and in the file",
-            "lbi": "Load By Index, loads a range of cards. Syntax: <start_index> *<end_index>",
-            "iln": "Incremental Last N - executes *lbi* with parameters stored in cache. Syntax: *<lim_cards>",
+            "cfi": "Create From ILN - creates a new temporary Language set using ILN cache. Syntax: *<signature> *<lim>",
+            "sis": "Show ILN Statistics",
             "efc": "Ebbinghaus Forgetting Curve - Optional *[SIGNATURES] else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision",
             "mcp": "Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>",
             "sck": "Show Config Key: Syntax: sck *<sub_dict> <key>",
@@ -51,6 +52,7 @@ class FCC:
             "cre": "Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext <true,false>, stat",
             "cfg": "Config - manage the config file. Arguments: save, load, restart",
             "dbg": "Debug - display debug info",
+            "dmp": "Dump Session Data - save config, update cache and create a tmpfcs file",
         }
 
     def execute_command(self, parsed_input: list, followup_prompt: bool = True):
@@ -192,40 +194,63 @@ class FCC:
             msg = self.mw.db.save_language(dataset_ordered, self.mw.active_file)
             self.post_fcc("Card removed\n" + msg)
 
-    @require_regular_file
-    def lbi(self, parsed_cmd):
-        """Load By Index"""
+    def sis(self, parsed_cmd):
+        """Show ILN Statistics"""
+        self.post_fcc(f"{'File':^34} | New Cards")
+        for k, v in self.config["ILN"].items():
+            try:
+                end = self.mw.db.load_dataset(
+                    self.mw.db.files[k], do_shuffle=False, activate=False
+                ).shape[0]
+                nc = end - v
+            except KeyError:
+                nc = 0
+            self.post_fcc(f"{k:<34} | {nc}")
+
+    def cfi(self, parsed_cmd: list[str]):
+        """Create From ILN"""
+        if len(parsed_cmd) == 1:
+            parsed_cmd.append(self.mw.active_file.signature)
+
         try:
-            start = int(parsed_cmd[1])
-            if len(parsed_cmd) == 3 and parsed_cmd[2]:
-                end = int(parsed_cmd[2])
-            else:
-                end = None
-        except ValueError:
-            self.post_fcc("Only numeric arguments are accepted")
-            return
+            fd = [
+                fd for fd in self.mw.db.files.values() if fd.signature == parsed_cmd[1]
+            ][0]
         except IndexError:
-            self.post_fcc("Invalid Syntax! Expected: <start_index> *<end_index>")
+            self.post_fcc(f"{parsed_cmd[1]} does not exist")
             return
 
         try:
-            data = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False).iloc[
-                start:end, :
-            ]
-        except IndexError:
-            self.post_fcc("Index out of range!")
+            start = self.config["ILN"][fd.filepath]
+            self.post_fcc(f"Found cached last index for {parsed_cmd[1]}: {start}")
+        except KeyError:
+            start = 0
+            self.post_fcc("No cached data")
+
+        try:
+            end = start + int(parsed_cmd[-1])
+        except ValueError:
+            end = None
+
+        data = self.mw.db.load_dataset(fd, do_shuffle=False, activate=False)
+        len_parent = end or data.shape[0]
+        data = data.iloc[start:end, :]
+        len_child = data.shape[0]
+
+        if len_child <= 0:
+            self.post_fcc("Not enough cards")
             return
 
         if not self.mw.active_file.tmp:
             self.mw.file_monitor_del_path(self.mw.active_file.filepath)
         self.mw.db.load_tempfile(
-            basename=f"{self.mw.active_file.lng}{len(data)}",
+            basename=f"{fd.lng}{len_child}",
             data=data,
-            lng=self.mw.active_file.lng,
+            lng=fd.lng,
             kind=self.mw.db.KINDS.lng,
             parent={
-                "filepath": self.mw.active_file.filepath,
-                "len_": end or self.mw.active_file.data.shape[0],
+                "filepath": fd.filepath,
+                "len_": len_parent,
             },
         )
         self.mw.db.shuffle_dataset()
@@ -233,39 +258,7 @@ class FCC:
         self.mw.update_backend_parameters()
         self.mw.update_interface_parameters()
         self.mw.reset_timer()
-        self.post_fcc(f"Loaded {len(data)} cards")
-
-    @require_regular_file
-    def iln(self, parsed_cmd):
-        """Incremental Load N"""
-        try:
-            i_prev = self.config["ILN"][self.mw.active_file.filepath]
-            self.post_fcc(f"Using cached data [{i_prev}]")
-        except KeyError:
-            i_prev = 0
-            self.post_fcc("No cached data")
-
-        try:
-            lim = int(parsed_cmd[1])
-            if lim <= 0:
-                self.post_fcc("Limit must be greater than 0")
-                return
-            end = lim + i_prev
-        except ValueError:  # handle optional arguments
-            if parsed_cmd[1] == "stat":
-                new_cards = self.mw.active_file.data.shape[0] - i_prev
-                self.post_fcc(f"{new_cards} new cards")
-            else:
-                self.post_fcc("Limit must be a numeric!")
-            return
-        except IndexError:
-            end = None
-
-        diff = self.mw.active_file.data.shape[0] - i_prev
-        if diff <= 1:
-            self.post_fcc("No new cards")
-            return
-        self.lbi(["lbi", i_prev, end])
+        self.post_fcc(f"Loaded {len_child} cards")
 
     def efc(self, parsed_cmd):
         """Show EFC Table"""
@@ -406,7 +399,7 @@ class FCC:
             if old_filepath in self.config["SOD"]["files_list"]:
                 self.config["SOD"]["files_list"].remove(old_filepath)
                 self.config["SOD"]["files_list"].append(new_filepath)
-            self.mw.tabs["sod"]["fcc_instance"].sod_object.cli.update_file_handler(
+            self.mw.tabs["sod"]["fcc_ins"].sod_object.cli.update_file_handler(
                 new_filepath
             )
             self.mw.activate_tab(prev_tab)
@@ -701,3 +694,10 @@ class FCC:
         self.post_fcc(f"{self.mw.should_hide_tips()=}")
         self.post_fcc(f"{self.mw.db.filters=}")
         self.post_fcc(f"db_rows={self.mw.db.db.shape[0]}")
+
+    def dmp(self, parsed_cmd: list[str]):
+        """Dump Session Data"""
+        if self.mw.active_file.tmp and self.mw.active_file.data.shape[0] > 1:
+            self.mw.db.create_tmp_file_backup()
+        self.mw.create_session_snapshot()
+        self.mw.config.save()

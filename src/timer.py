@@ -1,7 +1,10 @@
 import pandas as pd
-from utils import *
+from utils import format_seconds_to
 from cfg import config
 import DBAC.api as api
+import logging
+
+log = logging.getLogger("BKD")
 
 
 class Timespent_BE:
@@ -9,14 +12,24 @@ class Timespent_BE:
     def __init__(self):
         self.config = config
 
-    def get_timespent_printout(self, last_n, interval):
+    def get_timespent_printout(self, last_n, interval) -> str:
         self.dbapi = api.DbOperator()
         self.dbapi.refresh()
-        data = self._get_data_for_timespent(last_n, interval)
-        printout = self._format_timespent_data(data)
+        try:
+            data = self._get_data_for_timespent(last_n, interval)
+            printout = self._format_timespent_data(data)
+        except IndexError as e:
+            log.error(e, exc_info=True)
+            lngs = self.config["languages"]
+            printout = self.post_fcc(
+                f'DATE  {"  ".join(lngs)}{"  TOTAL" if len(lngs)>1 else ""}'
+            )
+        except Exception as e:
+            log.error(e, exc_info=True)
+            printout = f"{type(e).__name__} occurred. See log file for more details.."
         return printout
 
-    def _get_data_for_timespent(self, last_n, interval):
+    def _get_data_for_timespent(self, last_n, interval) -> pd.DataFrame:
         lngs = self.config["languages"]
         db = self.dbapi.get_filtered_by_lng(lngs)
 
@@ -39,11 +52,8 @@ class Timespent_BE:
 
         # cut db
         db = db.iloc[-last_n:, :]
-        try:
-            db = db.loc[db.iloc[:, 4] != 0]
-        except IndexError:
-            self.post_fcc(f'DATE  {"  ".join(lngs)}{"  TOTAL" if len(lngs)>1 else ""}')
-            return
+        if db.shape[0] == 0:
+            raise IndexError("No records found for TimeSpent")
 
         # format dates in time-containing columns
         visible_total_time = list()
