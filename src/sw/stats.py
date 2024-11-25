@@ -1,4 +1,6 @@
+from PyQt5 import QtGui
 import PyQt5.QtWidgets as widget
+from PyQt5.QtCore import Qt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
@@ -81,6 +83,7 @@ class StatsSideWindow(Stats):
                 ha="center",
                 va="bottom",
                 color=self.config["theme"]["stat_chart_text_color"],
+                fontsize=self.config["theme"]["console_font_size"],
             )
 
         # horizontal line at EFC predicate
@@ -94,6 +97,7 @@ class StatsSideWindow(Stats):
                 f'{self.config["efc_threshold"]}%',
                 va="bottom",
                 color="#a0a0a0",
+                fontsize=self.config["theme"]["console_font_size"],
             )
 
         # add labels - time spent
@@ -113,6 +117,7 @@ class StatsSideWindow(Stats):
                 xytext=(0, 5),
                 ha="center",
                 color=self.config["theme"]["stat_chart_text_color"],
+                fontsize=self.config["theme"]["console_font_size"],
             )
 
         # Style
@@ -121,7 +126,10 @@ class StatsSideWindow(Stats):
         ax.yaxis.set_major_formatter(FormatStrFormatter("%.0f"))
         ax.set_ylim([0, self.total_cards + 2])
         ax.tick_params(
-            colors=self.config["theme"]["stat_chart_text_color"], labelrotation=0, pad=1
+            colors=self.config["theme"]["stat_chart_text_color"],
+            labelrotation=0,
+            pad=1,
+            labelsize=self.config["theme"]["console_font_size"],
         )
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
@@ -134,13 +142,13 @@ class StatsSideWindow(Stats):
     def get_stats_table(self):
         self.stat_table = widget.QGridLayout()
 
-        self.repeated_times_button = self.create_button(
+        self.repeated_times_button = self.create_stats_button(
             f'Repeated\n{self.sum_repeated} time{"s" if self.sum_repeated > 1 else ""}'
         )
-        self.days_from_last_rev = self.create_button(
+        self.days_from_last_rev = self.create_stats_button(
             f'Last Revision\n{str(self.last_rev_days_ago).split(",")[0]} ago'
         )
-        self.days_from_creation = self.create_button(
+        self.days_from_creation = self.create_stats_button(
             f'Created\n{str(self.days_ago).split(",")[0]} ago'
         )
 
@@ -185,9 +193,22 @@ class StatsSideWindow(Stats):
             )
             self.missing_records_adj = f"±{fmt_time}"
 
-        self.total_time_spent = self.create_button(f"Spent\n{self.missing_records_adj}")
+        self.total_time_spent = self.create_stats_button(f"Spent\n{self.missing_records_adj}")
 
         self.stat_table.addWidget(self.repeated_times_button, 0, 0)
         self.stat_table.addWidget(self.days_from_last_rev, 0, 1)
         self.stat_table.addWidget(self.days_from_creation, 0, 2)
         self.stat_table.addWidget(self.total_time_spent, 0, 3)
+
+    def create_stats_button(self, text: str) -> widget.QPushButton:
+        new_button = widget.QPushButton(self)
+        new_button.setMinimumHeight(self.config["dim"]["stats_btn_height"])
+        new_button.setFont(
+            QtGui.QFont(
+                self.config["theme"]["font"], self.config["theme"]["font_stats_size"]
+            )
+        )
+        new_button.setText(text)
+        new_button.setStyleSheet(self.config["theme"]["button_stylesheet"])
+        new_button.setFocusPolicy(Qt.NoFocus)
+        return new_button

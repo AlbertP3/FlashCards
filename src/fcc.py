@@ -701,3 +701,4 @@ class FCC:
             self.mw.db.create_tmp_file_backup()
         self.mw.create_session_snapshot()
         self.mw.config.save()
+        self.post_fcc("Dumped session data")

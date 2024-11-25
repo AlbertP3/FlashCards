@@ -14,11 +14,11 @@ class SummaryGenerator:
         self.db.refresh()
         self.signature = self.db.active_file.signature
         last_positives = self.db.get_last_positives(
-            self.signature, req_pos_not_zero=True
+            self.signature, req_not_first=True
         )
         max_positives = self.db.get_max_positives_count(self.signature)
         last_time_spent = self.db.get_last_time_spent(
-            self.signature, req_pos_not_zero=True
+            self.signature, req_not_first=True
         )
 
         self.__setup_parameters()
@@ -65,7 +65,7 @@ class SummaryGenerator:
     def __setup_parameters(self):
         if self.config["opt"]["dynamic_summary"]:
             self.db.filter_where_lng([self.db.active_file.lng])
-            self.db.filter_where_positives_not_zero()
+            self.db.filter_where_not_first()
             avg_cpm = self.db.get_avg_cpm()
             avg_score = self.db.get_avg_score()
         else:

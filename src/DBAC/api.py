@@ -51,6 +51,7 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
             "POSITIVES",
             "SEC_SPENT",
             "KIND",
+            "IS_FIRST",
         )
 
     def __validate_env(self):

@@ -14,8 +14,6 @@ class Stats:
     def get_data_for_current_revision(self, signature):
         self.db.refresh()
         self.db.filter_where_signature_is_equal_to(signature)
-
-        # get data
         self.chart_values = self.db.get_chart_positives()
         self.chart_dates = self.db.get_chart_dates()
         self.total_cards = self.db.get_total_words()

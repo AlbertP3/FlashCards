@@ -33,15 +33,8 @@ class LoadSideWindow:
 
     def arrange_load_window(self):
         # Window Parameters
-        self.buttons_height = 40
-        self.textbox_width = 375
-
-        # Style
-        self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
-        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
-        self.BUTTON_FONT = QtGui.QFont(
-            self.config["theme"]["font"], self.config["theme"]["font_button_size"]
-        )
+        self.__btn_height = self.config["dim"]["sw_load_btn_height"]
+        self.__qlist_width = self.config["dim"]["sw_load_qlist_width"]
 
         # Elements
         self.load_layout = widget.QGridLayout()
@@ -55,7 +48,7 @@ class LoadSideWindow:
 
     def get_flashcard_files_list(self):
         self._files_qlist = widget.QListWidget(self)
-        self._files_qlist.setFixedWidth(self.textbox_width)
+        self._files_qlist.setFixedWidth(self.__qlist_width)
         self._files_qlist.setFont(self.BUTTON_FONT)
         self._files_qlist.setStyleSheet(self.textbox_stylesheet)
         self._files_qlist.setVerticalScrollBar(self.get_scrollbar())
@@ -101,11 +94,11 @@ class LoadSideWindow:
 
     def create_load_button(self):
         load_button = widget.QPushButton(self)
-        load_button.setFixedHeight(self.buttons_height)
-        load_button.setFixedWidth(self.textbox_width)
+        load_button.setFixedHeight(self.__btn_height)
+        load_button.setFixedWidth(self.__qlist_width)
         load_button.setFont(self.BUTTON_FONT)
         load_button.setText("Load")
-        load_button.setStyleSheet(self.button_style_sheet)
+        load_button.setStyleSheet(self.button_stylesheet)
         load_button.clicked.connect(self.load_selected_file)
         return load_button
 

@@ -29,8 +29,8 @@ class MistakesSideWindow:
             fcc_queue.put("Mistakes are unavailable for a Language")
 
     def arrange_mistakes_window(self):
-        self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
-        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
+        self.textbox_stylesheet = self.config["theme"]["textbox_stylesheet"]
+        self.button_stylesheet = self.config["theme"]["button_stylesheet"]
         self.mistakes_layout = widget.QGridLayout()
         self.mistakes_layout.addWidget(self.create_mistakes_list(), 0, 0)
 

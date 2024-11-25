@@ -8,10 +8,10 @@ log = logging.getLogger("DBAC")
 
 class DbEFCQueries:
     def filter_for_efc_model(self, lngs: list = None):
-        # Remove mistakes, obsolete lngs and revs with POSITIVES=0
+        # Remove mistakes, obsolete lngs and first revs
         self.db = self.db[self.db["LNG"].isin(lngs or self.config["languages"])]
         self.db = self.db[self.db["KIND"] == self.KINDS.rev]
-        self.db = self.db.loc[self.db["POSITIVES"] != 0]
+        self.db = self.db.loc[self.db["IS_FIRST"] == 0]
         self.filters["EFC_MODEL"] = True
 
     def add_efc_metrics(self, fill_timespent=False):

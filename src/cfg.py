@@ -53,16 +53,17 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
         "check_interval_ms": cfg["popups"]["check_interval_ms"],
     }
-    numeric_gt_0 = {
-        "unreviewed_mistakes_percent": cfg["popups"]["triggers"][
-            "unreviewed_mistakes_percent"
-        ]
-    }
+    numeric_gt_0 = {}
     int_gte_0 = {
         "init_revs_cnt": cfg["init_revs_cnt"],
         "min_eph_cards": cfg["min_eph_cards"],
     }
-    numeric_gte_0 = {"init_revs_inth": cfg["init_revs_inth"]}
+    numeric_gte_0 = {
+        "init_revs_inth": cfg["init_revs_inth"],
+        "unreviewed_mistakes_percent": cfg["popups"]["triggers"][
+            "unreviewed_mistakes_percent"
+        ],
+    }
     numeric_any = {
         "days_to_new_rev": cfg["days_to_new_rev"],
         "pace_card_interval": cfg["pace_card_interval"],

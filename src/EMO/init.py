@@ -83,7 +83,8 @@ class EMOSpawn:
             elif self.cli.step == Steps.decide_model:
                 self.cli.decide_model(parsed_cmd)
             elif self.cli.step == Steps.decide_exit:
-                if parsed_cmd and parsed_cmd[0].lower() in {"yes", "y", "1"}:
+                if parsed_cmd and parsed_cmd[0].lower() in {"yes", "y", "1", ""}:
+                    fcc_queue.put("Model Selection cancelled")
                     self.remove_adapter()
                 else:
                     self.cli.show_model_stats()
@@ -91,6 +92,7 @@ class EMOSpawn:
             if self.cli.step == Steps.done:
                 if self.cli.accepted:
                     self.sout.mw.load_pickled_model()
+                    self.sout.mw._efc_last_calc_time = 0
                     self.remove_adapter()
                 else:
                     self.cli.prepare_exit()

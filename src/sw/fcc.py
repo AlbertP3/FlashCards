@@ -165,6 +165,7 @@ class FccSideWindow:
             self.console.append(cmd + self.tmp_cmd)
             self.CONSOLE_LOG.append(cmd)
         self.fcc_layout.addWidget(self.console, 0, 0)
+        self.console.ensureCursorVisible()
 
     def create_console(self) -> widget.QTextEdit:
         console = widget.QTextEdit(self)
@@ -172,7 +173,7 @@ class FccSideWindow:
         console.setFont(self.CONSOLE_FONT)
         console.setAcceptRichText(False)
         console.setStyleSheet(self.textbox_stylesheet)
-        console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        console.setVerticalScrollBar(self.get_scrollbar())
         console.contextMenuEvent = lambda *args, **kwargs: None
         self.overwrite_mouse_press_event(console)
         return console
@@ -267,9 +268,11 @@ class FccSideWindow:
     def move_cursor_to_end(self):
         self.console.moveCursor(QtGui.QTextCursor.End)
         self.cursor_moved_by_mouse = False
+        self.console.ensureCursorVisible()
 
     def move_cursor_to_start(self):
         cur = self.console.textCursor()
         cur.setPosition(self.promptend)
         self.console.setTextCursor(cur)
         self.cursor_moved_by_mouse = False
+        self.console.ensureCursorVisible()

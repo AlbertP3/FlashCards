@@ -39,14 +39,13 @@ class EFCSideWindow(EFC):
 
     def arrange_efc_window(self):
         # Style
-        self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
-        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
+        self.__qlist_stylesheet = self.config["theme"]["textbox_stylesheet"]
+        self.__btn_stylesheet = self.config["theme"]["button_stylesheet"]
         self.__efc_sw_font = QFont(
             self.config["theme"]["font"], self.config["theme"]["font_button_size"]
         )
-        self.textbox_width = 375
-        self.textbox_height = 200
-        self.buttons_height = 40
+        self.__qlist_width = self.config["dim"]["sw_efc_qlist_width"]
+        self.__btn_height = self.config["dim"]["sw_efc_btn_height"]
 
         # Elements
         self.efc_layout = widget.QGridLayout()
@@ -63,9 +62,10 @@ class EFCSideWindow(EFC):
 
     def create_recommendations_list(self):
         self.recoms_qlist = widget.QListWidget(self)
-        self.recoms_qlist.setFixedWidth(self.textbox_width)
+        self.recoms_qlist.setFixedWidth(self.__qlist_width)
         self.recoms_qlist.setFont(self.__efc_sw_font)
-        self.recoms_qlist.setStyleSheet(self.textbox_stylesheet)
+        self.recoms_qlist.setStyleSheet(self.__qlist_stylesheet)
+        self.recoms_qlist.setVerticalScrollBar(self.get_scrollbar())
         self.recoms_qlist.itemClicked.connect(self.__recoms_qlist_onclick)
         return self.recoms_qlist
 
@@ -74,11 +74,11 @@ class EFCSideWindow(EFC):
 
     def create_load_efc_button(self):
         efc_button = widget.QPushButton(self)
-        efc_button.setFixedHeight(self.buttons_height)
-        efc_button.setFixedWidth(self.textbox_width)
+        efc_button.setFixedHeight(self.__btn_height)
+        efc_button.setFixedWidth(self.__qlist_width)
         efc_button.setFont(self.__efc_sw_font)
         efc_button.setText("Load")
-        efc_button.setStyleSheet(self.button_style_sheet)
+        efc_button.setStyleSheet(self.__btn_stylesheet)
         efc_button.clicked.connect(self.load_selected_efc)
         return efc_button
 
@@ -98,11 +98,19 @@ class EFCSideWindow(EFC):
             self.del_side_window()
 
     def load_next_efc(self):
-        if self.config["next_efc"]["require_recorded"] and not self.is_recorded:
-            fcc_queue.put(
-                "Finish your current revision before proceeding", importance=30
-            )
-            return
+        if not self.is_recorded:
+            if self.config["next_efc"]["require_recorded"]:
+                fcc_queue.put(
+                    "Finish your current revision before proceeding", importance=30
+                )
+                return
+        elif (
+            self.config["next_efc"]["save_mistakes"]
+            and not self.is_initial_rev
+            and self.mistakes_list
+            and self.is_revision
+        ):
+            self.save_current_mistakes()
 
         if self.config["CRE"]["items"]:
             self.activate_tab("fcc")
@@ -118,10 +126,12 @@ class EFCSideWindow(EFC):
             fcc_queue.put("There are no EFC recommendations")
             return
 
-        if self.config["next_efc"]["reversed"]:
-            recs = reversed(recs)
         if self.config["next_efc"]["random"]:
             shuffle(recs)
+        if self.config["next_efc"]["reversed"]:
+            recs = reversed(recs)
+        if self.config["next_efc"]["new_first"]:
+            recs.sort(key=lambda x: x["is_init"], reverse=True)
 
         for rec in recs:
             _fd = self.db.files[rec["fp"]]

@@ -27,7 +27,7 @@ class CheckableComboBox(QComboBox):
     class Delegate(QStyledItemDelegate):
         def sizeHint(self, option, index):
             size = super().sizeHint(option, index)
-            size.setHeight(20)
+            size.setHeight(config["dim"]["sw_cfg_box_height"])
             return size
 
     def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
@@ -169,9 +169,8 @@ class ScrollableOptionsWidget(QWidget):
         self.config = config
         self.font = self.config["theme"]["font"]
         self.font_button_size = self.config["theme"]["font_button_size"]
-        self.button_height = self.config["theme"]["buttons_height"]
-        self.BUTTON_FONT = QFont(self.font, self.font_button_size)
-        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
+        self.button_height = self.config["dim"]["buttons_height"]
+        self.button_stylesheet = self.config["theme"]["button_stylesheet"]
         self.__create_layout()
         self.pos = self.__list_pos_gen()
 
@@ -210,9 +209,11 @@ class NotificationPopup(QWidget):
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setWordWrap(True)
         self.label.setFont(QFont(config["theme"]["font"], 12))
-        self.setFixedSize(int(self.parent().width() // 1.8), 45)
+        self.setFixedSize(
+            int(self.parent().width() // 1.8), config["dim"]["notification_height"]
+        )
         layout.addWidget(self.label)
-        self.setStyleSheet(config["theme"]["button_style_sheet"])
+        self.setStyleSheet(config["theme"]["button_stylesheet"])
         self.__configure_animations()
         self.__func = lambda: None
         self.is_visible = False

@@ -175,7 +175,6 @@ class CLI:
         sel_model = parsed_cmd[0].upper()
         if not sel_model:
             self.step = Steps.done
-            fcc_queue.put("Model Selection cancelled")
         elif sel_model not in self.available_models:
             self.cls()
             self.send_output("Selected model is not available. Try again")
@@ -202,7 +201,7 @@ class CLI:
         self.step = Steps.decide_model
 
     def decide_model(self, parsed_cmd: list):
-        if parsed_cmd[0].lower() in {"yes", "y", "1"}:
+        if parsed_cmd[0].lower() in {"yes", "y", "1", ""}:
             self._update_config_with_new_model()
             self.accepted = True
             self.step = Steps.done

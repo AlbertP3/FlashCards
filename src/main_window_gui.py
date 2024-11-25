@@ -8,7 +8,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import MainWindowLogic
 from sw import SideWindows
-from utils import fcc_queue, format_seconds_to
+from utils import fcc_queue, format_seconds_to, Caliper
 from DBAC.api import FileDescriptor
 from widgets import NotificationPopup
 
@@ -113,11 +113,11 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def configure_window(self):
         # Window Parameters
         self.LAYOUT_MARGINS = (1, 1, 1, 1)
-        self.TEXTBOX_HEIGHT = self.config["theme"]["textbox_height"]
-        self.BUTTONS_HEIGHT = self.config["theme"]["buttons_height"]
+        self.TEXTBOX_HEIGHT = self.config["dim"]["textbox_height"]
+        self.BUTTONS_HEIGHT = self.config["dim"]["buttons_height"]
 
         # Set Window Parameters
-        self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH, "icon.ico")))
+        self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH, "icon.png")))
         self.set_geometry(self.config["geo"]["main"])
 
         # Shortcuts
@@ -148,7 +148,6 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.nav_mapping[ident] = {k: lambda: "" for k in self.config["kbsc"].keys()}
 
     def build_layout(self):
-        # Layout & Style
         if self.layout is None:
             self.layout = widget.QGridLayout()
             self.setLayout(self.layout)
@@ -158,11 +157,12 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.FONT_TEXTBOX_SIZE = self.config["theme"]["font_textbox_size"]
         self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
         self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
+        self._tvpf: float = self.config["dim"]["textbox_viewport_factor"]
 
         # Organize Layout
-        self.setStyleSheet(self.config["theme"]["main_style_sheet"])
-        self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
-        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
+        self.setStyleSheet(self.config["theme"]["main_stylesheet"])
+        self.textbox_stylesheet = self.config["theme"]["textbox_stylesheet"]
+        self.button_stylesheet = self.config["theme"]["button_stylesheet"]
 
         self.layout_first_row = widget.QGridLayout()
         self.layout_second_row = widget.QGridLayout()
@@ -213,27 +213,22 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.words_button = self.create_button(self.config["icons"]["words"])
 
         # Widgets
-        self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
-
         self.layout_second_row.addWidget(self.prev_button, 0, 0)
         self.layout_second_row.addWidget(self.reverse_button, 0, 1)
         self.layout_second_row.addLayout(self.layout_next_navigation, 0, 2)
-
         self.layout_next_navigation.addWidget(self.next_button, 0, 0)
         self.layout_next_navigation.addWidget(self.negative_button, 0, 0)
         self.layout_next_navigation.addWidget(self.positive_button, 0, 1)
         self.negative_button.hide()
         self.positive_button.hide()
-
         self.layout_third_row.addWidget(self.load_again_button, 2, 1)
         self.layout_third_row.addWidget(self.del_button, 2, 3)
         self.layout_third_row.addWidget(self.save_button, 2, 4)
-
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
-
         self.create_sod_button()
         self.create_hint_qbutton()
+        self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
 
     def create_sod_button(self):
         self.sod_button = self.create_button(
@@ -245,9 +240,11 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def create_hint_qbutton(self):
         self.hint_qbutton = widget.QPushButton(self.config["icons"]["hint"], self)
         self.hint_qbutton.setFont(QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE))
-        self.hint_qbutton.setFixedSize(25, 25)
+        self.hint_qbutton.setFixedSize(
+            self.config["dim"]["hint_size"], self.config["dim"]["hint_size"]
+        )
         self.hint_qbutton.setFocusPolicy(Qt.NoFocus)
-        self.hint_qbutton.setStyleSheet(self.config["theme"]["hint_style_sheet"])
+        self.hint_qbutton.setStyleSheet(self.config["theme"]["hint_stylesheet"])
         self.hint_qbutton.clicked.connect(self.show_hint)
         self.layout_first_row.addWidget(
             self.hint_qbutton, 0, 0, Qt.AlignBottom | Qt.AlignRight
@@ -256,7 +253,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def get_scrollbar(self) -> widget.QScrollBar:
         scrollbar = widget.QScrollBar()
-        scrollbar.setStyleSheet(self.config["theme"]["scrollbar_style_sheet"])
+        scrollbar.setStyleSheet(self.config["theme"]["scrollbar_stylesheet"])
         return scrollbar
 
     def set_theme(self):
@@ -277,12 +274,33 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.textbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.__attach_textbox_ctx()
+        self.textbox_caliper = Caliper(QtGui.QFontMetricsF(self.TEXTBOX_FONT))
+        self.textbox_chr_pix_space = int(
+            self._tvpf
+            * self.config["geo"]["main"][0]
+            * (self.config["geo"]["main"][1] - self.config["dim"]["buttons_height"] * 3)
+            / self.textbox_caliper.sch
+        )
+        self.textbox.setViewportMargins(0, int(self.textbox_caliper.sch), 0, 0)
+        self.textbox.showEvent = self.__textbox_show_event
         return self.textbox
+
+    def __textbox_show_event(self, event):
+        widget.QTextEdit.showEvent(self.textbox, event)
+        self._set_textbox_chr_space()
+
+    def _set_textbox_chr_space(self, event=None):
+        viewport = self.textbox.viewport()
+        self.textbox_chr_pix_space = viewport.width() * int(
+            viewport.height() / self.textbox_caliper.sch
+        )
 
     def __attach_textbox_ctx(self):
         self.textbox_ctx = widget.QMenu()
-        self.textbox_ctx.setStyleSheet(self.config["theme"]["ctx_style_sheet"])
+        self.textbox_ctx.setStyleSheet(self.config["theme"]["ctx_stylesheet"])
+        self.textbox_ctx.setFont(self.BUTTON_FONT)
         self.textbox.setContextMenuPolicy(Qt.CustomContextMenu)
         copy_action = widget.QAction("Copy", self)
         copy_action.triggered.connect(self.textbox.copy)
@@ -308,14 +326,13 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.fcc_inst.execute_command(f"{lng} {sel}".split(" "))
             self.move_cursor_to_end()
 
-
     def create_button(self, text, function=None) -> widget.QPushButton:
         new_button = widget.QPushButton(self)
         new_button.setMinimumHeight(self.BUTTONS_HEIGHT)
         new_button.setFont(self.BUTTON_FONT)
         new_button.setText(text)
         new_button.setFocusPolicy(Qt.NoFocus)
-        new_button.setStyleSheet(self.button_style_sheet)
+        new_button.setStyleSheet(self.button_stylesheet)
         if function is not None:
             new_button.clicked.connect(function)
         return new_button
@@ -330,14 +347,27 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             text, chg = self.tips_hide_re.subn("", text)
         else:
             chg = 0
-        width_factor = max(int((self.frameGeometry().width()) / 37 - len(text) / 30), 0)
-        self.FONT_TEXTBOX_SIZE = self.config["theme"]["min_font_size"] + width_factor
-        self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
-        self.textbox.setText(text)
-        padding = max(0, 90 - len(text) * 0.7)
-        self.textbox.setStyleSheet(
-            f"{self.textbox_stylesheet} padding-top: {padding}%;"
+        # Ensure text fits the textbox
+        overflow = (
+            self.textbox_caliper.pixlen(text) - self._tvpf * self.textbox_chr_pix_space
         )
+        if overflow > 0:
+            offset = int(
+                self.FONT_TEXTBOX_SIZE * overflow / self.textbox_chr_pix_space + 1
+            )
+            margin_top = (
+                int(
+                    self._tvpf
+                    * self.textbox_caliper.sch
+                    * (1 - offset / self.FONT_BUTTON_SIZE)
+                ),
+            )
+            self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE - offset)
+            self.textbox.setViewportMargins(0, margin_top, 0, 0)
+        else:
+            self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
+            self.textbox.setViewportMargins(0, int(self.textbox_caliper.sch), 0, 0)
+        self.textbox.setText(text)
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
         if chg:
             self.hint_qbutton.show()
@@ -1011,6 +1041,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
         self.config["geo"][self.side_window_id] = self.geometry().getRect()[2:]
+        try:
+            self._set_textbox_chr_space()
+        except AttributeError:
+            pass
 
     def moveEvent(self, a0: QtGui.QMoveEvent) -> None:
         if self.popup.is_visible:

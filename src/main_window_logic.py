@@ -83,7 +83,9 @@ class MainWindowLogic:
     def record_revision_to_db(self, seconds_spent=0):
         if self.active_file.kind == self.db.KINDS.mst:
             self.config["unreviewed_mistakes"] = 0
-        self.db.create_record(self.total_words, self.positives, seconds_spent)
+        self.db.create_record(
+            self.total_words, self.positives, seconds_spent, is_first=0
+        )
         self.is_recorded = True
         if self.active_file.filepath in self.config["CRE"]["items"]:
             self._update_cre()
@@ -171,7 +173,9 @@ class MainWindowLogic:
         newfp = self.db.save_revision(
             self.active_file.data.iloc[: self.cards_seen + 1, :]
         )
-        self.db.create_record(self.cards_seen + 1, self.positives, seconds_spent)
+        self.db.create_record(
+            self.cards_seen + 1, self.positives, seconds_spent, is_first=1
+        )
         self.load_flashcards(self.db.files[newfp])
         self.update_backend_parameters()
         self.update_interface_parameters()

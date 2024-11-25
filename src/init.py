@@ -39,7 +39,6 @@ except Exception as e:
 
 configure_logging(cfg.config["log_level"])
 log = logging.getLogger("FCS")
-builtins.print = lambda *args, **kwargs: log.debug(" ".join(map(str, args)))
 log.debug(f"*** Flashcards {cfg.config['version']} ***")
 
 from main_window_gui import MainWindowGUI

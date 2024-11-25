@@ -12,7 +12,7 @@ class DBQueries:
     def __init__(self):
         self.db = pd.DataFrame()
         self.filters = dict(
-            POS_NOT_ZERO=False,
+            NOT_FIRST=False,
             BY_LNG=False,
             BY_SIGNATURE=False,
             EFC_MODEL=False,
@@ -35,6 +35,7 @@ class DBQueries:
                     "TOTAL": "Int64",
                     "POSITIVES": "Int64",
                     "SEC_SPENT": "Int64",
+                    "IS_FIRST": "Int64",
                 },
             )
             self.__db = self.db.copy(deep=True)
@@ -76,7 +77,7 @@ class DBQueries:
         return inner
 
     @write_op
-    def create_record(self, words_total, positives, seconds_spent):
+    def create_record(self, words_total, positives, seconds_spent, is_first):
         """Appends a new record to the db for the active file"""
         record = {
             "TIMESTAMP": datetime.now().strftime(self.TSFORMAT),
@@ -86,6 +87,7 @@ class DBQueries:
             "POSITIVES": positives,
             "SEC_SPENT": seconds_spent,
             "KIND": self.active_file.kind,
+            "IS_FIRST": is_first,
         }
         with open(self.DB_PATH, "a") as fd:
             dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
@@ -139,23 +141,23 @@ class DBQueries:
         else:
             return self.db[self.db[col] == condition]
 
-    def get_last_positives(self, signature=None, req_pos_not_zero=False) -> int:
+    def get_last_positives(self, signature=None, req_not_first=False) -> int:
         try:
             res = self.get_filtered_db_if("SIGNATURE", signature)
-            if req_pos_not_zero:
+            if req_not_first:
                 for _, row in res.iloc[::-1].iterrows():
-                    if row["POSITIVES"] != 0:
+                    if row["IS_FIRST"] == 0:
                         return int(row["POSITIVES"])
             return int(res["POSITIVES"].iloc[-1])
         except:
             return 0
 
-    def get_last_time_spent(self, signature=None, req_pos_not_zero=False) -> int:
+    def get_last_time_spent(self, signature=None, req_not_first=False) -> int:
         try:
             res = self.get_filtered_db_if("SIGNATURE", signature)
-            if req_pos_not_zero:
+            if req_not_first:
                 for _, row in res.iloc[::-1].iterrows():
-                    if row["POSITIVES"] != 0:
+                    if row["IS_FIRST"] == 0:
                         return int(row["SEC_SPENT"])
             return int(res["SEC_SPENT"].iloc[-1])
         except:
@@ -233,8 +235,8 @@ class DBQueries:
         # get data for each repetition - if more than 1 repetition
         # occured on one day - retrieve result for the last one.
         res = self.get_filtered_db_if("SIGNATURE", signature)
-        res = res[self.db["POSITIVES"] != 0]
-        res["TIME"] = res["TIMESTAMP"].apply(lambda x: x.dayofyear)
+        res = res[self.db["IS_FIRST"] == 0]
+        res["TIME"] = res["TIMESTAMP"].dt.date
         res = res.drop_duplicates(subset=["TIME"], keep="last")
         return res[return_col_name]
 
@@ -251,10 +253,9 @@ class DBQueries:
         else:
             return self.db
 
-    def filter_where_positives_not_zero(self):
-        # modifies self.db to contain only revision with POSITIVES != 0
-        self.db = self.db.loc[self.db["POSITIVES"] != 0]
-        self.filters["POS_NOT_ZERO"] = True
+    def filter_where_not_first(self):
+        self.db = self.db.loc[self.db["IS_FIRST"] == 0]
+        self.filters["NOT_FIRST"] = True
 
     def filter_where_signature_is_equal_to(self, signature):
         self.db = self.db.loc[self.db["SIGNATURE"] == signature]

@@ -30,13 +30,6 @@ class ConfigSideWindow:
         self.open_side_window(self.config_layout, "config")
 
     def arrange_config_sidewindow(self):
-        self.buttons_height = 45
-        self.textbox_width = 275
-        self.textbox_stylesheet = self.config["theme"]["textbox_style_sheet"]
-        self.button_style_sheet = self.config["theme"]["button_style_sheet"]
-        self.BUTTON_FONT = QtGui.QFont(
-            self.config["theme"]["font"], self.config["theme"]["font_button_size"]
-        )
         self.config_layout = widget.QGridLayout()
         self.opt_scroll_area = widget.QScrollArea()
         self.opt_scroll_area.setWidgetResizable(True)
@@ -387,7 +380,7 @@ class ConfigSideWindow:
             allow_multichoice=multi_choice,
             width=self.config["geo"]["config"][0] // 2,
         )
-        cb.setStyleSheet(self.button_style_sheet)
+        cb.setStyleSheet(self.button_stylesheet)
         cb.setFont(self.BUTTON_FONT)
         if isinstance(value, dict):
             value = [k for k, v in value.items() if v is True]
@@ -403,7 +396,7 @@ class ConfigSideWindow:
         qle = widget.QLineEdit(self)
         qle.setText(str(value))
         qle.setFont(self.BUTTON_FONT)
-        qle.setStyleSheet(self.button_style_sheet)
+        qle.setStyleSheet(self.button_stylesheet)
         self.opts_layout.add_widget(qle, self.create_label(text))
         return qle
 
@@ -412,7 +405,7 @@ class ConfigSideWindow:
         label.setText(text)
         label.setFont(self.BUTTON_FONT)
         label.setText(text)
-        label.setStyleSheet(self.button_style_sheet)
+        label.setStyleSheet(self.button_stylesheet)
         return label
 
     def create_blank_widget(self):

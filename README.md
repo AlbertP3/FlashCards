@@ -1,4 +1,4 @@
-# FlashCards 1.4.5
+# FlashCards 1.4.6
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
