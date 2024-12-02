@@ -444,7 +444,6 @@ class Dict_Services:
         self.available_dicts = set(self.dicts.keys())
         self.available_dicts_short = set(v["shortname"] for v in self.dicts.values())
         self.dict_service: str = self.config["SOD"]["dict_service"]
-        self.WORDS_LIMIT = self.config["SOD"]["results_limit"]
         self.word = None
         self.mute_warning = False
         self.source_lng = None
@@ -501,4 +500,4 @@ class Dict_Services:
         except Exception as e:
             trans, orig, warn = [], [], ["⨷ Unknown Error"]
             log.error(e, exc_info=True)
-        return trans[: self.WORDS_LIMIT], orig[: self.WORDS_LIMIT], warn
+        return trans, orig, warn

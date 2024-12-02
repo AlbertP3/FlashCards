@@ -32,7 +32,7 @@ class StatsSideWindow(Stats):
         self.add_shortcut("sod", self.get_sod_sidewindow, "stats")
 
     def get_stats_sidewindow(self):
-        if self.active_file.kind in self.db.GRADED:
+        if self.active_file.kind == self.db.KINDS.rev:
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, "stats")
         else:

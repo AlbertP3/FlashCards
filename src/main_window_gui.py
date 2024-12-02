@@ -102,7 +102,20 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.config.cache["snapshot"]["session"] = None
 
     def __onload_notifications(self):
+        self.notify_on_outstanding_initial_revisions()
         self.notify_on_mistakes()
+
+    def get_geo(self, id_: str) -> list[int, int]:
+        if self.config["opt"]["keep_window_size"]:
+            return self.config["geo"]["default"]
+        else:
+            return self.config["geo"][id_]
+
+    def set_geo(self, id_: str, val: list[int]) -> None:
+        if self.config["opt"]["keep_window_size"]:
+            self.config["geo"]["default"] = val
+        else:
+            self.config["geo"][id_] = val
 
     def build_interface(self):
         self.configure_window()
@@ -118,7 +131,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
         # Set Window Parameters
         self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH, "icon.png")))
-        self.set_geometry(self.config["geo"]["main"])
+        self.set_geometry(self.get_geo("main"))
 
         # Shortcuts
         self.used_keybindings = set()
@@ -157,7 +170,6 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.FONT_TEXTBOX_SIZE = self.config["theme"]["font_textbox_size"]
         self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
         self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
-        self._tvpf: float = self.config["dim"]["textbox_viewport_factor"]
 
         # Organize Layout
         self.setStyleSheet(self.config["theme"]["main_stylesheet"])
@@ -227,8 +239,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
         self.create_sod_button()
-        self.create_hint_qbutton()
         self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
+        self.create_hint_qbutton()
 
     def create_sod_button(self):
         self.sod_button = self.create_button(
@@ -276,14 +288,12 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.textbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.__attach_textbox_ctx()
-        self.textbox_caliper = Caliper(QtGui.QFontMetricsF(self.TEXTBOX_FONT))
-        self.textbox_chr_pix_space = int(
-            self._tvpf
-            * self.config["geo"]["main"][0]
-            * (self.config["geo"]["main"][1] - self.config["dim"]["buttons_height"] * 3)
-            / self.textbox_caliper.sch
+        self.tb_cal = Caliper(self.TEXTBOX_FONT)
+        self.tb_vp = (
+            0.9 * self.get_geo("main")[0],
+            0.9 * (self.get_geo("main")[1] - 3 * self.config["dim"]["buttons_height"]),
         )
-        self.textbox.setViewportMargins(0, int(self.textbox_caliper.sch), 0, 0)
+        self.tb_nl = self.tb_vp[1] // self.tb_cal.ls
         self.textbox.showEvent = self.__textbox_show_event
         return self.textbox
 
@@ -292,10 +302,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self._set_textbox_chr_space()
 
     def _set_textbox_chr_space(self, event=None):
-        viewport = self.textbox.viewport()
-        self.textbox_chr_pix_space = viewport.width() * int(
-            viewport.height() / self.textbox_caliper.sch
-        )
+        _, _, w, h = self.textbox.geometry().getRect()
+        self.tb_nl = h // self.tb_cal.sch
+        self.tb_vp = (w, h)
 
     def __attach_textbox_ctx(self):
         self.textbox_ctx = widget.QMenu()
@@ -327,15 +336,23 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.move_cursor_to_end()
 
     def create_button(self, text, function=None) -> widget.QPushButton:
-        new_button = widget.QPushButton(self)
-        new_button.setMinimumHeight(self.BUTTONS_HEIGHT)
-        new_button.setFont(self.BUTTON_FONT)
-        new_button.setText(text)
-        new_button.setFocusPolicy(Qt.NoFocus)
-        new_button.setStyleSheet(self.button_stylesheet)
+        button = widget.QPushButton(self)
+        button.setMinimumHeight(self.BUTTONS_HEIGHT)
+        button.setFont(self.BUTTON_FONT)
+        button.setText(text)
+        button.setFocusPolicy(Qt.NoFocus)
+        button.setStyleSheet(self.button_stylesheet)
         if function is not None:
-            new_button.clicked.connect(function)
-        return new_button
+            button.clicked.connect(function)
+        return button
+
+    def create_label(self, text) -> widget.QLabel:
+        label = widget.QLabel(self)
+        label.setFont(self.BUTTON_FONT)
+        label.setText(text)
+        label.setFocusPolicy(Qt.NoFocus)
+        label.setStyleSheet(self.button_stylesheet)
+        return label
 
     def show_hint(self):
         if not self.is_synopsis:
@@ -347,28 +364,23 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             text, chg = self.tips_hide_re.subn("", text)
         else:
             chg = 0
+
         # Ensure text fits the textbox
-        overflow = (
-            self.textbox_caliper.pixlen(text) - self._tvpf * self.textbox_chr_pix_space
-        )
-        if overflow > 0:
-            offset = int(
-                self.FONT_TEXTBOX_SIZE * overflow / self.textbox_chr_pix_space + 1
-            )
-            margin_top = (
-                int(
-                    self._tvpf
-                    * self.textbox_caliper.sch
-                    * (1 - offset / self.FONT_BUTTON_SIZE)
-                ),
-            )
-            self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE - offset)
-            self.textbox.setViewportMargins(0, margin_top, 0, 0)
+        nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
+        if nl > self.tb_nl:
+            font_size = int(self.FONT_TEXTBOX_SIZE * self.tb_nl / nl)
+            caliper = Caliper(QtGui.QFont(self.FONT, font_size))
+            nl_ = caliper.strwidth(text) // self.tb_vp[0] + 1
+            margin_top = int((self.tb_vp[1] - caliper.ls * nl_) / 2)
         else:
-            self.textbox.setFontPointSize(self.FONT_TEXTBOX_SIZE)
-            self.textbox.setViewportMargins(0, int(self.textbox_caliper.sch), 0, 0)
+            font_size = self.FONT_TEXTBOX_SIZE
+            margin_top = int((self.tb_vp[1] - self.tb_cal.ls * nl - self.tb_cal.ls) / 2)
+        margin_top = margin_top if margin_top > 0 else 0
+        self.textbox.setFontPointSize(font_size)
         self.textbox.setText(text)
+        self.textbox.setViewportMargins(0, margin_top, 0, 0)
         self.textbox.setAlignment(QtCore.Qt.AlignCenter)
+
         if chg:
             self.hint_qbutton.show()
         else:
@@ -661,13 +673,13 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.set_main_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 0)
         self.side_window_id = name
-        self.set_geometry(self.config["geo"][name])
+        self.set_geometry(self.get_geo(name))
 
     def del_side_window_in_place(self):
         self.remove_layout(self.side_window_layout)
         self.set_main_widgets_visibility(True)
         self.side_window_id = "main"
-        self.set_geometry(self.config["geo"]["main"])
+        self.set_geometry(self.get_geo("main"))
 
     def open_side_by_side(self, layout, name):
         if self.side_window_id != name:
@@ -683,9 +695,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.textbox.setFixedWidth(self.textbox.width())
         self.textbox.setFixedHeight(self.textbox.height())
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.config["geo"][name][0])
-        self.setFixedHeight(self.config["geo"]["main"][1])
-        self.setMinimumWidth(self.config["geo"]["main"][0])
+        self.setFixedWidth(self.get_geo(name)[0])
+        self.setFixedHeight(self.get_geo("main")[1])
+        self.setMinimumWidth(self.get_geo("main")[0])
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
 
     def del_side_window_side_by_side(self):
@@ -693,7 +705,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.unfix_size(self.textbox)
         self.remove_layout(self.side_window_layout)
         self.side_window_id = "main"
-        self.set_geometry(self.config["geo"]["main"])
+        self.set_geometry(self.get_geo("main"))
 
     def unfix_size(self, obj):
         obj.setMinimumWidth(0)
@@ -1040,9 +1052,11 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.config.save()
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        self.config["geo"][self.side_window_id] = self.geometry().getRect()[2:]
+        self.set_geo(self.side_window_id, self.geometry().getRect()[2:])
         try:
             self._set_textbox_chr_space()
+            self.tabs["sod"]["fcc_ins"].sod_object.cli.__class__.pix_lim.fget.cache_clear()
+            self.tabs["sod"]["fcc_ins"].sod_object.cli.__class__.lines_lim.fget.cache_clear()
         except AttributeError:
             pass
 

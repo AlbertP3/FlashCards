@@ -4,7 +4,6 @@ import re
 from copy import deepcopy
 import PyQt5.QtWidgets as widget
 from PyQt5.QtCore import Qt
-from PyQt5 import QtGui
 from data_types import HIDE_TIPS_POLICIES
 from widgets import CheckableComboBox, ScrollableOptionsWidget
 from utils import fcc_queue
@@ -52,9 +51,14 @@ class ConfigSideWindow:
             self.confirm_and_close_button = self.create_button(
                 "Confirm changes", self.commit_config_update
             )
+        self.confirm_and_close_button.setStyleSheet(
+            self.config["theme"]["label_stylesheet"]
+        )
 
     def fill_config_list(self):
         self._init_confirm_and_close_button()
+
+        self.opts_layout.add_label("Main")
         self.card_default_cbx = self.cfg_cbx(
             self.config["card_default_side"],
             ["0", "1", "Random"],
@@ -66,38 +70,10 @@ class ConfigSideWindow:
             self.db.get_available_languages(),
             text="Languages",
         )
-        self.days_to_new_rev_qle = self.cfg_qle(
-            self.config["days_to_new_rev"], text="Days between new revisions"
-        )
-        self.mst_rev_int_qle = self.cfg_qle(
-            self.config["mistakes_review_interval_days"],
-            text="Days between mistake reviews",
-        )
         self.optional_featuers_cbx = self.cfg_cbx(
             self.config["opt"],
             list(self.config["opt"].keys()),
             text="Optional features",
-        )
-        self.init_rep_qle = self.cfg_qle(
-            self.config["init_revs_cnt"], text="Initial revision count"
-        )
-        self.init_revh_qle = self.cfg_qle(
-            self.config["init_revs_inth"], text="Initial revision interval"
-        )
-        self.check_file_monitor_cbx = self.cfg_cbx(
-            self.config["allow_file_monitor"],
-            ["True", "False"],
-            multi_choice=False,
-            text="File monitor",
-        )
-        self.mistakes_buffer_qle = self.cfg_qle(
-            self.config["mistakes_buffer"], text="Mistakes buffer"
-        )
-        self.theme_cbx = self.cfg_cbx(
-            self.config["active_theme"],
-            self.themes_dict.keys(),
-            multi_choice=False,
-            text="Theme",
         )
         self.final_actions_cbx = self.cfg_cbx(
             self.config["final_actions"],
@@ -108,9 +84,67 @@ class ConfigSideWindow:
         self.pace_card_qle = self.cfg_qle(
             self.config["pace_card_interval"], text="Card pacing"
         )
-        self.csv_sniffer_qle = self.cfg_qle(
-            self.config["csv_sniffer"], text="CSV sniffer"
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Mistakes")
+        self.mistakes_buffer_qle = self.cfg_qle(
+            self.config["mistakes_buffer"], text="Mistakes buffer"
         )
+        self.mst_rev_int_qle = self.cfg_qle(
+            self.config["mistakes_review_interval_days"],
+            text="Days between mistake reviews",
+        )
+        self.popup_trigger_unrevmistakes_qle = self.cfg_qle(
+            self.config["popups"]["triggers"]["unreviewed_mistakes_percent"],
+            text="Popup trigger mistakes cnt",
+        )
+        self.min_eph_cards_qle = self.cfg_qle(
+            self.config["min_eph_cards"],
+            text="Ephemeral min cards",
+        )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Theme")
+        self.theme_cbx = self.cfg_cbx(
+            self.config["active_theme"],
+            self.themes_dict.keys(),
+            multi_choice=False,
+            text="Theme",
+        )
+        self.font_qle = self.cfg_qle(
+            self.config["theme"]["font"],
+            text="Font",
+        )
+        self.font_size_qle = self.cfg_qle(
+            self.config["theme"]["font_textbox_size"],
+            text="Font size",
+        )
+        self.console_font_qle = self.cfg_qle(
+            self.config["theme"]["console_font"],
+            text="Console font",
+        )
+        self.console_font_size_qle = self.cfg_qle(
+            self.config["theme"]["console_font_size"],
+            text="Console font size",
+        )
+        self.button_font_size_qle = self.cfg_qle(
+            self.config["theme"]["font_button_size"],
+            text="Button font size",
+        )
+        self.default_suffix_qle = self.cfg_qle(
+            self.config["theme"]["default_suffix"],
+            text="Default suffix",
+        )
+        self.cell_alignment_cbx = self.cfg_cbx(
+            self.config["cell_alignment"],
+            ["left", "right"],
+            multi_choice=False,
+            text="Cell alignment",
+        )
+        self.synopsis_qle = self.cfg_qle(self.config["synopsis"], text="Synopsis")
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("EFC")
         self.efc_threshold_qle = self.cfg_qle(
             self.config["efc_threshold"], text="EFC threshold"
         )
@@ -122,6 +156,18 @@ class ConfigSideWindow:
             list(self.config["next_efc"].keys()),
             text="EFC next policy",
         )
+        self.days_to_new_rev_qle = self.cfg_qle(
+            self.config["days_to_new_rev"], text="Days between new revisions"
+        )
+        self.init_rep_qle = self.cfg_qle(
+            self.config["init_revs_cnt"], text="Initial revision count"
+        )
+        self.init_revh_qle = self.cfg_qle(
+            self.config["init_revs_inth"], text="Initial revision interval"
+        )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("SOD")
         self.sod_init_lng_cbx = self.cfg_cbx(
             self.config["SOD"]["initial_language"],
             ["auto", "native", "foreign"],
@@ -134,12 +180,18 @@ class ConfigSideWindow:
             content=sorted(self.db.get_all_files(dirs={self.db.LNG_DIR})),
             text="SOD files list",
         )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("CRE")
         self.cre_settings_cbx = self.cfg_cbx(
             self.config["CRE"]["opt"],
             list(self.config["CRE"]["opt"].keys()),
             multi_choice=True,
             text="CRE options",
         )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Hide Tips")
         self.hide_tips_policy_rev_cbx = self.cfg_cbx(
             self.config["hide_tips"]["policy"][self.db.KINDS.rev],
             [
@@ -176,16 +228,9 @@ class ConfigSideWindow:
             multi_choice=False,
             text="Hide tips connector",
         )
-        self.timespent_len_qle = self.cfg_qle(
-            self.config["timespent_len"], text="Timespent display length"
-        )
-        self.synopsis_qle = self.cfg_qle(self.config["synopsis"], text="Synopsis")
-        self.cell_alignment_cbx = self.cfg_cbx(
-            self.config["cell_alignment"],
-            ["left", "right"],
-            multi_choice=False,
-            text="Cell alignment",
-        )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("EMO")
         self.emo_discretizer_cbx = self.cfg_cbx(
             self.config["EMO"]["discretizer"],
             ["yeo-johnson", "decision-tree"],
@@ -210,6 +255,20 @@ class ConfigSideWindow:
         self.emo_min_records_qle = self.cfg_qle(
             self.config["EMO"]["min_records"], text="EMO min records"
         )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Notifications")
+        self.popup_allowed_cbx = self.cfg_cbx(
+            self.config["popups"]["allowed"],
+            list(self.config["popups"]["allowed"].keys()),
+            text="Allowed popups",
+        )
+        self.popup_importance_cbx = self.cfg_cbx(
+            self.config["popups"]["importance"],
+            multi_choice=False,
+            content=["0", "10", "20", "30", "40", "50"],
+            text="Popup importance threshold",
+        )
         self.popup_timeout_qle = self.cfg_qle(
             self.config["popups"]["timeout_ms"], text="Popup timeout (msec)"
         )
@@ -223,16 +282,9 @@ class ConfigSideWindow:
             self.config["popups"]["check_interval_ms"],
             text="Popup check interval (msec)",
         )
-        self.popup_importance_cbx = self.cfg_cbx(
-            self.config["popups"]["importance"],
-            multi_choice=False,
-            content=["0", "10", "20", "30", "40", "50"],
-            text="Popup importance threshold",
-        )
-        self.popup_trigger_unrevmistakes_qle = self.cfg_qle(
-            self.config["popups"]["triggers"]["unreviewed_mistakes_percent"],
-            text="Popup trigger mistakes cnt",
-        )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Signature Generation Patterns")
         self.sigenpat_qle_group = {
             lng: self.cfg_qle(
                 self.config["sigenpat"].get(lng, ""),
@@ -240,14 +292,29 @@ class ConfigSideWindow:
             )
             for lng in self.config["languages"]
         }
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Miscellaneous")
+        self.check_file_monitor_cbx = self.cfg_cbx(
+            self.config["allow_file_monitor"],
+            ["True", "False"],
+            multi_choice=False,
+            text="File monitor",
+        )
+        self.csv_sniffer_qle = self.cfg_cbx(
+            self.config["csv_sniffer"], 
+            ["off", ",", ";"],
+            multi_choice=False,
+            text="CSV sniffer",
+        )
+        self.timespent_len_qle = self.cfg_qle(
+            self.config["timespent_len"], text="Timespent display length"
+        )
         self.cache_hist_size_qle = self.cfg_qle(
             self.config["cache_history_size"],
             text="Cache history size",
         )
-        self.min_eph_cards_qle = self.cfg_qle(
-            self.config["min_eph_cards"],
-            text="Ephemeral min cards",
-        )
+        self.opts_layout.add_spacer()
         self.config_layout.addWidget(self.confirm_and_close_button)
 
     def collect_settings(self) -> dict:
@@ -268,7 +335,6 @@ class ConfigSideWindow:
         new_cfg["mistakes_buffer"] = int(self.mistakes_buffer_qle.text())
         new_cfg["active_theme"] = self.theme_cbx.currentDataList()[0]
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
-        new_cfg["theme"].update(self.themes_dict[new_cfg["active_theme"]])
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.text()
         new_cfg["SOD"]["initial_language"] = self.sod_init_lng_cbx.currentDataList()[0]
@@ -308,12 +374,22 @@ class ConfigSideWindow:
         new_cfg["popups"]["triggers"]["unreviewed_mistakes_percent"] = float(
             self.popup_trigger_unrevmistakes_qle.text()
         )
+        new_cfg["popups"]["allowed"] = self.popup_allowed_cbx.currentDataDict()
         for k, v in self.sigenpat_qle_group.items():
             new_cfg["sigenpat"][k] = v.text()
         new_cfg["cache_history_size"] = int(self.cache_hist_size_qle.text())
         new_cfg["min_eph_cards"] = int(self.min_eph_cards_qle.text())
+        new_cfg["theme"]["font"] = self.font_qle.text()
+        new_cfg["theme"]["console_font"] = self.console_font_qle.text()
+        new_cfg["theme"]["font_textbox_size"] = int(self.font_size_qle.text())
+        new_cfg["theme"]["console_font_size"] = int(self.console_font_size_qle.text())
+        new_cfg["theme"]["font_button_size"] = int(self.button_font_size_qle.text())
+        new_cfg["theme"]["default_suffix"] = self.default_suffix_qle.text()
 
         if new_cfg["active_theme"] != self.config["active_theme"]:
+            new_cfg["theme"].update(self.themes_dict[new_cfg["active_theme"]])
+            self.funcs_to_restart.append(self.set_theme)
+        elif new_cfg["theme"] != self.config["theme"]:
             self.funcs_to_restart.append(self.set_theme)
 
         if new_cfg["allow_file_monitor"] != self.config["allow_file_monitor"]:
@@ -399,14 +475,6 @@ class ConfigSideWindow:
         qle.setStyleSheet(self.button_stylesheet)
         self.opts_layout.add_widget(qle, self.create_label(text))
         return qle
-
-    def create_label(self, text) -> widget.QLabel:
-        label = widget.QLabel(self)
-        label.setText(text)
-        label.setFont(self.BUTTON_FONT)
-        label.setText(text)
-        label.setStyleSheet(self.button_stylesheet)
-        return label
 
     def create_blank_widget(self):
         blank = widget.QLabel(self)

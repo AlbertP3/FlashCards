@@ -1,8 +1,7 @@
-from PyQt5.QtGui import QFontMetricsF
+from PyQt5.QtGui import QFont, QFontMetricsF
 from collections import deque
 from functools import cache
 from datetime import timedelta, datetime
-import unicodedata
 import os
 import platform
 import re
@@ -17,19 +16,31 @@ from cfg import config
 log = logging.getLogger(__name__)
 
 
-def perftm(func):
-    def timed(*args, **kwargs):
-        caller = inspect.stack()[1][3]
-        t1 = perf_counter()
-        result = func(*args, **kwargs)
-        t2 = perf_counter()
-        log.debug(
-            f"{func.__name__} called by {caller} took {(t2-t1)*1000:0.4f}ms",
-            stacklevel=2,
-        )
-        return result
+def perftm(buffer_size: int = 1):
+    buffer = deque()
+    cnt = 0
 
-    return timed
+    def decorator(func):
+        def timed(*args, **kwargs):
+            nonlocal cnt
+            t1 = perf_counter()
+            result = func(*args, **kwargs)
+            t2 = perf_counter()
+            buffer.append(t2 - t1)
+            cnt += 1
+            if cnt >= buffer_size:
+                exe_time = sum(buffer) / cnt
+                log.debug(
+                    f"{func.__name__} took avg {(exe_time)*1000:0.3f}ms over {cnt} calls",
+                    stacklevel=2,
+                )
+                cnt = 0
+                buffer.clear()
+            return result
+
+        return timed
+
+    return decorator
 
 
 def singleton(cls):
@@ -192,17 +203,18 @@ def flatten_dict(d: dict, root: str = "BASE", lim_chars: int = None) -> list:
 class Caliper:
     """Works on pixels!"""
 
-    def __init__(self, fmetrics: QFontMetricsF):
-        self.fmetrics = fmetrics
-        self.scw = self.fmetrics.widthChar("W")  # Standard Character Width
-        self.sch = self.fmetrics.height()  # Standard Character Height
+    def __init__(self, qFont: QFont):
+        self.fmetrics = QFontMetricsF(qFont)
+        self.scw = self.fmetrics.maxWidth()
+        self.sch = self.fmetrics.height()
+        self.ls = self.fmetrics.lineSpacing()
 
     @cache
     def pixlen(self, char: str) -> float:
         return self.fmetrics.width(char)
 
     def strwidth(self, text: str) -> float:
-        return sum(self.pixlen(c) for c in text)
+        return self.fmetrics.horizontalAdvance(text)
 
     def abbreviate(self, text: str, pixlim: float) -> str:
         """Trims text to the given pixel-length"""
@@ -226,7 +238,7 @@ class Caliper:
         pixlim: float,
         suffix: str = "…",
         align: str = "left",
-        filler: str = "\u2009",
+        filler: str = "\u0020",
     ) -> str:
         if text.isascii():
             rem_text = self.abbreviate(text, pixlim)
@@ -235,7 +247,7 @@ class Caliper:
             should_add_suffix = pixlim <= self.scw
         else:
             out = deque()
-            for c in unicodedata.normalize("NFKC", text):
+            for c in text:
                 len_c = self.pixlen(c)
                 if pixlim >= len_c:
                     out.append(c)
@@ -258,10 +270,10 @@ class Caliper:
 
         if align == "center":
             d, r = divmod(pixlim, 2)
-            lpad = filler * int(round((d + r) / self.strwidth(filler), 0))
-            rpad = filler * int(round(d / self.strwidth(filler), 0))
+            rpad = filler * int(round((d + r) / self.strwidth(filler), 2))
+            lpad = filler * int(round(d / self.strwidth(filler), 2))
         else:
-            pad = filler * int(round(pixlim / self.strwidth(filler), 0))
+            pad = filler * int(round(pixlim / self.strwidth(filler), 2))
             lpad = pad if align == "right" else ""
             rpad = pad if align == "left" else ""
 
@@ -269,19 +281,19 @@ class Caliper:
 
     def make_table(
         self,
-        data: list[list],
+        data: list[list[str]],
         pixlim: Union[float, list],
         headers: list = None,
-        suffix="…",
+        suffix="-",
         align: Union[str, list] = "left",
-        filler: str = "\u2009",
+        filler: str = "\u0020",
         sep: str = " | ",
         keep_last_border: bool = True,
     ):
         if isinstance(pixlim, (float, int)):
             part = pixlim / len(data[0])
             pixlim = [part for _ in range(len(data[0]))]
-        sepw = (self.pixlen(sep) * (len(data[0])) - int(keep_last_border)) / len(
+        sepw = (self.strwidth(sep) * (len(data[0])) - int(keep_last_border)) / len(
             data[0]
         )
         for i, p in enumerate(pixlim):

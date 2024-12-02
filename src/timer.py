@@ -117,7 +117,7 @@ class Timespent_BE:
             for l in lngs
         ]
         res += "\n" + "-" * len(res.split("\n")[1])
-        res += "\n∑    " + " " * (col_space - 3) + " ".join(self.visible_total_time)
+        res += "\nSub  " + " " * (col_space - 3) + " ".join(self.visible_total_time)
         res += "\nTotal" + " " * (col_space - 3) + " ".join(self.gt_times)
         res += "\nToday" + " " * (col_space - 3) + " ".join(self.time_spent_today)
         return res

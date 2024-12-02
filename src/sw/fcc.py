@@ -41,7 +41,7 @@ class FccSideWindow:
             run_x_command=self.run_cmd,
         )
         self.activate_tab("sod")
-        self.console.setGeometry(0, 0, *self.config["geo"]["sod"])
+        self.console.setGeometry(0, 0, *self.get_geo("sod"))
         self.tabs["sod"]["fcc_ins"].sod([])
 
         self.activate_tab("fcc")
@@ -120,7 +120,7 @@ class FccSideWindow:
             self.config["theme"]["console_font"],
             self.config["theme"]["console_font_size"],
         )
-        self.caliper = Caliper(QtGui.QFontMetricsF(self.CONSOLE_FONT))
+        self.caliper = Caliper(self.CONSOLE_FONT)
 
     @property
     def curpos(self) -> int:
@@ -175,6 +175,8 @@ class FccSideWindow:
         console.setStyleSheet(self.textbox_stylesheet)
         console.setVerticalScrollBar(self.get_scrollbar())
         console.contextMenuEvent = lambda *args, **kwargs: None
+        console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        console.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.overwrite_mouse_press_event(console)
         return console
 

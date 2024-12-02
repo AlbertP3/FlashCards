@@ -52,6 +52,9 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "show_animation_ms": cfg["popups"]["show_animation_ms"],
         "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
         "check_interval_ms": cfg["popups"]["check_interval_ms"],
+        "font_textbox_size": cfg["theme"]["font_textbox_size"],
+        "console_font_size": cfg["theme"]["console_font_size"],
+        "font_button_size": cfg["theme"]["font_button_size"],
     }
     numeric_gt_0 = {}
     int_gte_0 = {
@@ -60,14 +63,17 @@ def __validate(cfg: dict) -> tuple[bool, set]:
     }
     numeric_gte_0 = {
         "init_revs_inth": cfg["init_revs_inth"],
-        "unreviewed_mistakes_percent": cfg["popups"]["triggers"][
-            "unreviewed_mistakes_percent"
-        ],
     }
     numeric_any = {
         "days_to_new_rev": cfg["days_to_new_rev"],
         "pace_card_interval": cfg["pace_card_interval"],
     }
+    numeric_gt0_lte_1 = {
+        "unreviewed_mistakes_percent": cfg["popups"]["triggers"][
+            "unreviewed_mistakes_percent"
+        ],
+    }
+
     for k, v in int_gt_0.items():
         try:
             if v < 1:
@@ -97,6 +103,14 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         try:
             if v < 0:
                 errs.add(f"'{k}' must be >= 0 but got {v}")
+            elif not isinstance(v, (int, float, complex)):
+                raise TypeError
+        except TypeError:
+            errs.add(f"'{k}' must be an integer but got '{type(v)}'")
+    for k, v in numeric_gt0_lte_1.items():
+        try:
+            if not 0 < v <= 1:
+                errs.add(f"'{k}' must be int (0,1> but got {v}")
             elif not isinstance(v, (int, float, complex)):
                 raise TypeError
         except TypeError:

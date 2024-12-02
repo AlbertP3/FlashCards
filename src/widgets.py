@@ -31,11 +31,15 @@ class CheckableComboBox(QComboBox):
             return size
 
     def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
+        self.qfont = QFont(
+            config["theme"]["font"], config["theme"]["font_button_size"]
+        )
         self.allow_multichoice = allow_multichoice
         self._width = width or self.lineEdit().width()
         super().__init__(layout)
 
         # Make the combo editable to set a custom text, but readonly
+        self.setFont(self.qfont)
         self.setMinimumWidth(1)
         self.setEditable(True)
         self.lineEdit().setReadOnly(True)
@@ -167,10 +171,9 @@ class ScrollableOptionsWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.config = config
-        self.font = self.config["theme"]["font"]
-        self.font_button_size = self.config["theme"]["font_button_size"]
-        self.button_height = self.config["dim"]["buttons_height"]
-        self.button_stylesheet = self.config["theme"]["button_stylesheet"]
+        self.qfont = QFont(
+            self.config["theme"]["font"], self.config["theme"]["font_button_size"]
+        )
         self.__create_layout()
         self.pos = self.__list_pos_gen()
 
@@ -184,6 +187,23 @@ class ScrollableOptionsWidget(QWidget):
     def add_widget(self, button: QPushButton, label: QLabel):
         self.layout.addWidget(label, next(self.pos), 0)
         self.layout.addWidget(button, next(self.pos), 1)
+
+    def add_label(self, text: str):
+        label = QLabel()
+        label.setFont(self.qfont)
+        label.setText(text)
+        label.setFocusPolicy(Qt.NoFocus)
+        label.setStyleSheet(self.config["theme"]["label_stylesheet"])
+        label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(label, next(self.pos), 0, 1, 2)
+        next(self.pos)
+
+    def add_spacer(self) -> QLabel:
+        spacer = QLabel()
+        spacer.setFocusPolicy(Qt.NoFocus)
+        spacer.setFont(self.qfont)
+        self.layout.addWidget(spacer, next(self.pos), 0, 1, 2)
+        next(self.pos)
 
     def __list_pos_gen(self):
         """increments iterator every 2 calls"""

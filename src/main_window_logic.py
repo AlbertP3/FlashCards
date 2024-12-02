@@ -247,9 +247,9 @@ class MainWindowLogic:
 
     def notify_on_mistakes(self):
         if (
-            self.config["unreviewed_mistakes"] / self.config["mistakes_buffer"]
+            self.config["popups"]["allowed"]["unreviewed_mistakes"]
+            and self.config["unreviewed_mistakes"] / self.config["mistakes_buffer"]
             >= self.config["popups"]["triggers"]["unreviewed_mistakes_percent"]
-            > 0
         ):
             try:
                 mistakes_fd = [
@@ -261,10 +261,22 @@ class MainWindowLogic:
                     f"There are {self.config['unreviewed_mistakes']} unreviewed Mistakes!",
                     importance=20,
                     func=lambda: self.initiate_flashcards(mistakes_fd),
-                    persist=True,
                 )
             except IndexError:
                 log.debug("No matching Mistakes file found")
+
+    def notify_on_outstanding_initial_revisions(self):
+        if self.config["popups"]["allowed"]["initial_revs"]:
+            outstanding_cnt = 0
+            for rec in self._recoms:
+                if rec["is_init"]:
+                    outstanding_cnt += 1
+            if outstanding_cnt > 0:
+                fcc_queue.put(
+                    f"There are {outstanding_cnt} outstanding Initial Revisions",
+                    importance=20,
+                    func=None if self.is_initial_rev else self.load_next_efc,
+                )
 
     def init_eph_from_mistakes(self):
         mistakes_df = pd.DataFrame(

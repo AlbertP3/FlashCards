@@ -78,22 +78,30 @@ class FCC:
         self.console = new_console
 
     def help(self, parsed_cmd):
-        lim = self.config["geo"]["fcc"][0] * self.config["theme"]["console_margin"]
+        lim = int(self.console.viewport().width())
+        max_key_pixlen = (
+            self.mw.caliper.strwidth(max(self.DOCS.keys(), key=len))
+            + 2 * self.mw.caliper.scw
+        )
         if len(parsed_cmd) == 1:
             printout = self.mw.caliper.make_table(
-                data=self.DOCS,
-                pixlim=[0.1 * lim, 0.9 * lim],
+                data=[(k, v) for k, v in self.DOCS.items()],
+                pixlim=[max_key_pixlen, lim - max_key_pixlen],
                 align=["left", "left"],
                 sep=" - ",
+                keep_last_border=False,
+                suffix=self.config["theme"]["default_suffix"],
             )
         else:
             command = parsed_cmd[1]
             if command in self.DOCS.keys():
                 printout = self.mw.caliper.make_table(
                     data=[[command, self.DOCS[command]]],
-                    pixlim=[0.1 * lim, 0.9 * lim],
+                    pixlim=[max_key_pixlen, lim - max_key_pixlen],
                     align=["left", "left"],
                     sep=" - ",
+                    keep_last_border=False,
+                    suffix=self.config["theme"]["default_suffix"],
                 )
             else:  # regex search command descriptions
                 try:
@@ -105,10 +113,11 @@ class FCC:
                     try:
                         printout = self.mw.caliper.make_table(
                             data=matching,
-                            pixlim=[0.1 * lim, 0.9 * lim],
+                            pixlim=[max_key_pixlen, lim - max_key_pixlen],
                             align=["left", "left"],
                             sep=" - ",
                             keep_last_border=False,
+                            suffix=self.config["theme"]["default_suffix"],
                         )
                     except IndexError:
                         printout = "Nothing matches the given phrase!"
@@ -320,10 +329,10 @@ class FCC:
         if len(parsed_cmd) == 1:
             msg = self.mw.caliper.make_table(
                 data=content,
-                pixlim=self.config["geo"]["fcc"][0]
-                * self.config["theme"]["console_margin"],
+                pixlim=int(self.console.viewport().width()),
                 headers=headers,
-                align=["left", "center", "center"],
+                align=["left", "left", "left"],
+                suffix=self.config["theme"]["default_suffix"],
             )
         elif len(parsed_cmd) in (2, 3):
             if isinstance(self.config.get(parsed_cmd[1]), dict):
@@ -343,10 +352,10 @@ class FCC:
             if content:
                 msg = self.mw.caliper.make_table(
                     data=content,
-                    pixlim=self.config["geo"]["fcc"][0]
-                    * self.config["theme"]["console_margin"],
+                    pixlim=int(self.console.viewport().width()),
                     headers=headers,
-                    align=["left", "center", "center"],
+                    align=["left", "left", "left"],
+                    suffix=self.config["theme"]["default_suffix"],
                 )
             else:
                 suffix = f" in dict {parsed_cmd[1]}" if len(parsed_cmd) == 3 else ""
@@ -682,18 +691,22 @@ class FCC:
 
     def dbg(self, parsed_cmd: list):
         """Debug"""
-        self.post_fcc(f"{self.mw.current_index=}")
-        self.post_fcc(f"{self.mw.side=}")
-        self.post_fcc(f"{self.mw.revmode=}")
-        self.post_fcc(f"{self.mw.cards_seen=}")
-        self.post_fcc(f"{self.mw.words_back=}")
-        self.post_fcc(f"{self.mw.is_recorded=}")
-        self.post_fcc(f"{self.mw.is_synopsis=}")
-        self.post_fcc(f"{self.mw.is_initial_rev=}")
-        self.post_fcc(f"{self.mw.seconds_spent=}")
-        self.post_fcc(f"{self.mw.should_hide_tips()=}")
-        self.post_fcc(f"{self.mw.db.filters=}")
-        self.post_fcc(f"db_rows={self.mw.db.db.shape[0]}")
+        if len(parsed_cmd) > 1:
+            text = " ".join(parsed_cmd[1:])
+            self.mw.display_text(text)
+        else:
+            self.post_fcc(f"{self.mw.current_index=}")
+            self.post_fcc(f"{self.mw.side=}")
+            self.post_fcc(f"{self.mw.revmode=}")
+            self.post_fcc(f"{self.mw.cards_seen=}")
+            self.post_fcc(f"{self.mw.words_back=}")
+            self.post_fcc(f"{self.mw.is_recorded=}")
+            self.post_fcc(f"{self.mw.is_synopsis=}")
+            self.post_fcc(f"{self.mw.is_initial_rev=}")
+            self.post_fcc(f"{self.mw.seconds_spent=}")
+            self.post_fcc(f"{self.mw.should_hide_tips()=}")
+            self.post_fcc(f"{self.mw.db.filters=}")
+            self.post_fcc(f"db_rows={self.mw.db.db.shape[0]}")
 
     def dmp(self, parsed_cmd: list[str]):
         """Dump Session Data"""

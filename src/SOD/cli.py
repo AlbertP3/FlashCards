@@ -3,6 +3,7 @@ from itertools import islice
 import logging
 import re
 import os
+from functools import cache
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
 from DBAC.api import DbOperator
@@ -83,15 +84,24 @@ class CLI:
         return self.output.mw.caliper
 
     @property
-    def pix_limit(self) -> float:
-        return self.config["theme"]["console_margin"] * self.output.console.width()
+    @cache
+    def pix_lim(self) -> int:
+        return int(
+            self.output.console.width() - 2 * self.output.console.contentsMargins().left()
+        )
 
     @property
-    def lines_lim(self) -> float:
+    @cache
+    def lines_lim(self) -> int:
         return (
-            self.config["theme"]["console_margin"]
-            * self.output.console.height()
-            / self.caliper.sch
+            int(
+                (
+                    self.output.console.height()
+                    - 2 * self.output.console.contentsMargins().top()
+                )
+                // self.caliper.sch
+            )
+            - 2
         )
 
     def init_file_handler(self):
@@ -430,7 +440,7 @@ class CLI:
             self.set_dict(parsed_cmd[1])
             return
 
-        p_lim = self.pix_limit - 4 * self.caliper.scw
+        p_lim = self.pix_lim - 4 * self.caliper.scw
         phrase: str = " ".join(self.handle_prefix(parsed_cmd))
         exists_in_queue = phrase in self.queue_dict.keys()
         if phrase.startswith(self.sep_manual):  # Manual Mode for Queue
@@ -481,7 +491,7 @@ class CLI:
             else:
                 msg = self.msg.OK
 
-            lim_items = int(self.lines_lim / 2) - 2
+            lim_items = int(self.lines_lim / 2)
             if self.queue_visible_items + 1 > lim_items:
                 self.cls(msg, keep_content=False, keep_cmd=True)
                 self.print_queue(slice_=[len(self.queue_dict) - lim_items, 0])
@@ -507,7 +517,7 @@ class CLI:
         self.set_output_prompt(f"{self.queue_index:>2d}. ")
 
     def print_queue(self, slice_: list = [0, 0]):
-        plim = self.pix_limit - 3 * self.caliper.scw
+        plim = self.pix_lim - 3 * self.caliper.scw
         if slice_[0] < 0:
             slice_[0] = len(self.queue_dict) + slice_[0]
         if slice_[1] == 0:
@@ -562,21 +572,25 @@ class CLI:
             self.cls(self.msg.CANNOT_DELETE)
 
     def print_translations_table(self, trans: list, origs: list):
+        sep = "\u0020|\u0020"
+        res_lim = self.lines_lim
+        trans, origs = trans[:res_lim], origs[:res_lim]
         if any(origs):
-            if self.is_from_native:
-                trans, origs = origs, trans
-            plim = self.pix_limit / 2
+            plim = self.pix_lim / 2
             if self.config["SOD"]["table_ext_mode"] == "fix":
-                output = self.__ptt(trans, origs, plim, plim, "\u0020|\u0020")
+                output = self.__ptt(origs, trans, plim, plim, sep)
             elif self.config["SOD"]["table_ext_mode"] == "flex":
                 llim = min(
-                    max(self.caliper.strwidth(c) for c in trans) + 5 * self.caliper.scw,
+                    max(self.caliper.strwidth(c) for c in origs)
+                    + len(str(res_lim))
+                    + self.caliper.strwidth(sep)
+                    + 1,
                     plim,
                 )
                 rlim = 2 * plim - llim
-                output = self.__ptt(trans, origs, llim, rlim, "\u0020|\u0020")
+                output = self.__ptt(origs, trans, llim, rlim, sep)
         else:
-            output = self.__ptt(trans, origs, self.pix_limit, 0, "")
+            output = self.__ptt(origs, trans, self.pix_lim, 0, "")
         self.send_output(output)
 
     def __ptt(
@@ -725,7 +739,7 @@ class CLI:
         self.send_output(
             self.caliper.make_cell(
                 status,
-                self.pix_limit,
+                self.pix_lim,
                 self.config["theme"]["default_suffix"],
                 align="left",
             )
@@ -753,7 +767,7 @@ class CLI:
                 [" (<SRC_LNG>^<TGT_LNG>)", "change source/target language"],
                 [" <blank>", "exit SOD or finish Queue mode"],
             ],
-            pixlim=1.1 * self.pix_limit,
+            pixlim=1.1 * self.pix_lim,
             sep=" --> ",
             align=["left", "left"],
             keep_last_border=False,
@@ -767,7 +781,7 @@ class CLI:
                 [" d<N>", "remove record from source file"],
                 [" <blank>", "abort"],
             ],
-            pixlim=1.1 * self.pix_limit,
+            pixlim=1.1 * self.pix_lim,
             sep=" --> ",
             align=["left", "left"],
             keep_last_border=False,
