@@ -32,7 +32,7 @@ class CheckableComboBox(QComboBox):
 
     def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
         self.qfont = QFont(
-            config["theme"]["font"], config["theme"]["font_button_size"]
+            config["theme"]["font"], config["dim"]["font_button_size"]
         )
         self.allow_multichoice = allow_multichoice
         self._width = width or self.lineEdit().width()
@@ -170,9 +170,8 @@ class CheckableComboBox(QComboBox):
 class ScrollableOptionsWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.config = config
         self.qfont = QFont(
-            self.config["theme"]["font"], self.config["theme"]["font_button_size"]
+            config["theme"]["font"], config["dim"]["font_button_size"]
         )
         self.__create_layout()
         self.pos = self.__list_pos_gen()
@@ -193,7 +192,7 @@ class ScrollableOptionsWidget(QWidget):
         label.setFont(self.qfont)
         label.setText(text)
         label.setFocusPolicy(Qt.NoFocus)
-        label.setStyleSheet(self.config["theme"]["label_stylesheet"])
+        label.setStyleSheet(config["theme"]["label_stylesheet"])
         label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(label, next(self.pos), 0, 1, 2)
         next(self.pos)

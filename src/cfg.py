@@ -38,8 +38,20 @@ class Config(UserDict):
         else:
             return val_on or self.data[key]
 
+    def get_geo(self, id_: str) -> list[int, int]:
+        if self.data["opt"]["keep_window_size"]:
+            return self.data["geo"]["default"]
+        else:
+            return self.data["geo"][id_]
 
-def __validate(cfg: dict) -> tuple[bool, set]:
+    def set_geo(self, id_: str, value: list[int]) -> None:
+        if self.data["opt"]["keep_window_size"]:
+            self.data["geo"]["default"] = value
+        else:
+            self.data["geo"][id_] = value
+
+
+def __validate(cfg: Config) -> tuple[bool, set]:
     errs = set()
     int_gt_0 = {
         "mistakes_review_interval_days": cfg["mistakes_review_interval_days"],
@@ -52,14 +64,15 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "show_animation_ms": cfg["popups"]["show_animation_ms"],
         "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
         "check_interval_ms": cfg["popups"]["check_interval_ms"],
-        "font_textbox_size": cfg["theme"]["font_textbox_size"],
-        "console_font_size": cfg["theme"]["console_font_size"],
-        "font_button_size": cfg["theme"]["font_button_size"],
+        "font_textbox_size": cfg["dim"]["font_textbox_size"],
+        "console_font_size": cfg["dim"]["console_font_size"],
+        "font_button_size": cfg["dim"]["font_button_size"],
     }
     numeric_gt_0 = {}
     int_gte_0 = {
         "init_revs_cnt": cfg["init_revs_cnt"],
         "min_eph_cards": cfg["min_eph_cards"],
+        "spacing": cfg["dim"]["spacing"],
     }
     numeric_gte_0 = {
         "init_revs_inth": cfg["init_revs_inth"],

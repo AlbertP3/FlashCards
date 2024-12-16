@@ -9,6 +9,9 @@ from widgets import CheckableComboBox, ScrollableOptionsWidget
 from utils import fcc_queue
 from cfg import config, validate
 from typing import Callable
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class ConfigSideWindow:
@@ -116,7 +119,7 @@ class ConfigSideWindow:
             text="Font",
         )
         self.font_size_qle = self.cfg_qle(
-            self.config["theme"]["font_textbox_size"],
+            self.config["dim"]["font_textbox_size"],
             text="Font size",
         )
         self.console_font_qle = self.cfg_qle(
@@ -124,20 +127,24 @@ class ConfigSideWindow:
             text="Console font",
         )
         self.console_font_size_qle = self.cfg_qle(
-            self.config["theme"]["console_font_size"],
+            self.config["dim"]["console_font_size"],
             text="Console font size",
         )
         self.button_font_size_qle = self.cfg_qle(
-            self.config["theme"]["font_button_size"],
+            self.config["dim"]["font_button_size"],
             text="Button font size",
         )
         self.default_suffix_qle = self.cfg_qle(
             self.config["theme"]["default_suffix"],
             text="Default suffix",
         )
+        self.spacing_qle = self.cfg_qle(
+            self.config["dim"]["spacing"],
+            text="Spacing",
+        )
         self.cell_alignment_cbx = self.cfg_cbx(
             self.config["cell_alignment"],
-            ["left", "right"],
+            ["left", "right", "center"],
             multi_choice=False,
             text="Cell alignment",
         )
@@ -179,6 +186,12 @@ class ConfigSideWindow:
             multi_choice=True,
             content=sorted(self.db.get_all_files(dirs={self.db.LNG_DIR})),
             text="SOD files list",
+        )
+        self.sod_cell_alignment_cbx = self.cfg_cbx(
+            self.config["SOD"]["cell_alignment"],
+            multi_choice=False,
+            content=["left", "right", "center"],
+            text="SOD cell alingment",
         )
 
         self.opts_layout.add_spacer()
@@ -336,9 +349,10 @@ class ConfigSideWindow:
         new_cfg["active_theme"] = self.theme_cbx.currentDataList()[0]
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
-        new_cfg["csv_sniffer"] = self.csv_sniffer_qle.text()
+        new_cfg["csv_sniffer"] = self.csv_sniffer_qle.currentDataList()[0]
         new_cfg["SOD"]["initial_language"] = self.sod_init_lng_cbx.currentDataList()[0]
         new_cfg["SOD"]["files_list"] = self.sod_files_cbx.currentDataList()
+        new_cfg["SOD"]["cell_alignment"] = self.sod_cell_alignment_cbx.currentDataList()[0]
         new_cfg["CRE"]["opt"].update(self.cre_settings_cbx.currentDataDict())
         new_cfg["hide_tips"]["policy"][
             self.db.KINDS.rev
@@ -381,15 +395,18 @@ class ConfigSideWindow:
         new_cfg["min_eph_cards"] = int(self.min_eph_cards_qle.text())
         new_cfg["theme"]["font"] = self.font_qle.text()
         new_cfg["theme"]["console_font"] = self.console_font_qle.text()
-        new_cfg["theme"]["font_textbox_size"] = int(self.font_size_qle.text())
-        new_cfg["theme"]["console_font_size"] = int(self.console_font_size_qle.text())
-        new_cfg["theme"]["font_button_size"] = int(self.button_font_size_qle.text())
+        new_cfg["dim"]["font_textbox_size"] = int(self.font_size_qle.text())
+        new_cfg["dim"]["console_font_size"] = int(self.console_font_size_qle.text())
+        new_cfg["dim"]["font_button_size"] = int(self.button_font_size_qle.text())
         new_cfg["theme"]["default_suffix"] = self.default_suffix_qle.text()
+        new_cfg["dim"]["spacing"] = int(self.spacing_qle.text())
 
         if new_cfg["active_theme"] != self.config["active_theme"]:
             new_cfg["theme"].update(self.themes_dict[new_cfg["active_theme"]])
             self.funcs_to_restart.append(self.set_theme)
         elif new_cfg["theme"] != self.config["theme"]:
+            self.funcs_to_restart.append(self.set_theme)
+        elif new_cfg["dim"] != self.config["dim"]:
             self.funcs_to_restart.append(self.set_theme)
 
         if new_cfg["allow_file_monitor"] != self.config["allow_file_monitor"]:
@@ -402,6 +419,7 @@ class ConfigSideWindow:
             modified_config = self.collect_settings()
             is_valid, errs = validate(modified_config)
         except Exception as e:
+            log.error(e, exc_info=True)
             is_valid, errs = False, {f"{type(e).__name__}: {e}"}
 
         if is_valid:
@@ -423,6 +441,7 @@ class ConfigSideWindow:
                 func=lambda: self.get_fcc_sidewindow(),
             )
             fcc_queue.put("\n".join(errs))
+            self.funcs_to_restart.clear()
             return
 
         # Reload config window

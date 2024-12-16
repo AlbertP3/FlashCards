@@ -95,7 +95,7 @@ class ProgressSideWindow(Stats):
                 va="bottom",
                 color=self.config["theme"]["stat_chart_text_color"],
                 zorder=10,
-                fontsize=self.config["theme"]["console_font_size"],
+                fontsize=self.config["dim"]["font_stats_size"],
             )
 
         # add labels - total sum
@@ -113,7 +113,7 @@ class ProgressSideWindow(Stats):
                 va="bottom",
                 color=self.config["theme"]["stat_chart_text_color"],
                 zorder=10,
-                fontsize=self.config["theme"]["console_font_size"],
+                fontsize=self.config["dim"]["font_stats_size"],
             )
 
         # add labels - repeated times
@@ -126,7 +126,7 @@ class ProgressSideWindow(Stats):
                 xytext=(0, 5),
                 ha="center",
                 color=self.config["theme"]["stat_chart_text_color"],
-                fontsize=self.config["theme"]["console_font_size"],
+                fontsize=self.config["dim"]["font_stats_size"],
             )
 
         # Style
@@ -137,7 +137,7 @@ class ProgressSideWindow(Stats):
         positives_plot.yaxis.set_major_formatter(FormatStrFormatter("%.0f"))
         total_words_plot.tick_params(
             colors=self.config["theme"]["stat_chart_text_color"],
-            labelsize=self.config["theme"]["console_font_size"],
+            labelsize=self.config["dim"]["font_stats_size"],
         )
         self.figure.tight_layout(pad=0.1)
         positives_plot.get_yaxis().set_visible(False)

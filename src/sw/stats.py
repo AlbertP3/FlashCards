@@ -83,7 +83,7 @@ class StatsSideWindow(Stats):
                 ha="center",
                 va="bottom",
                 color=self.config["theme"]["stat_chart_text_color"],
-                fontsize=self.config["theme"]["console_font_size"],
+                fontsize=self.config["dim"]["font_stats_size"],
             )
 
         # horizontal line at EFC predicate
@@ -97,7 +97,7 @@ class StatsSideWindow(Stats):
                 f'{self.config["efc_threshold"]}%',
                 va="bottom",
                 color="#a0a0a0",
-                fontsize=self.config["theme"]["console_font_size"],
+                fontsize=self.config["dim"]["font_stats_size"],
             )
 
         # add labels - time spent
@@ -117,7 +117,7 @@ class StatsSideWindow(Stats):
                 xytext=(0, 5),
                 ha="center",
                 color=self.config["theme"]["stat_chart_text_color"],
-                fontsize=self.config["theme"]["console_font_size"],
+                fontsize=self.config["dim"]["font_stats_size"],
             )
 
         # Style
@@ -129,7 +129,7 @@ class StatsSideWindow(Stats):
             colors=self.config["theme"]["stat_chart_text_color"],
             labelrotation=0,
             pad=1,
-            labelsize=self.config["theme"]["console_font_size"],
+            labelsize=self.config["dim"]["font_stats_size"],
         )
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
@@ -205,7 +205,7 @@ class StatsSideWindow(Stats):
         new_button.setMinimumHeight(self.config["dim"]["stats_btn_height"])
         new_button.setFont(
             QtGui.QFont(
-                self.config["theme"]["font"], self.config["theme"]["font_stats_size"]
+                self.config["theme"]["font"], self.config["dim"]["font_stats_size"]
             )
         )
         new_button.setText(text)

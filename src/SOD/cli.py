@@ -87,7 +87,12 @@ class CLI:
     @cache
     def pix_lim(self) -> int:
         return int(
-            self.output.console.width() - 2 * self.output.console.contentsMargins().left()
+            0.99
+            * (
+                self.output.console.width()
+                - self.output.console.contentsMargins().left()
+                - self.output.console.contentsMargins().right()
+            )
         )
 
     @property
@@ -97,7 +102,8 @@ class CLI:
             int(
                 (
                     self.output.console.height()
-                    - 2 * self.output.console.contentsMargins().top()
+                    - self.output.console.contentsMargins().top()
+                    - self.output.console.contentsMargins().bottom()
                 )
                 // self.caliper.sch
             )
@@ -735,7 +741,13 @@ class CLI:
         source_lng = self.dicts.source_lng
         target_lng = self.dicts.target_lng
         len_db = self.fh.total_rows
-        status = f"🕮 {active_dict} | {source_lng}⇾{target_lng} | 🛢 {self.fh.filename} | 🃟 {len_db} | {msg}"
+        status = (
+            f"{self.config['icons']['sod_dict']} {active_dict} | "
+            f"{source_lng}{self.config['icons']['sod_lng_pointer']}{target_lng} | "
+            f"{self.config['icons']['sod_db']} {self.fh.filename} | "
+            f"{self.config['icons']['sod_card']} {len_db} | "
+            f"{msg}"
+        )
         self.send_output(
             self.caliper.make_cell(
                 status,

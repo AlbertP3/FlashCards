@@ -35,16 +35,18 @@ class FccSideWindow:
 
         self.create_tab(
             ident="sod",
-            window_title="Search Online Dictionaries",
+            window_title="Dictionary",
             console_prompt=self.DEFAULT_PS1,
             get_x_sidewindow=self.__get_fcc_sidewindow,
             run_x_command=self.run_cmd,
         )
         self.activate_tab("sod")
-        self.console.setGeometry(0, 0, *self.get_geo("sod"))
+        self.console.setGeometry(0, 0, *self.config.get_geo("sod"))
         self.tabs["sod"]["fcc_ins"].sod([])
 
         self.activate_tab("fcc")
+        scrollbar = self.console.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def create_tab(
         self,
@@ -118,7 +120,7 @@ class FccSideWindow:
     def init_font(self):
         self.CONSOLE_FONT = QtGui.QFont(
             self.config["theme"]["console_font"],
-            self.config["theme"]["console_font_size"],
+            self.config["dim"]["console_font_size"],
         )
         self.caliper = Caliper(self.CONSOLE_FONT)
 
@@ -218,6 +220,13 @@ class FccSideWindow:
                     widget.QTextEdit.keyPressEvent(self.console, event)
             else:
                 widget.QTextEdit.keyPressEvent(self.console, event)
+        elif event.modifiers() & Qt.ShiftModifier:
+            if event_key == Qt.Key_Home:
+                cursor = self.console.textCursor()
+                cursor.setPosition(self.promptend, QtGui.QTextCursor.KeepAnchor)
+                self.console.setTextCursor(cursor)
+            else:
+                 widget.QTextEdit.keyPressEvent(self.console, event)
         elif event_key == Qt.Key_Home:
             self.move_cursor_to_start()
         elif event_key == Qt.Key_Return:
@@ -231,8 +240,14 @@ class FccSideWindow:
             if self.CMDS_CURSOR != 0:
                 self.CMDS_CURSOR += 1
                 self.update_console_cmds_nav()
-        elif event_key in {Qt.Key_Left, Qt.Key_Backspace}:
+        elif event_key == Qt.Key_Left:
             if self.curpos > self.promptend:
+                widget.QTextEdit.keyPressEvent(self.console, event)
+            elif self.cursor_moved_by_mouse:
+                self.move_cursor_to_start()
+        elif event_key == Qt.Key_Backspace:
+            has_sel = int(self.console.textCursor().hasSelection())
+            if self.curpos + has_sel > self.promptend > 0:
                 widget.QTextEdit.keyPressEvent(self.console, event)
             elif self.cursor_moved_by_mouse:
                 self.move_cursor_to_start()

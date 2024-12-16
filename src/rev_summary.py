@@ -176,7 +176,7 @@ class SummaryGenerator:
                 elif self.cpm_score >= self.CPM_FAST:
                     res = f"{self.cpm_score:.0f} CPM - Astounding feat!!"
                 elif self.cpm_score >= self.CPM_MEDIUM:
-                    res = f"You scored {self.cpm_score:.0f} CPM which is {abs(self.cpm_diff):.0f} {self.desc_cpm_diff} than last time."
+                    res = f"You made it in {self.cpm_score:.0f} CPM which is {abs(self.cpm_diff):.0f} {self.desc_cpm_diff} than last time."
                 elif self.cpm_score >= self.CPM_ULTRA_SLOW:
                     res = f"Taking your time with {self.cpm_score:.0f} CPM, aren't you?"
                 else:

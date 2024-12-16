@@ -1,14 +1,14 @@
-# FlashCards 1.4.7
+# FlashCards 1.4.8
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-145)
+- [FlashCards](#flashcards-148)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
   - [Progress Window](#progress-window)
   - [Statistics](#statistics)
-  - [Search Online Dictionaries](#search-online-dictionaries)
+  - [Dictionary](#dictionary)
   - [EFC Model Optimizer](#efc-model-optimizer)
   - [Time Spent](#time-spent)
   - [Monitoring](#monitoring)
@@ -71,11 +71,11 @@ Progress can be assessed with a 'Progress' chart displaying, in specified interv
 
 Statistics shows scores for each time currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects 'efc_threshold' specified in the config and can be toggled via 'show_efc_line'
 
-## Search Online Dictionaries
+## Dictionary
 
 ![SOD Window](src/res/imgs/ss_sod.png)
 
-Search Online Dictionaries facilitates managing cards in the datasets via a command line interface - translation for the searched phrase are fetched from the online/local service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the 'help' command - a local source can also be used. Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate. Ultimately, a card can be added relying solely on the user input by entering the manual mode (manual_mode_sep)
+Dictionary facilitates managing cards in the datasets via a command line interface - translation for the searched phrase are fetched from the online/local service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the 'help' command - a local source can also be used. Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate. Ultimately, a card can be added relying solely on the user input by entering the manual mode (manual_mode_sep)
 - type \help to get a list of tips and available commands
 - Quick lookup is available by selecting a part of the displayed card's text and clicking RMB
 - Using monospaced fonts with proper support for the used languages is advised

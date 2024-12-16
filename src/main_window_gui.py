@@ -105,18 +105,6 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.notify_on_outstanding_initial_revisions()
         self.notify_on_mistakes()
 
-    def get_geo(self, id_: str) -> list[int, int]:
-        if self.config["opt"]["keep_window_size"]:
-            return self.config["geo"]["default"]
-        else:
-            return self.config["geo"][id_]
-
-    def set_geo(self, id_: str, val: list[int]) -> None:
-        if self.config["opt"]["keep_window_size"]:
-            self.config["geo"]["default"] = val
-        else:
-            self.config["geo"][id_] = val
-
     def build_interface(self):
         self.configure_window()
         self.build_layout()
@@ -124,14 +112,12 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         SideWindows.__init__(self)
 
     def configure_window(self):
-        # Window Parameters
-        self.LAYOUT_MARGINS = (1, 1, 1, 1)
-        self.TEXTBOX_HEIGHT = self.config["dim"]["textbox_height"]
-        self.BUTTONS_HEIGHT = self.config["dim"]["buttons_height"]
-
         # Set Window Parameters
         self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH, "icon.png")))
-        self.set_geometry(self.get_geo("main"))
+        self.set_geometry(self.config.get_geo("main"))
+        self.q_app.setAttribute(Qt.AA_EnableHighDpiScaling)
+        self.q_app.setAttribute(Qt.AA_UseHighDpiPixmaps)
+        self.q_app.setStyle("Fusion")
 
         # Shortcuts
         self.used_keybindings = set()
@@ -164,10 +150,12 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         if self.layout is None:
             self.layout = widget.QGridLayout()
             self.setLayout(self.layout)
+        self.LAYOUT_MARGINS = (1, 1, 1, 1)
+        self.BUTTONS_HEIGHT = self.config["dim"]["buttons_height"]
         self.layout.setContentsMargins(*self.LAYOUT_MARGINS)
         self.FONT = self.config["theme"]["font"]
-        self.FONT_BUTTON_SIZE = self.config["theme"]["font_button_size"]
-        self.FONT_TEXTBOX_SIZE = self.config["theme"]["font_textbox_size"]
+        self.FONT_BUTTON_SIZE = self.config["dim"]["font_button_size"]
+        self.FONT_TEXTBOX_SIZE = self.config["dim"]["font_textbox_size"]
         self.TEXTBOX_FONT = QtGui.QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
         self.BUTTON_FONT = QtGui.QFont(self.FONT, self.FONT_BUTTON_SIZE)
 
@@ -188,13 +176,13 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.layout.addLayout(self.layout_third_row, 2, 0)
         self.layout.addLayout(self.layout_fourth_row, 3, 0)
 
-        self.layout.setSpacing(2)
-        self.layout_first_row.setSpacing(2)
-        self.layout_second_row.setSpacing(2)
-        self.layout_third_row.setSpacing(2)
-        self.layout_fourth_row.setSpacing(2)
-        self.layout_next_navigation.setSpacing(2)
-        self.side_window_layout.setSpacing(2)
+        self.layout.setSpacing(self.config["dim"]["spacing"])
+        self.layout_first_row.setSpacing(self.config["dim"]["spacing"])
+        self.layout_second_row.setSpacing(self.config["dim"]["spacing"])
+        self.layout_third_row.setSpacing(self.config["dim"]["spacing"])
+        self.layout_fourth_row.setSpacing(self.config["dim"]["spacing"])
+        self.layout_next_navigation.setSpacing(self.config["dim"]["spacing"])
+        self.side_window_layout.setSpacing(self.config["dim"]["spacing"])
 
         # Buttons
         self.next_button = self.create_button(
@@ -289,9 +277,14 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.textbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.__attach_textbox_ctx()
         self.tb_cal = Caliper(self.TEXTBOX_FONT)
+        self.tb_cmg = 0.93
         self.tb_vp = (
-            0.9 * self.get_geo("main")[0],
-            0.9 * (self.get_geo("main")[1] - 3 * self.config["dim"]["buttons_height"]),
+            self.tb_cmg * self.config.get_geo("main")[0],
+            self.tb_cmg
+            * (
+                self.config.get_geo("main")[1]
+                - 3 * self.config["dim"]["buttons_height"]
+            ),
         )
         self.tb_nl = self.tb_vp[1] // self.tb_cal.ls
         self.textbox.showEvent = self.__textbox_show_event
@@ -303,8 +296,8 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def _set_textbox_chr_space(self, event=None):
         _, _, w, h = self.textbox.geometry().getRect()
-        self.tb_nl = h // self.tb_cal.sch
-        self.tb_vp = (w, h)
+        self.tb_nl = self.tb_cmg * h // self.tb_cal.sch
+        self.tb_vp = (self.tb_cmg * w, self.tb_cmg * h)
 
     def __attach_textbox_ctx(self):
         self.textbox_ctx = widget.QMenu()
@@ -337,7 +330,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def create_button(self, text, function=None) -> widget.QPushButton:
         button = widget.QPushButton(self)
-        button.setMinimumHeight(self.BUTTONS_HEIGHT)
+        button.setFixedHeight(self.BUTTONS_HEIGHT)
         button.setFont(self.BUTTON_FONT)
         button.setText(text)
         button.setFocusPolicy(Qt.NoFocus)
@@ -673,13 +666,13 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.set_main_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 0)
         self.side_window_id = name
-        self.set_geometry(self.get_geo(name))
+        self.set_geometry(self.config.get_geo(name))
 
     def del_side_window_in_place(self):
         self.remove_layout(self.side_window_layout)
         self.set_main_widgets_visibility(True)
         self.side_window_id = "main"
-        self.set_geometry(self.get_geo("main"))
+        self.set_geometry(self.config.get_geo("main"))
 
     def open_side_by_side(self, layout, name):
         if self.side_window_id != name:
@@ -695,9 +688,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.textbox.setFixedWidth(self.textbox.width())
         self.textbox.setFixedHeight(self.textbox.height())
         self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.get_geo(name)[0])
-        self.setFixedHeight(self.get_geo("main")[1])
-        self.setMinimumWidth(self.get_geo("main")[0])
+        self.setFixedWidth(self.config.get_geo(name)[0])
+        self.setFixedHeight(self.config.get_geo("main")[1])
+        self.setMinimumWidth(self.config.get_geo("main")[0])
         self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
 
     def del_side_window_side_by_side(self):
@@ -705,7 +698,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.unfix_size(self.textbox)
         self.remove_layout(self.side_window_layout)
         self.side_window_id = "main"
-        self.set_geometry(self.get_geo("main"))
+        self.set_geometry(self.config.get_geo("main"))
 
     def unfix_size(self, obj):
         obj.setMinimumWidth(0)
@@ -1052,11 +1045,15 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.config.save()
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        self.set_geo(self.side_window_id, self.geometry().getRect()[2:])
+        self.config.set_geo(self.side_window_id, self.geometry().getRect()[2:])
         try:
             self._set_textbox_chr_space()
-            self.tabs["sod"]["fcc_ins"].sod_object.cli.__class__.pix_lim.fget.cache_clear()
-            self.tabs["sod"]["fcc_ins"].sod_object.cli.__class__.lines_lim.fget.cache_clear()
+            self.tabs["sod"][
+                "fcc_ins"
+            ].sod_object.cli.__class__.pix_lim.fget.cache_clear()
+            self.tabs["sod"][
+                "fcc_ins"
+            ].sod_object.cli.__class__.lines_lim.fget.cache_clear()
         except AttributeError:
             pass
 

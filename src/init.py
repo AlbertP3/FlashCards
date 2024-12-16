@@ -8,6 +8,7 @@ import matplotlib
 from types import FrameType
 
 CWD = os.path.dirname(os.path.abspath(__file__))
+os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
 
 def configure_logging(log_level, plt_log_level="error"):

@@ -1,6 +1,6 @@
 {
-    "version": "1.4.7",
-    "log_level": "WARNING",
+    "version": "1.4.8",
+    "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
     "languages": [
@@ -153,16 +153,21 @@
         "default_ps1": "> "
     },
     "dim": {
-        "textbox_height": 280,
-        "buttons_height": 80,
-        "hint_size": 40,
-        "sw_efc_qlist_width": 650,
-        "sw_efc_txt_height": 200,
-        "sw_efc_btn_height": 65,
-        "sw_load_btn_height": 65,
-        "sw_cfg_box_height": 43,
-        "sw_load_qlist_width": 650,
-        "notification_height": 80
+        "font_button_size": 12,
+        "font_textbox_size": 28,
+        "font_stats_size": 9,
+        "console_font_size": 12,
+        "buttons_height": 32,
+        "stats_btn_height": 35,
+        "hint_size": 30,
+        "sw_efc_qlist_width": 450,
+        "sw_efc_txt_height": 150,
+        "sw_efc_btn_height": 30,
+        "sw_load_btn_height": 30,
+        "sw_cfg_box_height": 25,
+        "sw_load_qlist_width": 450,
+        "notification_height": 40,
+        "spacing": 2
     },
     "icons": {
         "next": "Next",
@@ -190,7 +195,11 @@
         "revision": "🅁",
         "mistakes": "🅼",
         "initial": "🆕",
-        "hint": "?"
+        "hint": "?",
+        "sod_dict": "📖",
+        "sod_lng_pointer": "⇾",
+        "sod_db": "📂",
+        "sod_card": "🎴"
     },
     "popups": {
         "timeout_ms": 3000,
@@ -225,6 +234,7 @@
         "bad": 0.818,
         "awful": 0.618
     },
+    "sigenpat": {},
     "geo": {
         "default": [
             1504,

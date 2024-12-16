@@ -42,7 +42,7 @@ class EFCSideWindow(EFC):
         self.__qlist_stylesheet = self.config["theme"]["textbox_stylesheet"]
         self.__btn_stylesheet = self.config["theme"]["button_stylesheet"]
         self.__efc_sw_font = QFont(
-            self.config["theme"]["font"], self.config["theme"]["font_button_size"]
+            self.config["theme"]["font"], self.config["dim"]["font_button_size"]
         )
         self.__qlist_width = self.config["dim"]["sw_efc_qlist_width"]
         self.__btn_height = self.config["dim"]["sw_efc_btn_height"]
