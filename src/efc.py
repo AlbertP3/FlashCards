@@ -88,18 +88,22 @@ class EFC:
             cur = datetime.now()
             for lng in self.config["languages"]:
                 sig = self.db.MST_BASENAME.format(lng=lng)
-                lmt = self.db.get_last_datetime(sig)
-                if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
-                    self._recoms.append(
-                        {
-                            "fp": self.db.make_filepath(
-                                lng=lng, subdir=self.db.MST_DIR, filename=f"{sig}.csv"
-                            ),
-                            "disp": f"{self.config['icons']['mistakes']} {sig}",
-                            "score": 0,
-                            "is_init": False,
-                        }
-                    )
+                try:
+                    self.db.files[self.db.make_filepath(lng, self.db.MST_DIR, sig + ".csv")]
+                    lmt = self.db.get_last_datetime(sig)
+                    if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
+                        self._recoms.append(
+                            {
+                                "fp": self.db.make_filepath(
+                                    lng=lng, subdir=self.db.MST_DIR, filename=f"{sig}.csv"
+                                ),
+                                "disp": f"{self.config['icons']['mistakes']} {sig}",
+                                "score": 0,
+                                "is_init": False,
+                            }
+                        )
+                except KeyError:
+                    log.warning(f"Language {lng} is missing the mistakes file")
         if self.config["days_to_new_rev"] > 0:
             self._recoms.extend(self.get_new_recoms())
         for rev in sorted(self.get_efc_data(), key=lambda x: x[2]):
