@@ -24,6 +24,13 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         widget.QWidget.__init__(self)
         sys.excepthook = self.excepthook
 
+    @staticmethod
+    def configure_scaling():
+        os.environ["QT_SCALE_FACTOR"] = "1"
+        os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+        widget.QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+        widget.QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+
     def excepthook(self, exc_type, exc_value, exc_tb):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
         self.notify_on_error(err_traceback, exc_value)
@@ -115,8 +122,6 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         # Set Window Parameters
         self.setWindowIcon(QtGui.QIcon(os.path.join(self.db.RES_PATH, "icon.png")))
         self.set_geometry(self.config.get_geo("main"))
-        self.q_app.setAttribute(Qt.AA_EnableHighDpiScaling)
-        self.q_app.setAttribute(Qt.AA_UseHighDpiPixmaps)
         self.q_app.setStyle("Fusion")
 
         # Shortcuts

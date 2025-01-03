@@ -2,13 +2,11 @@ import os
 import sys
 import signal
 import logging
-import builtins
 from logging.handlers import RotatingFileHandler
 import matplotlib
 from types import FrameType
 
 CWD = os.path.dirname(os.path.abspath(__file__))
-os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
 
 
 def configure_logging(log_level, plt_log_level="error"):
@@ -40,10 +38,14 @@ except Exception as e:
 
 configure_logging(cfg.config["log_level"])
 log = logging.getLogger("FCS")
+sys.stdout.write = lambda msg: log.debug(msg) if msg != "\n" else None
+sys.stderr.write = lambda msg: log.error(msg) if msg != "\n" else None
+
 log.debug(f"*** Flashcards {cfg.config['version']} ***")
 
 from main_window_gui import MainWindowGUI
 
+MainWindowGUI.configure_scaling()
 mw = MainWindowGUI()
 
 
