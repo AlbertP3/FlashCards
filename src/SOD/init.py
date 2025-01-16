@@ -1,6 +1,6 @@
 import os
 import logging
-from utils import fcc_queue
+from utils import fcc_queue, LogLvl
 from cfg import config
 from SOD.cli import CLI
 
@@ -39,6 +39,7 @@ class SODspawn:
     ):
         if parsed_input[0] == "cls":
             self.cli.reset_state()
+            self.cli.init_set_languages()
             self.cli.cls()
             self.cli.set_output_prompt(self.cli.prompt.PHRASE)
         else:
@@ -66,11 +67,13 @@ class SODspawn:
                 or self.cli.state.MANUAL_MODE
             ):
                 self.cli.reset_state()
+                self.cli.init_set_languages()
                 self.cli.cls(self.cli.msg.SAVE_ABORTED)
                 self.sout.mw.CONSOLE_PROMPT = self.cli.prompt.PHRASE
             elif self.cli.state.QUEUE_MODE:
                 self.cli.setup_queue_unpacking()
             else:  # Exit SOD - not available in dedicated tab
+                self.cli.init_set_languages()
                 self.cli.cls()
                 # self.sout.cls()
                 # self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
@@ -87,10 +90,11 @@ class SODspawn:
         ):
             self.cli.refresh_file_handler()
             self.cli.cls(self.cli.msg.DB_REFRESH, keep_content=True, keep_cmd=True)
-            fcc_queue.put("Refreshed SOD database", importance=20)
+            fcc_queue.put_notification("Refreshed SOD database", lvl=LogLvl.info)
 
     def manage_modes(self, cmd: list):
         if cmd[0] == "cls":
+            self.cli.init_set_languages()
             self.cli.cls()
         elif (
             self.cli.state.SELECT_TRANSLATIONS_MODE
@@ -106,3 +110,18 @@ class SODspawn:
             self.cli.unpack_translations_from_queue(cmd)
         else:
             self.cli.execute_command(cmd)
+
+    def can_do_lookup(self) -> bool:
+        """Check if current mode allows for executing Lookup"""
+        return not (self.cli.state.QUEUE_MODE or self.cli.state.QUEUE_SELECTION_MODE)
+
+    def is_state_clear(self) -> bool:
+        """Verify if the current state equals the initial"""
+        return not (
+            self.cli.state.SELECT_TRANSLATIONS_MODE
+            or self.cli.state.RES_EDIT_SELECTION_MODE
+            or self.cli.state.MODIFY_RES_EDIT_MODE
+            or self.cli.state.MANUAL_MODE
+            or self.cli.state.QUEUE_MODE
+            or self.cli.state.QUEUE_SELECTION_MODE
+        )

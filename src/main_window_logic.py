@@ -34,6 +34,7 @@ class MainWindowLogic:
         self.should_hide_tips = lambda: False
         self.tips_hide_re = re.compile(self.config["hide_tips"]["pattern"])
         self.allow_hide_tips = True
+        self.mistakes_saved = False
 
     @property
     def is_revision(self):
@@ -82,14 +83,16 @@ class MainWindowLogic:
 
     def record_revision_to_db(self, seconds_spent=0):
         if self.active_file.kind == self.db.KINDS.mst:
-            self.config["unreviewed_mistakes"] = 0
+            self.config["mst"]["unreviewed"] = max(
+                self.config["mst"]["unreviewed"] - self.active_file.data.shape[0], 0
+            )
         self.db.create_record(
             self.total_words, self.positives, seconds_spent, is_first=0
         )
         self.is_recorded = True
         if self.active_file.filepath in self.config["CRE"]["items"]:
             self._update_cre()
-            fcc_queue.put(self._get_cre_stat())
+            fcc_queue.put_log(self._get_cre_stat())
             if not self.config["CRE"]["items"]:
                 self._cre_finalize()
 
@@ -100,7 +103,7 @@ class MainWindowLogic:
         self.config["CRE"]["positives"] += self.positives
 
     def _cre_finalize(self):
-        fcc_queue.put("CRE finished - Congratulations!!!", importance=30)
+        fcc_queue.put_notification("CRE finished - Congratulations!!!", lvl=LogLvl.important)
         self.config["CRE"]["prev"]["date"] = datetime.now().strftime(
             r"%Y-%m-%d %H:%M:%S"
         )
@@ -150,11 +153,11 @@ class MainWindowLogic:
     def load_flashcards(self, fd: FileDescriptor, seed=None):
         try:
             self.db.load_dataset(fd, do_shuffle=True, seed=seed)
-            fcc_queue.put(
+            fcc_queue.put_log(
                 f"{self.db.KFN[self.active_file.kind]} loaded: {self.active_file.basename}"
             )
         except FileNotFoundError:
-            fcc_queue.put("File Not Found.")
+            fcc_queue.put_notification(f"File not found: {fd.filepath}", lvl=LogLvl.exc)
 
     def should_create_db_record(self):
         return (
@@ -195,6 +198,7 @@ class MainWindowLogic:
         self.words_back = 0
         self.total_words = self.active_file.data.shape[0]
         self.mistakes_list = list()
+        self.mistakes_saved = False
         self.cards_seen_sides = list()
         self.add_default_side()
         self.side = self.get_default_side()
@@ -243,12 +247,14 @@ class MainWindowLogic:
 
     def save_current_mistakes(self):
         self.db.save_mistakes(mistakes_list=self.mistakes_list)
+        self.mistakes_saved = True
         self.notify_on_mistakes()
 
     def notify_on_mistakes(self):
         if (
             self.config["popups"]["allowed"]["unreviewed_mistakes"]
-            and self.config["unreviewed_mistakes"] / self.config["mistakes_buffer"]
+            and self.config["mst"]["unreviewed"]
+            / (self.config["mst"]["part_size"] * self.config["mst"]["part_cnt"])
             >= self.config["popups"]["triggers"]["unreviewed_mistakes_percent"]
         ):
             try:
@@ -257,9 +263,13 @@ class MainWindowLogic:
                     for fd in self.db.files.values()
                     if fd.lng == self.active_file.lng and fd.kind == self.db.KINDS.mst
                 ][0]
-                fcc_queue.put(
-                    f"There are {self.config['unreviewed_mistakes']} unreviewed Mistakes!",
-                    importance=20,
+                unr_cnt = min(
+                    self.config["mst"]["unreviewed"],
+                    self.config["mst"]["part_size"] * self.config["mst"]["part_cnt"],
+                )
+                fcc_queue.put_notification(
+                    f"There are {unr_cnt} unreviewed Mistakes!",
+                    lvl=LogLvl.info,
                     func=lambda: self.initiate_flashcards(mistakes_fd),
                 )
             except IndexError:
@@ -272,9 +282,9 @@ class MainWindowLogic:
                 if rec["is_init"]:
                     outstanding_cnt += 1
             if outstanding_cnt > 0:
-                fcc_queue.put(
+                fcc_queue.put_notification(
                     f"There are {outstanding_cnt} outstanding Initial Revisions",
-                    importance=20,
+                    lvl=LogLvl.info,
                     func=None if self.is_initial_rev else self.load_next_efc,
                 )
 
@@ -327,11 +337,36 @@ class MainWindowLogic:
             err_msg = traceback
 
         err_msg += "\n" + self.CONSOLE_PROMPT
-        fcc_queue.put(err_msg, importance=50)
+        fcc_queue.put_log(err_msg)
 
         if self.side_window_id == "fcc":
             self.del_side_window()
         self.get_fcc_sidewindow()
+
+    def should_save_mistakes(self) -> bool:
+        res = False
+        if (
+            self.mistakes_list
+            and not self.mistakes_saved
+            and (
+                self.is_recorded
+                or self.config["mst"]["opt"]["allow_save_mst_from_unfinished"]
+            )
+        ):
+            if self.active_file.kind == self.db.KINDS.rev:
+                if self.is_initial_rev:
+                    if self.config["mst"]["opt"]["allow_save_mst_from_initial_rev"]:
+                        res = True
+                else:
+                    if self.config["mst"]["opt"]["allow_save_mst_from_rev"]:
+                        res = True
+            elif self.active_file.kind == self.db.KINDS.mst:
+                if self.config["mst"]["opt"]["allow_save_mst_from_mst"]:
+                    res = True
+            elif self.active_file.kind == self.db.KINDS.eph:
+                if self.config["mst"]["opt"]["allow_save_mst_from_eph"]:
+                    res = True
+        return res
 
     # TODO add snapshot params for SOD
     def create_session_snapshot(self):
@@ -340,7 +375,7 @@ class MainWindowLogic:
         _fcc_log = self.tabs["fcc"]["console_log"]
         if len(_fcc_log) > 0 and _fcc_log[-1] == self.tabs["fcc"]["console_prompt"]:
             _fcc_log.pop()
-        for m in fcc_queue.get_all():
+        for m in fcc_queue.get_logs():
             _fcc_log.append(f"[{m.timestamp.strftime('%H:%M:%S')}] {m.message}")
         snapshot = {
             "timestamp": datetime.now().strftime(self.db.TSFORMAT),
@@ -353,6 +388,7 @@ class MainWindowLogic:
             "negatives": self.negatives,
             "total_words": self.total_words,
             "mistakes_list": self.mistakes_list,
+            "mistakes_saved": self.mistakes_saved,
             "cards_seen_sides": self.cards_seen_sides,
             "side": self.side,
             "cur_load_index": self.cur_load_index,
@@ -366,7 +402,6 @@ class MainWindowLogic:
             "efc_db_is_current": self._db_load_time_efc == self.db.last_load,
             "efc_recommendations": self._recoms,
             "fcc_cmds_cursor": self.tabs["fcc"]["cmds_cursor"],
-            "fcc_console_prompt": self.tabs["fcc"]["console_prompt"],
             "fcc_console_log": _fcc_log,
             "fcc_cmds_log": self.tabs["fcc"]["cmds_log"],
         }
@@ -390,6 +425,7 @@ class MainWindowLogic:
         self.negatives = metadata["negatives"]
         self.total_words = metadata["total_words"]
         self.mistakes_list = metadata["mistakes_list"]
+        self.mistakes_saved = metadata["mistakes_saved"]
         self.cards_seen_sides = metadata["cards_seen_sides"]
         self.side = metadata["side"]
         self.cur_load_index = metadata["cur_load_index"]
@@ -406,6 +442,5 @@ class MainWindowLogic:
             -self.config["cache_history_size"] :
         ]
         self.tabs["fcc"]["cmds_cursor"] = metadata["fcc_cmds_cursor"]
-        self.tabs["fcc"]["console_prompt"] = metadata["fcc_console_prompt"]
         self.activate_tab("fcc")
         self.set_should_hide_tips()

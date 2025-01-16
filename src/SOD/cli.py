@@ -21,7 +21,6 @@ class State:
         self.MANUAL_MODE = False
         self.QUEUE_MODE = False
         self.QUEUE_SELECTION_MODE = False
-        self.DUPLICATE_MODE = False
 
 
 class Message:
@@ -87,7 +86,7 @@ class CLI:
     @cache
     def pix_lim(self) -> int:
         return int(
-            0.99
+            0.98
             * (
                 self.output.console.width()
                 - self.output.console.contentsMargins().left()
@@ -137,10 +136,10 @@ class CLI:
         self.help_arg = self.config["SOD"]["help_arg"]
 
     def init_set_languages(self):
-        if self.config["SOD"]["initial_language"] == "auto":
+        if self.config["SOD"]["std_src_lng"] == "auto":
             ref = self.config["SOD"]["last_src_lng"]
         else:
-            ref = self.config["SOD"]["initial_language"]
+            ref = self.config["SOD"]["std_src_lng"]
         r = 1 if ref == "native" else -1
         native, foreign = self.fh.get_languages()[::r]
         self.dicts.set_languages(native, foreign)
@@ -390,6 +389,29 @@ class CLI:
             else:
                 self.cls(self.msg.NO_TRANSLATIONS)
 
+    def lookup(self, phrase: str, src_lng: str, default: str = "") -> str:
+        """Quick search for a phrase"""
+        out = default
+        prev_src_lng = self.dicts.source_lng
+        prev_tgt_lng = self.dicts.target_lng
+        self.dicts.set_languages(src_lng, None)
+
+        translations, originals, warnings = self.dicts.get_info_about_phrase(phrase)
+        if translations:
+            pattern = re.compile(self.config["lookup"]["pattern"])
+            found_cnt = 0
+            found = False
+            for r in originals:
+                if p := pattern.findall(r):
+                    if not found:
+                        out = ", ".join(p)
+                        found = True
+                    found_cnt += 1
+        if found_cnt > 1:
+            out += " (?)"
+        self.dicts.set_languages(prev_src_lng, prev_tgt_lng)
+        return out
+
     def setup_queue(self):
         self.queue_dict = OrderedDict()
         self.queue_index = 1
@@ -471,7 +493,7 @@ class CLI:
                 transl = "; ".join(translations[:2]).rstrip()
                 if self.caliper.strwidth(transl) > p_lim:
                     transl = (
-                        self.caliper.abbreviate(transl, p_lim)
+                        self.caliper.abbreviate(transl, p_lim - self.caliper.fillerlen)
                         + self.config["theme"]["default_suffix"]
                     )
             else:
@@ -582,15 +604,13 @@ class CLI:
         res_lim = self.lines_lim
         trans, origs = trans[:res_lim], origs[:res_lim]
         if any(origs):
-            plim = self.pix_lim / 2
+            plim = self.pix_lim // 2
             if self.config["SOD"]["table_ext_mode"] == "fix":
                 output = self.__ptt(origs, trans, plim, plim, sep)
             elif self.config["SOD"]["table_ext_mode"] == "flex":
                 llim = min(
                     max(self.caliper.strwidth(c) for c in origs)
-                    + len(str(res_lim))
-                    + self.caliper.strwidth(sep)
-                    + 1,
+                    + self.caliper.strwidth(f"{len(origs)+1}. "),
                     plim,
                 )
                 rlim = 2 * plim - llim
@@ -599,25 +619,21 @@ class CLI:
             output = self.__ptt(origs, trans, self.pix_lim, 0, "")
         self.send_output(output)
 
-    def __ptt(
-        self, trans: list, origs: list, llim: float, rlim: float, sep: str
-    ) -> str:
+    def __ptt(self, c0: list, c1: list, llim: float, rlim: float, sep: str) -> str:
         output = list()
-        for i, (t, o) in enumerate(zip(trans, origs)):
+        for i, (c0r, c1r) in enumerate(zip(c0, c1)):
             i = f"{i+1}. "
-            t = self.caliper.make_cell(
-                t,
+            c0r = self.caliper.make_cell(
+                c0r,
                 llim - self.caliper.strwidth(i),
-                self.config["theme"]["default_suffix"],
                 self.config["SOD"]["cell_alignment"],
             )
-            o = self.caliper.make_cell(
-                o,
+            c1r = self.caliper.make_cell(
+                c1r,
                 rlim - self.caliper.strwidth(sep),
-                self.config["theme"]["default_suffix"],
                 self.config["SOD"]["cell_alignment"],
             )
-            output.append(f"{i}{t}{sep}{o}")
+            output.append(f"{i}{c0r}{sep}{c1r}")
         return "\n".join(output)
 
     def select_translations(self, parsed_cmd):
@@ -752,7 +768,6 @@ class CLI:
             self.caliper.make_cell(
                 status,
                 self.pix_lim,
-                self.config["theme"]["default_suffix"],
                 align="left",
             )
         )

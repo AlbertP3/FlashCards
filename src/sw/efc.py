@@ -1,6 +1,6 @@
 import PyQt5.QtWidgets as widget
 from PyQt5.QtGui import QFont
-from utils import fcc_queue
+from utils import fcc_queue, LogLvl
 from efc import EFC
 from random import shuffle
 
@@ -67,10 +67,15 @@ class EFCSideWindow(EFC):
         self.recoms_qlist.setStyleSheet(self.__qlist_stylesheet)
         self.recoms_qlist.setVerticalScrollBar(self.get_scrollbar())
         self.recoms_qlist.itemClicked.connect(self.__recoms_qlist_onclick)
+        self.recoms_qlist.itemDoubleClicked.connect(self.__recoms_qlist_onDoubleClick)
         return self.recoms_qlist
 
     def __recoms_qlist_onclick(self, item):
         self.cur_efc_index = self.recoms_qlist.currentRow()
+
+    def __recoms_qlist_onDoubleClick(self, item):
+        self.cur_efc_index = self.recoms_qlist.currentRow()
+        self.load_selected_efc()
 
     def create_load_efc_button(self):
         efc_button = widget.QPushButton(self)
@@ -98,17 +103,17 @@ class EFCSideWindow(EFC):
             self.del_side_window()
 
     def load_next_efc(self):
-        if not self.is_recorded:
-            if self.config["next_efc"]["require_recorded"]:
-                fcc_queue.put(
-                    "Finish your current revision before proceeding", importance=30
-                )
-                return
+        if (
+            self.config["next_efc"]["require_recorded"]
+            and self.positives + self.negatives != 0
+        ):
+            fcc_queue.put_notification(
+                "Finish your current revision before proceeding", lvl=LogLvl.warn
+            )
+            return
         elif (
             self.config["next_efc"]["save_mistakes"]
-            and not self.is_initial_rev
-            and self.mistakes_list
-            and self.is_revision
+            and self.should_save_mistakes()
         ):
             self.save_current_mistakes()
 
@@ -123,7 +128,7 @@ class EFCSideWindow(EFC):
         recs = self.get_recommendations()
 
         if not recs:
-            fcc_queue.put("There are no EFC recommendations")
+            fcc_queue.put_notification("There are no EFC recommendations", lvl=LogLvl.warn)
             return
 
         if self.config["next_efc"]["random"]:
@@ -148,4 +153,4 @@ class EFCSideWindow(EFC):
             self.initiate_flashcards(fd)
             self.del_side_window()
         else:
-            fcc_queue.put("There are no EFC recommendations", importance=20)
+            fcc_queue.put_notification("There are no EFC recommendations", lvl=LogLvl.warn)

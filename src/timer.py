@@ -26,7 +26,7 @@ class Timespent_BE:
             )
         except Exception as e:
             log.error(e, exc_info=True)
-            printout = f"{type(e).__name__} occurred. See log file for more details.."
+            printout = f"{type(e).__name__} occurred. See log file for more details."
         return printout
 
     def _get_data_for_timespent(self, last_n, interval) -> pd.DataFrame:

@@ -38,10 +38,10 @@ except Exception as e:
 
 configure_logging(cfg.config["log_level"])
 log = logging.getLogger("FCS")
-sys.stdout.write = lambda msg: log.debug(msg) if msg != "\n" else None
-sys.stderr.write = lambda msg: log.error(msg) if msg != "\n" else None
+sys.stdout.write = lambda msg: log.debug(msg, stacklevel=2) if msg != "\n" else None
+sys.stderr.write = lambda msg: log.error(msg, stacklevel=2) if msg != "\n" else None
 
-log.debug(f"*** Flashcards {cfg.config['version']} ***")
+log.debug(f"Launching Flashcards {cfg.config['version']}")
 
 from main_window_gui import MainWindowGUI
 
@@ -60,4 +60,4 @@ signal.signal(signal.SIGINT, handle_termination_signal)
 
 mw.launch_app()
 
-log.debug("*** Application shutdown ***")
+log.debug("Application shutdown")

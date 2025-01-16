@@ -3,7 +3,7 @@ import PyQt5.QtWidgets as widget
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
-from utils import fcc_queue
+from utils import fcc_queue, LogLvl
 from cfg import config
 from stats import Stats
 
@@ -37,7 +37,7 @@ class ProgressSideWindow(Stats):
             self.arrange_progress_sidewindow(lngs or self.config["languages"])
             self.open_side_window(self.progress_layout, "progress")
         except ValueError as e:
-            fcc_queue.put("No data found for Progress", importance=30)
+            fcc_queue.put_notification("No data found for Progress", lvl=LogLvl.exc)
             log.error(e, exc_info=True)
 
     def arrange_progress_sidewindow(self, lngs: set):

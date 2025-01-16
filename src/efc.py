@@ -84,26 +84,27 @@ class EFC:
     def __get_recommendations(self) -> list[dict]:
         self._recoms = list()
         self.db.refresh()
-        if self.config["mistakes_review_interval_days"] > 0:
+        if self.config["mst"]["interval_days"] > 0:
             cur = datetime.now()
             for lng in self.config["languages"]:
-                sig = self.db.MST_BASENAME.format(lng=lng)
+                fmt = self.db.MST_BASENAME.format(lng=lng)
                 try:
-                    self.db.files[self.db.make_filepath(lng, self.db.MST_DIR, sig + ".csv")]
-                    lmt = self.db.get_last_datetime(sig)
-                    if (cur - lmt).days >= self.config["mistakes_review_interval_days"]:
-                        self._recoms.append(
-                            {
-                                "fp": self.db.make_filepath(
-                                    lng=lng, subdir=self.db.MST_DIR, filename=f"{sig}.csv"
-                                ),
-                                "disp": f"{self.config['icons']['mistakes']} {sig}",
-                                "score": 0,
-                                "is_init": False,
-                            }
-                        )
+                    for part in range(1, self.config["mst"]["part_cnt"]+1):
+                        sig = f"{fmt}{part}.csv"
+                        fp = self.db.make_filepath(lng, self.db.MST_DIR, sig)
+                        self.db.files[fp]
+                        lmt = self.db.get_last_datetime(fmt)
+                        if (cur - lmt).days >= self.config["mst"]["interval_days"]:
+                            self._recoms.append(
+                                {
+                                    "fp": fp,
+                                    "disp": f"{self.config['icons']['mistakes']} {sig}",
+                                    "score": 0,
+                                    "is_init": False,
+                                }
+                            )
                 except KeyError:
-                    log.warning(f"Language {lng} is missing the mistakes file")
+                    pass
         if self.config["days_to_new_rev"] > 0:
             self._recoms.extend(self.get_new_recoms())
         for rev in sorted(self.get_efc_data(), key=lambda x: x[2]):

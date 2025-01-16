@@ -216,8 +216,9 @@ class CLI:
             approach=self.selected_approach,
         )
         self.set_output_prompt("Press Enter to continue...")
-        fcc_queue.put(
-            f"Applied new {self.selected_approach} model: {self.selected_model}"
+        fcc_queue.put_log(
+            f"Applied a new {self.selected_approach} model: {self.selected_model}",
+            log.info
         )
 
     def prepare_exit(self):

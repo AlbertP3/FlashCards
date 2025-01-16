@@ -1,5 +1,5 @@
 {
-    "version": "1.4.8",
+    "version": "1.4.9",
     "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -10,7 +10,6 @@
         "show_cpm_stats": true,
         "show_efc_line": true,
         "show_percent_stats": true,
-        "show_mistakes_after_revision": true,
         "dynamic_summary": true,
         "side_by_side": false,
         "hide_timer": false,
@@ -19,9 +18,6 @@
     },
     "days_to_new_rev": 0,
     "pd_random_seed": 9022,
-    "mistakes_review_interval_days": 4,
-    "mistakes_buffer": 80,
-    "unreviewed_mistakes": 0,
     "timespent_len": 12,
     "allow_file_monitor": true,
     "pace_card_interval": 0,
@@ -73,6 +69,20 @@
         "pattern": "\\s\\([^\\(\\)]*\\)",
         "connector": "and"
     },
+    "mst": {
+        "part_size": 25,
+        "part_cnt": 4,
+        "interval_days": 4,
+        "unreviewed": 0,
+        "opt": {
+            "show_mistakes_after_revision": false,
+            "allow_save_mst_from_mst": false,
+            "allow_save_mst_from_eph": false,
+            "allow_save_mst_from_rev": true,
+            "allow_save_mst_from_initial_rev": false,
+            "allow_save_mst_from_unfinished": false
+        }
+    },
     "final_actions": {
         "init_ephemeral": false,
         "next_efc": false,
@@ -84,8 +94,12 @@
         "random": false,
         "skip_mistakes": false,
         "new_first": true,
-        "require_recorded": false,
+        "require_recorded": true,
         "save_mistakes": true
+    },
+    "lookup": {
+        "mode": "quick",
+        "pattern": "(?<=\\()[^),]+(?=[),])"
     },
     "SOD": {
         "last_file": null,
@@ -102,7 +116,7 @@
         "help_arg": "\\help",
         "regex_arg": "\\r",
         "list_files_arg": "ls",
-        "initial_language": "native",
+        "std_src_lng": "native",
         "table_ext_mode": "flex",
         "cell_alignment": "left",
         "use_regex": false,
@@ -206,7 +220,7 @@
         "show_animation_ms": 100,
         "hide_animation_ms": 100,
         "check_interval_ms": 1000,
-        "importance": 20,
+        "lvl": 1,
         "triggers": {
             "unreviewed_mistakes_percent": 0.4
         },

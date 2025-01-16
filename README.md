@@ -1,8 +1,8 @@
-# FlashCards 1.4.8
+# FlashCards 1.4.9
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-148)
+- [FlashCards](#flashcards-149)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -13,6 +13,8 @@
   - [Time Spent](#time-spent)
   - [Monitoring](#monitoring)
   - [Settings](#settings)
+  - [Final Actions and Next EFC](#final-actions-and-next-efc)
+  - [Mistakes](#mistakes)
   - [Hiding Tips](#hiding-tips)
   - [Requirements](#requirements)
   - [How to install](#how-to-install)
@@ -28,7 +30,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 ## About
 1. Important files (src/res/*):
    - config.json - all user settings. Loaded once on the launch
-   - db.csv - stores information on *Revisions* and *Mistakes*
+   - db.csv - stores revisions history
    - themes - available styles. User is free to add new styles based on the provided examples
    - model.pkl - custom EFC model, trained to fit forgetting curve of the user [See: EMO](#efc-model-optimizer)
 2. There are 5 *kinds* of flashcards files: 
@@ -37,18 +39,18 @@ Provide a powerful tool to make learning languages effective, automated and smoo
     - *Mistakes* - subsets of failed cards from *Revision* files
     - *Ephemeral* - temporary sets without actual files
     - *Unknown* - describes invalid or missing files
-3. All *kinds* follow the same template e.g.: 
-    | *JP* | *EN*  |
-    | ---- | ----- |
-    | 寿司 | sushi |
-    | ...  | ...   |
+3. All *kinds* follow the same template: 
+    | *TARGET_LANGUAGE_ID* | *SOURCE_LANGUAGE_ID* |
+    | -------------------- | -------------------- |
+    | 寿司                 | sushi                |
+    | ...                  | ...                  |
 4. Supported extensions for all *kinds* are '.csv' and '.xlsx' albeit both *Revisions* and *Mistakes* are by default created as '.csv'
 5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. If the configuration is referencing a missing directory tree, it will be created on the launch, however source file must be put by user. Alternatively, a 'clt' command can be used to generate both language tree and an example file
 6. Once the *Language* file is there, it can be loaded in the app. Then the user will review multiple cards and press 'Save' which will create a new *Revision* file containing only cards seen. Pressing 'Save' during *Revision* will create an *Ephemeral* and if active file was reviewed more then *init_revs_cnt* times - save all failed cards to the *Mistakes* file
 7. Spaced repetitons are reinforced by employing the EFC [See: Ebbinghaus Forgetting Curve](#efc-model-optimizer) that tells user which *Revision* they should repeat now, that is: Predicted % of words in-memory fell below the [efc_threshold](#optional-features)
-8. *Revisions* and *Mistakes* can be appraised - score, time spent and other are then recorded to the Database (src/res/db.csv) and can be eventually viewed on Statistics, Progress and TimeSpent windows
+8. *Revisions*, *Mistakes* and *Ephemerals* can be appraised - score, time spent, etc. are then recorded to the Database (src/res/db.csv) and can be viewed on Statistics, Progress and TimeSpent windows
 9.  Once the *Revision* is complete, the user is presented with the Revision Summary - a couple of sentences evaluating the score
-10. With [Flashcards Console Commands](#console-commands) user is able to access multitude of extra functionalities listed via the 'help' command
+10. With [Flashcards Console Commands](#console-commands) user is able to access a multitude of extra functionalities listed via the 'help' command
 
 
 ## Load Window
@@ -77,9 +79,10 @@ Statistics shows scores for each time currently loaded *Revision* was reviewed. 
 
 Dictionary facilitates managing cards in the datasets via a command line interface - translation for the searched phrase are fetched from the online/local service and then filtered by the user to be finally saved to the file. There are several online dictionaries available of which list can be shown via the 'help' command - a local source can also be used. Searched phrases can be Edited or Added if they don't suite the expectations out-of-the-box. If the searched phrase is already in the dataset, user will be notified about the duplicate. Ultimately, a card can be added relying solely on the user input by entering the manual mode (manual_mode_sep)
 - type \help to get a list of tips and available commands
-- Quick lookup is available by selecting a part of the displayed card's text and clicking RMB
+- Lookup is available by selecting a part of the displayed card's text and clicking RMB. In the 'quick' mode a predicted hint will be displayed as a notification and on left click a complete query results will be displayed
 - Using monospaced fonts with proper support for the used languages is advised
 - It is normal for the separating line to not align perfectly, as shown above. It is due to different pixel widths of certain characters such as 車 compared to an 'a' (of which both have len()=1) or using non-monospaced fonts. To alleviate this issue, a Caliper is used to measure actual pixel widths of characters and pad the cell accordingly.
+- Search is done one-way only, from the source to the target language, which is visible on the status bar and can be reversed with a prefix, and unless the default source language is set to "auto" it will be reverted after the operation is finished.
 
 ## EFC Model Optimizer
 
@@ -142,14 +145,27 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 - Hint can be revealed by pressing the *hint* shortcut
 
 
+## Final Actions and Next EFC
+- FlashCards strives to provide a seamless transition between datasets thus there are two types of actions that facilitate this process
+- Final Actions are executed after pressing 'next' on the synopsis, after the revision is completed. Behaviour is controlled via "final_actions" parameter in config. This action can for example automatically create a *Revision* file from a *Language* or save mistakes from *Revision* and initiate an *Ephemeral* or suggest a next set
+- Next EFC can be invoked at any moment to open a recommended set, unless 'require_saved' is set to True. Order and filters are controlled by the "next_efc" parameter.
+
+
+## Mistakes
+- Cards that received a negative score during the revision can be saved to *Mistakes* files
+- This behaviour is controlled through Settings menu and by default it will only allow saving *Mistakes* from non-initial *Revisions*
+- There is a rotation mechanism in place - each *Mistakes* file can have at most 'part_size' cards and if exceeded, files will be rotated and then the outstanding cards will be saved to a new file. Maximum number of files is set by 'part_cnt'
+
+
 ## Comprehensive Revision Mode
 - In CRE mode, all revisions are scheduled for a review. Progress is tracked thoroughly
 - On *next_efc* they will take precedence over other recommendations 
 - While this mode is on, statistics will be gathered and presented after each *Revision* in a form of a short progress report
 - Revisions can be scheduled in random or reversed order, according to the settings
 
+
 ## Requirements
-- Python3.10+
+- Python3.10
 - Linux
 
 
@@ -193,7 +209,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | cac       | Clear Application Cache - *key^help - runs cache_clear on an optional key                                                                 |
 | ssf       | Show Scanned Files - presents a list of all relevant files                                                                                |
 | clt       | Create Language Tree - creates a directory tree for a new language and an example file                                                    |
-| eph       | Create Ephemeral Mistakes - shows current mistakes as flashcards                                                                          |
+| eph       | Create Ephemeral Mistakes - shows current mistakes as flashcards of type *Ephemeral*                                                      |
 | cre       | Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, stat |
 | cfg       | Config - manage the config file. Arguments: save, load, restart                                                                           |
 | dbg       | Debug - display debug info                                                                                                                |
@@ -216,7 +232,10 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | allow_file_monitor            | Toggles a watcher that automatically updates loaded files on source change                                                  |
 | init_revs_cnt                 | Specifies amount of revisions that are supposed to be recommended in init_revs_inth hours intervals, ignoring the EFC model |
 | init_revs_inth                | Hourly Interval between initial revisions, ignoring the EFC model                                                           |
-| mistakes_buffer               | Specifies amount of cards that are kept in the *LNG*_mistakes.csv files. The queue follows the FIFO logic                   |
+| mistakes_buffer               | Specifies amount of cards that are kept in the *LNG*_mistakes_NUM.csv files. The queue follows the FIFO logic               |
+| mistakes_review_interval_days | recommend the mistakes files to be reviewed each N days                                                                     |
+| mistakes_part_cnt             | maximum number of *Mistakes* files. Automatic rotation and partitioning is applied                                          |
+| mistakes_part_size            | limit the number of cards stored in one *Mistakes* file                                                                     |
 | card_default_side             | Specifies with side of the card is displayed first. Valid choices are: 1, 0, random                                         |
 | timespent_len                 | count of months back that are shown on the TimeSpent window                                                                 |
 | emo_discretizer               | which discretization function should EMO use: yeo-johnson, decision-tree                                                    |
@@ -225,7 +244,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | synopsis                      | text to be displayed after *Language* cards range is exceeded                                                               |
 | recoms                        | key-value pairs specyfing encouraging texts for recommend_new entries                                                       |
 | SOD files_list                | faciliate switching by specifying files available to SOD. Skipped if empty                                                  |
-| mistakes_review_interval_days | recommend the mistakes file to be reviewed each N days                                                                      |
 | hiding_tips                   | remove *pattern* from the displayed text by following the *policy*                                                          |
 | final_actions                 | an action to be performed after pressing next_button on synopsis. Example: create an *ephemeral* from mistakes              |
 | next_efc                      | on shortcut *next_efc* will load a recommended file by following the policy                                                 |

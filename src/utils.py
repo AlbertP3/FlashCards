@@ -9,7 +9,7 @@ import inspect
 from time import perf_counter
 import logging
 from typing import Union, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from cfg import config
 
 
@@ -55,10 +55,30 @@ def singleton(cls):
 
 
 @dataclass
+class LogLvl:
+    debug: int = 0
+    info: int = 1
+    important: int = 2
+    warn: int = 3
+    err: int = 4
+    exc: int = 5
+
+    @staticmethod
+    def get_fields() -> list[str]:
+        return [field.name for field in fields(LogLvl)]
+
+    @staticmethod
+    def get_field_name_by_value(value: int) -> str:
+        for field in fields(LogLvl):
+            if getattr(LogLvl, field.name) == value:
+                return field.name
+
+
+@dataclass
 class QueueRecord:
     message: str
     timestamp: datetime
-    importance: int = 10
+    lvl: int = LogLvl.debug
     func: Callable = None
     persist: bool = False
 
@@ -71,35 +91,43 @@ class FccQueue:
         self.__notification_queue: deque[QueueRecord] = deque()
         self.unacked_notifications = 0
 
-    def put(
-        self,
-        msg: str,
-        importance: int = 10,
-        func: Callable = None,
-        persist: bool = False,
-    ) -> None:
+    def put_log(self, msg: str, log_func: Callable = None):
         if msg:
             record = QueueRecord(
                 message=msg,
                 timestamp=datetime.now(),
-                importance=importance,
+            )
+            self.__fcc_queue.append(record)
+            if log_func:
+                log_func(msg, stacklevel=2)
+
+    def put_notification(
+        self,
+        msg: str,
+        lvl: int = LogLvl.debug,
+        func: Callable = None,
+        persist: bool = False,
+    ):
+        if msg and lvl >= config["popups"]["lvl"]:
+            record = QueueRecord(
+                message=msg,
+                timestamp=datetime.now(),
+                lvl=lvl,
                 func=func,
                 persist=persist,
             )
-            self.__fcc_queue.append(record)
-            if importance >= config["popups"]["importance"]:
-                self.__notification_queue.append(record)
-                self.unacked_notifications += 1
+            self.__notification_queue.append(record)
+            self.unacked_notifications += 1
 
-    def pull_fcc(self) -> QueueRecord:
+    def pull_log(self) -> QueueRecord:
         return self.__fcc_queue.popleft()
 
-    def dump(self) -> list[QueueRecord]:
+    def dump_logs(self) -> list[QueueRecord]:
         res = list(self.__fcc_queue)
         self.__fcc_queue.clear()
         return res
 
-    def get_all(self) -> list[QueueRecord]:
+    def get_logs(self) -> list[QueueRecord]:
         return list(self.__fcc_queue)
 
     def pull_notification(self) -> QueueRecord:
@@ -203,11 +231,15 @@ def flatten_dict(d: dict, root: str = "BASE", lim_chars: int = None) -> list:
 class Caliper:
     """Works on pixels!"""
 
-    def __init__(self, qFont: QFont):
+    def __init__(self, qFont: QFont, suffix: str = "", filler: str = "\u0020"):
         self.fmetrics = QFontMetricsF(qFont)
+        self.suffix = suffix or config["theme"]["default_suffix"]
         self.scw = self.fmetrics.maxWidth()
         self.sch = self.fmetrics.height()
         self.ls = self.fmetrics.lineSpacing()
+        self.suflen = self.strwidth(self.suffix)
+        self.filler = filler
+        self.fillerlen = self.strwidth(filler)
 
     @cache
     def pixlen(self, char: str) -> float:
@@ -226,67 +258,43 @@ class Caliper:
                 i = 0
                 while excess > 0:
                     i -= 1
-                    excess -= self.strwidth(text[i])
+                    excess -= self.pixlen(text[i])
             except IndexError:
                 return text
             else:
                 return text[:i]
 
-    def make_cell(
-        self,
-        text: str,
-        pixlim: float,
-        suffix: str = "…",
-        align: str = "left",
-        filler: str = "\u0020",
-    ) -> str:
-        if text.isascii():
-            rem_text = self.abbreviate(text, pixlim)
-            out = deque(rem_text)
-            pixlim -= self.strwidth(rem_text)
-            should_add_suffix = pixlim <= self.scw
+    def make_cell(self, text: str, pixlim: float, align: str = "left") -> str:
+        txtwt = self.strwidth(text)
+        if txtwt > pixlim:
+            out_len = txtwt + self.suflen
+            i = 0
+            while out_len > pixlim:
+                i -= 1
+                out_len -= self.pixlen(text[i])
+            out = f"{text[:i]}{self.suffix}"
+            pixlim -= out_len
         else:
-            out = deque()
-            for c in text:
-                len_c = self.pixlen(c)
-                if pixlim >= len_c:
-                    out.append(c)
-                    pixlim -= len_c
-                else:
-                    should_add_suffix = True
-                    break
-            else:
-                should_add_suffix = False
-
-        if should_add_suffix:
-            suf_len = self.strwidth(suffix)
-            try:
-                while pixlim < suf_len:
-                    pixlim += self.pixlen(out.pop())
-            except IndexError:
-                pass
-            out.append(suffix)
-            pixlim -= suf_len
+            out = text
+            pixlim -= txtwt
 
         if align == "center":
             d, r = divmod(pixlim, 2)
-            rpad = filler * int(round((d + r) / self.strwidth(filler), 2))
-            lpad = filler * int(round(d / self.strwidth(filler), 2))
+            rpad = self.filler * int(round((d + r) / self.fillerlen, 2))
+            lpad = self.filler * int(round(d / self.fillerlen, 2))
         else:
-            pad = filler * int(round(pixlim / self.strwidth(filler), 2))
+            pad = self.filler * int(round(pixlim / self.fillerlen, 2))
             lpad = pad if align == "right" else ""
             rpad = pad if align == "left" else ""
 
-        return lpad + "".join(out) + rpad
+        return f"{lpad}{''.join(out)}{rpad}"
 
     def make_table(
         self,
         data: list[list[str]],
         pixlim: Union[float, list],
         headers: list = None,
-        suffix="-",
         align: Union[str, list] = "left",
-        filler: str = "\u0020",
         sep: str = " | ",
         keep_last_border: bool = True,
     ):
@@ -310,9 +318,7 @@ class Caliper:
                     self.make_cell(
                         text,
                         pixlim=pixlim[i],
-                        suffix=suffix,
                         align=align[i],
-                        filler=filler,
                     )
                     + sep
                 )

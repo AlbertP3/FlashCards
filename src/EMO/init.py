@@ -67,7 +67,7 @@ class EMOSpawn:
         self.sout.mw.CONSOLE_LOG.append(self.sout.mw.CONSOLE_PROMPT)
         self.sout.mw.CMDS_LOG = self.CMD_HISTORY
         self.sout.mw.db.refresh()
-        for msg in fcc_queue.dump():
+        for msg in fcc_queue.dump_logs():
             self.sout.mw.fcc_inst.post_fcc(
                 f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}"
             )
@@ -84,7 +84,7 @@ class EMOSpawn:
                 self.cli.decide_model(parsed_cmd)
             elif self.cli.step == Steps.decide_exit:
                 if parsed_cmd and parsed_cmd[0].lower() in {"yes", "y", "1", ""}:
-                    fcc_queue.put("Model Selection cancelled")
+                    fcc_queue.put_log("Model Selection cancelled")
                     self.remove_adapter()
                 else:
                     self.cli.show_model_stats()

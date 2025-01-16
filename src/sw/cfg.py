@@ -6,7 +6,7 @@ import PyQt5.QtWidgets as widget
 from PyQt5.QtCore import Qt
 from data_types import HIDE_TIPS_POLICIES
 from widgets import CheckableComboBox, ScrollableOptionsWidget
-from utils import fcc_queue
+from utils import fcc_queue, Caliper, LogLvl
 from cfg import config, validate
 from typing import Callable
 import logging
@@ -90,12 +90,20 @@ class ConfigSideWindow:
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Mistakes")
-        self.mistakes_buffer_qle = self.cfg_qle(
-            self.config["mistakes_buffer"], text="Mistakes buffer"
+        self.mst_opts_cbx = self.cfg_cbx(
+            self.config["mst"]["opt"],
+            list(self.config["mst"]["opt"].keys()),
+            text="Optional features",
+        )
+        self.mistakes_part_size_qle = self.cfg_qle(
+            self.config["mst"]["part_size"], text="Mistakes part size"
+        )
+        self.mistakes_part_cnt_qle = self.cfg_qle(
+            self.config["mst"]["part_cnt"], text="Mistakes parts count"
         )
         self.mst_rev_int_qle = self.cfg_qle(
-            self.config["mistakes_review_interval_days"],
-            text="Days between mistake reviews",
+            self.config["mst"]["interval_days"],
+            text="Days between reviews",
         )
         self.popup_trigger_unrevmistakes_qle = self.cfg_qle(
             self.config["popups"]["triggers"]["unreviewed_mistakes_percent"],
@@ -176,22 +184,31 @@ class ConfigSideWindow:
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("SOD")
         self.sod_init_lng_cbx = self.cfg_cbx(
-            self.config["SOD"]["initial_language"],
+            self.config["SOD"]["std_src_lng"],
             ["auto", "native", "foreign"],
             multi_choice=False,
-            text="SOD initial language",
+            text="Default language",
         )
         self.sod_files_cbx = self.cfg_cbx(
             self.config["SOD"]["files_list"],
             multi_choice=True,
             content=sorted(self.db.get_all_files(dirs={self.db.LNG_DIR})),
-            text="SOD files list",
+            text="Files list",
         )
         self.sod_cell_alignment_cbx = self.cfg_cbx(
             self.config["SOD"]["cell_alignment"],
             multi_choice=False,
             content=["left", "right", "center"],
-            text="SOD cell alingment",
+            text="Cell alingment",
+        )
+        self.lookup_mode_cbx = self.cfg_cbx(
+            self.config["lookup"]["mode"],
+            multi_choice=False,
+            content=["quick", "full"],
+            text="Lookup mode",
+        )
+        self.lookup_pattern_qle = self.cfg_qle(
+            self.config["lookup"]["pattern"], text="Lookup pattern"
         )
 
         self.opts_layout.add_spacer()
@@ -276,11 +293,11 @@ class ConfigSideWindow:
             list(self.config["popups"]["allowed"].keys()),
             text="Allowed popups",
         )
-        self.popup_importance_cbx = self.cfg_cbx(
-            self.config["popups"]["importance"],
+        self.popup_lvl_cbx = self.cfg_cbx(
+            LogLvl.get_field_name_by_value(self.config["popups"]["lvl"]),
             multi_choice=False,
-            content=["0", "10", "20", "30", "40", "50"],
-            text="Popup importance threshold",
+            content=LogLvl.get_fields(),
+            text="Popup level threshold",
         )
         self.popup_timeout_qle = self.cfg_qle(
             self.config["popups"]["timeout_ms"], text="Popup timeout (msec)"
@@ -315,7 +332,7 @@ class ConfigSideWindow:
             text="File monitor",
         )
         self.csv_sniffer_qle = self.cfg_cbx(
-            self.config["csv_sniffer"], 
+            self.config["csv_sniffer"],
             ["off", ",", ";"],
             multi_choice=False,
             text="CSV sniffer",
@@ -338,21 +355,27 @@ class ConfigSideWindow:
         new_cfg["efc_cache_expiry_hours"] = int(self.efc_cache_exp_qle.text())
         new_cfg["next_efc"] = self.next_efc_policy_cbx.currentDataDict()
         new_cfg["days_to_new_rev"] = int(self.days_to_new_rev_qle.text())
-        new_cfg["mistakes_review_interval_days"] = int(self.mst_rev_int_qle.text())
         new_cfg["opt"] = self.optional_featuers_cbx.currentDataDict()
         new_cfg["init_revs_cnt"] = int(self.init_rep_qle.text())
         new_cfg["init_revs_inth"] = int(self.init_revh_qle.text())
         new_cfg["allow_file_monitor"] = (
             self.check_file_monitor_cbx.currentDataList()[0] == "True"
         )
-        new_cfg["mistakes_buffer"] = int(self.mistakes_buffer_qle.text())
+        new_cfg["mst"]["opt"] = self.mst_opts_cbx.currentDataDict()
+        new_cfg["mst"]["part_size"] = int(self.mistakes_part_size_qle.text())
+        new_cfg["mst"]["part_cnt"] = int(self.mistakes_part_cnt_qle.text())
+        new_cfg["mst"]["interval_days"] = int(self.mst_rev_int_qle.text())
         new_cfg["active_theme"] = self.theme_cbx.currentDataList()[0]
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.currentDataList()[0]
-        new_cfg["SOD"]["initial_language"] = self.sod_init_lng_cbx.currentDataList()[0]
+        new_cfg["SOD"]["std_src_lng"] = self.sod_init_lng_cbx.currentDataList()[0]
         new_cfg["SOD"]["files_list"] = self.sod_files_cbx.currentDataList()
-        new_cfg["SOD"]["cell_alignment"] = self.sod_cell_alignment_cbx.currentDataList()[0]
+        new_cfg["SOD"][
+            "cell_alignment"
+        ] = self.sod_cell_alignment_cbx.currentDataList()[0]
+        new_cfg["lookup"]["mode"] = self.lookup_mode_cbx.currentDataList()[0]
+        new_cfg["lookup"]["pattern"] = self.lookup_pattern_qle.text()
         new_cfg["CRE"]["opt"].update(self.cre_settings_cbx.currentDataDict())
         new_cfg["hide_tips"]["policy"][
             self.db.KINDS.rev
@@ -382,8 +405,8 @@ class ConfigSideWindow:
         new_cfg["popups"]["show_animation_ms"] = int(self.popup_showani_qle.text())
         new_cfg["popups"]["hide_animation_ms"] = int(self.popup_hideani_qle.text())
         new_cfg["popups"]["check_interval_ms"] = int(self.popup_checkint_qle.text())
-        new_cfg["popups"]["importance"] = int(
-            self.popup_importance_cbx.currentDataList()[0]
+        new_cfg["popups"]["lvl"] = getattr(
+            LogLvl, self.popup_lvl_cbx.currentDataList()[0]
         )
         new_cfg["popups"]["triggers"]["unreviewed_mistakes_percent"] = float(
             self.popup_trigger_unrevmistakes_qle.text()
@@ -435,12 +458,12 @@ class ConfigSideWindow:
             self.config_manual_update()
             self.display_text(self.get_current_card().iloc[self.side])
         else:
-            fcc_queue.put(
+            fcc_queue.put_notification(
                 f"Invalid configuration provided!",
-                importance=30,
+                lvl=LogLvl.err,
                 func=lambda: self.get_fcc_sidewindow(),
             )
-            fcc_queue.put("\n".join(errs))
+            fcc_queue.put_log("\n".join(errs))
             self.funcs_to_restart.clear()
             return
 
@@ -473,7 +496,7 @@ class ConfigSideWindow:
         cb = CheckableComboBox(
             self,
             allow_multichoice=multi_choice,
-            width=self.config["geo"]["config"][0] // 2,
+            width=self.config.get_geo("config")[0] // 2,
         )
         cb.setStyleSheet(self.button_stylesheet)
         cb.setFont(self.BUTTON_FONT)
@@ -512,10 +535,10 @@ class ConfigSideWindow:
 
     def config_manual_update(self, key: str = None, subdict: str = None):
         if subdict == "theme":
-            if key == "console_font_size":
+            if key in {"console_font_size", "default_suffix"}:
                 self.init_font()
                 self.console.setFont(self.CONSOLE_FONT)
-                self.caliper.pixlen.cache_clear()
+                self.caliper = Caliper(self.CONSOLE_FONT)
         elif not (key or subdict):
             self._efc_last_calc_time = 0
             self.db.update_fds()

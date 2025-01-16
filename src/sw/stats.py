@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
-from utils import format_seconds_to, fcc_queue
+from utils import format_seconds_to, fcc_queue, LogLvl
 from cfg import config
 from stats import Stats
 
@@ -36,8 +36,9 @@ class StatsSideWindow(Stats):
             self.arrange_stats_sidewindow()
             self.open_side_window(self.stats_layout, "stats")
         else:
-            fcc_queue.put(
-                f"Statistics are not available for a {self.db.KFN[self.active_file.kind]}"
+            fcc_queue.put_notification(
+                f"Statistics are not available for a {self.db.KFN[self.active_file.kind]}",
+                lvl=LogLvl.warn
             )
 
     def arrange_stats_sidewindow(self):

@@ -115,6 +115,11 @@ class FccSideWindow:
     def get_sod_sidewindow(self):
         """Open SOD terminal directly"""
         self.activate_tab("sod")
+        if self.tabs["sod"]["fcc_ins"].sod_object.is_state_clear():
+            self.tabs["sod"]["fcc_ins"].sod_object.cli.init_set_languages()
+            self.tabs["sod"]["fcc_ins"].sod_object.cli.cls(
+                keep_cmd=True, keep_content=True
+            )
         self.get_terminal_sidewindow()
 
     def init_font(self):
@@ -160,7 +165,7 @@ class FccSideWindow:
         if self.active_tab_ident == "fcc":
             cmd = self.CONSOLE_LOG.pop()
             self.console.setText("\n".join(self.CONSOLE_LOG))
-            for msg in fcc_queue.dump():
+            for msg in fcc_queue.dump_logs():
                 self.fcc_inst.post_fcc(
                     f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}"
                 )
@@ -226,7 +231,7 @@ class FccSideWindow:
                 cursor.setPosition(self.promptend, QtGui.QTextCursor.KeepAnchor)
                 self.console.setTextCursor(cursor)
             else:
-                 widget.QTextEdit.keyPressEvent(self.console, event)
+                widget.QTextEdit.keyPressEvent(self.console, event)
         elif event_key == Qt.Key_Home:
             self.move_cursor_to_start()
         elif event_key == Qt.Key_Return:

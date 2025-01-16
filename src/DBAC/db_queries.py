@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from time import time, perf_counter
 from csv import DictWriter
-from utils import fcc_queue
+from utils import fcc_queue, LogLvl
 
 log = logging.getLogger("DBAC")
 
@@ -92,7 +92,7 @@ class DBQueries:
         with open(self.DB_PATH, "a") as fd:
             dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
             dw.writerow(record)
-        fcc_queue.put(f"Recorded {self.active_file.signature}", importance=20)
+        fcc_queue.put_notification(f"Recorded {self.active_file.signature}", lvl=LogLvl.important)
         log.debug(f"Created Record: {record}")
 
     @write_op

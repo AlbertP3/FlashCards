@@ -90,7 +90,7 @@ class DbEFCQueries:
         self.filters["EFC_MODEL"] = True
 
     def remove_cols_for_efc_model(self, drop_lng=False):
-        cols_to_remove = {"POSITIVES", "TIMESTAMP", "SIGNATURE", "SEC_SPENT", "KIND"}
+        cols_to_remove = {"POSITIVES", "TIMESTAMP", "SIGNATURE", "SEC_SPENT", "KIND", "IS_FIRST"}
         if drop_lng:
             cols_to_remove.add("LNG")
         self.db = self.db.drop(cols_to_remove, axis=1)

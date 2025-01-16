@@ -1,11 +1,13 @@
 import pandas as pd
 import os
+import logging
 from utils import fcc_queue, singleton
 from cfg import config
 from DBAC.db_queries import DBQueries
 from DBAC.db_efc import DbEFCQueries
 from DBAC.db_dataset_ops import DbDatasetOps, FileDescriptor
 
+log = logging.getLogger("DBAC")
 pd.options.mode.chained_assignment = None
 
 
@@ -42,7 +44,7 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
         self.LNG_DIR = "lng"
         self.MST_DIR = "mst"
         self.TSFORMAT = r"%Y-%m-%dT%H:%M:%S"
-        self.MST_BASENAME = "{lng}_mistakes"
+        self.MST_BASENAME = "{lng}_mistakes_"
         self.DB_COLS = (
             "TIMESTAMP",
             "SIGNATURE",
@@ -59,8 +61,8 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
             pd.DataFrame(columns=self.DB_COLS).to_csv(
                 self.DB_PATH, sep=";", encoding="utf-8", index=False
             )
-            fcc_queue.put(f"Initialized a new Database: {self.DB_PATH}")
+            fcc_queue.put_log(f"Initialized a new Database: {self.DB_PATH}", log.info)
 
         if not os.path.exists(self.DATA_PATH):
             os.makedirs(self.DATA_PATH)
-            fcc_queue.put(f"Created a new Data path: {self.DATA_PATH}")
+            fcc_queue.put_log(f"Created a new Data path: {self.DATA_PATH}", log.info)

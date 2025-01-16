@@ -6,7 +6,7 @@ from datetime import datetime
 from dataclasses import dataclass
 import os
 import csv
-from utils import fcc_queue
+from utils import fcc_queue, LogLvl
 
 log = logging.getLogger("DBAC")
 
@@ -66,9 +66,9 @@ class DbDatasetOps:
         ):
             log.warning(f"There are {len(d)} FileDescriptors with data!: {d}")
 
-    def make_filepath(self, lng: str, subdir: str, filename: str = "") -> os.PathLike:
+    def make_filepath(self, lng: str, kind: str, filename: str = "") -> os.PathLike:
         """Template for creating Paths"""
-        return os.path.join(self.DATA_PATH, lng, subdir, filename)
+        return os.path.join(self.DATA_PATH, lng, kind, filename)
 
     def gen_signature(self, language) -> str:
         """Create a globally unique identifier. Uses a custom pattern if available."""
@@ -79,9 +79,9 @@ class DbDatasetOps:
                 if tmp not in all_filenames:
                     return tmp
             else:
-                fcc_queue.put(
+                fcc_queue.put_notification(
                     "Failed to generate a signature using the custom pattern",
-                    importance=30,
+                    lvl=LogLvl.warn,
                 )
         saving_date = datetime.now().strftime("%d%m%Y%H%M%S")
         signature = f"REV_{language}{saving_date}"
@@ -94,12 +94,17 @@ class DbDatasetOps:
                 self.active_file.lng, self.REV_DIR, f"{self.active_file.signature}.csv"
             )
             dataset.to_csv(fp, index=False, encoding="utf-8")
-            fcc_queue.put(f"Created {self.active_file.signature}", importance=20)
-            log.debug(f"Created a new file: {fp}")
+            fcc_queue.put_notification(
+                f"Created {self.active_file.signature}", lvl=LogLvl.important
+            )
+            log.info(f"Created a new file: {fp}")
             self.update_fds()
             return fp
         except Exception as e:
-            fcc_queue.put(f"Exception while creating File: {e}")
+            fcc_queue.put_notification(
+                f"Exception while creating a file: {e}. See log file for more details",
+                lvl=LogLvl.exc
+            )
             log.error(e, exc_info=True)
 
     def save_language(self, dataset: pd.DataFrame, fd: FileDescriptor) -> str:
@@ -121,38 +126,86 @@ class DbDatasetOps:
         return opstatus
 
     def save_mistakes(self, mistakes_list: list):
-        """Dump dataset to the Mistakes file"""
-        basename = self.MST_BASENAME.format(lng=self.active_file.lng)
+        """Dump, partition and rotate dataset to the Mistakes files"""
+        name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
         mfd = FileDescriptor(
-            basename=basename,
+            basename=f"{name_fmt}1.csv",
             filepath=self.make_filepath(
-                self.active_file.lng, self.MST_DIR, basename + ".csv"
+                self.active_file.lng, self.MST_DIR, f"{name_fmt}1.csv"
             ),
             lng=self.active_file.lng,
             kind=self.KINDS.mst,
             ext=".csv",
         )
         if mfd.filepath in self.files.keys():
-            buffer = self.load_dataset(mfd, do_shuffle=False, activate=False)
-            mistakes_df = pd.DataFrame(data=mistakes_list, columns=buffer.columns)
-            buffer = pd.concat([buffer, mistakes_df], ignore_index=True)
-            buffer.iloc[-self.config["mistakes_buffer"] :].to_csv(
-                mfd.filepath, index=False, mode="w", header=True
-            )
+            mst_1 = self.load_dataset(mfd, do_shuffle=False, activate=False)
+            mst_new = pd.DataFrame(data=mistakes_list, columns=mst_1.columns)
+            buffer = pd.concat([mst_1, mst_new], ignore_index=True)
         else:  # create a new mistakes file
-            mistakes_df = pd.DataFrame(
+            buffer = pd.DataFrame(
                 data=mistakes_list, columns=self.active_file.data.columns
             )
-            mistakes_df.iloc[: self.config["mistakes_buffer"]].to_csv(
-                mfd.filepath, index=False, mode="w", header=True
-            )
-            log.debug(f"Created new Mistakes File: {mfd.filepath}")
-            self.update_fds()
-        m_cnt = mistakes_df.shape[0]
-        self.config["unreviewed_mistakes"] += m_cnt
-        msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to {mfd.basename}'
-        fcc_queue.put(msg, importance=20)
+        self.partition_mistakes_data(buffer)
+        self.update_fds()
+        m_cnt = len(mistakes_list)
+        self.config["mst"]["unreviewed"] += m_cnt
+        msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes'
+        fcc_queue.put_notification(msg, lvl=LogLvl.info)
         log.debug(msg)
+
+    def partition_mistakes_data(self, buffer: pd.DataFrame):
+        """Partition new mistakes into file(s) with rotation"""
+        name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
+        mst_1 = self.make_filepath(
+            self.active_file.lng, self.MST_DIR, f"{name_fmt}1.csv"
+        )
+        part_size = self.config["mst"]["part_size"]
+        parts = [
+            buffer.iloc[i : i + part_size] for i in range(0, len(buffer), part_size)
+        ]
+        for i, part in enumerate(parts):
+            part.to_csv(mst_1, index=False, mode="w", header=True)
+            if i + 1 < len(parts):
+                self.rotate_mistakes_files()
+
+        log.debug(f"Partitioned Mistakes files for {self.active_file.lng}")
+
+    def rotate_mistakes_files(self):
+        """Rotates CSV files with a base name and a numbered suffix"""
+        name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
+        max_count = self.config["mst"]["part_cnt"]
+
+        # Delete the oldest file if it exceeds the max count
+        oldest_file = self.make_filepath(
+            self.active_file.lng, self.MST_DIR, f"{name_fmt}{max_count}.csv"
+        )
+        if os.path.exists(oldest_file):
+            os.remove(oldest_file)
+
+        # Shift files
+        for i in range(max_count - 1, 0, -1):
+            src = self.make_filepath(
+                self.active_file.lng, self.MST_DIR, f"{name_fmt}{i}.csv"
+            )
+            dest = self.make_filepath(
+                self.active_file.lng, self.MST_DIR, f"{name_fmt}{i+1}.csv"
+            )
+            if os.path.exists(src):
+                os.rename(src, dest)
+
+        # Remove excess files (after config change)
+        i = max_count + 1
+        while True:
+            excess_file = self.make_filepath(
+                self.active_file.lng, self.MST_DIR, f"{name_fmt}{i}.csv"
+            )
+            if os.path.exists(excess_file):
+                os.remove(excess_file)
+                i += 1
+            else:
+                break
+
+        log.debug(f"Rotated Mistakes files for {self.active_file.lng}")
 
     def create_tmp_file_backup(self):
         self.active_file.data.to_csv(
@@ -171,16 +224,18 @@ class DbDatasetOps:
     def validate_dataset(self, fd: FileDescriptor) -> bool:
         if not isinstance(fd.data, pd.DataFrame):
             fd.valid = False
-            fcc_queue.put(
-                f"Invalid data: expected DataFrame, got {type(fd.data).__name__}"
+            fcc_queue.put_notification(
+                f"Invalid data: expected DataFrame, got {type(fd.data).__name__}",
+                lvl=LogLvl.err,
             )
         else:
             if fd.data.shape[1] == 2:
                 fd.valid = True
             else:
                 fd.valid = False
-                fcc_queue.put(
-                    f"Invalid data: expected 2 columns, got {fd.data.shape[1]}"
+                fcc_queue.put_notification(
+                    f"Invalid data: expected 2 columns, got {fd.data.shape[1]}",
+                    lvl=LogLvl.err,
                 )
         return fd.valid
 
@@ -198,8 +253,8 @@ class DbDatasetOps:
             else:
                 operation_status = f"Chosen extension is not (yet) supported: {fd.ext}"
         except FileNotFoundError as e:
-            operation_status = f"File {fd.filepath} Not Found"
-            log.debug(operation_status, stacklevel=2)
+            operation_status = f"File Not Found: {fd.filepath}"
+            log.error(operation_status, exc_info=True)
         except Exception as e:
             operation_status = f"Exception occurred: {e}"
             log.error(e, exc_info=True)
@@ -209,7 +264,7 @@ class DbDatasetOps:
             if self.active_file.valid and do_shuffle:
                 self.shuffle_dataset(seed)
 
-        fcc_queue.put(operation_status)
+        fcc_queue.put_notification(operation_status, lvl=LogLvl.err)
         return fd.data
 
     def load_tempfile(
@@ -313,7 +368,8 @@ class DbDatasetOps:
         os.makedirs(self.make_filepath(lng, self.LNG_DIR))
         os.makedirs(self.make_filepath(lng, self.REV_DIR))
         os.makedirs(self.make_filepath(lng, self.MST_DIR))
-        fcc_queue.put(f"Created directory tree for {lng}")
+        fcc_queue.put_notification(f"Created a directory tree for {lng}", lvl=LogLvl.important)
+        log.info(f"Created a directory tree for {lng}")
 
     def nat_sort(self, s: str):
         return [

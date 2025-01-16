@@ -90,7 +90,6 @@ class FCC:
                 align=["left", "left"],
                 sep=" - ",
                 keep_last_border=False,
-                suffix=self.config["theme"]["default_suffix"],
             )
         else:
             command = parsed_cmd[1]
@@ -101,7 +100,6 @@ class FCC:
                     align=["left", "left"],
                     sep=" - ",
                     keep_last_border=False,
-                    suffix=self.config["theme"]["default_suffix"],
                 )
             else:  # regex search command descriptions
                 try:
@@ -117,7 +115,6 @@ class FCC:
                             align=["left", "left"],
                             sep=" - ",
                             keep_last_border=False,
-                            suffix=self.config["theme"]["default_suffix"],
                         )
                     except IndexError:
                         printout = "Nothing matches the given phrase!"
@@ -332,7 +329,6 @@ class FCC:
                 pixlim=int(self.console.viewport().width()),
                 headers=headers,
                 align=["left", "left", "left"],
-                suffix=self.config["theme"]["default_suffix"],
             )
         elif len(parsed_cmd) in (2, 3):
             if isinstance(self.config.get(parsed_cmd[1]), dict):
@@ -355,7 +351,6 @@ class FCC:
                     pixlim=int(self.console.viewport().width()),
                     headers=headers,
                     align=["left", "left", "left"],
-                    suffix=self.config["theme"]["default_suffix"],
                 )
             else:
                 suffix = f" in dict {parsed_cmd[1]}" if len(parsed_cmd) == 3 else ""
@@ -413,7 +408,7 @@ class FCC:
             )
             self.mw.activate_tab(prev_tab)
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
-        fcc_queue.put("Filename and Signature changed successfully", importance=20)
+        fcc_queue.put_log("Filename and Signature changed successfully", log.info)
 
     def sah(self, parsed_cmd):
         """Show All (languages) History chart"""
@@ -510,7 +505,6 @@ class FCC:
                 * (self.config["geo"]["fcc"][0] - self.mw.caliper.strwidth(sep))
                 / 2
             ),
-            "suffix": self.config["theme"]["default_suffix"],
             "align": self.config["cell_alignment"],
         }
         rng = (
@@ -588,7 +582,7 @@ class FCC:
             sheet_name=parsed_cmd[1].lower(),
             index=False,
         )
-        for msg in fcc_queue.dump():
+        for msg in fcc_queue.dump_logs():
             self.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
         self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
         self.mw.db.update_fds()
@@ -695,6 +689,7 @@ class FCC:
             text = " ".join(parsed_cmd[1:])
             self.mw.display_text(text)
         else:
+            self.post_fcc(f"signature={self.mw.active_file.signature}")
             self.post_fcc(f"{self.mw.current_index=}")
             self.post_fcc(f"{self.mw.side=}")
             self.post_fcc(f"{self.mw.revmode=}")

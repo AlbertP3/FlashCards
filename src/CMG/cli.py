@@ -17,14 +17,14 @@ class CLI:
 
     def send_output(self, text: str):
         self.sout.console.append(text)
-        self.sout.mw.CONSOLE_LOG.append(text)
+        self.sout.mw.CONSOLE_LOG.extend(text.split("\n"))
 
     def set_output_prompt(self, t: str):
         self.sout.mw.CONSOLE_PROMPT = t
 
     def get_card_prompt(self, side: int):
-        prefix = "First" if side == 0 else "Second"
-        return f"{prefix} side: "
+        prefix = "Original: " if side == 0 else "Translation: "
+        return prefix
 
     def reverse_current_card(self, parsed_cmd: list):
         side = self.sout.mw.side
@@ -83,12 +83,13 @@ class CLI:
             raise KeyboardInterrupt
         else:
             self.mod_card[side] = new_text
+            self.sout.mw.CONSOLE_LOG[-1] = c[-1]
 
     def print_orig_card(self, side: int):
         text = self.sout.mw.active_file.data.iloc[self.sout.mw.current_index, side]
         new_prompt = self.get_card_prompt(side)
         self.set_output_prompt(new_prompt)
-        self.send_output(f"{new_prompt} {text}")
+        self.send_output(f"{new_prompt}{text}")
 
     def mcc_apply_changes(self, parsed_cmd: list) -> str:
         ci = self.sout.mw.current_index

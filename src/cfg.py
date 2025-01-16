@@ -54,8 +54,9 @@ class Config(UserDict):
 def __validate(cfg: Config) -> tuple[bool, set]:
     errs = set()
     int_gt_0 = {
-        "mistakes_review_interval_days": cfg["mistakes_review_interval_days"],
-        "mistakes_buffer": cfg["mistakes_buffer"],
+        "interval_days": cfg["mst"]["interval_days"],
+        "part_size": cfg["mst"]["part_size"],
+        "part_cnt": cfg["mst"]["part_cnt"],
         "efc_threshold": cfg["efc_threshold"],
         "efc_cache_expiry_hours": cfg["efc_cache_expiry_hours"],
         "cache_history_size": cfg["cache_history_size"],

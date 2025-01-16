@@ -8,7 +8,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QTimer
 from main_window_logic import MainWindowLogic
 from sw import SideWindows
-from utils import fcc_queue, format_seconds_to, Caliper
+from utils import fcc_queue, format_seconds_to, Caliper, LogLvl
 from DBAC.api import FileDescriptor
 from widgets import NotificationPopup
 
@@ -104,8 +104,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
         ts = self.config.cache["snapshot"]["session"]["timestamp"]
-        log.debug(f"Applied session snapshot from {ts}")
-        fcc_queue.put(f"Restored session from {ts}")
+        fcc_queue.put_log(f"Applied a session snapshot from {ts}", log.debug)
         self.config.cache["snapshot"]["session"] = None
 
     def __onload_notifications(self):
@@ -313,17 +312,36 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         copy_action.triggered.connect(self.textbox.copy)
         self.textbox_ctx.addAction(copy_action)
         sod_lookup = widget.QAction("Lookup", self)
-        sod_lookup.triggered.connect(self.__search_sod)
+        sod_lookup.triggered.connect(self.__lookup_sod)
         self.textbox_ctx.addAction(sod_lookup)
         self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
 
     def textbox_ctx_menu_open(self, position):
         self.textbox_ctx.exec_(self.mapToGlobal(position))
 
-    def __search_sod(self):
+    def __lookup_sod(self):
         sel = self.textbox.textCursor().selectedText()
         if len(sel) > 0:
+            if self.config["lookup"]["mode"] == "full":
+                self.__search_sod(sel)
+            elif self.config["lookup"]["mode"] == "quick":
+                if self.side == 0:
+                    lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.foreign_lng
+                else:
+                    lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.native_lng
+                msg = self.tabs["sod"]["fcc_ins"].sod_object.cli.lookup(sel, lng)
+                fcc_queue.put_notification(
+                    msg, lvl=LogLvl.important, func=lambda: self.__search_sod(sel)
+                )
+                if self.notification_timer:
+                    # Immediately show the notification
+                    self.notification_timer_func()
+
+    def __search_sod(self, sel: str):
+        if self.tabs["sod"]["fcc_ins"].sod_object.can_do_lookup():
             self.activate_tab("sod")
+            self.tabs["sod"]["fcc_ins"].sod_object.cli.cls()
+            self.tabs["sod"]["fcc_ins"].sod_object.cli.reset_state()
             self.get_sod_sidewindow()
             self.add_cmd_to_log(sel)
             if self.side == 0:
@@ -332,6 +350,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                 lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.native_lng
             self.fcc_inst.execute_command(f"{lng} {sel}".split(" "))
             self.move_cursor_to_end()
+        else:
+            fcc_queue.put_notification(
+                "Lookup is unavailable in the current state", lvl=LogLvl.warn
+            )
 
     def create_button(self, text, function=None) -> widget.QPushButton:
         button = widget.QPushButton(self)
@@ -367,9 +389,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
         if nl > self.tb_nl:
             font_size = int(self.FONT_TEXTBOX_SIZE * self.tb_nl / nl)
-            caliper = Caliper(QtGui.QFont(self.FONT, font_size))
-            nl_ = caliper.strwidth(text) // self.tb_vp[0] + 1
-            margin_top = int((self.tb_vp[1] - caliper.ls * nl_) / 2)
+            qfm = QtGui.QFontMetricsF(QtGui.QFont(self.FONT, font_size))
+            nl_ = qfm.horizontalAdvance(text) // self.tb_vp[0] + 1
+            margin_top = int((self.tb_vp[1] - qfm.lineSpacing() * nl_) / 2)
         else:
             font_size = self.FONT_TEXTBOX_SIZE
             margin_top = int((self.tb_vp[1] - self.tb_cal.ls * nl - self.tb_cal.ls) / 2)
@@ -388,24 +410,28 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         if self.active_file.kind == self.db.KINDS.rev:
 
             if not self.is_recorded:
-                fcc_queue.put("Complete the revision before saving", importance=20)
+                fcc_queue.put_notification(
+                    "Complete the revision before saving", lvl=LogLvl.warn
+                )
             elif self.mistakes_list:
                 if self.active_file.filepath in self.config["CRE"]["items"]:
                     self._update_cre(self.active_file)
-                    fcc_queue.put(self._get_cre_stat())
-                if not self.is_initial_rev:
+                    fcc_queue.put_log(self._get_cre_stat())
+                if self.should_save_mistakes():
                     self.save_current_mistakes()
                 if len(self.mistakes_list) >= self.config["min_eph_cards"]:
                     self.init_eph_from_mistakes()
             else:
-                fcc_queue.put("No mistakes to save", importance=20)
+                fcc_queue.put_notification("No mistakes to save", lvl=LogLvl.warn)
 
         elif self.active_file.kind == self.db.KINDS.lng:
 
             if self.cards_seen != 0:
                 super().handle_creating_revision(seconds_spent=self.seconds_spent)
             else:
-                fcc_queue.put("Unable to save an empty file", importance=20)
+                fcc_queue.put_notification(
+                    "Unable to save an empty file", lvl=LogLvl.warn
+                )
 
         elif self.active_file.kind == self.db.KINDS.mst:
 
@@ -415,12 +441,15 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             ):
                 self.init_eph_from_mistakes()
             else:
-                fcc_queue.put("Review all mistakes before saving", importance=20)
+                fcc_queue.put_notification(
+                    "Review all mistakes before saving", lvl=LogLvl.warn
+                )
 
         else:
 
-            fcc_queue.put(
-                f"Unable to save a {self.db.KFN[self.active_file.kind]}", importance=20
+            fcc_queue.put_notification(
+                f"Unable to save a {self.db.KFN[self.active_file.kind]}",
+                lvl=LogLvl.warn,
             )
 
     def delete_current_card(self):
@@ -428,13 +457,13 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             if not self.is_synopsis:
                 super().delete_current_card()
                 self.update_words_button()
-                fcc_queue.put("Card deleted", importance=20)
+                fcc_queue.put_notification("Card deleted", lvl=LogLvl.important)
                 self.allow_hide_tips = True
                 self.display_text(self.get_current_card().iloc[self.side])
         else:
-            fcc_queue.put(
+            fcc_queue.put_notification(
                 f"Cannot remove cards from a {self.db.KFN[self.active_file.kind]}",
-                importance=30,
+                lvl=LogLvl.warn,
             )
 
     def reverse_side(self):
@@ -447,7 +476,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def load_again_click(self):
         if not self.active_file.valid:
-            fcc_queue.put("Cannot reload an empty file")
+            fcc_queue.put_notification("Cannot reload an empty file", lvl=LogLvl.warn)
             return
         elif self.active_file.tmp:
             self.db.shuffle_dataset()
@@ -543,8 +572,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def _handle_final_actions_rev(self):
         if (
             self.config["final_actions"]["save_mistakes"]
-            and not self.is_initial_rev
-            and self.mistakes_list
+            and self.should_save_mistakes()
         ):
             self.save_current_mistakes()
         if (
@@ -558,6 +586,11 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def _handle_final_actions_mst(self):
         if (
+            self.config["final_actions"]["save_mistakes"]
+            and self.should_save_mistakes()
+        ):
+            self.save_current_mistakes()
+        if (
             self.config["final_actions"]["init_ephemeral"]
             and len(self.mistakes_list) >= self.config["min_eph_cards"]
         ):
@@ -567,6 +600,11 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.load_next_efc()
 
     def _handle_final_actions_eph(self):
+        if (
+            self.config["final_actions"]["save_mistakes"]
+            and self.should_save_mistakes()
+        ):
+            self.save_current_mistakes()
         if (
             self.config["final_actions"]["init_ephemeral"]
             and len(self.mistakes_list) >= self.config["min_eph_cards"]
@@ -591,7 +629,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
     def handle_graded_complete(self):
         if self.positives + self.negatives == self.total_words:
             self.update_score_button()
-            if self.active_file.kind in {self.db.KINDS.rev, self.db.KINDS.mst}:
+            if self.active_file.kind == self.db.KINDS.rev:
                 self.synopsis = self.get_rating_message()
             else:
                 self.synopsis = self.config["synopsis"]
@@ -602,7 +640,10 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         self.reset_timer(clear_indicator=False)
         self.stop_timer()
         self.stop_pace_timer()
-        if self.negatives != 0 and self.config["opt"]["show_mistakes_after_revision"]:
+        if (
+            self.negatives != 0
+            and self.config["mst"]["opt"]["show_mistakes_after_revision"]
+        ):
             self.get_mistakes_sidewindow()
 
     def add_shortcuts(self):
@@ -638,7 +679,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         if self.revmode:
             self.click_negative()
         else:
-            pass
+            self.click_next_button()
 
     def open_side_window(self, layout, name):
         if self.config["opt"]["side_by_side"]:
@@ -784,7 +825,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.db.load_dataset(self.active_file, seed=self.config["pd_random_seed"])
             if not self.is_synopsis:
                 self.display_text(self.get_current_card().iloc[self.side])
-            fcc_queue.put("Active dataset refreshed", importance=20)
+            fcc_queue.put_notification("Active dataset refreshed", lvl=LogLvl.info)
         if path == self.config["SOD"]["last_file"]:
             prev_tab = self.active_tab_ident
             self.activate_tab("sod")
@@ -987,8 +1028,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                 fcc_queue.unacked_notifications -= 1
         except Exception as e:
             log.error(e, exc_info=True)
-            fcc_queue.put(
-                "Exception raised while pulling a notification. See log file for more details."
+            fcc_queue.put_notification(
+                "Exception raised while pulling a notification. See log file for more details.",
+                lvl=LogLvl.exc,
             )
 
     def _resume_notification_timer(self):

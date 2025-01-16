@@ -1,5 +1,5 @@
 import PyQt5.QtWidgets as widget
-from utils import fcc_queue
+from utils import fcc_queue, LogLvl
 
 
 class MistakesSideWindow:
@@ -26,7 +26,9 @@ class MistakesSideWindow:
             self.open_side_window(self.mistakes_layout, "mistakes")
             self.show_mistakes()
         else:
-            fcc_queue.put("Mistakes are unavailable for a Language")
+            fcc_queue.put_notification(
+                "Mistakes are unavailable for a Language", lvl=LogLvl.warn
+            )
 
     def arrange_mistakes_window(self):
         self.textbox_stylesheet = self.config["theme"]["textbox_stylesheet"]
@@ -37,10 +39,8 @@ class MistakesSideWindow:
     def show_mistakes(self):
         out, sep = list(), " | "
         cell_args = {
-            "pixlim": (self.config["geo"]["mistakes"][0] - self.caliper.strwidth(sep))
-            / 2
-            - 2 * self.caliper.scw,
-            "suffix": self.config["theme"]["default_suffix"],
+            "pixlim": (self.config.get_geo("mistakes")[0] - self.caliper.strwidth(sep))
+            / 2,
             "align": self.config["cell_alignment"],
         }
         for m in self.mistakes_list:

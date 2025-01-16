@@ -53,6 +53,7 @@ class LoadSideWindow:
         self._files_qlist.setStyleSheet(self.textbox_stylesheet)
         self._files_qlist.setVerticalScrollBar(self.get_scrollbar())
         self._files_qlist.itemClicked.connect(self.__lsw_qlist_onclick)
+        self._files_qlist.itemDoubleClicked.connect(self.__lsw_qlist_onDoubleClick)
         widget.QShortcut(
             QtGui.QKeySequence("Home"), self._files_qlist
         ).activated.connect(lambda: self._files_qlist.setCurrentRow(0))
@@ -65,6 +66,10 @@ class LoadSideWindow:
 
     def __lsw_qlist_onclick(self, item):
         self.cur_load_index = self._files_qlist.currentRow()
+    
+    def __lsw_qlist_onDoubleClick(self, item):
+        self.cur_load_index = self._files_qlist.currentRow()
+        self.load_selected_file()
 
     def fill_flashcard_files_list(self):
         self.db.update_fds()
