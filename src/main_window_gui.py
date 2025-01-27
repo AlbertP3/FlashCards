@@ -273,6 +273,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def create_textbox(self):
         self.textbox = widget.QTextEdit(self)
+        self.textbox_last_selection = ""
         self.textbox.setFont(self.TEXTBOX_FONT)
         self.textbox.setReadOnly(True)
         self.textbox.setStyleSheet(self.textbox_stylesheet)
@@ -311,33 +312,56 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         copy_action = widget.QAction("Copy", self)
         copy_action.triggered.connect(self.textbox.copy)
         self.textbox_ctx.addAction(copy_action)
-        sod_lookup = widget.QAction("Lookup", self)
-        sod_lookup.triggered.connect(self.__lookup_sod)
-        self.textbox_ctx.addAction(sod_lookup)
+
+        if self.config["lookup"]["mode"] =="auto":
+            self.textbox.mouseReleaseEvent = self.__lookup_sod_auto
+        else:
+            sod_lookup = widget.QAction("Lookup", self)
+            if self.config["lookup"]["mode"] == "full":
+                sod_lookup.triggered.connect(self.__lookup_sod_full)
+            elif self.config["lookup"]["mode"] == "quick":
+                sod_lookup.triggered.connect(self.__lookup_sod_quick)
+            self.textbox_ctx.addAction(sod_lookup)
+
         self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
 
     def textbox_ctx_menu_open(self, position):
         self.textbox_ctx.exec_(self.mapToGlobal(position))
 
-    def __lookup_sod(self):
+    def __lookup_sod_auto(self, event):
+        widget.QTextEdit.mouseReleaseEvent(self.textbox, event)
         sel = self.textbox.textCursor().selectedText()
-        if len(sel) > 0:
-            if self.config["lookup"]["mode"] == "full":
-                self.__search_sod(sel)
-            elif self.config["lookup"]["mode"] == "quick":
+        if sel != self.textbox_last_selection:
+            if len(sel) >= 1:
                 if self.side == 0:
                     lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.foreign_lng
                 else:
                     lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.native_lng
                 msg = self.tabs["sod"]["fcc_ins"].sod_object.cli.lookup(sel, lng)
                 fcc_queue.put_notification(
-                    msg, lvl=LogLvl.important, func=lambda: self.__search_sod(sel)
+                    msg, lvl=LogLvl.important, func=lambda: self.__lookup_sod_full()
                 )
                 if self.notification_timer:
                     # Immediately show the notification
                     self.notification_timer_func()
+            self.textbox_last_selection = sel
 
-    def __search_sod(self, sel: str):
+    def __lookup_sod_quick(self):
+        sel = self.textbox.textCursor().selectedText()
+        if self.side == 0:
+            lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.foreign_lng
+        else:
+            lng = self.tabs["sod"]["fcc_ins"].sod_object.cli.fh.native_lng
+        msg = self.tabs["sod"]["fcc_ins"].sod_object.cli.lookup(sel, lng)
+        fcc_queue.put_notification(
+            msg, lvl=LogLvl.important, func=lambda: self.__lookup_sod_full()
+        )
+        if self.notification_timer:
+            # Immediately show the notification
+            self.notification_timer_func()
+
+    def __lookup_sod_full(self):
+        sel = self.textbox.textCursor().selectedText()
         if self.tabs["sod"]["fcc_ins"].sod_object.can_do_lookup():
             self.activate_tab("sod")
             self.tabs["sod"]["fcc_ins"].sod_object.cli.cls()
@@ -1002,25 +1026,27 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     # region Notification Timer
     def initiate_notification_timer(self):
-        if self.config["popups"]["check_interval_ms"] > 0:
+        if self.config["popups"]["enabled"]:
             self.notification_timer = QTimer()
             self.start_notification_timer = self._start_notification_timer
             self.resume_notification_timer = self._resume_notification_timer
             self.stop_notification_timer = self._stop_notification_timer
+            self.set_interval_notification_timer = self._set_interval_notification_timer
         else:
             self.notification_timer = None
             self.start_notification_timer = lambda: None
             self.resume_notification_timer = lambda: None
             self.stop_notification_timer = lambda: None
+            self.set_interval_notification_timer = lambda i: None
 
     def _start_notification_timer(self):
         self.notification_timer = QTimer()
         self.notification_timer.timeout.connect(self.notification_timer_func)
-        self.notification_timer.start(self.config["popups"]["check_interval_ms"])
+        self.notification_timer.start(self.config["popups"]["active_interval_ms"])
 
     def notification_timer_func(self):
         try:
-            if fcc_queue.unacked_notifications > 0 and not self.popup.is_visible:
+            if fcc_queue.unacked_notifications and not self.popup.is_visible:
                 record = fcc_queue.pull_notification()
                 self.popup.show_notification(
                     message=record.message, func=record.func, persist=record.persist
@@ -1038,6 +1064,9 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     def _stop_notification_timer(self):
         self.notification_timer.stop()
+
+    def _set_interval_notification_timer(self, i: int):
+        self.notification_timer.setInterval(i)
 
     # endregion
 
@@ -1078,10 +1107,12 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                 self.__last_focus_out_timer_state = self.TIMER_RUNNING_FLAG
                 self.stop_timer()
                 self.stop_pace_timer()
+                self.set_interval_notification_timer(self.config["popups"]["idle_interval_ms"])
             elif event.type() == QtCore.QEvent.FocusIn:
                 if not self.is_synopsis and self.__last_focus_out_timer_state:
                     self.resume_timer()
                     self.resume_pace_timer()
+                self.set_interval_notification_timer(self.config["popups"]["active_interval_ms"])
         return super(MainWindowGUI, self).eventFilter(source, event)
 
     def closeEvent(self, event):

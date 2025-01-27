@@ -95,7 +95,7 @@ class StatsSideWindow(Stats):
             ax.text(
                 rect.get_x() + rect.get_width() / 1,
                 self.total_cards * 0.8,
-                f'{self.config["efc_threshold"]}%',
+                f'{self.config["efc"]["threshold"]}%',
                 va="bottom",
                 color="#a0a0a0",
                 fontsize=self.config["dim"]["font_stats_size"],

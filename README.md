@@ -1,8 +1,8 @@
-# FlashCards 1.4.9
+# FlashCards 1.4.10
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-149)
+- [FlashCards](#flashcards-1410)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -60,6 +60,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 - Allows picking all *kinds* of flashcard files that were matched by the 'languages' setting i.e. are on proper path. New *Revisions* can be created only from *Languages*. Revision Mode (Positive/Negative) is available only for the *Revisions*, *Mistakes* and *Ephemerals*. 
 - If optional feature "recommend_new" is given a value greater than 0 (days), reminders to create a new revision will also appear there - specific texts can be customized in the 'recoms' section of the config
 - Items are prefixed with a symbol hinting to their type. Initial *Revisions* are distinguished from Regular *Revisions*.
+- Right clicking on a file opens a dialog that allows creating an *Ephemeral*. Index cache is applied if available. Custom ranges can be used.
 
 ## Progress Window
 
@@ -71,7 +72,7 @@ Progress can be assessed with a 'Progress' chart displaying, in specified interv
 
 ![Statistics Window](src/res/imgs/ss_stats.png)
 
-Statistics shows scores for each time currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects 'efc_threshold' specified in the config and can be toggled via 'show_efc_line'
+Statistics shows scores for each time currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects EFC threshold specified in the config and can be toggled via 'show_efc_line'
 
 ## Dictionary
 
@@ -88,7 +89,7 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 
 ![EMO Window](src/res/imgs/ss_emo.png)
 
-1. EFC Model Optimizer employs regression models fitted on the *Revision* data and is used for fitting the EFC model to the user's forgetting curve. EFC is meant to determine, after what time the predicted percentage of words still remembered falls below the defined efc_threshold. Model will only be created if count of records exceeds 'min_records'. 
+1. EFC Model Optimizer employs regression models fitted on the *Revision* data and is used for fitting the EFC model to the user's forgetting curve. EFC is meant to determine, after what time the predicted percentage of words still remembered falls below the defined EFC threshold. Model will only be created if count of records exceeds 'min_records'. 
 2. Steps for creating the model:
      1. Select *Languages* to be included in the model
      2. Select the *Approach*:
@@ -148,7 +149,7 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 ## Final Actions and Next EFC
 - FlashCards strives to provide a seamless transition between datasets thus there are two types of actions that facilitate this process
 - Final Actions are executed after pressing 'next' on the synopsis, after the revision is completed. Behaviour is controlled via "final_actions" parameter in config. This action can for example automatically create a *Revision* file from a *Language* or save mistakes from *Revision* and initiate an *Ephemeral* or suggest a next set
-- Next EFC can be invoked at any moment to open a recommended set, unless 'require_saved' is set to True. Order and filters are controlled by the "next_efc" parameter.
+- Next EFC can be invoked at any moment to open a recommended set, unless 'require_saved' is set to True. Order and filters are controlled by the efc opt parameter.
 
 
 ## Mistakes
@@ -187,7 +188,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | rcc       | Reverse Current Card - changes sides of currently displayed card and updates the source file                                              |
 | mcr       | Modify Card Result - allows changing pos/neg for the current card                                                                         |
 | dcc       | Delete Current Card - deletes card both in current set and in the file                                                                    |
-| cfi       | Create From ILN - creates a new temporary Language set using ILN cache. Syntax: *<signature>                                              |
 | sis       | Show ILN Statistics - display number of new cards for each cached set                                                                     |
 | efc       | Ebbinghaus Forgetting Curve - Optional *SIGNATURES else select active - shows table with EFC data                                         |
 | mcp       | Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}                                  |
@@ -225,7 +225,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | show_cpm_stats                | on Statistics chart, displays CPM (Cards Per Minute) numbers instead of time spent                                          |
 | hide_timer                    | only displays icons on the Timer button instead of actual numbers                                                           |
 | revision_summary              | toggles display of the text apprasing the revision by %score, time, etc.                                                    |
-| show_efc_line                 | show a horizontal line at the efc_threshold level specified in the config file                                              |
+| show_efc_line                 | show a horizontal line at the EFC threshold level specified in the config file                                              |
 | show_percent_stats            | on Statistics chart, displays percentage scores and pp. diffrences instead of plain numbers                                 |
 | days_to_new_rev               | After specified amount of days a notification prompting to create a new revision will be shown in the Load menu             |
 | pace_card_interval            | Specifies amount of seconds between card switches. Set to 0 in order to disable the timer                                   |

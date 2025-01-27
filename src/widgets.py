@@ -7,6 +7,9 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QLabel,
     QVBoxLayout,
+    QDialog,
+    QFormLayout,
+    QLineEdit,
 )
 from PyQt5.QtCore import (
     Qt,
@@ -31,9 +34,7 @@ class CheckableComboBox(QComboBox):
             return size
 
     def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
-        self.qfont = QFont(
-            config["theme"]["font"], config["dim"]["font_button_size"]
-        )
+        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.allow_multichoice = allow_multichoice
         self._width = width or self.lineEdit().width()
         super().__init__(layout)
@@ -170,9 +171,7 @@ class CheckableComboBox(QComboBox):
 class ScrollableOptionsWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.qfont = QFont(
-            config["theme"]["font"], config["dim"]["font_button_size"]
-        )
+        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.__create_layout()
         self.pos = self.__list_pos_gen()
 
@@ -313,3 +312,59 @@ class NotificationPopup(QWidget):
         elif event.type() == QEvent.Leave:
             self.timer.start(config["popups"]["timeout_ms"])
         return super(NotificationPopup, self).eventFilter(source, event)
+
+
+class CFIDialog(QDialog):
+    def __init__(self, parent, start: int, cnt: int):
+        super().__init__(parent)
+        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
+        self.setStyleSheet(config["theme"]["ctx_stylesheet"])
+        self.setFont(self.qfont)
+        self.setWindowTitle(" ")
+        self.setMinimumWidth(250)
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(1, 1, 1, 1)
+        self.layout.setSpacing(config["dim"]["spacing"])
+        self.form_layout = QFormLayout()
+        self.start_qle = self.create_qle(str(start))
+        self.cnt_qle = self.create_qle()
+        self.new_qle = self.create_qle(str(cnt))
+        self.new_qle.setFocusPolicy(Qt.NoFocus)
+        self.new_qle.setReadOnly(True)
+        self.cnt_qle.setPlaceholderText("<END>")
+        self.form_layout.addRow("New  ", self.new_qle)
+        self.form_layout.addRow("From ", self.start_qle)
+        self.form_layout.addRow("Count", self.cnt_qle)
+        self.layout.addLayout(self.form_layout)
+        self.submit_btn = self.create_btn("Create", self.accept)
+        self.layout.addWidget(self.submit_btn)
+        self.setLayout(self.layout)
+
+    def get_values(self) -> tuple[int, int]:
+        """Returns start index and count"""
+        if start := self.start_qle.text():
+            start = int(start)
+        else:
+            start = 0
+
+        if cnt := self.cnt_qle.text():
+            cnt = int(cnt)
+        else:
+            cnt = 0
+
+        return start, cnt
+
+    def create_qle(self, text: str = "") -> QLineEdit:
+        qle = QLineEdit()
+        qle.setFixedHeight(config["dim"]["buttons_height"])
+        qle.setFont(self.qfont)
+        qle.setText(text)
+        return qle
+
+    def create_btn(self, text: str, func) -> QPushButton:
+        btn = QPushButton(text)
+        btn.setStyleSheet(config["theme"]["button_stylesheet"])
+        btn.setFixedHeight(config["dim"]["buttons_height"])
+        btn.setFont(self.qfont)
+        btn.clicked.connect(func)
+        return btn

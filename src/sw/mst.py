@@ -1,4 +1,5 @@
 import PyQt5.QtWidgets as widget
+from PyQt5.QtCore import Qt
 from utils import fcc_queue, LogLvl
 
 
@@ -40,7 +41,7 @@ class MistakesSideWindow:
         out, sep = list(), " | "
         cell_args = {
             "pixlim": (self.config.get_geo("mistakes")[0] - self.caliper.strwidth(sep))
-            / 2,
+            // 2.02,
             "align": self.config["cell_alignment"],
         }
         for m in self.mistakes_list:
@@ -54,4 +55,5 @@ class MistakesSideWindow:
         self.mistakes_qtext.setFont(self.CONSOLE_FONT)
         self.mistakes_qtext.setReadOnly(True)
         self.mistakes_qtext.setStyleSheet(self.textbox_stylesheet)
+        self.mistakes_qtext.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return self.mistakes_qtext

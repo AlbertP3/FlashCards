@@ -104,17 +104,14 @@ class EFCSideWindow(EFC):
 
     def load_next_efc(self):
         if (
-            self.config["next_efc"]["require_recorded"]
+            self.config["efc"]["opt"]["require_recorded"]
             and self.positives + self.negatives != 0
         ):
             fcc_queue.put_notification(
                 "Finish your current revision before proceeding", lvl=LogLvl.warn
             )
             return
-        elif (
-            self.config["next_efc"]["save_mistakes"]
-            and self.should_save_mistakes()
-        ):
+        elif self.config["efc"]["opt"]["save_mistakes"] and self.should_save_mistakes():
             self.save_current_mistakes()
 
         if self.config["CRE"]["items"]:
@@ -125,23 +122,29 @@ class EFCSideWindow(EFC):
 
     def __load_next_efc(self):
         fd = None
-        recs = self.get_recommendations()
+        recs = [
+            rec
+            for rec in self.get_recommendations()
+            if rec["fp"] != self.active_file.filepath
+        ]
 
         if not recs:
-            fcc_queue.put_notification("There are no EFC recommendations", lvl=LogLvl.warn)
+            fcc_queue.put_notification(
+                "There are no EFC recommendations", lvl=LogLvl.warn
+            )
             return
 
-        if self.config["next_efc"]["random"]:
+        if self.config["efc"]["opt"]["random"]:
             shuffle(recs)
-        if self.config["next_efc"]["reversed"]:
+        if self.config["efc"]["opt"]["reversed"]:
             recs = reversed(recs)
-        if self.config["next_efc"]["new_first"]:
+        if self.config["efc"]["opt"]["new_first"]:
             recs.sort(key=lambda x: x["is_init"], reverse=True)
 
         for rec in recs:
             _fd = self.db.files[rec["fp"]]
             if (
-                self.config["next_efc"]["skip_mistakes"]
+                self.config["efc"]["opt"]["skip_mistakes"]
                 and _fd.kind == self.db.KINDS.mst
             ):
                 continue
@@ -153,4 +156,6 @@ class EFCSideWindow(EFC):
             self.initiate_flashcards(fd)
             self.del_side_window()
         else:
-            fcc_queue.put_notification("There are no EFC recommendations", lvl=LogLvl.warn)
+            fcc_queue.put_notification(
+                "There are no EFC recommendations", lvl=LogLvl.warn
+            )

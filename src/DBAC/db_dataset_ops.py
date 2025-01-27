@@ -2,6 +2,7 @@ import re
 import random
 import logging
 import pandas as pd
+import openpyxl
 from datetime import datetime
 from dataclasses import dataclass
 import os
@@ -103,7 +104,7 @@ class DbDatasetOps:
         except Exception as e:
             fcc_queue.put_notification(
                 f"Exception while creating a file: {e}. See log file for more details",
-                lvl=LogLvl.exc
+                lvl=LogLvl.exc,
             )
             log.error(e, exc_info=True)
 
@@ -244,9 +245,9 @@ class DbDatasetOps:
     ) -> pd.DataFrame:
         operation_status = ""
         try:
-            if fd.ext in [".csv", ".txt"]:
+            if fd.ext in {".csv", ".txt"}:
                 fd.data = self.read_csv(fd.filepath)
-            elif fd.ext in [".xlsx", ".xlsm"]:
+            elif fd.ext in {".xlsx", ".xlsm"}:
                 fd.data = self.read_excel(fd.filepath)
             elif fd.tmp:
                 raise FileNotFoundError
@@ -266,6 +267,27 @@ class DbDatasetOps:
 
         fcc_queue.put_notification(operation_status, lvl=LogLvl.err)
         return fd.data
+
+    def get_lines_count(self, fd: FileDescriptor) -> int:
+        if fd.ext in {".csv", ".txt"}:
+            with open(fd.filepath, "rb") as f:
+                cnt = (
+                    sum(
+                        buffer.count(b"\n")
+                        for buffer in iter(lambda: f.read(1024 * 1024), b"")
+                    )
+                    - 1
+                )
+        elif fd.ext in {".xlsx", ".xlsm"}:
+            workbook = openpyxl.load_workbook(
+                fd.filepath, read_only=True, data_only=True
+            )
+            cnt = workbook.active.max_row - 1
+        elif fd.tmp:
+            cnt = fd.data.shape[0]
+        else:
+            raise FileExistsError(f"Unsupported file format: {fd.ext}")
+        return cnt
 
     def load_tempfile(
         self,
@@ -311,6 +333,7 @@ class DbDatasetOps:
                 if self.config.translate("csv_sniffer")
                 else ","
             ),
+            index_col=False,
         )
         return dataset
 
@@ -332,7 +355,15 @@ class DbDatasetOps:
         )
 
     def read_excel(self, file_path):
-        return pd.read_excel(file_path, sheet_name=0, dtype=str)
+        return pd.read_excel(
+            file_path,
+            sheet_name=0,
+            dtype=str,
+            index_col=False,
+            engine="openpyxl",
+            usecols=(0, 1),
+            engine_kwargs={"data_only": True},
+        )
 
     def update_fds(self) -> None:
         """Finds files matching active Languages"""
@@ -368,7 +399,9 @@ class DbDatasetOps:
         os.makedirs(self.make_filepath(lng, self.LNG_DIR))
         os.makedirs(self.make_filepath(lng, self.REV_DIR))
         os.makedirs(self.make_filepath(lng, self.MST_DIR))
-        fcc_queue.put_notification(f"Created a directory tree for {lng}", lvl=LogLvl.important)
+        fcc_queue.put_notification(
+            f"Created a directory tree for {lng}", lvl=LogLvl.important
+        )
         log.info(f"Created a directory tree for {lng}")
 
     def nat_sort(self, s: str):

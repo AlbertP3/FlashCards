@@ -44,22 +44,22 @@ class ConfigSideWindow:
         self.db.update_fds()
         self.fill_config_list()
 
-    def _init_confirm_and_close_button(self) -> widget.QPushButton:
+    def _init_submit_btn(self) -> widget.QPushButton:
         if self.funcs_to_restart:
-            self.confirm_and_close_button = self.create_button(
-                "Restart required",
+            self.submit_btn = self.create_button(
+                "Click to restart",
                 lambda: self.__on_config_commit_restart(self.funcs_to_restart),
             )
         else:
-            self.confirm_and_close_button = self.create_button(
+            self.submit_btn = self.create_button(
                 "Confirm changes", self.commit_config_update
             )
-        self.confirm_and_close_button.setStyleSheet(
+        self.submit_btn.setStyleSheet(
             self.config["theme"]["label_stylesheet"]
         )
 
     def fill_config_list(self):
-        self._init_confirm_and_close_button()
+        self._init_submit_btn()
 
         self.opts_layout.add_label("Main")
         self.card_default_cbx = self.cfg_cbx(
@@ -161,15 +161,27 @@ class ConfigSideWindow:
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("EFC")
         self.efc_threshold_qle = self.cfg_qle(
-            self.config["efc_threshold"], text="EFC threshold"
+            self.config["efc"]["threshold"], text="Threshold"
         )
         self.efc_cache_exp_qle = self.cfg_qle(
-            self.config["efc_cache_expiry_hours"], text="EFC cache expiry (hours)"
+            self.config["efc"]["cache_expiry_hours"], text="Cache expiry (hours)"
         )
-        self.next_efc_policy_cbx = self.cfg_cbx(
-            self.config["next_efc"],
-            list(self.config["next_efc"].keys()),
-            text="EFC next policy",
+        self.efc_policy_cbx = self.cfg_cbx(
+            self.config["efc"]["opt"],
+            list(self.config["efc"]["opt"].keys()),
+            text="Next policy",
+        )
+        self.efc_primary_sort_cbx = self.cfg_cbx(
+            self.config["efc"]["sort"]["key_1"],
+            content=["fp", "disp", "score", "is_init"],
+            text="Primary sort key",
+            multi_choice=False,
+        )
+        self.efc_secondary_sort_cbx = self.cfg_cbx(
+            self.config["efc"]["sort"]["key_2"],
+            content=["fp", "disp", "score", "is_init"],
+            text="Secondary sort key",
+            multi_choice=False,
         )
         self.days_to_new_rev_qle = self.cfg_qle(
             self.config["days_to_new_rev"], text="Days between new revisions"
@@ -204,7 +216,7 @@ class ConfigSideWindow:
         self.lookup_mode_cbx = self.cfg_cbx(
             self.config["lookup"]["mode"],
             multi_choice=False,
-            content=["quick", "full"],
+            content=["quick", "full", "auto"],
             text="Lookup mode",
         )
         self.lookup_pattern_qle = self.cfg_qle(
@@ -288,6 +300,12 @@ class ConfigSideWindow:
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Notifications")
+        self.popups_enabled_cbx = self.cfg_cbx(
+            self.config["popups"]["enabled"],
+            content=["True", "False"],
+            text="Allow notifications",
+            multi_choice=False,
+        )
         self.popup_allowed_cbx = self.cfg_cbx(
             self.config["popups"]["allowed"],
             list(self.config["popups"]["allowed"].keys()),
@@ -308,9 +326,13 @@ class ConfigSideWindow:
         self.popup_hideani_qle = self.cfg_qle(
             self.config["popups"]["hide_animation_ms"], text="Popup hide (msec)"
         )
-        self.popup_checkint_qle = self.cfg_qle(
-            self.config["popups"]["check_interval_ms"],
-            text="Popup check interval (msec)",
+        self.popup_actint_qle = self.cfg_qle(
+            self.config["popups"]["active_interval_ms"],
+            text="Popup active interval (msec)",
+        )
+        self.popup_idleint_qle = self.cfg_qle(
+            self.config["popups"]["idle_interval_ms"],
+            text="Popup idle interval (msec)",
         )
 
         self.opts_layout.add_spacer()
@@ -345,15 +367,17 @@ class ConfigSideWindow:
             text="Cache history size",
         )
         self.opts_layout.add_spacer()
-        self.config_layout.addWidget(self.confirm_and_close_button)
+        self.config_layout.addWidget(self.submit_btn)
 
     def collect_settings(self) -> dict:
         new_cfg = deepcopy(self.config)
         new_cfg["card_default_side"] = self.card_default_cbx.currentDataList()[0]
         new_cfg["languages"] = self.languages_cbx.currentDataList()
-        new_cfg["efc_threshold"] = int(self.efc_threshold_qle.text())
-        new_cfg["efc_cache_expiry_hours"] = int(self.efc_cache_exp_qle.text())
-        new_cfg["next_efc"] = self.next_efc_policy_cbx.currentDataDict()
+        new_cfg["efc"]["threshold"] = int(self.efc_threshold_qle.text())
+        new_cfg["efc"]["cache_expiry_hours"] = int(self.efc_cache_exp_qle.text())
+        new_cfg["efc"]["opt"] = self.efc_policy_cbx.currentDataDict()
+        new_cfg["efc"]["sort"]["key_1"] = self.efc_primary_sort_cbx.currentDataList()[0]
+        new_cfg["efc"]["sort"]["key_2"] = self.efc_secondary_sort_cbx.currentDataList()[0]
         new_cfg["days_to_new_rev"] = int(self.days_to_new_rev_qle.text())
         new_cfg["opt"] = self.optional_featuers_cbx.currentDataDict()
         new_cfg["init_revs_cnt"] = int(self.init_rep_qle.text())
@@ -401,10 +425,14 @@ class ConfigSideWindow:
         new_cfg["EMO"]["approach"] = self.emo_approach_cbx.currentDataList()[0]
         new_cfg["EMO"]["cap_fold"] = float(self.emo_cap_fold_qle.text())
         new_cfg["EMO"]["min_records"] = int(self.emo_min_records_qle.text())
+        new_cfg["popups"]["enabled"] = (
+            self.popups_enabled_cbx.currentDataList()[0] == "True"
+        )
         new_cfg["popups"]["timeout_ms"] = int(self.popup_timeout_qle.text())
         new_cfg["popups"]["show_animation_ms"] = int(self.popup_showani_qle.text())
         new_cfg["popups"]["hide_animation_ms"] = int(self.popup_hideani_qle.text())
-        new_cfg["popups"]["check_interval_ms"] = int(self.popup_checkint_qle.text())
+        new_cfg["popups"]["active_interval_ms"] = int(self.popup_actint_qle.text())
+        new_cfg["popups"]["idle_interval_ms"] = int(self.popup_idleint_qle.text())
         new_cfg["popups"]["lvl"] = getattr(
             LogLvl, self.popup_lvl_cbx.currentDataList()[0]
         )
@@ -469,12 +497,11 @@ class ConfigSideWindow:
 
         # Reload config window
         if not self.funcs_to_restart:
-            self.confirm_and_close_button.setText("Config saved")
-            self.confirm_and_close_button.clicked.disconnect()
+            fcc_queue.put_notification("Config saved", lvl=LogLvl.important)
         else:
-            self.confirm_and_close_button.setText("Restart required")
-            self.confirm_and_close_button.clicked.disconnect()
-            self.confirm_and_close_button.clicked.connect(
+            self.submit_btn.setText("Click to restart")
+            self.submit_btn.clicked.disconnect()
+            self.submit_btn.clicked.connect(
                 lambda: self.__on_config_commit_restart(self.funcs_to_restart)
             )
 
@@ -482,8 +509,8 @@ class ConfigSideWindow:
         for f in funcs:
             f()
         self.funcs_to_restart.clear()
-        self.confirm_and_close_button.setText("Config saved")
-        self.confirm_and_close_button.clicked.disconnect()
+        self.submit_btn.clicked.disconnect()
+        fcc_queue.put_notification("Config saved", lvl=LogLvl.important)
         self.del_side_window()
 
     def _modify_file_monitor(self):

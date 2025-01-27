@@ -1,5 +1,5 @@
 {
-    "version": "1.4.9",
+    "version": "1.4.10",
     "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -21,8 +21,6 @@
     "timespent_len": 12,
     "allow_file_monitor": true,
     "pace_card_interval": 0,
-    "efc_threshold": 80,
-    "efc_cache_expiry_hours": 3,
     "init_revs_cnt": 4,
     "init_revs_inth": 6,
     "cache_history_size": 128,
@@ -89,13 +87,21 @@
         "save_mistakes": false,
         "create_revision": false
     },
-    "next_efc": {
-        "reversed": false,
-        "random": false,
-        "skip_mistakes": false,
-        "new_first": true,
-        "require_recorded": true,
-        "save_mistakes": true
+    "efc": {
+        "threshold": 80,
+        "cache_expiry_hours": 3,
+        "opt": {
+            "reversed": false,
+            "random": true,
+            "skip_mistakes": false,
+            "new_first": true,
+            "require_recorded": true,
+            "save_mistakes": true
+        },
+        "sort": {
+            "key_1": "score",
+            "key_2": "fp"
+        }
     },
     "lookup": {
         "mode": "quick",
@@ -216,10 +222,12 @@
         "sod_card": "🎴"
     },
     "popups": {
+        "enabled": true,
         "timeout_ms": 3000,
         "show_animation_ms": 100,
         "hide_animation_ms": 100,
-        "check_interval_ms": 1000,
+        "active_interval_ms": 1000,
+        "idle_interval_ms": 5000,
         "lvl": 1,
         "triggers": {
             "unreviewed_mistakes_percent": 0.4

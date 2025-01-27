@@ -1,5 +1,8 @@
 import PyQt5.QtWidgets as widget
 from PyQt5 import QtGui
+from DBAC.api import FileDescriptor
+from utils import fcc_queue, LogLvl
+from widgets import CFIDialog
 
 
 class LoadSideWindow:
@@ -54,6 +57,7 @@ class LoadSideWindow:
         self._files_qlist.setVerticalScrollBar(self.get_scrollbar())
         self._files_qlist.itemClicked.connect(self.__lsw_qlist_onclick)
         self._files_qlist.itemDoubleClicked.connect(self.__lsw_qlist_onDoubleClick)
+        self.__attach_files_qlist_ctx()
         widget.QShortcut(
             QtGui.QKeySequence("Home"), self._files_qlist
         ).activated.connect(lambda: self._files_qlist.setCurrentRow(0))
@@ -64,9 +68,78 @@ class LoadSideWindow:
         )
         return self._files_qlist
 
+    def __attach_files_qlist_ctx(self):
+        self._files_qlist_ctx = widget.QMenu()
+        self._files_qlist_ctx.setStyleSheet(self.config["theme"]["ctx_stylesheet"])
+        self._files_qlist_ctx.setFont(self.BUTTON_FONT)
+        self._files_qlist.setContextMenuPolicy(3)
+        self._files_qlist.customContextMenuRequested.connect(
+            self.__show_files_qlist_ctx
+        )
+
+    def __show_files_qlist_ctx(self, position):
+        self._files_qlist_ctx.clear()
+        act = widget.QAction("Create…", self)
+        act.triggered.connect(self.__show_input_dialog)
+        self._files_qlist_ctx.addAction(act)
+        self._files_qlist_ctx.exec_(self.mapToGlobal(position))
+
+    def __show_input_dialog(self):
+        fd = self.db.files[self.load_map[self._files_qlist.currentRow()]]
+        start = self.config["ILN"].get(fd.filepath, 0)
+        cnt = self.db.get_lines_count(fd) - start
+        dialog = CFIDialog(self, start, cnt)
+        if dialog.exec_():
+            start, cnt = dialog.get_values()
+            self.cfi(fd, start, cnt)
+
+    def cfi(self, fd: FileDescriptor, start: int, cnt: int):
+        data = self.db.load_dataset(fd, do_shuffle=False, activate=False)
+        if cnt == 0:
+            len_parent = data.shape[0]
+            data = data.iloc[start:, :]
+        elif cnt < 0:
+            if start >= 0:
+                len_parent = start
+                data = data.iloc[start + cnt : start, :]
+            else:
+                len_parent = data.shape[0] + start
+                data = data.iloc[start + cnt : start, :]
+        else:
+            if start >= 0:
+                len_parent = data.shape[0] - start + cnt
+                data = data.iloc[start : start + cnt, :]
+            else:
+                len_parent = data.shape[0] + start + cnt
+                data = data.iloc[start : start + cnt, :]
+
+        len_child = data.shape[0]
+        if len_child <= 0:
+            fcc_queue.put_notification("Not enough cards", lvl=LogLvl.warn)
+            return
+
+        if not self.active_file.tmp:
+            self.file_monitor_del_path(self.active_file.filepath)
+
+        self.db.load_tempfile(
+            basename=f"{fd.lng}{len_child}",
+            data=data,
+            lng=fd.lng,
+            kind=self.db.KINDS.lng,
+            parent={
+                "filepath": fd.filepath,
+                "len_": len_parent,
+            },
+        )
+        self.db.shuffle_dataset()
+        self.del_side_window()
+        self.update_backend_parameters()
+        self.update_interface_parameters()
+        self.reset_timer()
+
     def __lsw_qlist_onclick(self, item):
         self.cur_load_index = self._files_qlist.currentRow()
-    
+
     def __lsw_qlist_onDoubleClick(self, item):
         self.cur_load_index = self._files_qlist.currentRow()
         self.load_selected_file()

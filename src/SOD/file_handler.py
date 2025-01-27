@@ -8,6 +8,7 @@ from collections import OrderedDict
 from utils import get_filename_from_path
 from cfg import config
 from functools import cache
+from csv import DictWriter
 
 log = logging.getLogger("SOD")
 
@@ -109,7 +110,7 @@ class XLSXFileHandler(FileHandler):
         self.config = config
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
-        self.wb = openpyxl.load_workbook(self.path)
+        self.wb = openpyxl.load_workbook(self.path, data_only=True)
         self.ws = self.wb[self.wb.sheetnames[0]]
         self.__load_data()
         self.last_write_time = time()
@@ -197,7 +198,7 @@ class CSVFileHandler(FileHandler):
         self.foreign_lng = self.raw_data.columns[0].lower()
 
     def __load_data(self):
-        self.raw_data = pd.read_csv(self.path, encoding="utf-8")
+        self.raw_data = pd.read_csv(self.path, encoding="utf-8", dtype=str)
         self.data = OrderedDict()  # row_index: (original, translation)
         for r in self.raw_data.itertuples():
             self.data[r[0]] = (str(r[1]), str(r[2]))
@@ -208,21 +209,21 @@ class CSVFileHandler(FileHandler):
         return self.raw_data.index[-1] + 1
 
     def append_content(self, foreign_word, domestic_word) -> tuple[bool, str]:
-        new_row = pd.DataFrame(
-            [[foreign_word, domestic_word]], columns=self.raw_data.columns
-        )
-        self.raw_data = pd.concat([self.raw_data, new_row], ignore_index=True)
-        self.data[self.raw_data.index[-1]] = (foreign_word, domestic_word)
-        self.commit(
-            f"Added [{self.raw_data.index[-1]}] [{foreign_word}] - [{domestic_word}] to {self.filename}"
+        new_row = (foreign_word, domestic_word)
+        self.raw_data.loc[len(self.raw_data)] = new_row
+        self.data[self.raw_data.index[-1]] = new_row
+        self.__append(
+            rec=new_row,
+            msg=f"Added [{self.raw_data.index[-1]}] [{foreign_word}] - [{domestic_word}] to {self.filename}",
         )
         return True, ""
 
     def edit_content(self, foreign_word, domestic_word) -> tuple[bool, str]:
-        self.data[self.dtracker[0]] = (foreign_word, domestic_word)
-        self.raw_data.iloc[self.dtracker[0]] = [foreign_word, domestic_word]
-        self.commit(
-            f"Edited [{self.dtracker[0]}] [{foreign_word}] - [{domestic_word}] in {self.filename}"
+        edited_row = (foreign_word, domestic_word)
+        self.data[self.dtracker[0]] = edited_row
+        self.raw_data.iloc[self.dtracker[0]] = edited_row
+        self.__edit(
+            msg=f"Edited [{self.dtracker[0]}] [{foreign_word}] - [{domestic_word}] in {self.filename}",
         )
         return True, ""
 
@@ -233,7 +234,7 @@ class CSVFileHandler(FileHandler):
                 and self.raw_data.iloc[self.dtracker[0], 1 - int(is_from_native)] == r1
             ):
                 self.raw_data.drop(index=self.dtracker[0], axis=0, inplace=True)
-                self.commit(f"Deleted [{self.dtracker[0]}] [{r0}] in {self.filename}")
+                self.__edit(f"Deleted [{self.dtracker[0]}] [{r0}] in {self.filename}")
                 self.__load_data()
                 return True
             else:
@@ -241,7 +242,19 @@ class CSVFileHandler(FileHandler):
         else:
             return False
 
-    def commit(self, msg: str = None):
+    def __append(self, rec: tuple, msg: str = None):
+        """Add a new record to the file"""
+        with open(self.path, mode="a") as f:
+            DictWriter(f, fieldnames=(self.foreign_lng, self.native_lng)).writerow(
+                {self.foreign_lng: rec[0], self.native_lng: rec[1]}
+            )
+        self.last_write_time = time()
+        self.clear_cache()
+        if msg:
+            log.debug(msg)
+
+    def __edit(self, msg: str = None):
+        """Rewrites the file with modified content"""
         self.raw_data.to_csv(self.path, encoding="utf-8", index=False)
         self.last_write_time = time()
         self.clear_cache()

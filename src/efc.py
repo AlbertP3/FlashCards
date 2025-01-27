@@ -70,7 +70,7 @@ class EFC:
 
     def get_recommendations(self) -> list[dict]:
         cache_valid = (
-            self._efc_last_calc_time + 3600 * self.config["efc_cache_expiry_hours"]
+            self._efc_last_calc_time + 3600 * self.config["efc"]["cache_expiry_hours"]
             >= time()
         )
         db_current = self._db_load_time_efc == self.db.last_load
@@ -89,7 +89,7 @@ class EFC:
             for lng in self.config["languages"]:
                 fmt = self.db.MST_BASENAME.format(lng=lng)
                 try:
-                    for part in range(1, self.config["mst"]["part_cnt"]+1):
+                    for part in range(1, self.config["mst"]["part_cnt"] + 1):
                         sig = f"{fmt}{part}.csv"
                         fp = self.db.make_filepath(lng, self.db.MST_DIR, sig)
                         self.db.files[fp]
@@ -108,7 +108,7 @@ class EFC:
         if self.config["days_to_new_rev"] > 0:
             self._recoms.extend(self.get_new_recoms())
         for rev in sorted(self.get_efc_data(), key=lambda x: x[2]):
-            if rev[2] < self.config["efc_threshold"]:
+            if rev[2] < self.config["efc"]["threshold"]:
                 prefix = (
                     self.config["icons"]["initial"]
                     if rev[5]
@@ -125,6 +125,12 @@ class EFC:
         self._efc_last_calc_time = time()
         self._db_load_time_efc = self.db.last_load
         self.db.refresh()
+        self._recoms.sort(
+            key=lambda x: (
+                x[self.config["efc"]["sort"]["key_1"]],
+                x[self.config["efc"]["sort"]["key_2"]],
+            )
+        )
         return self._recoms
 
     def get_efc_data(
@@ -240,9 +246,9 @@ class EFC:
         init = record[3]
         cycles = 0
         while cycles < max_cycles:
-            if efc_ > self.config["efc_threshold"] + t_tol:
+            if efc_ > self.config["efc"]["threshold"] + t_tol:
                 record[3] += resh
-            elif efc_ < self.config["efc_threshold"] - t_tol:
+            elif efc_ < self.config["efc"]["threshold"] - t_tol:
                 record[3] -= resh
             else:
                 break

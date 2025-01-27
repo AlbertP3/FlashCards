@@ -27,7 +27,6 @@ class FCC:
             "rcc": "Reverse Current Card - changes sides of currently displayed card and updates the source file",
             "mcr": "Modify Card Result - allows changing pos/neg for the current card",
             "dcc": "Delete Current Card - deletes card both in current set and in the file",
-            "cfi": "Create From ILN - creates a new temporary Language set using ILN cache. Syntax: *<signature> *<lim>",
             "sis": "Show ILN Statistics",
             "efc": "Ebbinghaus Forgetting Curve - Optional *[SIGNATURES] else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision",
             "mcp": "Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>",
@@ -205,66 +204,11 @@ class FCC:
         self.post_fcc(f"{'File':^34} | New Cards")
         for k, v in self.config["ILN"].items():
             try:
-                end = self.mw.db.load_dataset(
-                    self.mw.db.files[k], do_shuffle=False, activate=False
-                ).shape[0]
+                end = self.mw.db.get_lines_count(self.mw.db.files[k])
                 nc = end - v
             except KeyError:
                 nc = 0
             self.post_fcc(f"{k:<34} | {nc}")
-
-    def cfi(self, parsed_cmd: list[str]):
-        """Create From ILN"""
-        if len(parsed_cmd) == 1:
-            parsed_cmd.append(self.mw.active_file.signature)
-
-        try:
-            fd = [
-                fd for fd in self.mw.db.files.values() if fd.signature == parsed_cmd[1]
-            ][0]
-        except IndexError:
-            self.post_fcc(f"{parsed_cmd[1]} does not exist")
-            return
-
-        try:
-            start = self.config["ILN"][fd.filepath]
-            self.post_fcc(f"Found cached last index for {parsed_cmd[1]}: {start}")
-        except KeyError:
-            start = 0
-            self.post_fcc("No cached data")
-
-        try:
-            end = start + int(parsed_cmd[-1])
-        except ValueError:
-            end = None
-
-        data = self.mw.db.load_dataset(fd, do_shuffle=False, activate=False)
-        len_parent = end or data.shape[0]
-        data = data.iloc[start:end, :]
-        len_child = data.shape[0]
-
-        if len_child <= 0:
-            self.post_fcc("Not enough cards")
-            return
-
-        if not self.mw.active_file.tmp:
-            self.mw.file_monitor_del_path(self.mw.active_file.filepath)
-        self.mw.db.load_tempfile(
-            basename=f"{fd.lng}{len_child}",
-            data=data,
-            lng=fd.lng,
-            kind=self.mw.db.KINDS.lng,
-            parent={
-                "filepath": fd.filepath,
-                "len_": len_parent,
-            },
-        )
-        self.mw.db.shuffle_dataset()
-        self.mw.del_side_window()
-        self.mw.update_backend_parameters()
-        self.mw.update_interface_parameters()
-        self.mw.reset_timer()
-        self.post_fcc(f"Loaded {len_child} cards")
 
     def efc(self, parsed_cmd):
         """Show EFC Table"""
