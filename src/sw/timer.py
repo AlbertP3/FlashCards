@@ -1,9 +1,6 @@
 from cfg import config
 
-try:
-    from tracker import TrackerSideWindow
-except ImportError:
-    pass
+from tracker import TrackerSideWindow
 
 
 class TimerSideWindow:
@@ -17,6 +14,5 @@ class TimerSideWindow:
         self.add_shortcut("timespent", self.get_timer_sidewindow, "main")
 
     def get_timer_sidewindow(self):
-        return
         self.tracker_layout = TrackerSideWindow()
         self.open_side_window(self.tracker_layout, "timer")
