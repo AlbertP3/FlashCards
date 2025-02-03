@@ -273,7 +273,7 @@ class DBQueries:
         self.db = self.db[
             (self.db["KIND"] == self.KINDS.rev)
             & (self.db["LNG"].isin(lngs))
-            & (self.db["POSITIVES"] != 0)
+            & (~self.db["IS_FIRST"])
         ]
         self.filters["PROGRESS"] = True
 

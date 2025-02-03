@@ -44,12 +44,10 @@ class MainWindowLogic:
     def active_file(self):
         return self.db.active_file
 
-    @property
-    def is_initial_rev(self) -> bool:
+    def check_is_initial_rev(self) -> bool:
         return (
             self.active_file.kind == self.db.KINDS.rev
             and self.db.get_sum_repeated(self.active_file.signature)
-            - int(self.is_recorded)
             < self.config["init_revs_cnt"]
         )
 
@@ -185,9 +183,7 @@ class MainWindowLogic:
 
     def update_backend_parameters(self):
         self.config["onload_filepath"] = self.active_file.filepath
-        self.reset_flashcards_parameters()
-
-    def reset_flashcards_parameters(self):
+        self.is_initial_rev = self.check_is_initial_rev()
         self.is_recorded = False
         self.is_synopsis = False
         self.synopsis = None
@@ -404,6 +400,7 @@ class MainWindowLogic:
             "fcc_cmds_cursor": self.tabs["fcc"]["cmds_cursor"],
             "fcc_console_log": _fcc_log,
             "fcc_cmds_log": self.tabs["fcc"]["cmds_log"],
+            "is_initial_rev": self.is_initial_rev
         }
         self.activate_tab(prev_tab)
         self.config.cache["snapshot"]["session"] = snapshot
@@ -424,6 +421,7 @@ class MainWindowLogic:
         self.positives = metadata["positives"]
         self.negatives = metadata["negatives"]
         self.total_words = metadata["total_words"]
+        self.is_initial_rev = metadata["is_initial_rev"]
         self.mistakes_list = metadata["mistakes_list"]
         self.mistakes_saved = metadata["mistakes_saved"]
         self.cards_seen_sides = metadata["cards_seen_sides"]

@@ -54,9 +54,7 @@ class ConfigSideWindow:
             self.submit_btn = self.create_button(
                 "Confirm changes", self.commit_config_update
             )
-        self.submit_btn.setStyleSheet(
-            self.config["theme"]["label_stylesheet"]
-        )
+        self.submit_btn.setStyleSheet(self.config["theme"]["label_stylesheet"])
 
     def fill_config_list(self):
         self._init_submit_btn()
@@ -346,6 +344,41 @@ class ConfigSideWindow:
         }
 
         self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Tracker")
+        self.tracker_statcols_active_group = dict()
+        for k, v in self.config["tracker"]["stat_cols"].items():
+            self.tracker_statcols_active_group[k] = self.cfg_cbx(
+                v["active"],
+                content=["True", "False"],
+                multi_choice=False,
+                text=f"Category {k} active",
+            )
+        self.tracker_dispfmt = self.cfg_qle(
+            self.config["tracker"]["disp_datefmt"], text="Display date format"
+        )
+        self.tracker_incl_col_new = self.cfg_cbx(
+            self.config["tracker"]["incl_col_new"],
+            content=["True", "False"],
+            multi_choice=False,
+            text="Include %New column",
+        )
+        self.tracker_default_category = self.cfg_cbx(
+            self.config["tracker"]["default_category"],
+            content=("wrt", "rdg", "lst", "spk", "ent"),
+            multi_choice=False,
+            text="Default category",
+        )
+        self.tracker_initial_tab = self.cfg_cbx(
+            self.config["tracker"]["initial_tab"],
+            content=["TimeTable", "TimeChart", "Progress", "Duo", "StopWatch", "Notes"],
+            multi_choice=False,
+            text="Initial tab",
+        )
+        self.tracker_avg_n = self.cfg_qle(
+            self.config["tracker"]["duo"]["prelim_avg"], text="Duo avg window size"
+        )
+
+        self.opts_layout.add_spacer()
         self.opts_layout.add_label("Miscellaneous")
         self.check_file_monitor_cbx = self.cfg_cbx(
             self.config["allow_file_monitor"],
@@ -377,7 +410,9 @@ class ConfigSideWindow:
         new_cfg["efc"]["cache_expiry_hours"] = int(self.efc_cache_exp_qle.text())
         new_cfg["efc"]["opt"] = self.efc_policy_cbx.currentDataDict()
         new_cfg["efc"]["sort"]["key_1"] = self.efc_primary_sort_cbx.currentDataList()[0]
-        new_cfg["efc"]["sort"]["key_2"] = self.efc_secondary_sort_cbx.currentDataList()[0]
+        new_cfg["efc"]["sort"]["key_2"] = self.efc_secondary_sort_cbx.currentDataList()[
+            0
+        ]
         new_cfg["days_to_new_rev"] = int(self.days_to_new_rev_qle.text())
         new_cfg["opt"] = self.optional_featuers_cbx.currentDataDict()
         new_cfg["init_revs_cnt"] = int(self.init_rep_qle.text())
@@ -451,6 +486,20 @@ class ConfigSideWindow:
         new_cfg["dim"]["font_button_size"] = int(self.button_font_size_qle.text())
         new_cfg["theme"]["default_suffix"] = self.default_suffix_qle.text()
         new_cfg["dim"]["spacing"] = int(self.spacing_qle.text())
+
+        for k, v in self.tracker_statcols_active_group.items():
+            new_cfg["tracker"]["stat_cols"][k]["active"] = v.currentDataList()[0] == "True"
+        new_cfg["tracker"]["disp_datefmt"] = self.tracker_dispfmt.text()
+        new_cfg["tracker"]["incl_col_new"] = (
+            self.tracker_incl_col_new.currentDataList()[0] == "True"
+        )
+        new_cfg["tracker"][
+            "default_category"
+        ] = self.tracker_default_category.currentDataList()[0]
+        new_cfg["tracker"]["initial_tab"] = self.tracker_initial_tab.currentDataList()[
+            0
+        ]
+        new_cfg["tracker"]["duo"]["prelim_avg"] = int(self.tracker_avg_n.text())
 
         if new_cfg["active_theme"] != self.config["active_theme"]:
             new_cfg["theme"].update(self.themes_dict[new_cfg["active_theme"]])

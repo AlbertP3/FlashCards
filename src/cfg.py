@@ -20,9 +20,7 @@ class Config(UserDict):
         try:
             self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
         except FileNotFoundError:
-            self.cache = {
-                "snapshot": {"file": None, "session": None},
-            }
+            self.cache = {"snapshot": {"file": None, "session": None}, "notes": ""}
 
     def reload(self):
         self.data.update(json.load(open(self.CFG_PATH, "r")))
@@ -69,6 +67,7 @@ def __validate(cfg: Config) -> tuple[bool, set]:
         "font_textbox_size": cfg["dim"]["font_textbox_size"],
         "console_font_size": cfg["dim"]["console_font_size"],
         "font_button_size": cfg["dim"]["font_button_size"],
+        "prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],
     }
     numeric_gt_0 = {}
     int_gte_0 = {

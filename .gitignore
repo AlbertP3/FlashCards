@@ -1,6 +1,5 @@
 venv
 __pycache__
-db.csv
 .vscode
 desktop.ini
 config.json
@@ -13,3 +12,4 @@ build/
 data/
 src/res/model.pkl
 src/res/tmp*
+src/res/*.csv

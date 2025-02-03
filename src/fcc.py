@@ -506,11 +506,8 @@ class FCC:
 
     def clt(self, parsed_cmd: list):
         """Create Language Tree"""
-        if len(parsed_cmd) < 2:
-            self.post_fcc("Missing Argument - new language id")
-            return
-        elif len(parsed_cmd) > 2:
-            self.post_fcc("Invalid Argument - whitespaces not allowed")
+        if len(parsed_cmd) < 3:
+            self.post_fcc("Missing Arguments - new language id | native language id")
             return
         elif parsed_cmd[1] in self.config["languages"]:
             self.post_fcc(f"Language {parsed_cmd[1]} already exists")
@@ -518,17 +515,19 @@ class FCC:
         self.mw.db.create_language_dir_tree(parsed_cmd[1])
         self.config["languages"].append(parsed_cmd[1])
         pd.DataFrame(
-            columns=[parsed_cmd[1].lower(), "native"], data=[["-", "-"]]
-        ).to_excel(
+            columns=[parsed_cmd[1].lower(), parsed_cmd[2].lower()], data=[["-", "-"]]
+        ).to_csv(
             self.mw.db.make_filepath(
-                parsed_cmd[1], self.mw.db.LNG_DIR, f"{parsed_cmd[1]}.xlsx"
+                parsed_cmd[1], self.mw.db.LNG_DIR, f"{parsed_cmd[1]}.csv"
             ),
-            sheet_name=parsed_cmd[1].lower(),
             index=False,
+            encoding="utf-8",
+            header=True,
+            mode="w",
         )
         for msg in fcc_queue.dump_logs():
             self.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
-        self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.xlsx")
+        self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.csv")
         self.mw.db.update_fds()
 
     def eph(self, parsed_cmd: list):

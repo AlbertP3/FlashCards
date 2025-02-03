@@ -82,21 +82,3 @@ class Stats:
             )
             for x in range(1, len(self.chart_values))
         ]
-
-    def get_data_for_progress(self, lngs: set):
-        self.db.refresh()
-        self.db.filter_for_progress(lngs)
-        if self.db.db.empty:
-            raise ValueError
-        df = self.db.db
-
-        df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"]).dt.strftime("%m/%y")
-        counted = df["TIMESTAMP"].value_counts(sort=False)
-        self.revision_count = counted.values
-        self.formatted_dates = counted.index
-
-        df.drop_duplicates(["SIGNATURE", "TIMESTAMP"], inplace=True, keep="last")
-        df.drop_duplicates("SIGNATURE", inplace=True, keep="first")
-        grouped = df.groupby("TIMESTAMP", sort=False)
-        self.chart_values = grouped["POSITIVES"].sum()
-        self.second_chart_values = grouped["TOTAL"].sum()
