@@ -5,6 +5,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta, date
 from dataclasses import dataclass
 from csv import DictReader, DictWriter
+from PyQt5.QtCore import QTime
 from cfg import config
 from utils import fcc_queue, LogLvl
 from tracker.structs import RecordOrderedDict, Record, SubRecord, IMM_CATS
@@ -43,6 +44,10 @@ class DataAccessLayer:
         self.validate_setup()
         self.content = OrderedDict()
         self.reset_monitor()
+        self.stopwatch_elapsed = QTime(0, 0, 0)
+        self.stopwatch_running = False
+        self.stopwatch_timer = None
+        self.last_tab = config["tracker"]["initial_tab"]
 
     def validate_setup(self):
         if not os.path.exists(self.spc.duo_path):

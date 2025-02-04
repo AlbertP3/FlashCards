@@ -98,7 +98,7 @@ class DuoLayout(QWidget):
         self.lessons_qle = self.get_qle("1")
         self.form_layout.addRow("Lessons", self.lessons_qle)
 
-        self.time_spent_qle = self.get_qle("5:00")
+        self.time_spent_qle = self.get_qle("0:00")
         self.form_layout.addRow("Minutes", self.time_spent_qle)
 
         self.offset_qle = self.get_qle("0")

@@ -27,7 +27,6 @@ class StopwatchTab(QWidget):
         self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.__res = 1
         self.init_ui()
-        self.reset_timer()
 
     def refresh(self):
         if self.upd < dal.upd:
@@ -39,7 +38,7 @@ class StopwatchTab(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
-        self.timer_label = QLabel("00:00:00")
+        self.timer_label = QLabel(dal.stopwatch_elapsed.toString("hh:mm:ss"))
         self.timer_label.setAlignment(Qt.AlignCenter)
         self.timer_label.setStyleSheet(config["theme"]["textbox_stylesheet"])
         self.timer_label.setFont(self.qfont_timer)
@@ -80,10 +79,13 @@ class StopwatchTab(QWidget):
         self.layout.addLayout(controls_layout)
         self.setLayout(self.layout)
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_timer)
-        self.elapsed = QTime(0, 0, 0)
-        self.running = False
+        if dal.stopwatch_running:
+            self.pause_btn.setText("Pause")
+            dal.stopwatch_timer.timeout.disconnect()
+            dal.stopwatch_timer.timeout.connect(self.update_timer)
+        else:
+            dal.stopwatch_timer = QTimer(self)
+            dal.stopwatch_timer.timeout.connect(self.update_timer)
 
     def get_current_titles(self) -> list:
         return [v for v in self.cat_map.get(self.category_cbx.currentDataList()[0], [])]
@@ -92,36 +94,39 @@ class StopwatchTab(QWidget):
         self.title_completer.setModel(QStringListModel(self.get_current_titles()))
 
     def toggle_timer(self):
-        if self.running:
-            self.timer.stop()
+        if dal.stopwatch_running:
+            dal.stopwatch_timer.stop()
             self.pause_btn.setText("Resume")
         else:
-            self.timer.start(self.__res * 1000)
+            dal.stopwatch_timer.start(self.__res * 1000)
             self.pause_btn.setText("Pause")
-        self.running = not self.running
+        dal.stopwatch_running = not dal.stopwatch_running
 
     def update_timer(self):
-        self.elapsed = self.elapsed.addSecs(self.__res)
-        self.timer_label.setText(self.elapsed.toString("hh:mm:ss"))
+        dal.stopwatch_elapsed = dal.stopwatch_elapsed.addSecs(self.__res)
+        self.timer_label.setText(dal.stopwatch_elapsed.toString("hh:mm:ss"))
 
     def reset_timer(self):
-        self.timer.stop()
-        self.elapsed = QTime(0, 0, 0)
+        dal.stopwatch_timer.stop()
+        dal.stopwatch_elapsed = QTime(0, 0, 0)
         self.timer_label.setText("00:00:00")
         self.pause_btn.setText("Start")
-        self.running = False
+        dal.stopwatch_running = False
 
     def commit_action(self):
         lng = self.lng_cbx.currentDataList()[0]
         cat = self.category_cbx.currentDataList()[0]
         title = self.title_qle.text()
-        ts = (
-            self.elapsed.hour() * 3600
-            + self.elapsed.minute() * 60
-            + self.elapsed.second()
-        )
+        ts = self.get_seconds_elapsed()
         dal.add_imm_record(lng=lng, total_seconds=ts, title=title, category=cat)
         self.reset_timer()
+
+    def get_seconds_elapsed(self) -> int:
+        return (
+            dal.stopwatch_elapsed.hour() * 3600
+            + dal.stopwatch_elapsed.minute() * 60
+            + dal.stopwatch_elapsed.second()
+        )
 
     def get_cbx(self, value, content: list, multi_choice: bool = True):
         cb = CheckableComboBox(

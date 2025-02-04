@@ -57,7 +57,7 @@ class TrackerSideWindow(QGridLayout):
         self.tabs.addTab(self.get_notes_tab(), TAB.Notes.name)
 
         self.tabs.currentChanged.connect(self.on_tab_changed)
-        self.tabs.setCurrentIndex(TAB.get(config["tracker"]["initial_tab"]))
+        self.tabs.setCurrentIndex(TAB.get(dal.last_tab))
 
     def on_tab_changed(self, index: int):
         tid = self.tabs.tabText(index)
@@ -71,6 +71,7 @@ class TrackerSideWindow(QGridLayout):
             self.duo_layout.refresh()
         elif tid == TAB.StopWatch.name:
             self.stopwatch_layout.refresh()
+        dal.last_tab = tid
 
     def get_progress_tab(self) -> QWidget:
         tab = QWidget()
