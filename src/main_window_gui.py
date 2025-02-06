@@ -26,6 +26,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
 
     @staticmethod
     def configure_scaling():
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
         os.environ["QT_SCALE_FACTOR"] = "1"
         os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
         widget.QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)

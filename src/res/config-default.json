@@ -258,6 +258,7 @@
     },
     "tracker": {
         "duo": {
+            "active": false,
             "wk_alloc": [
                 0,
                 0,

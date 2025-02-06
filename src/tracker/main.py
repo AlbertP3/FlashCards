@@ -19,27 +19,21 @@ log = logging.getLogger("GUI")
 
 
 class TAB(Enum):
-    TimeTable = 0
-    TimeChart = 1
-    Progress = 2
-    Duo = 3
-    StopWatch = 4
-    Notes = 5
-
-    def get(tab_name: str, default: int = 0):
-        try:
-            return TAB[tab_name].value
-        except KeyError:
-            return default
+    TimeTable = "TimeTable"
+    TimeChart = "TimeChart"
+    Progress = "Progress"
+    Duo = "Duo"
+    StopWatch = "StopWatch"
+    Notes = "Notes"
 
 
 class TrackerSideWindow(QGridLayout):
 
     def __init__(self):
         super().__init__()
+        self.__tabs = {}
         self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.create_tabs()
-        dal.reset_monitor()
         self.addWidget(self.tabs, 0, 0)
         self.on_tab_changed(self.tabs.currentIndex())
 
@@ -49,27 +43,32 @@ class TrackerSideWindow(QGridLayout):
         self.tabs.setFont(self.qfont)
         self.tabs.setContentsMargins(1, 1, 1, 1)
 
-        self.tabs.addTab(self.get_timetable_tab(), TAB.TimeTable.name)
-        self.tabs.addTab(self.get_timechart_tab(), TAB.TimeChart.name)
-        self.tabs.addTab(self.get_progress_tab(), TAB.Progress.name)
-        self.tabs.addTab(self.get_duo_tab(), TAB.Duo.name)
-        self.tabs.addTab(self.get_stopwatch_tab(), TAB.StopWatch.name)
-        self.tabs.addTab(self.get_notes_tab(), TAB.Notes.name)
+        self.add_tab(self.get_timetable_tab(), TAB.TimeTable.value)
+        self.add_tab(self.get_timechart_tab(), TAB.TimeChart.value)
+        self.add_tab(self.get_progress_tab(), TAB.Progress.value)
+        if config["tracker"]["duo"]["active"]:
+            self.add_tab(self.get_duo_tab(), TAB.Duo.value)
+        self.add_tab(self.get_stopwatch_tab(), TAB.StopWatch.value)
+        self.add_tab(self.get_notes_tab(), TAB.Notes.value)
 
         self.tabs.currentChanged.connect(self.on_tab_changed)
-        self.tabs.setCurrentIndex(TAB.get(dal.last_tab))
+        self.tabs.setCurrentIndex(self.__tabs.get(dal.last_tab, 0))
+
+    def add_tab(self, widget, text):
+        self.tabs.addTab(widget, text)
+        self.__tabs[text] = len(self.__tabs)
 
     def on_tab_changed(self, index: int):
         tid = self.tabs.tabText(index)
-        if tid == TAB.TimeChart.name:
+        if tid == TAB.TimeChart.value:
             self.ts_canvas.refresh()
-        elif tid == TAB.Progress.name:
+        elif tid == TAB.Progress.value:
             self.prog_canvas.refresh()
-        elif tid == TAB.TimeTable.name:
+        elif tid == TAB.TimeTable.value:
             self.tt_printout.refresh()
-        elif tid == TAB.Duo.name:
+        elif tid == TAB.Duo.value:
             self.duo_layout.refresh()
-        elif tid == TAB.StopWatch.name:
+        elif tid == TAB.StopWatch.value:
             self.stopwatch_layout.refresh()
         dal.last_tab = tid
 
@@ -116,7 +115,7 @@ class TrackerSideWindow(QGridLayout):
         layout.addWidget(self.notes_layout.get(), 0, 0)
         tab.setLayout(layout)
         return tab
-    
+
     def _create_layout(self) -> QGridLayout:
         layout = QGridLayout()
         layout.setContentsMargins(0, 0, 0, 0)

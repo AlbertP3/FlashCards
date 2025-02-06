@@ -81,7 +81,7 @@ class DuoLayout(QWidget):
             ]
             self.fill_charts()
             self.upd = dal.upd
-            log.debug("Updated Duo Tab")
+            log.debug("Refreshed Duo Tab")
 
     def create_form(self):
         self.form_layout = QFormLayout()

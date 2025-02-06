@@ -123,10 +123,11 @@ class DataAccessLayer:
             writer = DictWriter(f, fieldnames=self.spc.duo_cols, delimiter=self.spc.sep)
             writer.writeheader()
             writer.writerows(rows)
-        config["tracker"]["duo"]["wk_alloc"] = [
-            x + y for x, y in zip(config["tracker"]["duo"]["wk_alloc"], wk_alloc)
-        ]
-        config["tracker"]["duo"]["cnt"] += 1
+        if sum(wk_alloc) > 0:
+            config["tracker"]["duo"]["wk_alloc"] = [
+                x + y for x, y in zip(config["tracker"]["duo"]["wk_alloc"], wk_alloc)
+            ]
+            config["tracker"]["duo"]["cnt"] += 1
         if pred_timespent != timespent and pred_timespent > 0:
             log.debug(f"Predicted {pred_timespent:.0f} minutes but got {timespent}")
         if pred_lessons != lessons and pred_lessons > 0:

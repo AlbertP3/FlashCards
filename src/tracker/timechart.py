@@ -23,7 +23,8 @@ class TimeChartCanvas:
             self._calculate()
             self._generate()
             self.upd = dal.upd
-    
+            log.debug("Refreshed TimeChart Tab")
+
     def _calculate(self):
         data = dal.get_data()
         data = merge_records_by_date(data, "%b\n%y")

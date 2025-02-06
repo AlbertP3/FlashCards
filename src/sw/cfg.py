@@ -368,11 +368,17 @@ class ConfigSideWindow:
             multi_choice=False,
             text="Default category",
         )
-        self.tracker_initial_tab = self.cfg_cbx(
+        self.tracker_init_tab = self.cfg_cbx(
             self.config["tracker"]["initial_tab"],
             content=["TimeTable", "TimeChart", "Progress", "Duo", "StopWatch", "Notes"],
             multi_choice=False,
             text="Initial tab",
+        )
+        self.tracker_duo_active = self.cfg_cbx(
+            self.config["tracker"]["duo"]["active"],
+            content=["True", "False"],
+            multi_choice=False,
+            text="Duo tab active",
         )
         self.tracker_avg_n = self.cfg_qle(
             self.config["tracker"]["duo"]["prelim_avg"], text="Duo avg window size"
@@ -488,7 +494,9 @@ class ConfigSideWindow:
         new_cfg["dim"]["spacing"] = int(self.spacing_qle.text())
 
         for k, v in self.tracker_statcols_active_group.items():
-            new_cfg["tracker"]["stat_cols"][k]["active"] = v.currentDataList()[0] == "True"
+            new_cfg["tracker"]["stat_cols"][k]["active"] = (
+                v.currentDataList()[0] == "True"
+            )
         new_cfg["tracker"]["disp_datefmt"] = self.tracker_dispfmt.text()
         new_cfg["tracker"]["incl_col_new"] = (
             self.tracker_incl_col_new.currentDataList()[0] == "True"
@@ -496,9 +504,10 @@ class ConfigSideWindow:
         new_cfg["tracker"][
             "default_category"
         ] = self.tracker_default_category.currentDataList()[0]
-        new_cfg["tracker"]["initial_tab"] = self.tracker_initial_tab.currentDataList()[
-            0
-        ]
+        new_cfg["tracker"]["initial_tab"] = self.tracker_init_tab.currentDataList()[0]
+        new_cfg["tracker"]["duo"]["active"] = (
+            self.tracker_duo_active.currentDataList()[0] == "True"
+        )
         new_cfg["tracker"]["duo"]["prelim_avg"] = int(self.tracker_avg_n.text())
 
         if new_cfg["active_theme"] != self.config["active_theme"]:

@@ -54,7 +54,7 @@ class TimeTablePrintout:
             printout = self.get_timespent_printout(data)
             self.qTextEdit.setText(printout)
             self.upd = dal.upd
-            log.debug("Updated TimeTable Tab")
+            log.debug("Refreshed TimeTable Tab")
 
     def get_timespent_printout(self, data: StrRecordOrderedDict) -> str:
         try:
