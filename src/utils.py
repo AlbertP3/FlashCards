@@ -13,7 +13,7 @@ from dataclasses import dataclass, fields
 from cfg import config
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("UTL")
 
 
 def perftm(buffer_size: int = 1):

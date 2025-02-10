@@ -6,7 +6,7 @@ from cfg import config
 import DBAC.api as api
 from tracker.dal import dal
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class ProgressChartCanvas:

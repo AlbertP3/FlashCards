@@ -11,7 +11,7 @@ from cfg import config, validate
 from typing import Callable
 import logging
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("GUI")
 
 
 class ConfigSideWindow:
@@ -547,9 +547,9 @@ class ConfigSideWindow:
             fcc_queue.put_notification(
                 f"Invalid configuration provided!",
                 lvl=LogLvl.err,
-                func=lambda: self.get_fcc_sidewindow(),
+                func=lambda: self.get_logs_sidewindow(),
             )
-            fcc_queue.put_log("\n".join(errs))
+            log.warning("\n".join(errs))
             self.funcs_to_restart.clear()
             return
 

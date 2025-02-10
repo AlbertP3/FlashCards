@@ -5,7 +5,7 @@ from cfg import config
 from tracker.dal import dal
 from tracker.helpers import merge_records_by_date
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class TimeChartCanvas:

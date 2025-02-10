@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QTextEdit, QScrollBar
 from PyQt5.QtGui import QFont, QKeyEvent
 from cfg import config
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class NotesLayout:

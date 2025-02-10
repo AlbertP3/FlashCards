@@ -9,7 +9,7 @@ import os
 import csv
 from utils import fcc_queue, LogLvl
 
-log = logging.getLogger("DBAC")
+log = logging.getLogger("DBA")
 
 
 @dataclass
@@ -24,9 +24,6 @@ class FileDescriptor:
     signature: str = None
     tmp: bool = False
     parent: dict = None  # {filepath: str, len_: int}
-
-    def __str__(self) -> str:
-        return f"{self.filepath}"
 
     def __eq__(self, __value: object) -> bool:
         return self.filepath == __value.filepath
@@ -57,7 +54,7 @@ class DbDatasetOps:
             (
                 f"Activated {'Valid' if self.__AF.valid else 'Invalid'} "
                 f"{'Temporary' if self.__AF.tmp else 'Regular'} "
-                f"{self.KFN[self.__AF.kind]}: {self.__AF}"
+                f"{self.KFN[self.__AF.kind]}: {self.__AF.filepath}"
             ),
             stacklevel=3,
         )

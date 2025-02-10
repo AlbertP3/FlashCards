@@ -3,7 +3,7 @@ import numpy as np
 import logging
 import statistics
 
-log = logging.getLogger("DBAC")
+log = logging.getLogger("DBA")
 
 
 class DbEFCQueries:

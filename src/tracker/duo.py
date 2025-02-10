@@ -20,7 +20,7 @@ from tracker.dal import dal
 from tracker.helpers import parse_to_seconds, safe_div, merge_records_by_date, get_chart
 from tracker.structs import RecordOrderedDict, Column
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class DuoLayout(QWidget):
@@ -165,6 +165,7 @@ class DuoLayout(QWidget):
         button.setFont(self.qfont)
         button.setText(text)
         button.setStyleSheet(config["theme"]["button_stylesheet"])
+        button.setFocusPolicy(Qt.NoFocus)
         if function is not None:
             button.clicked.connect(function)
         return button

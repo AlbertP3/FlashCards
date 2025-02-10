@@ -151,9 +151,6 @@ class MainWindowLogic:
     def load_flashcards(self, fd: FileDescriptor, seed=None):
         try:
             self.db.load_dataset(fd, do_shuffle=True, seed=seed)
-            fcc_queue.put_log(
-                f"{self.db.KFN[self.active_file.kind]} loaded: {self.active_file.basename}"
-            )
         except FileNotFoundError:
             fcc_queue.put_notification(f"File not found: {fd.filepath}", lvl=LogLvl.exc)
 
@@ -326,18 +323,7 @@ class MainWindowLogic:
 
     def notify_on_error(self, traceback, exc_value=None):
         log.error(traceback, exc_info=True, stacklevel=2)
-
-        if exc_value:  # is an error
-            err_msg = f"{str(exc_value)}. See log file for more details."
-        else:
-            err_msg = traceback
-
-        err_msg += "\n" + self.CONSOLE_PROMPT
-        fcc_queue.put_log(err_msg)
-
-        if self.side_window_id == "fcc":
-            self.del_side_window()
-        self.get_fcc_sidewindow()
+        self.get_logs_sidewindow()
 
     def should_save_mistakes(self) -> bool:
         res = False

@@ -15,7 +15,7 @@ from tracker.stopwatch import StopwatchTab
 from tracker.notes import NotesLayout
 from tracker.dal import dal
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class TAB(Enum):

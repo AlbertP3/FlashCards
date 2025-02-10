@@ -6,6 +6,7 @@ from sw.stats import StatsSideWindow
 from sw.prog import ProgressSideWindow
 from sw.cfg import ConfigSideWindow
 from sw.timer import TimerSideWindow
+from sw.logs import LogsSideWindow
 
 
 class SideWindows(
@@ -17,6 +18,7 @@ class SideWindows(
     ProgressSideWindow,
     ConfigSideWindow,
     TimerSideWindow,
+    LogsSideWindow,
 ):
     def __init__(self):
         self.side_window_titles = dict()
@@ -28,6 +30,7 @@ class SideWindows(
         ProgressSideWindow.__init__(self)
         ConfigSideWindow.__init__(self)
         TimerSideWindow.__init__(self)
+        LogsSideWindow.__init__(self)
 
     def __del__(self):
         del self

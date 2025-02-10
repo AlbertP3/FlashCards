@@ -105,7 +105,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
         ts = self.config.cache["snapshot"]["session"]["timestamp"]
-        fcc_queue.put_log(f"Applied a session snapshot from {ts}", log.debug)
+        log.debug(f"Applied a session snapshot from {ts}")
         self.config.cache["snapshot"]["session"] = None
 
     def __onload_notifications(self):
@@ -136,6 +136,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             "stats",
             "progress",
             "timer",
+            "logs",
         }:
             self.create_ks_mapping(sw_id)
 

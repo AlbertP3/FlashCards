@@ -16,7 +16,7 @@ from cfg import config
 from tracker.structs import IMM_CATS
 from tracker.dal import dal
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class StopwatchTab(QWidget):

@@ -5,7 +5,7 @@ from time import time, perf_counter
 from csv import DictWriter
 from utils import fcc_queue, LogLvl
 
-log = logging.getLogger("DBAC")
+log = logging.getLogger("DBA")
 
 
 class DBQueries:

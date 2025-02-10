@@ -10,7 +10,7 @@ from tracker.dal import dal
 from tracker.helpers import merge_records_by_date, to_time, safe_div
 from tracker.structs import StrRecordOrderedDict
 
-log = logging.getLogger("GUI")
+log = logging.getLogger("TRK")
 
 
 class TimeTablePrintout:

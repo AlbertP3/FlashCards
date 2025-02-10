@@ -2,7 +2,7 @@ import json
 from collections import UserDict
 import logging
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("CFG")
 
 
 class Config(UserDict):

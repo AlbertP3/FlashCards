@@ -352,7 +352,7 @@ class FCC:
             )
             self.mw.activate_tab(prev_tab)
         self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
-        fcc_queue.put_log("Filename and Signature changed successfully", log.info)
+        fcc_queue.put_notification("Filename and Signature changed successfully", lvl=LogLvl.important)
 
     def sah(self, parsed_cmd):
         """Show All (languages) History chart"""

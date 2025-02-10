@@ -178,7 +178,7 @@ class XLSXFileHandler(FileHandler):
         self.last_write_time = time()
         self.clear_cache()
         if msg:
-            log.debug(msg)
+            log.info(msg)
 
     @FileHandler.reg_close
     def close(self):
@@ -251,7 +251,7 @@ class CSVFileHandler(FileHandler):
         self.last_write_time = time()
         self.clear_cache()
         if msg:
-            log.debug(msg)
+            log.info(msg)
 
     def __edit(self, msg: str = None):
         """Rewrites the file with modified content"""
@@ -259,7 +259,7 @@ class CSVFileHandler(FileHandler):
         self.last_write_time = time()
         self.clear_cache()
         if msg:
-            log.debug(msg)
+            log.info(msg)
 
     @FileHandler.reg_close
     def close(self):
