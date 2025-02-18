@@ -11,7 +11,6 @@
         "show_efc_line": true,
         "show_percent_stats": true,
         "dynamic_summary": true,
-        "side_by_side": false,
         "hide_timer": false,
         "show_cpm_timer": false,
         "keep_window_size": true

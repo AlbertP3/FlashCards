@@ -90,7 +90,7 @@ class DataAccessLayer:
         wk_alloc = [0] * 7
         pred_lessons, pred_timespent = 0, 0
         found = False
-        new_report_date = self.get_duo_new_report_date()
+        new_report_date = self.get_duo_last_report_date()
         prev_report_date = new_report_date - timedelta(days=7)
         tgt_dstr = new_report_date.strftime(self.spc.duo_datefmt)
         record = {
@@ -125,15 +125,15 @@ class DataAccessLayer:
             writer.writerows(rows)
         if sum(wk_alloc) > 0:
             config["tracker"]["duo"]["wk_alloc"] = [
-                x + y for x, y in zip(config["tracker"]["duo"]["wk_alloc"], wk_alloc)
+                round(x + y, 3) for x, y in zip(config["tracker"]["duo"]["wk_alloc"], wk_alloc)
             ]
             config["tracker"]["duo"]["cnt"] += 1
-        if pred_timespent != timespent and pred_timespent > 0:
+        if int(pred_timespent - timespent) != 0 and pred_timespent > 0:
             log.debug(f"Predicted {pred_timespent:.0f} minutes but got {timespent}")
         if pred_lessons != lessons and pred_lessons > 0:
             log.debug(f"Predicted {pred_lessons} lessons but got {lessons}")
         fcc_queue.put_notification("Added Duo final record", LogLvl.important)
-        log.debug(f"{'Updated' if found else 'Added'} Duo Final: {record}")
+        log.info(f"{'Updated' if found else 'Added'} Duo Final: {record}")
         self.upd = time()
 
     def add_duo_record_preliminary(
@@ -145,7 +145,7 @@ class DataAccessLayer:
         If timespent is missing then it will be estimated based on an average.
         """
         tgt_dstr = (date.today() - timedelta(days=offset)).strftime(r"%Y-%m-%d")
-        last_report_date = self.get_duo_new_report_date()
+        last_report_date = self.get_duo_last_report_date()
         rows = []
         found = False
         avg_n = config["tracker"]["duo"]["prelim_avg"]
@@ -194,7 +194,7 @@ class DataAccessLayer:
             f"Added Duo preliminary record [{rows[-1]['lessons']}]",
             LogLvl.important,
         )
-        log.debug(f"{'Updated' if found else 'Added'} Duo Preliminary: {rows[-1]}")
+        log.info(f"{'Updated' if found else 'Added'} Duo Preliminary: {rows[-1]}")
         self.upd = time()
 
     def add_imm_record(self, lng: str, total_seconds: int, title: str, category: str):
@@ -221,8 +221,9 @@ class DataAccessLayer:
                 self._load_duo_data(self.content)
             if self.get_active_imm_categories():
                 self._load_imm_data(self.content)
-            log.debug("Loaded Tracker data")
             self.upd = time()
+            self.content = OrderedDict(sorted(self.content.items()))
+            log.debug("Loaded Tracker data")
         return self.content
 
     def _load_duo_data(self, content: RecordOrderedDict) -> RecordOrderedDict:
@@ -271,7 +272,7 @@ class DataAccessLayer:
                             content[ld] = new_rec
         return content
 
-    def get_duo_new_report_date(self) -> date:
+    def get_duo_last_report_date(self) -> date:
         lrd = date.today()
         while lrd.weekday() != config["tracker"]["duo"]["wdi"]:
             lrd -= timedelta(days=1)

@@ -54,9 +54,13 @@ class DuoLayout(QWidget):
     def refresh(self):
         if self.upd < dal.upd:
             data = dal.get_data()
+
             try:
+                lrd = dal.get_duo_last_report_date()
                 t, l = 0, 0
-                for r in list(data.values())[-config["tracker"]["duo"]["prelim_avg"] :]:
+                for r in [v for k, v in data.items() if k <= lrd and v.duo.lessons > 0][
+                    -config["tracker"]["duo"]["prelim_avg"] :
+                ]:
                     t += r.duo.hours * 60
                     l += r.duo.lessons
                 self.prelim_avg = safe_div(t, l)
@@ -66,6 +70,13 @@ class DuoLayout(QWidget):
             self.time_spent_qle.setPlaceholderText(
                 format_seconds_to(self.prelim_avg * 60, "minute", sep=":")
             )
+
+            try:
+                self.lessons_today = data[date.today()].duo.lessons
+            except KeyError:
+                self.lessons_today = 0
+            self.submit_btn.setToolTip(f"Lessons today: {self.lessons_today}")
+
             self.cells = [
                 [
                     Column(

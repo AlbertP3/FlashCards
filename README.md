@@ -221,7 +221,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | languages                     | determines list of languages in use, ignoring both data and files which does not have the LANGUAGE_ID matching              |
 | efc_threshold                 | if number of words "in-memory" falls below this level (based on EFC model), a new revision is recommended.                  |
-| side_by_side                  | opens side-windows by widening the main window, instead of showing it on top                                                |
 | show_cpm_stats                | on Statistics chart, displays CPM (Cards Per Minute) numbers instead of time spent                                          |
 | hide_timer                    | only displays icons on the Timer button instead of actual numbers                                                           |
 | revision_summary              | toggles display of the text apprasing the revision by %score, time, etc.                                                    |

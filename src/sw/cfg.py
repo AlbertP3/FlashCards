@@ -532,14 +532,6 @@ class ConfigSideWindow:
             is_valid, errs = False, {f"{type(e).__name__}: {e}"}
 
         if is_valid:
-            if (
-                not self.config["opt"]["side_by_side"]
-                and modified_config["opt"]["side_by_side"]
-            ):
-                self.toggle_primary_widgets_visibility(True)
-            else:
-                self.unfix_size(self)
-                self.unfix_size(self.textbox)
             self.config.update(modified_config)
             self.config_manual_update()
             self.display_text(self.get_current_card().iloc[self.side])

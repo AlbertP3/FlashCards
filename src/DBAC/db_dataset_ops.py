@@ -149,7 +149,7 @@ class DbDatasetOps:
         self.config["mst"]["unreviewed"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes'
         fcc_queue.put_notification(msg, lvl=LogLvl.info)
-        log.debug(msg)
+        log.info(msg)
 
     def partition_mistakes_data(self, buffer: pd.DataFrame):
         """Partition new mistakes into file(s) with rotation"""

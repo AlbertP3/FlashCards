@@ -93,7 +93,7 @@ class DBQueries:
             dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
             dw.writerow(record)
         fcc_queue.put_notification(f"Recorded {self.active_file.signature}", lvl=LogLvl.important)
-        log.debug(f"Created Record: {record}")
+        log.info(f"Created Record: {record}")
 
     @write_op
     def rename_signature(self, old, new):
@@ -106,7 +106,7 @@ class DBQueries:
             index=False,
             date_format=self.TSFORMAT,
         )
-        log.debug(f"Renamed signature '{old}' to '{new}'")
+        log.info(f"Renamed signature '{old}' to '{new}'")
 
     def get_unique_signatures(self):
         return self.db["SIGNATURE"].drop_duplicates(inplace=False)

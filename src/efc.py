@@ -88,12 +88,12 @@ class EFC:
             cur = datetime.now()
             for lng in self.config["languages"]:
                 fmt = self.db.MST_BASENAME.format(lng=lng)
-                try:
-                    for part in range(1, self.config["mst"]["part_cnt"] + 1):
-                        sig = f"{fmt}{part}.csv"
-                        fp = self.db.make_filepath(lng, self.db.MST_DIR, sig)
+                for part in range(1, self.config["mst"]["part_cnt"] + 1):
+                    try:
+                        sig = f"{fmt}{part}"
+                        fp = self.db.make_filepath(lng, self.db.MST_DIR, f"{sig}.csv")
                         self.db.files[fp]
-                        lmt = self.db.get_last_datetime(fmt)
+                        lmt = self.db.get_last_datetime(sig)
                         if (cur - lmt).days >= self.config["mst"]["interval_days"]:
                             self._recoms.append(
                                 {
@@ -103,8 +103,8 @@ class EFC:
                                     "is_init": False,
                                 }
                             )
-                except KeyError:
-                    pass
+                    except KeyError:
+                        log.warning(f"Mistakes file {fp} is missing")
         if self.config["days_to_new_rev"] > 0:
             self._recoms.extend(self.get_new_recoms())
         for rev in sorted(self.get_efc_data(), key=lambda x: x[2]):

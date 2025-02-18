@@ -315,7 +315,7 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
         copy_action.triggered.connect(self.textbox.copy)
         self.textbox_ctx.addAction(copy_action)
 
-        if self.config["lookup"]["mode"] =="auto":
+        if self.config["lookup"]["mode"] == "auto":
             self.textbox.mouseReleaseEvent = self.__lookup_sod_auto
         else:
             sod_lookup = widget.QAction("Lookup", self)
@@ -708,75 +708,34 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
             self.click_next_button()
 
     def open_side_window(self, layout, name):
-        if self.config["opt"]["side_by_side"]:
-            self.open_side_by_side(layout, name)
+        if self.side_window_id != name:
+            if self.side_window_id != "main":
+                self.__del_side_window()
+            self.__open_side_window(layout, name)
         else:
-            self.open_in_place(layout, name)
+            self.__del_side_window()
         self.setWindowTitle(self.side_window_titles[name])
         self.stop_timer()
         self.stop_pace_timer()
 
-    def del_side_window(self):
-        if self.config["opt"]["side_by_side"]:
-            self.del_side_window_side_by_side()
-        else:
-            self.del_side_window_in_place()
-        self.setWindowTitle(self.window_title)
-        self.resume_timer()
-        self.resume_pace_timer()
-
-    def open_in_place(self, layout, name):
-        if self.side_window_id != name:
-            if self.side_window_id != "main":
-                self.del_side_window_in_place()
-            self.add_window_in_place(layout, name)
-        else:
-            self.del_side_window_in_place()
-
-    def add_window_in_place(self, layout, name):
+    def __open_side_window(self, layout, name):
         self.side_window_layout = layout
         self.set_main_widgets_visibility(False)
         self.layout.addLayout(self.side_window_layout, 0, 0)
         self.side_window_id = name
         self.set_geometry(self.config.get_geo(name))
 
-    def del_side_window_in_place(self):
+    def del_side_window(self):
+        self.__del_side_window()
+        self.setWindowTitle(self.window_title)
+        self.resume_timer()
+        self.resume_pace_timer()
+
+    def __del_side_window(self):
         self.remove_layout(self.side_window_layout)
         self.set_main_widgets_visibility(True)
         self.side_window_id = "main"
         self.set_geometry(self.config.get_geo("main"))
-
-    def open_side_by_side(self, layout, name):
-        if self.side_window_id != name:
-            if self.side_window_id != "main":
-                self.del_side_window_side_by_side()
-            self.add_window_to_side(layout, name)
-        else:
-            self.del_side_window_side_by_side()
-
-    def add_window_to_side(self, layout, name):
-        self.side_window_layout = layout
-        self.side_window_id = name
-        self.textbox.setFixedWidth(self.textbox.width())
-        self.textbox.setFixedHeight(self.textbox.height())
-        self.layout.addLayout(self.side_window_layout, 0, 1, 4, 1)
-        self.setFixedWidth(self.config.get_geo(name)[0])
-        self.setFixedHeight(self.config.get_geo("main")[1])
-        self.setMinimumWidth(self.config.get_geo("main")[0])
-        self.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-
-    def del_side_window_side_by_side(self):
-        self.unfix_size(self)
-        self.unfix_size(self.textbox)
-        self.remove_layout(self.side_window_layout)
-        self.side_window_id = "main"
-        self.set_geometry(self.config.get_geo("main"))
-
-    def unfix_size(self, obj):
-        obj.setMinimumWidth(0)
-        obj.setMaximumWidth(widget.QWIDGETSIZE_MAX)
-        obj.setMinimumHeight(0)
-        obj.setMaximumHeight(widget.QWIDGETSIZE_MAX)
 
     def set_main_widgets_visibility(self, show: bool):
         if show:
@@ -1109,12 +1068,16 @@ class MainWindowGUI(widget.QWidget, MainWindowLogic, SideWindows):
                 self.__last_focus_out_timer_state = self.TIMER_RUNNING_FLAG
                 self.stop_timer()
                 self.stop_pace_timer()
-                self.set_interval_notification_timer(self.config["popups"]["idle_interval_ms"])
+                self.set_interval_notification_timer(
+                    self.config["popups"]["idle_interval_ms"]
+                )
             elif event.type() == QtCore.QEvent.FocusIn:
                 if not self.is_synopsis and self.__last_focus_out_timer_state:
                     self.resume_timer()
                     self.resume_pace_timer()
-                self.set_interval_notification_timer(self.config["popups"]["active_interval_ms"])
+                self.set_interval_notification_timer(
+                    self.config["popups"]["active_interval_ms"]
+                )
         return super(MainWindowGUI, self).eventFilter(source, event)
 
     def closeEvent(self, event):

@@ -57,6 +57,8 @@ class LogsSideWindow:
         self.arrange_logs_window()
         self.open_side_window(self.__logs_layout, "logs")
         self.__load_logs()
+        if self.__phrase:
+            self.__search()
         self.__console.moveCursor(QTextCursor.End)
         self.__console.ensureCursorVisible()
         self.__search_qle.setFocus()
@@ -80,7 +82,7 @@ class LogsSideWindow:
         self.__console.setStyleSheet(self.textbox_stylesheet)
         self.__console.setVerticalScrollBar(self.get_scrollbar())
         self.__console.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.__console.mousePressEvent = self.on_log_console_click
+        self.__console.mouseDoubleClickEvent = self.on_log_console_click
         self.__console.keyPressEvent = self.__console_kbsc
 
     def __console_kbsc(self, event):
@@ -216,8 +218,7 @@ class LogsSideWindow:
         return {attr: getattr(obj, attr) for attr in attributes if hasattr(obj, attr)}
 
     def dataclass_as_dict(self, dc: dataclass, skipkeys: set) -> dict:
-        d = asdict(dc)
-        d = {k: v for k, v in d.items() if k not in skipkeys}
+        d = {k: v for k, v in asdict(dc).items() if k not in skipkeys}
         return d
 
     def __get_sources(self):

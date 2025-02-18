@@ -18,7 +18,7 @@ def configure_logging(log_level, plt_log_level="error"):
             RotatingFileHandler(
                 filename=os.path.realpath(f"{CWD}/../fcs.log"),
                 mode="a",
-                maxBytes=1024**2,
+                maxBytes=512**2,
                 backupCount=1,
             ),
         ),
