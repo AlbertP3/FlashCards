@@ -27,7 +27,7 @@ from PyQt5.QtGui import (
     QMoveEvent,
 )
 from PyQt5.QtCore import Qt, QTimer, QFileSystemWatcher, QEvent
-from main_window_logic import MainWindowLogic
+from logic import MainWindowLogic
 from sw import Tabs
 from utils import fcc_queue, format_seconds_to, Caliper, LogLvl
 from DBAC import FileDescriptor, db_conn

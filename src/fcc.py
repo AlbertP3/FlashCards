@@ -11,7 +11,7 @@ from DBAC import db_conn
 from EMO.init import EMOSpawn
 from CMG.init import CMGSpawn
 from cfg import config
-from main_window_logic import MainWindowLogic
+from logic import MainWindowLogic
 
 log = logging.getLogger("FCC")
 

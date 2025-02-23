@@ -40,22 +40,22 @@ class CMGSpawn:
         self.mw.fcc.fcc_inst.post_fcc = self.orig_post_method
         self.mw.tab_names["fcc"] = self.prev_window_title
         self.mw.fcc.fcc_inst.execute_command = self.orig_execute_method
-        self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
         self.mw.fcc.cmd_log = self.CMD_HISTORY
+        self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
         if fup:
             self.mw.fcc.console_log.append(self.mw.fcc.console_prompt)
             self.mw.fcc.console.append(self.mw.fcc.console_prompt)
 
-    def exit(self, msg: str = None):
+    def exit(self, msg: str = None, fup: bool = True):
         if msg:
             self.mw.fcc.console_log.append(msg)
-        self._remove_adapter(bool(msg))
+        self._remove_adapter(fup)
         del self
 
     def reverse_current_card(self, parsed_cmd: list):
         """Changes the current card's sides and updates source file"""
         self.cli.reverse_current_card(parsed_cmd)
-        self.exit()
+        self.exit(fup=False)
 
     def modify_current_card(self, parsed_cmd: list):
         """Interactively modify text in current card. Changes both dataset and the source file"""
@@ -65,21 +65,21 @@ class CMGSpawn:
         try:
             msg = self.cli.modify_card(parsed_cmd)
             if self.cli.state == "mcc_exit":
-                self.exit(msg)
+                self.exit(msg, fup=True)
         except KeyboardInterrupt:
-            self.exit("Aborted")
+            self.exit("Aborted", fup=True)
 
     def add_card(self, parsed_cmd: list):
         """Add a card to the current dataset"""
         if self.state is None:
             if not self.mw.active_file.tmp:
-                self.mw.fcc.fcc_inst.post_fcc("Can only add cards to temporary files!")
+                self.exit("Can only add cards to temporary files!", fup=False)
                 return
             self.command = self.add_card
             self.state = "add"
         try:
             msg = self.cli.add_card(parsed_cmd)
             if self.cli.state == "add_exit":
-                self.exit(msg)
+                self.exit(msg, fup=True)
         except KeyboardInterrupt:
-            self.exit("Aborted")
+            self.exit("Aborted", fup=True)

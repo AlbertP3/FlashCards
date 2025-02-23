@@ -43,7 +43,7 @@ sys.stderr.write = lambda msg: log.error(msg, stacklevel=2) if msg != "\n" else 
 
 log.debug(f"Launching Flashcards {cfg.config['version']}")
 
-from main_window_gui import MainWindowGUI
+from gui import MainWindowGUI
 
 mw = MainWindowGUI()
 
