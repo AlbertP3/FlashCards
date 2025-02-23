@@ -35,10 +35,10 @@ class EMOSpawn:
         self.CMD_HISTORY: list = self.mw.fcc.cmd_log.copy()
         self.mw.fcc.cmd_log = [""]
         self.prev_window_title = self.mw.tab_names["fcc"]
-        self.orig_post_method = self.mw.fcc.fcc_inst.post_fcc
-        self.orig_execute_method = self.mw.fcc.fcc_inst.execute_command
-        self.mw.fcc.fcc_inst.post_fcc = self.monkey_patch_post
-        self.mw.fcc.fcc_inst.execute_command = self.monkey_patch_execute_command
+        self.orig_post_method = self.mw.fcc.fcc.post_fcc
+        self.orig_execute_method = self.mw.fcc.fcc.execute_command
+        self.mw.fcc.fcc.post_fcc = self.monkey_patch_post
+        self.mw.fcc.fcc.execute_command = self.monkey_patch_execute_command
         self.mw.fcc.console.setText("")
 
     def monkey_patch_post(self, msg):
@@ -57,10 +57,10 @@ class EMOSpawn:
 
     def remove_adapter(self):
         self.mw.fcc.cls()
-        self.mw.fcc.fcc_inst.post_fcc = self.orig_post_method
+        self.mw.fcc.fcc.post_fcc = self.orig_post_method
         self.mw.tab_names["fcc"] = self.prev_window_title
         self.mw.setWindowTitle(self.prev_window_title)
-        self.mw.fcc.fcc_inst.execute_command = self.orig_execute_method
+        self.mw.fcc.fcc.execute_command = self.orig_execute_method
         self.mw.fcc.console_prompt = self.mw.fcc.DEFAULT_PS1
         self.mw.fcc.console_log = self.HISTORY
         self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
@@ -68,7 +68,7 @@ class EMOSpawn:
         self.mw.fcc.cmd_log = self.CMD_HISTORY
         db_conn.refresh()
         for msg in fcc_queue.dump_logs():
-            self.mw.fcc.fcc_inst.post_fcc(
+            self.mw.fcc.fcc.post_fcc(
                 f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}"
             )
 

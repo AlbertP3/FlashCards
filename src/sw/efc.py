@@ -150,8 +150,7 @@ class EFCTab(BaseTab):
             self.mw.save_current_mistakes()
 
         if config["CRE"]["items"]:
-            self.mw.activate_tab("fcc")
-            self.fcc.fcc_inst.execute_command(["cre"])
+            self.fcc.fcc.execute_command(["cre"])
         else:
             self.__load_next_efc()
 

@@ -25,6 +25,7 @@ from PyQt5.QtGui import (
     QFont,
     QResizeEvent,
     QMoveEvent,
+    QCursor,
 )
 from PyQt5.QtCore import Qt, QTimer, QFileSystemWatcher, QEvent
 from logic import MainWindowLogic
@@ -182,6 +183,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
     def switch_tab(self, name: str):
         if name == self.active_tab_id:
             return
+        
+        self.active_tab_id = name
+        self.setWindowTitle(self.tab_names[name])
+        self.tabs.setCurrentIndex(self.tab_map[name])
 
         if name == "main":
             self.resume_timer()
@@ -189,10 +194,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
         elif self.TIMER_RUNNING_FLAG:
             self.stop_timer()
             self.stop_pace_timer()
-
-        self.setWindowTitle(self.tab_names[name])
-        self.active_tab_id = name
-        self.tabs.setCurrentIndex(self.tab_map[name])
 
     def build_layout(self):
         self.textbox_stylesheet = config["theme"]["textbox_stylesheet"]
@@ -365,14 +366,14 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
         self.textbox_ctx.setStyleSheet(config["theme"]["ctx_stylesheet"])
         self.textbox_ctx.setFont(self.BUTTON_FONT)
         self.textbox.setContextMenuPolicy(Qt.CustomContextMenu)
-        copy_action = QAction("Copy", self)
+        copy_action = QAction("Copy", self.textbox)
         copy_action.triggered.connect(self.textbox.copy)
         self.textbox_ctx.addAction(copy_action)
 
         if config["lookup"]["mode"] == "auto":
             self.textbox.mouseReleaseEvent = self.__lookup_sod_auto
         else:
-            sod_lookup = QAction("Lookup", self)
+            sod_lookup = QAction("Lookup", self.textbox)
             if config["lookup"]["mode"] == "full":
                 sod_lookup.triggered.connect(self.__lookup_sod_full)
             elif config["lookup"]["mode"] == "quick":
@@ -382,7 +383,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
         self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
 
     def textbox_ctx_menu_open(self, position):
-        self.textbox_ctx.exec_(self.mapToGlobal(position))
+        self.textbox_ctx.exec_(QCursor.pos())
 
     def __lookup_sod_auto(self, event):
         QTextEdit.mouseReleaseEvent(self.textbox, event)
@@ -419,17 +420,15 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
     def __lookup_sod_full(self):
         sel = self.textbox.textCursor().selectedText()
         if self.sod.sod.can_do_lookup():
-            self.activate_tab("sod")
             self.sod.sod.cli.cls()
             self.sod.sod.cli.reset_state()
             self.sod.open()
-            self.add_cmd_to_log(sel)
             if self.side == 0:
                 lng = self.sod.sod.cli.fh.foreign_lng
             else:
                 lng = self.sod.sod.cli.fh.native_lng
-            self.fcc_inst.execute_command(f"{lng} {sel}".split(" "))
-            self.move_cursor_to_end()
+            self.sod.sod.execute_command([lng, sel])
+            self.sod.move_cursor_to_end()
         else:
             fcc_queue.put_notification(
                 "Lookup is unavailable in the current state", lvl=LogLvl.warn
@@ -656,7 +655,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
             self.init_eph_from_mistakes()
             return
         if config["final_actions"]["next_efc"]:
-            self.load_next_efc()
+            self.efc.load_next_efc()
 
     def _handle_final_actions_mst(self):
         if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
@@ -668,7 +667,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
             self.init_eph_from_mistakes()
             return
         if config["final_actions"]["next_efc"]:
-            self.load_next_efc()
+            self.efc.load_next_efc()
 
     def _handle_final_actions_eph(self):
         if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
@@ -680,7 +679,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
             self.init_eph_from_mistakes()
             return
         if config["final_actions"]["next_efc"]:
-            self.load_next_efc()
+            self.efc.load_next_efc()
 
     def _handle_final_actions_lng(self):
         if config["final_actions"]["create_revision"]:
@@ -805,10 +804,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
                 self.display_text(self.get_current_card().iloc[self.side])
             fcc_queue.put_notification("Active dataset refreshed", lvl=LogLvl.info)
         if path == config["SOD"]["last_file"]:
-            prev_tab = self.active_tab_ident
-            self.activate_tab("sod")
             self.sod.sod.refresh_db()
-            self.activate_tab(prev_tab)
         # if path == "./src/res/config.json":
         #     log.debug("Config updated")  # TODO
 
@@ -820,7 +816,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
             self.file_watcher = QFileSystemWatcher()
             self.file_watcher.fileChanged.connect(self.file_monitor_handler)
             # self.file_watcher.addPath("./src/res/config.json")
-            log.debug("FileMonitor Started the watcher", stacklevel=2)
+            log.debug("FileMonitor Started", stacklevel=2)
 
     def file_monitor_add_path(self, path: str):
         if self.file_watcher:

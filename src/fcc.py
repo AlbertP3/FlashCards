@@ -38,7 +38,6 @@ class FCC:
             "gwd": "Get Window Dimensions",
             "pcc": "Pull Current Card - load the origin file and updates the currently displayed card",
             "emo": "EFC Model Optimizer - employs regression and machine learning techniques to adjust efc model for the user needs",
-            "rgd": "Reset Geometry Defaults",
             "err": "Raises an Exception",
             "add": "Add Card - appends a card to the current dataset. Does not modify the source file",
             "gcw": "Get Character Width - returns actual width in pixels for a given glyph",
@@ -364,20 +363,6 @@ class FCC:
         ]
         self.mw.display_text(self.mw.get_current_card()[self.mw.side])
 
-    def rgd(self, parsed_cmd):
-        """Reset Geometry Default"""
-        if len(parsed_cmd) == 1:
-            for w in config["geo"]:
-                config["geo"][w] = config["geo"]["default"]
-            self.post_fcc("All windows were resized to default")
-        elif parsed_cmd[1].lower() in config["geo"].keys():
-            config["geo"][parsed_cmd[1].lower()] = config["geo"]["default"]
-            self.post_fcc(f"{parsed_cmd[1].lower()} window was resized to default")
-        else:
-            self.post_fcc(
-                "Specified window does not exist. See config to list of available windows"
-            )
-
     def emo(self, parsed_cmd: list):
         """EFC Model Optimizer"""
         EMOSpawn(mw=self.mw)
@@ -417,7 +402,7 @@ class FCC:
         out, sep = list(), " | "
         cell_args = {
             "pixlim": (
-                0.94 * (config["geo"]["fcc"][0] - self.mw.fcc.caliper.strwidth(sep)) / 2
+                0.94 * (config["geo"][0] - self.mw.fcc.caliper.strwidth(sep)) / 2
             ),
             "align": config["cell_alignment"],
         }

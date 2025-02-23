@@ -573,7 +573,7 @@ class CfgTab(BaseTab):
     def _modify_file_monitor(self):
         self.mw.initiate_file_monitor()
         if not self.mw.active_file.tmp:
-            self.mw.file_monitor_add_path(self.active_file.filepath)
+            self.mw.file_monitor_add_path(self.mw.active_file.filepath)
         self.mw.file_monitor_add_path(config["SOD"]["last_file"])
 
     def cfg_cbx(self, value, content: list, text: str, multi_choice: bool = True):

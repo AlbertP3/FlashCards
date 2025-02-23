@@ -1,6 +1,6 @@
-from cfg import config
 from PyQt5.QtWidgets import QWidget
 from tracker import Tracker
+from tracker.dal import dal
 from sw.base import BaseTab
 
 
@@ -16,6 +16,8 @@ class TrackerTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
+        dal.get_data()
+        self.tracker_layout.refresh_current_tab()
 
     def build(self):
         self._tab = QWidget()

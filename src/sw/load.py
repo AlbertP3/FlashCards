@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QPushButton,
 )
-from PyQt5.QtGui import QKeySequence
+from PyQt5.QtGui import QKeySequence, QCursor
 from utils import fcc_queue, LogLvl
 from widgets import CFIDialog
 from widgets import get_scrollbar
@@ -75,16 +75,16 @@ class LoadTab(BaseTab):
 
     def show_files_qlist_ctx(self, position):
         self._files_qlist_ctx.clear()
-        act = QAction("Create…", self)
+        act = QAction("Create…", self.files_qlist)
         act.triggered.connect(self.show_input_dialog)
         self._files_qlist_ctx.addAction(act)
-        self._files_qlist_ctx.exec_(self.mapToGlobal(position))
+        self._files_qlist_ctx.exec_(QCursor.pos())
 
     def show_input_dialog(self):
         fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
         start = config["ILN"].get(fd.filepath, 0)
         cnt = db_conn.get_lines_count(fd) - start
-        dialog = CFIDialog(self, start, cnt)
+        dialog = CFIDialog(self.files_qlist, start, cnt)
         if dialog.exec_():
             start, cnt = dialog.get_values()
             self.cfi(fd, start, cnt)
@@ -114,8 +114,8 @@ class LoadTab(BaseTab):
             fcc_queue.put_notification("Not enough cards", lvl=LogLvl.warn)
             return
 
-        if not self.active_file.tmp:
-            self.mw.file_monitor_del_path(self.active_file.filepath)
+        if not self.mw.active_file.tmp:
+            self.mw.file_monitor_del_path(self.mw.active_file.filepath)
 
         db_conn.load_tempfile(
             basename=f"{fd.lng}{len_child}",

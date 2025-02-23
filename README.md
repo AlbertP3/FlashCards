@@ -200,7 +200,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | pcc       | Pull Current Card - load the origin file and updates the currently displayed card                                                         |
 | sod       | Scrape Online Dictionaries - fetch data from online sources using a cli                                                                   |
 | emo       | EFC Model Optimizer - employs regression techniques to adjust efc model for the user needs                                                |
-| rgd       | Reset Geometry Defaults                                                                                                                   |
 | err       | Raises an Exception                                                                                                                       |
 | add       | Add Card - appends a card to the current dataset. Does not modify the source file                                                         |
 | gcw       | Get Character Width - returns actual width in pixels for a given glyph                                                                    |

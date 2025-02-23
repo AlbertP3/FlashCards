@@ -15,10 +15,10 @@ class CMGSpawn:
         self.CMD_HISTORY: list = self.mw.fcc.cmd_log.copy()
         self.mw.fcc.cmd_log = [""]
         self.prev_window_title = self.mw.tab_names["fcc"]
-        self.orig_post_method = self.mw.fcc.fcc_inst.post_fcc
-        self.orig_execute_method = self.mw.fcc.fcc_inst.execute_command
-        self.mw.fcc.fcc_inst.post_fcc = self._patch_post
-        self.mw.fcc.fcc_inst.execute_command = self._patch_execute_command
+        self.orig_post_method = self.mw.fcc.fcc.post_fcc
+        self.orig_execute_method = self.mw.fcc.fcc.execute_command
+        self.mw.fcc.fcc.post_fcc = self._patch_post
+        self.mw.fcc.fcc.execute_command = self._patch_execute_command
         self.mw.tab_names["fcc"] = "Cards Manager"
         self.mw.setWindowTitle(self.mw.tab_names["fcc"])
 
@@ -37,9 +37,9 @@ class CMGSpawn:
         self.cli.state = None
         self.mw.fcc.console_prompt = self.mw.fcc.DEFAULT_PS1
         self.mw.setWindowTitle(self.prev_window_title)
-        self.mw.fcc.fcc_inst.post_fcc = self.orig_post_method
+        self.mw.fcc.fcc.post_fcc = self.orig_post_method
         self.mw.tab_names["fcc"] = self.prev_window_title
-        self.mw.fcc.fcc_inst.execute_command = self.orig_execute_method
+        self.mw.fcc.fcc.execute_command = self.orig_execute_method
         self.mw.fcc.cmd_log = self.CMD_HISTORY
         self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
         if fup:

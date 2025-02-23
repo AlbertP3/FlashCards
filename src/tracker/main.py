@@ -33,7 +33,7 @@ class Tracker(QGridLayout):
         super().__init__()
         self.trk_tab_map = {}
         self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
-        self.setContentsMargins(0,0,0,0)
+        self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(1)
         self.create_tabs()
         self.addWidget(self.trk_tabs, 0, 0)
@@ -59,6 +59,10 @@ class Tracker(QGridLayout):
     def add_tab(self, widget, text):
         self.trk_tabs.addTab(widget, text)
         self.trk_tab_map[text] = len(self.trk_tab_map)
+
+    def refresh_current_tab(self):
+        ci = self.trk_tabs.currentIndex()
+        self.on_tab_changed(ci)
 
     def on_tab_changed(self, index: int):
         tid = self.trk_tabs.tabText(index)

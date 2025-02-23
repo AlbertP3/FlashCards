@@ -10,7 +10,7 @@ class FccTab(BaseConsole):
         self.mw = mw
         self.mw.tab_names["fcc"] = "Console"
         self.build()
-        self.fcc_inst = FCC(self.mw, sout=self.console)
+        self.fcc = FCC(self.mw, sout=self.console)
         self.mw.add_shortcut("fcc", self.open, "main")
         self.mw.add_shortcut("run_command", self.run_cmd, "fcc")
         self.mw.add_tab(self._tab, "fcc")
@@ -41,7 +41,7 @@ class FccTab(BaseConsole):
         cmd = self.console_log.pop()
         self.console.setText("\n".join(self.console_log))
         for msg in fcc_queue.dump_logs():
-            self.fcc_inst.post_fcc(
+            self.fcc.post_fcc(
                 f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}"
             )
         self.console.append(cmd + self.tmp_cmd)
@@ -50,5 +50,5 @@ class FccTab(BaseConsole):
     def run_cmd(self):
         cmd = self.console.toPlainText().split("\n")[-1][len(self.console_prompt) :]
         self.add_cmd_to_log(cmd)
-        self.fcc_inst.execute_command(cmd.split(" "))
+        self.fcc.execute_command(cmd.split(" "))
         self.move_cursor_to_end()
