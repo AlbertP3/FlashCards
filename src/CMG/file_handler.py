@@ -1,12 +1,10 @@
 import openpyxl
 import pandas as pd
-from cfg import config
 
 
 class FileHandler:
 
     def __init__(self, path, sheet_name: str = None):
-        self.config = config
         self.path = path
         self.wb = openpyxl.load_workbook(self.path)
         self.ws = self.wb[sheet_name or self.wb.sheetnames[0]]

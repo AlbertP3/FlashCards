@@ -6,7 +6,7 @@ import os
 from functools import cache
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler, FileHandler
-from DBAC.api import DbOperator
+from DBAC import db_conn
 from utils import Caliper
 from cfg import config
 
@@ -59,7 +59,6 @@ class Prompt:
 class CLI:
 
     def __init__(self, output) -> None:
-        self.config = config
         self.state = State()
         self.prompt = Prompt()
         self.msg = Message()
@@ -69,10 +68,9 @@ class CLI:
         self.output = output
         self.init_cli_args()
         self.re_excl_dirs = re.compile(
-            self.config["SOD"]["exclude_pattern"], re.IGNORECASE
+            config["SOD"]["exclude_pattern"], re.IGNORECASE
         )
         self.dicts = Dict_Services()
-        self.dbapi = DbOperator()
         self.init_file_handler()
         self.selection_queue = list()
         self.status_message = str()
@@ -80,7 +78,7 @@ class CLI:
 
     @property
     def caliper(self) -> Caliper:
-        return self.output.mw.caliper
+        return self.output.caliper
 
     @property
     @cache
@@ -111,9 +109,9 @@ class CLI:
 
     def init_file_handler(self):
         try:
-            self.fh = get_filehandler(self.config["SOD"]["last_file"])
+            self.fh = get_filehandler(config["SOD"]["last_file"])
             self.output.mw.file_monitor_add_protected_path(
-                self.config["SOD"]["last_file"]
+                config["SOD"]["last_file"]
             )
             self.init_set_languages()
             self.cls()
@@ -127,23 +125,23 @@ class CLI:
             self.cls(err_msgs[type(e).__name__], keep_content=True)
 
     def init_cli_args(self):
-        self.sep_manual = self.config["SOD"]["manual_mode_sep"]
-        self.dict_arg = self.config["SOD"]["dict_change_arg"]
-        self.queue_arg = self.config["SOD"]["queue_start_arg"]
-        self.chg_db_arg = self.config["SOD"]["change_db_arg"]
-        self.list_files_arg = self.config["SOD"]["list_files_arg"]
-        self.regex_arg = self.config["SOD"]["regex_arg"]
-        self.help_arg = self.config["SOD"]["help_arg"]
+        self.sep_manual = config["SOD"]["manual_mode_sep"]
+        self.dict_arg = config["SOD"]["dict_change_arg"]
+        self.queue_arg = config["SOD"]["queue_start_arg"]
+        self.chg_db_arg = config["SOD"]["change_db_arg"]
+        self.list_files_arg = config["SOD"]["list_files_arg"]
+        self.regex_arg = config["SOD"]["regex_arg"]
+        self.help_arg = config["SOD"]["help_arg"]
 
     def init_set_languages(self):
-        if self.config["SOD"]["std_src_lng"] == "auto":
-            ref = self.config["SOD"]["last_src_lng"]
+        if config["SOD"]["std_src_lng"] == "auto":
+            ref = config["SOD"]["last_src_lng"]
         else:
-            ref = self.config["SOD"]["std_src_lng"]
+            ref = config["SOD"]["std_src_lng"]
         r = 1 if ref == "native" else -1
         native, foreign = self.fh.get_languages()[::r]
         self.dicts.set_languages(native, foreign)
-        self.config["SOD"]["last_src_lng"] = ref
+        config["SOD"]["last_src_lng"] = ref
 
     @property
     def is_from_native(self) -> bool:
@@ -156,7 +154,7 @@ class CLI:
     def refresh_file_handler(self):
         self.output.mw.file_monitor_del_protected_path(self.fh.path)
         self.fh.close()
-        self.fh = get_filehandler(self.config["SOD"]["last_file"])
+        self.fh = get_filehandler(config["SOD"]["last_file"])
         self.output.mw.file_monitor_add_protected_path(self.fh.path)
         self.init_set_languages()
 
@@ -167,15 +165,15 @@ class CLI:
         """
         try:
             pattern = re.compile(filepath, re.IGNORECASE)
-            if self.config["SOD"]["files_list"]:
-                for f in self.config["SOD"]["files_list"]:
+            if config["SOD"]["files_list"]:
+                for f in config["SOD"]["files_list"]:
                     if pattern.search(f):
                         filepath = f
                         break
                 else:
                     raise KeyError
             elif not os.path.exists(filepath):
-                filepath = self.dbapi.match_from_all_languages(
+                filepath = db_conn.match_from_all_languages(
                     repat=pattern, exclude_dirs=self.re_excl_dirs
                 ).pop()
             fh = get_filehandler(filepath)
@@ -199,19 +197,19 @@ class CLI:
         self.state = State()
 
     def set_output_prompt(self, t):
-        self.output.mw.CONSOLE_PROMPT = t
+        self.output.console_prompt = t
 
     def send_output(self, text: str):
         self.output.console.append(text)
-        self.output.mw.CONSOLE_LOG.extend(text.split("\n"))
+        self.output.console_log.extend(text.split("\n"))
 
     def execute_command(self, parsed_phrase: list):
         parsed_phrase = self.handle_prefix(parsed_phrase)
         if not parsed_phrase:
             return
-        elif parsed_phrase.count(self.config["SOD"]["manual_mode_sep"]) == 2:
+        elif parsed_phrase.count(config["SOD"]["manual_mode_sep"]) == 2:
             self.insert_manual_oneline(parsed_phrase)
-        elif parsed_phrase[0] == self.config["SOD"]["manual_mode_seq"]:
+        elif parsed_phrase[0] == config["SOD"]["manual_mode_seq"]:
             self.insert_manual(parsed_phrase)
         elif parsed_phrase[0] == self.queue_arg:
             self.setup_queue()
@@ -260,7 +258,7 @@ class CLI:
             return parsed_cmd
 
     def toggle_regex(self):
-        self.config["SOD"]["use_regex"] = not self.config["SOD"]["use_regex"]
+        config["SOD"]["use_regex"] = not config["SOD"]["use_regex"]
         self.prompt.update_phrase_prompt()
         self.set_output_prompt(self.prompt.PHRASE)
         self.cls()
@@ -270,9 +268,9 @@ class CLI:
         self.cls()
         self.send_output(
             "\n".join(
-                self.dbapi.get_all_files(
+                db_conn.get_all_files(
                     dirs={
-                        self.dbapi.LNG_DIR,
+                        db_conn.LNG_DIR,
                     },
                     use_basenames=True,
                 )
@@ -294,7 +292,7 @@ class CLI:
 
     def update_last_source_lng(self):
         lng = "native" if self.dicts.source_lng == self.fh.native_lng else "foreign"
-        self.config["SOD"]["last_src_lng"] = lng
+        config["SOD"]["last_src_lng"] = lng
 
     def insert_manual(self, parsed_cmd):
         if not self.state.MANUAL_MODE:
@@ -398,7 +396,7 @@ class CLI:
 
         translations, originals, warnings = self.dicts.get_info_about_phrase(phrase)
         if translations:
-            pattern = re.compile(self.config["lookup"]["pattern"])
+            pattern = re.compile(config["lookup"]["pattern"])
             found_cnt = 0
             found = False
             for r in originals:
@@ -483,7 +481,7 @@ class CLI:
                 .replace(translations, "")
             )
             self.output.console.setText(cleaned_text)
-            self.output.mw.CONSOLE_LOG = cleaned_text
+            self.output.console_log = cleaned_text
             transl = translations
             warnings = None
         else:  # Online Dictionary
@@ -494,7 +492,7 @@ class CLI:
                 if self.caliper.strwidth(transl) > p_lim:
                     transl = (
                         self.caliper.abbreviate(transl, p_lim - self.caliper.fillerlen)
-                        + self.config["theme"]["default_suffix"]
+                        + config["theme"]["default_suffix"]
                     )
             else:
                 transl = ""
@@ -558,7 +556,7 @@ class CLI:
             if self.caliper.strwidth(transl) > plim:
                 transl = (
                     self.caliper.abbreviate(transl, plim)
-                    + self.config["theme"]["default_suffix"]
+                    + config["theme"]["default_suffix"]
                 )
             s2 = f" | {transl}"
             self.send_output(s1 + "\n" + s2)
@@ -605,9 +603,9 @@ class CLI:
         trans, origs = trans[:res_lim], origs[:res_lim]
         if any(origs):
             plim = self.pix_lim // 2
-            if self.config["SOD"]["table_ext_mode"] == "fix":
+            if config["SOD"]["table_ext_mode"] == "fix":
                 output = self.__ptt(origs, trans, plim, plim, sep)
-            elif self.config["SOD"]["table_ext_mode"] == "flex":
+            elif config["SOD"]["table_ext_mode"] == "flex":
                 llim = min(
                     max(self.caliper.strwidth(c) for c in origs)
                     + self.caliper.strwidth(f"{len(origs)+1}. "),
@@ -626,12 +624,12 @@ class CLI:
             c0r = self.caliper.make_cell(
                 c0r,
                 llim - self.caliper.strwidth(i),
-                self.config["SOD"]["cell_alignment"],
+                config["SOD"]["cell_alignment"],
             )
             c1r = self.caliper.make_cell(
                 c1r,
                 rlim - self.caliper.strwidth(sep),
-                self.config["SOD"]["cell_alignment"],
+                config["SOD"]["cell_alignment"],
             )
             output.append(f"{i}{c0r}{sep}{c1r}")
         return "\n".join(output)
@@ -736,7 +734,7 @@ class CLI:
             new_prompt = f"Edit: "
             extra = self.translations[int(r[1:]) - 1]
         else:
-            new_prompt = self.output.mw.CONSOLE_PROMPT
+            new_prompt = self.output.console_prompt
             extra = ""
         self.set_output_prompt(new_prompt)
         self.output.editable_output = extra
@@ -747,7 +745,7 @@ class CLI:
             if not keep_cmd and content:
                 content.pop()
         self.output.console.setText("")
-        self.output.mw.CONSOLE_LOG = []
+        self.output.console_log = []
         self.__post_status_bar(msg)
         if keep_content and content:
             self.send_output("\n".join(content))
@@ -758,10 +756,10 @@ class CLI:
         target_lng = self.dicts.target_lng
         len_db = self.fh.total_rows
         status = (
-            f"{self.config['icons']['sod_dict']} {active_dict} | "
-            f"{source_lng}{self.config['icons']['sod_lng_pointer']}{target_lng} | "
-            f"{self.config['icons']['sod_db']} {self.fh.filename} | "
-            f"{self.config['icons']['sod_card']} {len_db} | "
+            f"{config['icons']['sod_dict']} {active_dict} | "
+            f"{source_lng}{config['icons']['sod_lng_pointer']}{target_lng} | "
+            f"{config['icons']['sod_db']} {self.fh.filename} | "
+            f"{config['icons']['sod_card']} {len_db} | "
             f"{msg}"
         )
         self.send_output(
@@ -781,7 +779,7 @@ class CLI:
                 [f" {self.chg_db_arg} <DB_NAME>", "change database file"],
                 [f" {self.dict_arg} <DICT>", "switch current dictionary"],
                 [
-                    f' {self.config["SOD"]["manual_mode_seq"]}',
+                    f' {config["SOD"]["manual_mode_seq"]}',
                     "enter the manual input mode",
                 ],
                 [

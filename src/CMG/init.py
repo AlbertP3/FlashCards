@@ -4,29 +4,28 @@ from CMG.cli import CLI
 
 class CMGSpawn:
 
-    def __init__(self, stream_out):
-        self.config = config
-        self.sout = stream_out
-        self.cli = CLI(sout=self.sout)
+    def __init__(self, mw):
+        self.mw = mw
+        self.cli = CLI(mw=self.mw)
         self.state = None
         self.command = None
         self._adapt()
 
     def _adapt(self):
-        self.CMD_HISTORY: list = self.sout.mw.CMDS_LOG.copy()
-        self.sout.mw.CMDS_LOG = [""]
-        self.prev_window_title = self.sout.mw.side_window_titles["fcc"]
-        self.orig_post_method = self.sout.post_fcc
-        self.orig_execute_method = self.sout.execute_command
-        self.sout.post_fcc = self._patch_post
-        self.sout.execute_command = self._patch_execute_command
-        self.sout.mw.side_window_titles["fcc"] = "Cards Manager"
-        self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles["fcc"])
+        self.CMD_HISTORY: list = self.mw.fcc.cmd_log.copy()
+        self.mw.fcc.cmd_log = [""]
+        self.prev_window_title = self.mw.tab_names["fcc"]
+        self.orig_post_method = self.mw.fcc.fcc_inst.post_fcc
+        self.orig_execute_method = self.mw.fcc.fcc_inst.execute_command
+        self.mw.fcc.fcc_inst.post_fcc = self._patch_post
+        self.mw.fcc.fcc_inst.execute_command = self._patch_execute_command
+        self.mw.tab_names["fcc"] = "Cards Manager"
+        self.mw.setWindowTitle(self.mw.tab_names["fcc"])
 
     def _patch_post(self, msg):
-        if msg != self.sout.mw.CONSOLE_PROMPT:
+        if msg != self.mw.fcc.console_prompt:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
-            self.CONSOLE_LOG.append(msg)
+            self.mw.fcc.console_log.append(msg)
 
     def _patch_execute_command(self, parsed_input: list, followup_prompt: bool = True):
         if parsed_input[0] == "cls":
@@ -36,20 +35,20 @@ class CMGSpawn:
 
     def _remove_adapter(self, fup: bool = True):
         self.cli.state = None
-        self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
-        self.sout.mw.setWindowTitle(self.prev_window_title)
-        self.sout.post_fcc = self.orig_post_method
-        self.sout.mw.side_window_titles["fcc"] = self.prev_window_title
-        self.sout.execute_command = self.orig_execute_method
-        self.sout.mw.console.setText("\n".join(self.sout.mw.CONSOLE_LOG))
-        self.sout.mw.CMDS_LOG = self.CMD_HISTORY
+        self.mw.fcc.console_prompt = self.mw.fcc.DEFAULT_PS1
+        self.mw.setWindowTitle(self.prev_window_title)
+        self.mw.fcc.fcc_inst.post_fcc = self.orig_post_method
+        self.mw.tab_names["fcc"] = self.prev_window_title
+        self.mw.fcc.fcc_inst.execute_command = self.orig_execute_method
+        self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
+        self.mw.fcc.cmd_log = self.CMD_HISTORY
         if fup:
-            self.sout.mw.CONSOLE_LOG.append(self.sout.mw.CONSOLE_PROMPT)
-            self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
+            self.mw.fcc.console_log.append(self.mw.fcc.console_prompt)
+            self.mw.fcc.console.append(self.mw.fcc.console_prompt)
 
     def exit(self, msg: str = None):
         if msg:
-            self.sout.mw.CONSOLE_LOG.append(msg)
+            self.mw.fcc.console_log.append(msg)
         self._remove_adapter(bool(msg))
         del self
 
@@ -73,8 +72,8 @@ class CMGSpawn:
     def add_card(self, parsed_cmd: list):
         """Add a card to the current dataset"""
         if self.state is None:
-            if not self.sout.mw.active_file.tmp:
-                self.sout.post_fcc("Can only add cards to temporary files!")
+            if not self.mw.active_file.tmp:
+                self.mw.fcc.fcc_inst.post_fcc("Can only add cards to temporary files!")
                 return
             self.command = self.add_card
             self.state = "add"

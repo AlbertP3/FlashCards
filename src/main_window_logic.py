@@ -319,7 +319,7 @@ class MainWindowLogic:
 
     def notify_on_error(self, traceback, exc_value=None):
         log.error(traceback, exc_info=True, stacklevel=2)
-        self.log.open()
+        self.log.open(scroll_end=True)
 
     def should_save_mistakes(self) -> bool:
         res = False

@@ -107,14 +107,13 @@ class FileHandler(ABC):
 
 class XLSXFileHandler(FileHandler):
     def __init__(self, path):
-        self.config = config
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
         self.wb = openpyxl.load_workbook(self.path, data_only=True)
         self.ws = self.wb[self.wb.sheetnames[0]]
         self.__load_data()
         self.last_write_time = time()
-        self.config["SOD"]["last_file"] = self.path
+        config["SOD"]["last_file"] = self.path
         self.native_lng = self.ws.cell(1, 2).value.lower()
         self.foreign_lng = self.ws.cell(1, 1).value.lower()
 
@@ -188,12 +187,11 @@ class XLSXFileHandler(FileHandler):
 
 class CSVFileHandler(FileHandler):
     def __init__(self, path):
-        self.config = config
         self.path = path
         self.filename = get_filename_from_path(path, include_extension=True)
         self.__load_data()
         self.last_write_time = time()
-        self.config["SOD"]["last_file"] = self.path
+        config["SOD"]["last_file"] = self.path
         self.native_lng = self.raw_data.columns[1].lower()
         self.foreign_lng = self.raw_data.columns[0].lower()
 

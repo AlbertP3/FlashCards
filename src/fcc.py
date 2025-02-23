@@ -129,17 +129,17 @@ class FCC:
 
     def mct(self, parsed_cmd):
         """Modify Current Card"""
-        cmg = CMGSpawn(stream_out=self)
+        cmg = CMGSpawn(mw=self.mw)
         cmg.modify_current_card(parsed_cmd)
 
     def rcc(self, parsed_cmd):
         """Reverse Current Card"""
-        cmg = CMGSpawn(stream_out=self)
+        cmg = CMGSpawn(mw=self.mw)
         cmg.reverse_current_card(parsed_cmd)
 
     def add(self, parsed_cmd):
         """Add Card"""
-        cmg = CMGSpawn(stream_out=self)
+        cmg = CMGSpawn(mw=self.mw)
         cmg.add_card(parsed_cmd)
 
     def mcr(self, parsed_cmd):
@@ -380,7 +380,7 @@ class FCC:
 
     def emo(self, parsed_cmd: list):
         """EFC Model Optimizer"""
-        EMOSpawn(stream_out=self)
+        EMOSpawn(mw=self.mw)
 
     def err(self, parsed_cmd: list):
         """Raise an Exception"""

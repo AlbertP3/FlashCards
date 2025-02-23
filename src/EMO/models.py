@@ -15,8 +15,7 @@ from sklearn.metrics import (
     mean_tweedie_deviance,
 )
 from math import exp
-from cfg import config
-from DBAC.api import DbOperator
+from DBAC import db_conn
 
 log = logging.getLogger("EMO")
 
@@ -137,7 +136,6 @@ class Model:
 
 class Models:
     def __init__(self):
-        self.config = config
         self.size_test = 0.2
         self.random_state = randint(0, 2137)
         self.models = dict()
@@ -282,7 +280,7 @@ class Models:
         else:
             return False
 
-        joblib.dump(model, os.path.join(DbOperator().RES_PATH, f"model.pkl"))
+        joblib.dump(model, os.path.join(db_conn.RES_PATH, f"model.pkl"))
         log.debug(
             f"Created a new {approach} {model_name} model for Languages {lng_cols}"
         )

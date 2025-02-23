@@ -2,9 +2,10 @@ from dataclasses import dataclass
 import logging
 from utils import fcc_queue
 from cfg import config
-from DBAC.api import DbOperator
+from DBAC import db_conn
 from EMO.models import Models, EMOApproaches
 import EMO.augmentation as augmentation
+from cfg import config
 
 log = logging.getLogger("EMO")
 
@@ -20,15 +21,13 @@ class Steps:
 
 
 class CLI:
-    def __init__(self, sout):
-        self.config = config
+    def __init__(self, fcc):
         self.err_msg = ""
         self.step = None
         self.discretizer = None
-        self.sout = sout
+        self.fcc = fcc
         self.__verify_discretizer()
         self.models_creator = Models()
-        self.db = DbOperator()
         self.accepted = False
 
     def __verify_discretizer(self):
@@ -36,7 +35,7 @@ class CLI:
             "yeo-johnson": augmentation.transformation_yeo_johnson,
             "decision-tree": augmentation.decision_tree_discretizer,
         }
-        if disc := self.config["EMO"].get("discretizer"):
+        if disc := config["EMO"].get("discretizer"):
             if disc not in self.DICSRETIZERS.keys():
                 raise KeyError(
                     f"Discretizer '{disc}' not in {list(self.DICSRETIZERS.keys())} "
@@ -44,19 +43,19 @@ class CLI:
 
     def send_output(self, text: str, include_newline=True):
         if include_newline:
-            self.sout.console.append(text)
-            self.sout.mw.CONSOLE_LOG.append(text)
+            self.fcc.console.append(text)
+            self.fcc.console_log.append(text)
         else:
-            new_text = self.sout.console.toPlainText() + text
-            self.sout.console.setText(new_text)
-            self.sout.mw.CONSOLE_LOG = new_text.split("\n")
+            new_text = self.fcc.console.toPlainText() + text
+            self.fcc.console.setText(new_text)
+            self.fcc.console_log = new_text.split("\n")
 
     def set_output_prompt(self, t):
-        self.sout.mw.CONSOLE_PROMPT = t
+        self.fcc.console_prompt = t
 
     def cls(self, *args, **kwargs):
-        self.sout.console.setText("")
-        self.sout.mw.CONSOLE_LOG = []
+        self.fcc.console.setText("")
+        self.fcc.console_log = []
 
     def prt_res(self, func, msg, *args, **kwargs):
         self.send_output(msg)
@@ -80,7 +79,7 @@ class CLI:
         self._prepare_data()
         # CST model must be trained on raw data
         self.prt_res(
-            self.models_creator.prep_CST, "Preparing CST model... ", self.db.db
+            self.models_creator.prep_CST, "Preparing CST model... ", db_conn.db
         )
         self.prt_res(self.models_creator.eval_CST, "Evaluating CST model... ")
 
@@ -89,63 +88,63 @@ class CLI:
         self.available_models = self.models_creator.models.keys()
 
     def _prepare_data(self):
-        self.prt_res(self.db.refresh, "Loading data... ")
+        self.prt_res(db_conn.refresh, "Loading data... ")
         self.send_output("Filtering... ")
-        self.db.filter_for_efc_model(self.selected_lngs)
-        if len(self.db.db) >= self.config["EMO"]["min_records"]:
+        db_conn.filter_for_efc_model(self.selected_lngs)
+        if len(db_conn.db) >= config["EMO"]["min_records"]:
             self.send_output("OK", include_newline=False)
-            self.send_output(f"{len(self.db.db)} records submitted")
+            self.send_output(f"{len(db_conn.db)} records submitted")
         else:
             self.send_output("FAILED", include_newline=False)
             raise Exception(
-                f"Not enough records in database: {len(self.db.db)}/{self.config['EMO']['min_records']}. "
+                f"Not enough records in database: {len(db_conn.db)}/{config['EMO']['min_records']}. "
             )
         self.prt_res(
-            self.db.add_efc_metrics, "Creating metrics... ", fill_timespent=True
+            db_conn.add_efc_metrics, "Creating metrics... ", fill_timespent=True
         )
         self.prt_res(
-            self.db.remove_cols_for_efc_model,
+            db_conn.remove_cols_for_efc_model,
             "Dropping obsolete columns... ",
             drop_lng=self.selected_approach == EMOApproaches.universal.value,
         )
         if self.selected_approach == EMOApproaches.language_specific.value:
             self.prt_res(
-                self.db.encode_language_columns,
+                db_conn.encode_language_columns,
                 "Encoding Language columns...",
                 lngs=self.selected_lngs,
             )
             # Rearrange columns
-            self.db.db = self.db.db[
-                [c for c in self.db.db.columns if c != "SCORE"] + ["SCORE"]
+            db_conn.db = db_conn.db[
+                [c for c in db_conn.db.columns if c != "SCORE"] + ["SCORE"]
             ]
 
     def _prepare_augmentation(self):
-        self.db.db = self.prt_res(
-            augmentation.cap_quantiles, "Capping quantiles... ", self.db.db
+        db_conn.db = self.prt_res(
+            augmentation.cap_quantiles, "Capping quantiles... ", db_conn.db
         )
-        if discretizer := self.DICSRETIZERS[self.config["EMO"]["discretizer"]]:
-            self.db.db, self.discretizer = self.prt_res(
+        if discretizer := self.DICSRETIZERS[config["EMO"]["discretizer"]]:
+            db_conn.db, self.discretizer = self.prt_res(
                 discretizer,
-                f"Applying {self.config['EMO']['discretizer']} Discretization... ",
-                self.db.db,
+                f"Applying {config['EMO']['discretizer']} Discretization... ",
+                db_conn.db,
             )
-            log.debug(f"Applied {self.config['EMO']['discretizer']} Discretization")
+            log.debug(f"Applied {config['EMO']['discretizer']} Discretization")
 
     def _prepare_models(self):
         self.prt_res(
-            self.models_creator.prep_LASSO, "Preparing LASSO model... ", self.db.db
+            self.models_creator.prep_LASSO, "Preparing LASSO model... ", db_conn.db
         )
         self.prt_res(self.models_creator.eval_LASSO, "Evaluating LASSO model... ")
         self.prt_res(
-            self.models_creator.prep_SVR, "Preparing SVR model... ", self.db.db
+            self.models_creator.prep_SVR, "Preparing SVR model... ", db_conn.db
         )
         self.prt_res(self.models_creator.eval_SVR, "Evaluating SVR model... ")
         self.prt_res(
-            self.models_creator.prep_RFR, "Preparing RFR model... ", self.db.db
+            self.models_creator.prep_RFR, "Preparing RFR model... ", db_conn.db
         )
         self.prt_res(self.models_creator.eval_RFR, "Evaluating RFR model... ")
         self.prt_res(
-            self.models_creator.prep_XGB, "Preparing XGB model... ", self.db.db
+            self.models_creator.prep_XGB, "Preparing XGB model... ", db_conn.db
         )
         self.prt_res(self.models_creator.eval_XGB, "Evaluating XGB model... ")
 

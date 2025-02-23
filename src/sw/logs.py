@@ -60,14 +60,17 @@ class LogsTab(BaseTab):
         self.mw.tab_names[self.id] = "Logs"
         self.mw.add_tab(self._tab, self.id)
 
-    def open(self):
+    def open(self, scroll_end = False):
         self.mw.switch_tab(self.id)
         scr_pos = self.console.verticalScrollBar().value()
         self.load_logs()
         if self.phrase:
             self.search()
         self.search_qle.setFocus()
-        self.console.verticalScrollBar().setValue(scr_pos)
+        if scroll_end:
+            self.scroll_to_bottom()
+        else:
+            self.console.verticalScrollBar().setValue(scr_pos)
 
     def build(self):
         self._tab = QWidget()
@@ -100,11 +103,14 @@ class LogsTab(BaseTab):
                 self.console.verticalScrollBar().minimum()
             )
         elif event.key() == Qt.Key_End:
-            self.console.verticalScrollBar().setValue(
-                self.console.verticalScrollBar().maximum()
-            )
+            self.scroll_to_bottom()
         else:
             QTextEdit.keyPressEvent(self.console, event)
+
+    def scroll_to_bottom(self):
+        self.console.verticalScrollBar().setValue(
+            self.console.verticalScrollBar().maximum()
+        )
 
     def on_log_console_click(self, event):
         if self.phrase:

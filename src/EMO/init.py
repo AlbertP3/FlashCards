@@ -2,6 +2,7 @@ import logging
 from utils import fcc_queue
 from cfg import config
 from EMO.cli import CLI, Steps
+from DBAC import db_conn
 
 
 log = logging.getLogger("EMO")
@@ -10,39 +11,38 @@ log = logging.getLogger("EMO")
 class EMOSpawn:
     # EFC Model Optimizer
 
-    def __init__(self, stream_out):
-        self.config = config
-        self.sout = stream_out
-        self.sout.mw.side_window_titles["fcc"] = "EFC Model Optimizer"
-        self.sout.mw.setWindowTitle(self.sout.mw.side_window_titles["fcc"])
-        self.cli = CLI(sout=self.sout)
+    def __init__(self, mw):
+        self.mw = mw
+        self.mw.tab_names["fcc"] = "EFC Model Optimizer"
+        self.mw.setWindowTitle(self.mw.tab_names["fcc"])
+        self.cli = CLI(fcc=self.mw.fcc)
         self.adapt()
         self.init_emo()
 
     def init_emo(self):
         try:
-            self.cli.set_emo_lngs(self.config["EMO"]["languages"])
-            self.cli.set_emo_approach(self.config["EMO"]["approach"])
+            self.cli.set_emo_lngs(config["EMO"]["languages"])
+            self.cli.set_emo_approach(config["EMO"]["approach"])
             self.cli.run_emo()
             self.cli.show_model_stats()
-            self.cli.send_output(self.sout.mw.CONSOLE_PROMPT)
+            self.cli.send_output(self.mw.fcc.console_prompt)
         except Exception as e:
             self.remove_adapter()
-            self.sout.mw.notify_on_error(e.__traceback__, e)
+            self.mw.notify_on_error(e.__traceback__, e)
 
     def adapt(self):
-        self.HISTORY: list = self.sout.mw.CONSOLE_LOG.copy()
-        self.CMD_HISTORY: list = self.sout.mw.CMDS_LOG.copy()
-        self.sout.mw.CMDS_LOG = [""]
-        self.prev_window_title = self.sout.mw.side_window_titles["fcc"]
-        self.orig_post_method = self.sout.post_fcc
-        self.orig_execute_method = self.sout.execute_command
-        self.sout.post_fcc = self.monkey_patch_post
-        self.sout.execute_command = self.monkey_patch_execute_command
-        self.sout.console.setText("")
+        self.HISTORY: list = self.mw.fcc.console_log.copy()
+        self.CMD_HISTORY: list = self.mw.fcc.cmd_log.copy()
+        self.mw.fcc.cmd_log = [""]
+        self.prev_window_title = self.mw.tab_names["fcc"]
+        self.orig_post_method = self.mw.fcc.fcc_inst.post_fcc
+        self.orig_execute_method = self.mw.fcc.fcc_inst.execute_command
+        self.mw.fcc.fcc_inst.post_fcc = self.monkey_patch_post
+        self.mw.fcc.fcc_inst.execute_command = self.monkey_patch_execute_command
+        self.mw.fcc.console.setText("")
 
     def monkey_patch_post(self, msg):
-        if msg != self.sout.mw.CONSOLE_PROMPT:
+        if msg != self.mw.fcc.console_prompt:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
             self.HISTORY += "\n" + msg
 
@@ -53,22 +53,22 @@ class EMOSpawn:
             self.cli.cls()
         else:
             self.run(parsed_input)
-        self.sout.console.append(self.sout.mw.CONSOLE_PROMPT)
+        self.mw.fcc.console.append(self.mw.fcc.console_prompt)
 
     def remove_adapter(self):
-        self.sout.cls()
-        self.sout.post_fcc = self.orig_post_method
-        self.sout.mw.side_window_titles["fcc"] = self.prev_window_title
-        self.sout.mw.setWindowTitle(self.prev_window_title)
-        self.sout.execute_command = self.orig_execute_method
-        self.sout.mw.CONSOLE_PROMPT = self.sout.mw.DEFAULT_PS1
-        self.sout.mw.CONSOLE_LOG = self.HISTORY
-        self.sout.mw.console.setText("\n".join(self.sout.mw.CONSOLE_LOG))
-        self.sout.mw.CONSOLE_LOG.append(self.sout.mw.CONSOLE_PROMPT)
-        self.sout.mw.CMDS_LOG = self.CMD_HISTORY
-        self.sout.mw.db.refresh()
+        self.mw.fcc.cls()
+        self.mw.fcc.fcc_inst.post_fcc = self.orig_post_method
+        self.mw.tab_names["fcc"] = self.prev_window_title
+        self.mw.setWindowTitle(self.prev_window_title)
+        self.mw.fcc.fcc_inst.execute_command = self.orig_execute_method
+        self.mw.fcc.console_prompt = self.mw.fcc.DEFAULT_PS1
+        self.mw.fcc.console_log = self.HISTORY
+        self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
+        self.mw.fcc.console_log.append(self.mw.fcc.console_prompt)
+        self.mw.fcc.cmd_log = self.CMD_HISTORY
+        db_conn.refresh()
         for msg in fcc_queue.dump_logs():
-            self.sout.mw.fcc_inst.post_fcc(
+            self.mw.fcc.fcc_inst.post_fcc(
                 f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}"
             )
 
@@ -91,11 +91,11 @@ class EMOSpawn:
             # Immediately handle 'done' actions after status change
             if self.cli.step == Steps.done:
                 if self.cli.accepted:
-                    self.sout.mw.load_pickled_model()
-                    self.sout.mw._efc_last_calc_time = 0
+                    self.mw.efc.load_pickled_model()
+                    self.mw.efc._efc_last_calc_time = 0
                     self.remove_adapter()
                 else:
                     self.cli.prepare_exit()
         except Exception as e:
             self.remove_adapter()
-            self.sout.mw.notify_on_error(e.__traceback__, e)
+            self.mw.notify_on_error(e.__traceback__, e)

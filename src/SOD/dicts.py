@@ -8,6 +8,7 @@ import itertools
 import string
 import logging
 import SOD.file_handler
+from cfg import config
 
 log = logging.getLogger("SOD")
 
@@ -42,8 +43,7 @@ def register_dict(name: str, shortname: str = None):
 class TemplateDict:
 
     def __init__(self):
-        self.config = config
-        self.timeout = self.config["SOD"]["request_timeout"]
+        self.timeout = config["SOD"]["request_timeout"]
         self.make_headers()
         self.req_status = 200
 
@@ -58,7 +58,7 @@ class TemplateDict:
 
     def make_headers(self):
         self.headers = dict()
-        if ua := self.config.get("user_agent"):
+        if ua := config.get("user_agent"):
             self.headers["User-Agent"] = ua
 
     def check_status_code(self, resp: requests.Response):
@@ -415,7 +415,7 @@ class DictLocal(TemplateDict):
     def get(self, word: str):
         try:
             from_native = self.source_lng == SOD.file_handler.ACTIVE_FH.native_lng
-            if self.config["SOD"]["use_regex"]:
+            if config["SOD"]["use_regex"]:
                 transl, orig = SOD.file_handler.ACTIVE_FH.get_translations_with_regex(
                     word, from_native
                 )
@@ -439,11 +439,10 @@ class Dict_Services:
     # dict_service - which dict is currently selected
 
     def __init__(self):
-        self.config = config
         self.dicts: dict = dict_services
         self.available_dicts = set(self.dicts.keys())
         self.available_dicts_short = set(v["shortname"] for v in self.dicts.values())
-        self.dict_service: str = self.config["SOD"]["dict_service"]
+        self.dict_service: str = config["SOD"]["dict_service"]
         self.word = None
         self.mute_warning = False
         self.source_lng = None
@@ -459,7 +458,7 @@ class Dict_Services:
     def set_dict_service(self, dict_service):
         if dict_service in self.available_dicts:
             self.dict_service = dict_service
-            self.config["SOD"].update({"dict_service": dict_service})
+            config["SOD"].update({"dict_service": dict_service})
 
     def set_languages(self, src, tgt):
         self.set_source_language(src)
