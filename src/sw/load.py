@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QPushButton,
 )
-from PyQt5 import QtGui
+from PyQt5.QtGui import QKeySequence
 from utils import fcc_queue, LogLvl
 from widgets import CFIDialog
 from widgets import get_scrollbar
@@ -58,10 +58,10 @@ class LoadTab(BaseTab):
         self.files_qlist.itemClicked.connect(self.lsw_qlist_onclick)
         self.files_qlist.itemDoubleClicked.connect(self.lsw_qlist_onDoubleClick)
         self.attach_files_qlist_ctx()
-        QShortcut(QtGui.QKeySequence("Home"), self.files_qlist).activated.connect(
+        QShortcut(QKeySequence("Home"), self.files_qlist).activated.connect(
             lambda: self.files_qlist.setCurrentRow(0)
         )
-        QShortcut(QtGui.QKeySequence("End"), self.files_qlist).activated.connect(
+        QShortcut(QKeySequence("End"), self.files_qlist).activated.connect(
             lambda: self.files_qlist.setCurrentRow(self.files_qlist.count() - 1)
         )
         return self.files_qlist

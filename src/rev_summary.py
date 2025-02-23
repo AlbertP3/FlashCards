@@ -1,23 +1,23 @@
 from utils import *
 from random import randint
-from DBAC.api import DbOperator
+from DBAC import db_conn
+from cfg import config
 from cfg import config
 
 
 class SummaryGenerator:
 
     def __init__(self):
-        self.config = config
-        self.db = DbOperator()
+        pass
 
     def get_summary_text(self, positives, total, time_spent):
-        self.db.refresh()
-        self.signature = self.db.active_file.signature
-        last_positives = self.db.get_last_positives(
+        db_conn.refresh()
+        self.signature = db_conn.active_file.signature
+        last_positives = db_conn.get_last_positives(
             self.signature, req_not_first=True
         )
-        max_positives = self.db.get_max_positives_count(self.signature)
-        last_time_spent = self.db.get_last_time_spent(
+        max_positives = db_conn.get_max_positives_count(self.signature)
+        last_time_spent = db_conn.get_last_time_spent(
             self.signature, req_not_first=True
         )
 
@@ -59,29 +59,29 @@ class SummaryGenerator:
             progress = self.__get_summary_standard_case()
             progress += self.__get_summary_timespent()
 
-        self.db.refresh()
+        db_conn.refresh()
         return progress
 
     def __setup_parameters(self):
-        if self.config["opt"]["dynamic_summary"]:
-            self.db.filter_where_lng([self.db.active_file.lng])
-            self.db.filter_where_not_first()
-            avg_cpm = self.db.get_avg_cpm()
-            avg_score = self.db.get_avg_score()
+        if config["opt"]["dynamic_summary"]:
+            db_conn.filter_where_lng([db_conn.active_file.lng])
+            db_conn.filter_where_not_first()
+            avg_cpm = db_conn.get_avg_cpm()
+            avg_score = db_conn.get_avg_score()
         else:
             avg_cpm = 15
             avg_score = 0.6
 
-        self.PERCENTAGE_IMPRESSIVE = avg_score * self.config["summary"]["astounding"]
-        self.PERCENTAGE_MEDIOCRE = avg_score * self.config["summary"]["mediocre"]
-        self.PERCENTAGE_BAD = avg_score * self.config["summary"]["awful"]
-        self.CPM_ULTRA_FAST = avg_cpm * self.config["summary"]["astounding"]
-        self.CPM_VERY_FAST = avg_cpm * self.config["summary"]["excellent"]
-        self.CPM_PRETTY_FAST = avg_cpm * self.config["summary"]["impressive"]
-        self.CPM_FAST = avg_cpm * self.config["summary"]["good"]
-        self.CPM_MEDIUM = avg_cpm * self.config["summary"]["mediocre"]
-        self.CPM_SLOW = avg_cpm * self.config["summary"]["bad"]
-        self.CPM_ULTRA_SLOW = avg_cpm * self.config["summary"]["awful"]
+        self.PERCENTAGE_IMPRESSIVE = avg_score * config["summary"]["astounding"]
+        self.PERCENTAGE_MEDIOCRE = avg_score * config["summary"]["mediocre"]
+        self.PERCENTAGE_BAD = avg_score * config["summary"]["awful"]
+        self.CPM_ULTRA_FAST = avg_cpm * config["summary"]["astounding"]
+        self.CPM_VERY_FAST = avg_cpm * config["summary"]["excellent"]
+        self.CPM_PRETTY_FAST = avg_cpm * config["summary"]["impressive"]
+        self.CPM_FAST = avg_cpm * config["summary"]["good"]
+        self.CPM_MEDIUM = avg_cpm * config["summary"]["mediocre"]
+        self.CPM_SLOW = avg_cpm * config["summary"]["bad"]
+        self.CPM_ULTRA_SLOW = avg_cpm * config["summary"]["awful"]
 
     def __get_summary_first_rev(self):
         if self.score >= 0.8:

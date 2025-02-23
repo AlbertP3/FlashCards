@@ -1,14 +1,16 @@
+import os
 import re
 import logging
 from operator import methodcaller
+from datetime import datetime
 from random import shuffle
 import pandas as pd
-from utils import *
-from cfg import config
-import DBAC.api as api
-from SOD.init import SODspawn
+from PyQt5.QtWidgets import QTextEdit
+from utils import flatten_dict, is_valid_filename, format_seconds_to, fcc_queue, LogLvl
+from DBAC import db_conn
 from EMO.init import EMOSpawn
 from CMG.init import CMGSpawn
+from cfg import config
 from main_window_logic import MainWindowLogic
 
 log = logging.getLogger("FCC")
@@ -17,10 +19,9 @@ log = logging.getLogger("FCC")
 class FCC:
     # Flashcards console commands allows access to extra functionality
 
-    def __init__(self, mw: MainWindowLogic):
+    def __init__(self, mw: MainWindowLogic, sout: QTextEdit):
         self.mw = mw
-        self.config = config
-        self.console = self.mw.console
+        self.console = sout
         self.DOCS = {
             "help": "Gets Help",
             "mct": "Modify Cards Text - edits current side of the card both in current set and in the original file",
@@ -31,9 +32,7 @@ class FCC:
             "efc": "Ebbinghaus Forgetting Curve - Optional *[SIGNATURES] else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision",
             "mcp": "Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>",
             "sck": "Show Config Key: Syntax: sck *<sub_dict> <key>",
-            "cls": "Clear Screen",
             "cfn": "Change File Name - changes currently loaded file_path, filename and all records in DB for this signature",
-            "sah": "Show Progress Chart for all languages",
             "scs": "Show Current Signature",
             "lor": "List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.",
             "gwd": "Get Window Dimensions",
@@ -62,7 +61,7 @@ class FCC:
         else:
             self.post_fcc(f"{parsed_input[0]}: command not found...")
         if followup_prompt:
-            self.post_fcc(self.mw.CONSOLE_PROMPT)
+            self.post_fcc(self.mw.fcc.console_prompt)
         else:
             self.mw.move_cursor_to_end()
 
@@ -71,19 +70,16 @@ class FCC:
 
     def post_fcc(self, text: str = ""):
         self.console.append(text)
-        self.mw.CONSOLE_LOG.append(text)
-
-    def update_console_id(self, new_console):
-        self.console = new_console
+        self.mw.fcc.console_log.append(text)
 
     def help(self, parsed_cmd):
         lim = int(self.console.viewport().width())
         max_key_pixlen = (
-            self.mw.caliper.strwidth(max(self.DOCS.keys(), key=len))
-            + 2 * self.mw.caliper.scw
+            self.mw.fcc.caliper.strwidth(max(self.DOCS.keys(), key=len))
+            + 2 * self.mw.fcc.caliper.scw
         )
         if len(parsed_cmd) == 1:
-            printout = self.mw.caliper.make_table(
+            printout = self.mw.fcc.caliper.make_table(
                 data=[(k, v) for k, v in self.DOCS.items()],
                 pixlim=[max_key_pixlen, lim - max_key_pixlen],
                 align=["left", "left"],
@@ -93,7 +89,7 @@ class FCC:
         else:
             command = parsed_cmd[1]
             if command in self.DOCS.keys():
-                printout = self.mw.caliper.make_table(
+                printout = self.mw.fcc.caliper.make_table(
                     data=[[command, self.DOCS[command]]],
                     pixlim=[max_key_pixlen, lim - max_key_pixlen],
                     align=["left", "left"],
@@ -108,7 +104,7 @@ class FCC:
                         if rp.search(v) or rp.search(k):
                             matching.append([k, v])
                     try:
-                        printout = self.mw.caliper.make_table(
+                        printout = self.mw.fcc.caliper.make_table(
                             data=matching,
                             pixlim=[max_key_pixlen, lim - max_key_pixlen],
                             align=["left", "left"],
@@ -183,7 +179,7 @@ class FCC:
         # Get parameters before deletion
         current_word = self.mw.get_current_card().iloc[self.mw.side]
         self.mw.delete_current_card()
-        dataset_ordered = self.mw.db.load_dataset(self.mw.active_file, do_shuffle=False)
+        dataset_ordered = db_conn.load_dataset(self.mw.active_file, do_shuffle=False)
 
         # modify source file
         dataset_ordered.drop(
@@ -192,19 +188,19 @@ class FCC:
             ].index,
             inplace=True,
         )
-        if self.mw.active_file.kind == self.mw.db.KINDS.rev:
-            self.mw.db.save_revision(dataset_ordered)
+        if self.mw.active_file.kind == db_conn.KINDS.rev:
+            db_conn.save_revision(dataset_ordered)
             self.post_fcc("Card removed from the set and from the file as well")
-        elif self.mw.active_file.kind in {self.mw.db.KINDS.lng, self.mw.db.KINDS.mst}:
-            msg = self.mw.db.save_language(dataset_ordered, self.mw.active_file)
+        elif self.mw.active_file.kind in {db_conn.KINDS.lng, db_conn.KINDS.mst}:
+            msg = db_conn.save_language(dataset_ordered, self.mw.active_file)
             self.post_fcc("Card removed\n" + msg)
 
     def sis(self, parsed_cmd):
         """Show ILN Statistics"""
         self.post_fcc(f"{'File':^34} | New Cards")
-        for k, v in self.config["ILN"].items():
+        for k, v in config["ILN"].items():
             try:
-                end = self.mw.db.get_lines_count(self.mw.db.files[k])
+                end = db_conn.get_lines_count(db_conn.files[k])
                 nc = end - v
             except KeyError:
                 nc = 0
@@ -219,23 +215,29 @@ class FCC:
             signatures = parsed_cmd[1:]
         else:
             signatures = {self.mw.active_file.signature}
-        self.mw.db.refresh()
-        recommendations = self.mw.get_efc_data(preds=True, signatures=signatures)
-        efc_table_printout = self.mw.get_efc_table_printout(recommendations)
-        self.mw.db.refresh()
-        self.post_fcc(efc_table_printout)
+        db_conn.refresh()
+        recommendations = self.mw.efc.get_efc_data(preds=True, signatures=signatures)
+        efc_table = self.mw.efc.get_efc_table(recommendations)
+        w = self.console.width() * 0.8
+        printout = self.mw.fcc.caliper.make_table(
+            data=efc_table,
+            pixlim=[0.5 * w, 0.18 * w, 0.18 * w, 0.18 * w],
+            align=["left", "right", "right", "right"],
+        )
+        db_conn.refresh()
+        self.post_fcc(printout)
 
     def mcp(self, parsed_cmd):
         """Modify Config Parameter"""
         if len(parsed_cmd) == 3:
             key, new_val = parsed_cmd[1], parsed_cmd[2]
-            if key in self.config.keys():
+            if key in config.keys():
                 if new_val.isnumeric():
                     new_val = float(new_val) if "." in new_val else int(new_val)
-                elif isinstance(self.config[key], (list, set, tuple)):
-                    new_val = self.config[key].__class__(new_val.split(","))
-                self.config[key] = new_val
-                self.mw.config_manual_update(key=key, subdict=None)
+                elif isinstance(config[key], (list, set, tuple)):
+                    new_val = config[key].__class__(new_val.split(","))
+                config[key] = new_val
+                self.mw.cft.config_manual_update(key=key, subdict=None)
                 self.post_fcc(f"{key} set to {new_val}")
             else:
                 self.post_fcc(
@@ -243,16 +245,13 @@ class FCC:
                 )
         elif len(parsed_cmd) == 4:
             subdict, key, new_val = parsed_cmd[1], parsed_cmd[2], parsed_cmd[3]
-            if (
-                isinstance(self.config.get(subdict), dict)
-                and key in self.config[subdict].keys()
-            ):
+            if isinstance(config.get(subdict), dict) and key in config[subdict].keys():
                 if new_val.isnumeric():
                     new_val = float(new_val) if "." in new_val else int(new_val)
-                elif isinstance(self.config[subdict][key], (list, set, tuple)):
-                    new_val = self.config[subdict][key].__class__(new_val.split(","))
-                self.config[subdict][key] = new_val
-                self.mw.config_manual_update(key=key, subdict=subdict)
+                elif isinstance(config[subdict][key], (list, set, tuple)):
+                    new_val = config[subdict][key].__class__(new_val.split(","))
+                config[subdict][key] = new_val
+                self.mw.cft.config_manual_update(key=key, subdict=subdict)
                 self.post_fcc(f"{key} of {subdict} set to {new_val}")
             else:
                 self.post_fcc(
@@ -266,16 +265,16 @@ class FCC:
     def sck(self, parsed_cmd):
         """Show Config Key"""
         headers = ["Dict", "Key", "Value"]
-        content = flatten_dict(self.config, lim_chars=30)
+        content = flatten_dict(config, lim_chars=30)
         if len(parsed_cmd) == 1:
-            msg = self.mw.caliper.make_table(
+            msg = self.mw.fcc.caliper.make_table(
                 data=content,
                 pixlim=int(self.console.viewport().width()),
                 headers=headers,
                 align=["left", "left", "left"],
             )
         elif len(parsed_cmd) in (2, 3):
-            if isinstance(self.config.get(parsed_cmd[1]), dict):
+            if isinstance(config.get(parsed_cmd[1]), dict):
                 content = [
                     i for i in content if re.search(parsed_cmd[1], i[0], re.IGNORECASE)
                 ]
@@ -290,7 +289,7 @@ class FCC:
                     i for i in content if re.search(parsed_cmd[1], i[1], re.IGNORECASE)
                 ]
             if content:
-                msg = self.mw.caliper.make_table(
+                msg = self.mw.fcc.caliper.make_table(
                     data=content,
                     pixlim=int(self.console.viewport().width()),
                     headers=headers,
@@ -303,18 +302,6 @@ class FCC:
             msg = "Invalid syntax. Expected: sck *<dict> <key>"
         self.post_fcc(msg)
 
-    def cls(self, parsed_cmd=None):
-        """Clear Console"""
-        last_line = self.console.toPlainText().split("\n")[-1]
-        if last_line.startswith(self.mw.CONSOLE_PROMPT):
-            new_console_log = [last_line]
-            new_text = last_line
-        else:
-            new_console_log = []
-            new_text = ""
-        self.console.setText(new_text)
-        self.mw.CONSOLE_LOG = new_console_log
-
     @require_regular_file
     def cfn(self, parsed_cmd):
         """Change File Name"""
@@ -325,8 +312,7 @@ class FCC:
         if not is_valid_filename(new_filename):
             self.post_fcc(f"Invalid filename: {new_filename}")
             return
-        dbapi = api.DbOperator()
-        if new_filename in dbapi.get_all_files(use_basenames=True, excl_ext=True):
+        if new_filename in db_conn.get_all_files(use_basenames=True, excl_ext=True):
             self.post_fcc(f"File {new_filename} already exists!")
             return
         old_filepath = self.mw.active_file.filepath
@@ -335,30 +321,21 @@ class FCC:
         )
         self.mw.file_monitor_del_protected_path(old_filepath)
         os.rename(old_filepath, new_filepath)
-        if self.mw.active_file.kind in self.mw.db.GRADED:
-            dbapi.rename_signature(self.mw.active_file.signature, new_filename)
-        if iln := self.config["ILN"].get(old_filepath):
-            self.config["ILN"][new_filepath] = iln
-            del self.config["ILN"][old_filepath]
-        dbapi.update_fds()
-        if old_filepath == self.config["SOD"]["last_file"]:
-            prev_tab = self.mw.active_tab_ident
-            self.mw.activate_tab("sod")
-            if old_filepath in self.config["SOD"]["files_list"]:
-                self.config["SOD"]["files_list"].remove(old_filepath)
-                self.config["SOD"]["files_list"].append(new_filepath)
-            self.mw.tabs["sod"]["fcc_ins"].sod_object.cli.update_file_handler(
-                new_filepath
-            )
-            self.mw.activate_tab(prev_tab)
-        self.mw.initiate_flashcards(self.mw.db.files[new_filepath])
-        fcc_queue.put_notification("Filename and Signature changed successfully", lvl=LogLvl.important)
-
-    def sah(self, parsed_cmd):
-        """Show All (languages) History chart"""
-        self.mw.del_side_window()
-        self.mw.get_progress_sidewindow(lngs={})
-        self.post_fcc("Showing Progress Chart for all languages")
+        if self.mw.active_file.kind in db_conn.GRADED:
+            db_conn.rename_signature(self.mw.active_file.signature, new_filename)
+        if iln := config["ILN"].get(old_filepath):
+            config["ILN"][new_filepath] = iln
+            del config["ILN"][old_filepath]
+        db_conn.update_fds()
+        if old_filepath == config["SOD"]["last_file"]:
+            if old_filepath in config["SOD"]["files_list"]:
+                config["SOD"]["files_list"].remove(old_filepath)
+                config["SOD"]["files_list"].append(new_filepath)
+            self.mw.sod.sod.cli.update_file_handler(new_filepath)
+        self.mw.initiate_flashcards(db_conn.files[new_filepath])
+        fcc_queue.put_notification(
+            "Filename and Signature changed successfully", lvl=LogLvl.important
+        )
 
     def scs(self, parsed_cmd):
         """Show Current Signature"""
@@ -366,9 +343,8 @@ class FCC:
 
     def lor(self, parsed_cmd):
         """List Obsolete Revisions"""
-        dbapi = api.DbOperator()
-        unique = set(dbapi.get_unique_signatures().values.tolist())
-        available = set(s.signature for s in self.mw.db.files.values())
+        unique = set(db_conn.get_unique_signatures().values.tolist())
+        available = set(s.signature for s in db_conn.files.values())
         for i, v in enumerate(available.difference(unique)):
             self.post_fcc(f"{i+1}. {v}")
 
@@ -380,8 +356,8 @@ class FCC:
 
     def pcc(self, parsed_cmd):
         """Pull Current Card"""
-        new_data = self.mw.db.load_dataset(
-            self.mw.active_file, seed=self.config["pd_random_seed"]
+        new_data = db_conn.load_dataset(
+            self.mw.active_file, seed=config["pd_random_seed"]
         )
         self.mw.active_file.data.iloc[self.mw.current_index, :2] = new_data.iloc[
             self.mw.current_index, :2
@@ -391,20 +367,16 @@ class FCC:
     def rgd(self, parsed_cmd):
         """Reset Geometry Default"""
         if len(parsed_cmd) == 1:
-            for w in self.config["geo"]:
-                self.config["geo"][w] = self.config["geo"]["default"]
+            for w in config["geo"]:
+                config["geo"][w] = config["geo"]["default"]
             self.post_fcc("All windows were resized to default")
-        elif parsed_cmd[1].lower() in self.config["geo"].keys():
-            self.config["geo"][parsed_cmd[1].lower()] = self.config["geo"]["default"]
+        elif parsed_cmd[1].lower() in config["geo"].keys():
+            config["geo"][parsed_cmd[1].lower()] = config["geo"]["default"]
             self.post_fcc(f"{parsed_cmd[1].lower()} window was resized to default")
         else:
             self.post_fcc(
                 "Specified window does not exist. See config to list of available windows"
             )
-
-    def sod(self, parsed_cmd: list):
-        """Scrape Online Dictionaries"""
-        self.sod_object = SODspawn(stream_out=self)
 
     def emo(self, parsed_cmd: list):
         """EFC Model Optimizer"""
@@ -426,7 +398,7 @@ class FCC:
             text = "\u2009"
         elif text == "ideographic-space":
             text = "\u3000"
-        self.post_fcc((f"Pixel Length: {self.mw.caliper.strwidth(text)}"))
+        self.post_fcc((f"Pixel Length: {self.mw.fcc.caliper.strwidth(text)}"))
 
     def pcd(self, parsed_cmd: list):
         """Print Current Dataset"""
@@ -445,11 +417,9 @@ class FCC:
         out, sep = list(), " | "
         cell_args = {
             "pixlim": (
-                0.94
-                * (self.config["geo"]["fcc"][0] - self.mw.caliper.strwidth(sep))
-                / 2
+                0.94 * (config["geo"]["fcc"][0] - self.mw.fcc.caliper.strwidth(sep)) / 2
             ),
-            "align": self.config["cell_alignment"],
+            "align": config["cell_alignment"],
         }
         rng = (
             range(lim)
@@ -461,10 +431,10 @@ class FCC:
             )
         )
         for i in rng:
-            c1 = self.mw.caliper.make_cell(
+            c1 = self.mw.fcc.caliper.make_cell(
                 self.mw.active_file.data.iloc[i, 0], **cell_args
             )
-            c2 = self.mw.caliper.make_cell(
+            c2 = self.mw.fcc.caliper.make_cell(
                 self.mw.active_file.data.iloc[i, 1], **cell_args
             )
             out.append(f"{c1}{sep}{c2}")
@@ -482,17 +452,17 @@ class FCC:
         run_all = len(parsed_cmd) == 1
         key = parsed_cmd[1] if len(parsed_cmd) == 2 else None
         if run_all or key == "files":
-            self.mw.db.update_fds()
-            self.mw.db.refresh()
+            db_conn.update_fds()
+            db_conn.refresh()
         if run_all or key == "fonts":
-            self.mw.caliper.pixlen.cache_clear()
+            self.mw.fcc.caliper.pixlen.cache_clear()
         if run_all or key == "efc":
-            self.mw._efc_last_calc_time = 0
+            self.mw.efc._efc_last_calc_time = 0
         self.post_fcc("Reloaded cache")
 
     def ssf(self, parsed_cmd: list):
         """Show Scanned Files"""
-        for fd in self.mw.db.files.values():
+        for fd in db_conn.files.values():
             self.post_fcc(
                 (
                     "\n"
@@ -502,23 +472,23 @@ class FCC:
                     f"Kind:      {fd.kind}"
                 )
             )
-        self.post_fcc("\n" + f"Files total: {len(self.mw.db.files)}")
+        self.post_fcc("\n" + f"Files total: {len(db_conn.files)}")
 
     def clt(self, parsed_cmd: list):
         """Create Language Tree"""
         if len(parsed_cmd) < 3:
             self.post_fcc("Missing Arguments - new language id | native language id")
             return
-        elif parsed_cmd[1] in self.config["languages"]:
+        elif parsed_cmd[1] in config["languages"]:
             self.post_fcc(f"Language {parsed_cmd[1]} already exists")
             return
-        self.mw.db.create_language_dir_tree(parsed_cmd[1])
-        self.config["languages"].append(parsed_cmd[1])
+        db_conn.create_language_dir_tree(parsed_cmd[1])
+        config["languages"].append(parsed_cmd[1])
         pd.DataFrame(
             columns=[parsed_cmd[1].lower(), parsed_cmd[2].lower()], data=[["-", "-"]]
         ).to_csv(
-            self.mw.db.make_filepath(
-                parsed_cmd[1], self.mw.db.LNG_DIR, f"{parsed_cmd[1]}.csv"
+            db_conn.make_filepath(
+                parsed_cmd[1], db_conn.LNG_DIR, f"{parsed_cmd[1]}.csv"
             ),
             index=False,
             encoding="utf-8",
@@ -528,7 +498,7 @@ class FCC:
         for msg in fcc_queue.dump_logs():
             self.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
         self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.csv")
-        self.mw.db.update_fds()
+        db_conn.update_fds()
 
     def eph(self, parsed_cmd: list):
         """Create Ephemeral Mistakes"""
@@ -538,7 +508,7 @@ class FCC:
         elif not self.mw.mistakes_list:
             self.post_fcc("No mistakes to save")
             return
-        self.mw.del_side_window()
+        self.mw.switch_tab("main")
         self.mw.init_eph_from_mistakes()
 
     def cre(self, parsed_cmd: list):
@@ -548,31 +518,31 @@ class FCC:
                 self.mw._flush_cre()
                 self.post_fcc("Flushed CRE queue")
             elif parsed_cmd[1].startswith("stat"):
-                if self.config["CRE"]["count"]:
+                if config["CRE"]["count"]:
                     self.post_fcc(self.mw._get_cre_stat())
                 else:
                     try:
                         diff_days = (
                             datetime.now()
                             - datetime.strptime(
-                                self.config["CRE"]["prev"]["date"],
+                                config["CRE"]["prev"]["date"],
                                 r"%Y-%m-%d %H:%M:%S",
                             )
                         ).days
                     except (TypeError, ValueError):
                         diff_days = "∞"
-                    ld = self.config["CRE"]["prev"]["date"]
+                    ld = config["CRE"]["prev"]["date"]
                     ts = format_seconds_to(
-                        self.config["CRE"]["prev"]["time_spent"],
+                        config["CRE"]["prev"]["time_spent"],
                         "hour",
                         sep=":",
                         int_name="hour",
                     )
-                    rc = self.config["CRE"]["prev"]["count"]
+                    rc = config["CRE"]["prev"]["count"]
                     try:
                         ac = (
-                            self.config["CRE"]["prev"]["positives"]
-                            / self.config["CRE"]["prev"]["cards_seen"]
+                            config["CRE"]["prev"]["positives"]
+                            / config["CRE"]["prev"]["cards_seen"]
                         )
                     except ZeroDivisionError:
                         ac = 0
@@ -581,48 +551,44 @@ class FCC:
                     )
             else:
                 self.post_fcc("Unknown argument!")
-        elif self.config["CRE"]["items"]:  # continue CRE queue
-            next_rev = self.config["CRE"]["items"][
-                -self.config["CRE"]["opt"]["reversed"]
-            ]
-            self.mw.initiate_flashcards(self.mw.db.files[next_rev])
+        elif config["CRE"]["items"]:  # continue CRE queue
+            next_rev = config["CRE"]["items"][-config["CRE"]["opt"]["reversed"]]
+            self.mw.initiate_flashcards(db_conn.files[next_rev])
         else:  # initiate CRE queue
-            revs = [fd.filepath for fd in self.mw.db.get_sorted_revisions()]
-            if self.config["CRE"]["opt"]["random"]:
+            revs = [fd.filepath for fd in db_conn.get_sorted_revisions()]
+            if config["CRE"]["opt"]["random"]:
                 shuffle(revs)
-            self.config["CRE"]["items"] = revs
-            self.config["CRE"]["count"] = len(revs)
-            self.config["CRE"]["cards_seen"] = 0
-            self.config["CRE"]["time_spent"] = 0
-            self.config["CRE"]["positives"] = 0
-            self.config["CRE"]["cards_total"] = self.mw.db.get_cards_total(
-                [fd.signature for fd in self.mw.db.get_sorted_revisions()]
+            config["CRE"]["items"] = revs
+            config["CRE"]["count"] = len(revs)
+            config["CRE"]["cards_seen"] = 0
+            config["CRE"]["time_spent"] = 0
+            config["CRE"]["positives"] = 0
+            config["CRE"]["cards_total"] = db_conn.get_cards_total(
+                [fd.signature for fd in db_conn.get_sorted_revisions()]
             )
             self.post_fcc(
-                f"CRE initiated with {self.config['CRE']['cards_total']} cards in {self.config['CRE']['count']} revisions"
+                f"CRE initiated with {config['CRE']['cards_total']} cards in {config['CRE']['count']} revisions"
             )
-            next_rev = self.config["CRE"]["items"][
-                -self.config["CRE"]["opt"]["reversed"]
-            ]
-            self.mw.initiate_flashcards(self.mw.db.files[next_rev])
+            next_rev = config["CRE"]["items"][-config["CRE"]["opt"]["reversed"]]
+            self.mw.initiate_flashcards(db_conn.files[next_rev])
 
     def cfg(self, parsed_cmd: list):
         """Configuration"""
         if len(parsed_cmd) < 2:
             self.post_fcc("cfg command requires at least 1 argument")
         elif parsed_cmd[1] == "save":
-            self.config.save()
+            config.save()
             self.post_fcc("Config saved")
         elif parsed_cmd[1] == "load":
-            self.config.reload()
+            config.reload()
             self.post_fcc("Config reloaded")
         elif parsed_cmd[1] == "restart":
-            self.mw.del_side_window()
+            self.mw.switch_tab("main")
             self.mw._modify_file_monitor()
             self.mw.config_manual_update()
             self.mw.set_theme()
             self.post_fcc("Application restarted")
-            self.mw.get_fcc_sidewindow()
+            self.mw.fcc.open()
         else:
             self.post_fcc("Usage: cfg anyOf(save,load,restart)")
 
@@ -631,25 +597,11 @@ class FCC:
         if len(parsed_cmd) > 1:
             text = " ".join(parsed_cmd[1:])
             self.mw.display_text(text)
-        else:
-            self.post_fcc(f"signature={self.mw.active_file.signature}")
-            self.post_fcc(f"{self.mw.current_index=}")
-            self.post_fcc(f"{self.mw.side=}")
-            self.post_fcc(f"{self.mw.revmode=}")
-            self.post_fcc(f"{self.mw.cards_seen=}")
-            self.post_fcc(f"{self.mw.words_back=}")
-            self.post_fcc(f"{self.mw.is_recorded=}")
-            self.post_fcc(f"{self.mw.is_synopsis=}")
-            self.post_fcc(f"{self.mw.is_initial_rev=}")
-            self.post_fcc(f"{self.mw.seconds_spent=}")
-            self.post_fcc(f"{self.mw.should_hide_tips()=}")
-            self.post_fcc(f"{self.mw.db.filters=}")
-            self.post_fcc(f"db_rows={self.mw.db.db.shape[0]}")
 
     def dmp(self, parsed_cmd: list[str]):
         """Dump Session Data"""
         if self.mw.active_file.tmp and self.mw.active_file.data.shape[0] > 1:
-            self.mw.db.create_tmp_file_backup()
+            db_conn.create_tmp_file_backup()
         self.mw.create_session_snapshot()
         self.mw.config.save()
         self.post_fcc("Dumped session data")
