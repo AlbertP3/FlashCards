@@ -3,7 +3,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import pandas as pd
 from cfg import config
-import DBAC.api as api
+from DBAC import db_conn
 from tracker.dal import dal
 
 log = logging.getLogger("TRK")
@@ -15,7 +15,6 @@ class ProgressChartCanvas:
         self.upd = -1
         self.figure = Figure(figsize=(5, 3))
         self.canvas = FigureCanvas(self.figure)
-        self.db = api.DbOperator()
 
     def get(self) -> FigureCanvas:
         return self.canvas
@@ -28,9 +27,9 @@ class ProgressChartCanvas:
             log.debug("Refreshed Progress Tab")
 
     def _calculate(self):
-        self.db.refresh()
-        self.db.filter_for_progress(config["languages"])
-        df = self.db.db
+        db_conn.refresh()
+        db_conn.filter_for_progress(config["languages"])
+        df = db_conn.db
 
         df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"]).dt.strftime("%b\n%y")
         counted = df["TIMESTAMP"].value_counts(sort=False)

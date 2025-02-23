@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QTime, QTimer, QStringListModel
 from widgets import CheckableComboBox
-from DBAC.api import DbOperator
+from DBAC import db_conn
 from cfg import config
 from tracker.structs import IMM_CATS
 from tracker.dal import dal
@@ -57,7 +57,7 @@ class StopwatchTab(QWidget):
 
         self.lng_cbx = self.get_cbx(
             config["languages"][0],
-            DbOperator().get_available_languages(),
+            db_conn.get_available_languages(),
             multi_choice=False,
         )
         controls_layout.addWidget(self.lng_cbx)

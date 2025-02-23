@@ -27,21 +27,23 @@ class TAB(Enum):
     Notes = "Notes"
 
 
-class TrackerSideWindow(QGridLayout):
+class Tracker(QGridLayout):
 
     def __init__(self):
         super().__init__()
-        self.__tabs = {}
+        self.trk_tab_map = {}
         self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
+        self.setContentsMargins(0,0,0,0)
+        self.setSpacing(1)
         self.create_tabs()
-        self.addWidget(self.tabs, 0, 0)
-        self.on_tab_changed(self.tabs.currentIndex())
+        self.addWidget(self.trk_tabs, 0, 0)
+        self.on_tab_changed(self.trk_tabs.currentIndex())
 
     def create_tabs(self):
-        self.tabs = QTabWidget()
-        self.tabs.setStyleSheet(config["theme"]["ctx_stylesheet"])
-        self.tabs.setFont(self.qfont)
-        self.tabs.setContentsMargins(1, 1, 1, 1)
+        self.trk_tabs = QTabWidget()
+        self.trk_tabs.setStyleSheet(config["theme"]["ctx_stylesheet"])
+        self.trk_tabs.setFont(self.qfont)
+        self.trk_tabs.setContentsMargins(1, 1, 1, 1)
 
         self.add_tab(self.get_timetable_tab(), TAB.TimeTable.value)
         self.add_tab(self.get_timechart_tab(), TAB.TimeChart.value)
@@ -51,15 +53,15 @@ class TrackerSideWindow(QGridLayout):
         self.add_tab(self.get_stopwatch_tab(), TAB.StopWatch.value)
         self.add_tab(self.get_notes_tab(), TAB.Notes.value)
 
-        self.tabs.currentChanged.connect(self.on_tab_changed)
-        self.tabs.setCurrentIndex(self.__tabs.get(dal.last_tab, 0))
+        self.trk_tabs.currentChanged.connect(self.on_tab_changed)
+        self.trk_tabs.setCurrentIndex(self.trk_tab_map.get(dal.last_tab, 0))
 
     def add_tab(self, widget, text):
-        self.tabs.addTab(widget, text)
-        self.__tabs[text] = len(self.__tabs)
+        self.trk_tabs.addTab(widget, text)
+        self.trk_tab_map[text] = len(self.trk_tab_map)
 
     def on_tab_changed(self, index: int):
-        tid = self.tabs.tabText(index)
+        tid = self.trk_tabs.tabText(index)
         if tid == TAB.TimeChart.value:
             self.ts_canvas.refresh()
         elif tid == TAB.Progress.value:

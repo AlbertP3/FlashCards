@@ -15,7 +15,7 @@ from PyQt5.QtGui import QFont
 from cfg import config
 from widgets import CheckableComboBox
 from utils import format_seconds_to, Caliper
-from DBAC.api import DbOperator
+from DBAC import db_conn
 from tracker.dal import dal
 from tracker.helpers import parse_to_seconds, safe_div, merge_records_by_date, get_chart
 from tracker.structs import RecordOrderedDict, Column
@@ -42,7 +42,7 @@ class DuoLayout(QWidget):
 
     @property
     def lines_lim(self) -> int:
-        return int(0.95 * config.get_geo("timer")[1] // self.caliper.sch)
+        return int(0.95 * config["geo"][1] // self.caliper.sch)
 
     @property
     def pix_lim(self) -> int:
@@ -101,7 +101,7 @@ class DuoLayout(QWidget):
 
         self.lng_cbx = self.get_cbx(
             config["languages"][0],
-            DbOperator().get_available_languages(),
+            db_conn.get_available_languages(),
             multi_choice=False,
         )
         self.form_layout.addRow("Language", self.lng_cbx)

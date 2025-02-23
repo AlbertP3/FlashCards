@@ -125,7 +125,8 @@ class DataAccessLayer:
             writer.writerows(rows)
         if sum(wk_alloc) > 0:
             config["tracker"]["duo"]["wk_alloc"] = [
-                round(x + y, 3) for x, y in zip(config["tracker"]["duo"]["wk_alloc"], wk_alloc)
+                round(x + y, 3)
+                for x, y in zip(config["tracker"]["duo"]["wk_alloc"], wk_alloc)
             ]
             config["tracker"]["duo"]["cnt"] += 1
         if int(pred_timespent - timespent) != 0 and pred_timespent > 0:

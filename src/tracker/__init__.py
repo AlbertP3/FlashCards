@@ -1,1 +1,1 @@
-from tracker.main import TrackerSideWindow
+from tracker.main import Tracker

@@ -1,7 +1,8 @@
 import logging
-from PyQt5.QtWidgets import QTextEdit, QScrollBar
+from PyQt5.QtWidgets import QTextEdit
 from PyQt5.QtGui import QFont, QKeyEvent
 from cfg import config
+from widgets import get_scrollbar
 
 log = logging.getLogger("TRK")
 
@@ -18,14 +19,9 @@ class NotesLayout:
         self.qTextEdit.setFont(self.qfont)
         self.qTextEdit.setAcceptRichText(False)
         self.qTextEdit.setStyleSheet(config["theme"]["textbox_stylesheet"])
-        self.qTextEdit.setVerticalScrollBar(self._get_scrollbar())
+        self.qTextEdit.setVerticalScrollBar(get_scrollbar())
         self.qTextEdit.setText(config.cache.get("notes", ""))
         self.qTextEdit.keyPressEvent = self.qte_ks
-
-    def _get_scrollbar(self) -> QScrollBar:
-        scrollbar = QScrollBar()
-        scrollbar.setStyleSheet(config["theme"]["scrollbar_stylesheet"])
-        return scrollbar
 
     def qte_ks(self, event: QKeyEvent):
         QTextEdit.keyPressEvent(self.qTextEdit, event)

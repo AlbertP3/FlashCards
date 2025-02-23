@@ -9,6 +9,7 @@ from utils import Caliper
 from tracker.dal import dal
 from tracker.helpers import merge_records_by_date, to_time, safe_div
 from tracker.structs import StrRecordOrderedDict
+from widgets import get_scrollbar
 
 log = logging.getLogger("TRK")
 
@@ -26,7 +27,7 @@ class TimeTablePrintout:
         self.qTextEdit.setFont(self.qfont)
         self.qTextEdit.setAcceptRichText(False)
         self.qTextEdit.setStyleSheet(config["theme"]["textbox_stylesheet"])
-        self.qTextEdit.setVerticalScrollBar(self._get_scrollbar())
+        self.qTextEdit.setVerticalScrollBar(get_scrollbar())
         self.qTextEdit.contextMenuEvent = lambda *args, **kwargs: None
         self.qTextEdit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.qTextEdit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -39,7 +40,7 @@ class TimeTablePrintout:
 
     @property
     def lines_lim(self) -> int:
-        return int(0.95 * config.get_geo("timer")[1] // self.caliper.sch) - 1
+        return int(0.95 * config["geo"][1] // self.caliper.sch) - 1
 
     def get(self) -> QTextEdit:
         return self.qTextEdit
