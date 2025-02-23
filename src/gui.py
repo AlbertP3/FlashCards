@@ -29,7 +29,7 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtCore import Qt, QTimer, QFileSystemWatcher, QEvent
 from logic import MainWindowLogic
-from sw import Tabs
+import tabs
 from utils import fcc_queue, format_seconds_to, Caliper, LogLvl
 from DBAC import FileDescriptor, db_conn
 from widgets import NotificationPopup
@@ -38,7 +38,7 @@ from cfg import config
 log = logging.getLogger("GUI")
 
 
-class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
+class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def __init__(self):
         self.configure_scaling()
@@ -140,7 +140,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
         self.configure_window()
         self.build_layout()
         self.add_shortcuts()
-        Tabs.__init__(self, mw=self)
+        self.init_tabs()
         self.build_layout_extra()
 
     def configure_window(self):
@@ -170,6 +170,27 @@ class MainWindowGUI(QMainWindow, MainWindowLogic, Tabs):
         self.popup = NotificationPopup(self)
         self.active_tab_id: str = "main"
         self.center_window()
+
+    def init_tabs(self):
+        self.tab_names = dict()
+
+        self.fcc = tabs.FccTab(self)
+        self.sod = tabs.SodTab(self)
+        self.efc = tabs.EFCTab(self)
+        self.ldt = tabs.LoadTab(self)
+        self.mst = tabs.MistakesTab(self)
+        self.sta = tabs.StatsTab(self)
+        self.cft = tabs.CfgTab(self)
+        self.trk = tabs.TrackerTab(self)
+        self.log = tabs.LogsTab(self)
+
+        self.efc.init_cross_shortcuts()
+        self.ldt.init_cross_shortcuts()
+        self.mst.init_cross_shortcuts()
+        self.sta.init_cross_shortcuts()
+        self.cft.init_cross_shortcuts()
+        self.trk.init_cross_shortcuts()
+        self.log.init_cross_shortcuts()
 
     def create_ks_mapping(self, ident: str):
         # create dict[window_id][nagivation]=dummy_function

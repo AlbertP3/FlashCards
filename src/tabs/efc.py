@@ -13,7 +13,7 @@ from math import exp
 from utils import fcc_queue, LogLvl, format_seconds_to
 from cfg import config
 from widgets import get_scrollbar
-from sw.base import BaseTab
+from tabs.base import BaseTab
 from DBAC import db_conn
 
 log = logging.getLogger("EFC")

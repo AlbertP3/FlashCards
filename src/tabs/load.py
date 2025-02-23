@@ -13,7 +13,7 @@ from widgets import CFIDialog
 from widgets import get_scrollbar
 from cfg import config
 from DBAC import db_conn, FileDescriptor
-from sw.base import BaseTab
+from tabs.base import BaseTab
 
 
 class LoadTab(BaseTab):

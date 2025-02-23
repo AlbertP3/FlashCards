@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QGridLayout, QTextEdit
 from PyQt5.QtCore import Qt
 from utils import fcc_queue, LogLvl, Caliper
 from cfg import config
-from sw.base import BaseTab
+from tabs.base import BaseTab
 from DBAC import db_conn
 
 

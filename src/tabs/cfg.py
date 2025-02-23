@@ -18,7 +18,7 @@ from widgets import CheckableComboBox, ScrollableOptionsWidget, get_scrollbar
 from utils import fcc_queue, LogLvl
 from cfg import config, validate
 from DBAC import db_conn
-from sw.base import BaseTab
+from tabs.base import BaseTab
 
 log = logging.getLogger("GUI")
 

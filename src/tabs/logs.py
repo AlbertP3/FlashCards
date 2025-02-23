@@ -19,7 +19,7 @@ from widgets import CheckableComboBox, get_scrollbar
 from utils import fcc_queue
 from cfg import config
 from tracker.dal import dal as tracker_dal
-from sw.base import BaseTab
+from tabs.base import BaseTab
 from DBAC import db_conn
 
 log = logging.getLogger("GUI")

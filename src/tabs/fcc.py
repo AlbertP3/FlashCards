@@ -1,6 +1,6 @@
 from fcc import FCC
 from utils import fcc_queue
-from sw.base import BaseConsole
+from tabs.base import BaseConsole
 
 
 class FccTab(BaseConsole):

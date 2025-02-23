@@ -1,4 +1,4 @@
-from sw.base import BaseConsole
+from tabs.base import BaseConsole
 from SOD.init import SODspawn
 
 

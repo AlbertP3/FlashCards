@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QWidget
 from tracker import Tracker
 from tracker.dal import dal
-from sw.base import BaseTab
+from tabs.base import BaseTab
 
 
 class TrackerTab(BaseTab):

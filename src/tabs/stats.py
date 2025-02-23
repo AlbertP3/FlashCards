@@ -9,7 +9,7 @@ from matplotlib.ticker import FormatStrFormatter
 from cfg import config
 from utils import format_seconds_to, fcc_queue, LogLvl, format_timedelta, get_sign
 from DBAC import db_conn
-from sw.base import BaseTab
+from tabs.base import BaseTab
 
 log = logging.getLogger("GUI")
 
