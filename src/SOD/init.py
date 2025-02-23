@@ -11,7 +11,6 @@ class SODspawn:
 
     def __init__(self, stream_out):
         self.sout = stream_out
-        self.sout.editable_output = ""
         self.cli = CLI(output=self.sout)
         self.sout.console_prompt = self.cli.prompt.PHRASE
         self.cli.send_output(self.sout.console_prompt)

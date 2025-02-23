@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import logging
 import statistics
+from cfg import config
 
 log = logging.getLogger("DBA")
 
@@ -9,7 +10,7 @@ log = logging.getLogger("DBA")
 class DbEFCQueries:
     def filter_for_efc_model(self, lngs: list = None):
         # Remove mistakes, obsolete lngs and first revs
-        self.db = self.db[self.db["LNG"].isin(lngs or self.config["languages"])]
+        self.db = self.db[self.db["LNG"].isin(lngs or config["languages"])]
         self.db = self.db[self.db["KIND"] == self.KINDS.rev]
         self.db = self.db.loc[self.db["IS_FIRST"] == 0]
         self.filters["EFC_MODEL"] = True

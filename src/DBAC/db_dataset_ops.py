@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import os
 import csv
 from utils import fcc_queue, LogLvl
+from cfg import config
 
 log = logging.getLogger("DBA")
 
@@ -70,7 +71,7 @@ class DbDatasetOps:
 
     def gen_signature(self, language) -> str:
         """Create a globally unique identifier. Uses a custom pattern if available."""
-        if base := self.config["sigenpat"].get(language):
+        if base := config["sigenpat"].get(language):
             all_filenames = self.get_all_files(use_basenames=True, excl_ext=True)
             for i in range(1, 1001):
                 tmp = f"{base}{i}"
@@ -146,7 +147,7 @@ class DbDatasetOps:
         self.partition_mistakes_data(buffer)
         self.update_fds()
         m_cnt = len(mistakes_list)
-        self.config["mst"]["unreviewed"] += m_cnt
+        config["mst"]["unreviewed"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes'
         fcc_queue.put_notification(msg, lvl=LogLvl.info)
         log.info(msg)
@@ -157,7 +158,7 @@ class DbDatasetOps:
         mst_1 = self.make_filepath(
             self.active_file.lng, self.MST_DIR, f"{name_fmt}1.csv"
         )
-        part_size = self.config["mst"]["part_size"]
+        part_size = config["mst"]["part_size"]
         parts = [
             buffer.iloc[i : i + part_size] for i in range(0, len(buffer), part_size)
         ]
@@ -171,7 +172,7 @@ class DbDatasetOps:
     def rotate_mistakes_files(self):
         """Rotates CSV files with a base name and a numbered suffix"""
         name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
-        max_count = self.config["mst"]["part_cnt"]
+        max_count = config["mst"]["part_cnt"]
 
         # Delete the oldest file if it exceeds the max count
         oldest_file = self.make_filepath(
@@ -209,7 +210,7 @@ class DbDatasetOps:
         self.active_file.data.to_csv(
             self.TMP_BACKUP_PATH, index=False, mode="w", header=True
         )
-        self.config.cache["snapshot"]["file"] = {
+        config.cache["snapshot"]["file"] = {
             "filepath": self.TMP_BACKUP_PATH,
             "kind": self.active_file.kind,
             "basename": self.active_file.basename,
@@ -312,10 +313,10 @@ class DbDatasetOps:
 
     def shuffle_dataset(self, seed=None):
         if seed:
-            pd_random_seed = self.config["pd_random_seed"]
+            pd_random_seed = config["pd_random_seed"]
         else:
             pd_random_seed = random.randrange(10000)
-        self.config.update({"pd_random_seed": pd_random_seed})
+        config.update({"pd_random_seed": pd_random_seed})
         self.__AF.data = self.__AF.data.sample(
             frac=1, random_state=pd_random_seed
         ).reset_index(drop=True)
@@ -327,7 +328,7 @@ class DbDatasetOps:
             dtype=str,
             sep=(
                 self.get_dialect(file_path)
-                if self.config.translate("csv_sniffer")
+                if config.translate("csv_sniffer")
                 else ","
             ),
             index_col=False,
@@ -346,7 +347,7 @@ class DbDatasetOps:
             csv.Sniffer()
             .sniff(
                 str(data[1]) + "\n" + str(data[2]),
-                delimiters=self.config.translate("csv_sniffer"),
+                delimiters=config.translate("csv_sniffer"),
             )
             .delimiter
         )
@@ -365,7 +366,7 @@ class DbDatasetOps:
     def update_fds(self) -> None:
         """Finds files matching active Languages"""
         self.files: dict[os.PathLike, FileDescriptor] = dict()
-        for lng in self.config["languages"]:
+        for lng in config["languages"]:
             self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)
             self.__update_files(lng, self.LNG_DIR, kind=self.KINDS.lng)
             self.__update_files(lng, self.MST_DIR, kind=self.KINDS.mst)

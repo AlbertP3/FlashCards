@@ -1,11 +1,11 @@
 import pandas as pd
 import os
 import logging
-from utils import fcc_queue, singleton
+from utils import singleton
 from cfg import config
 from DBAC.db_queries import DBQueries
 from DBAC.db_efc import DbEFCQueries
-from DBAC.db_dataset_ops import DbDatasetOps, FileDescriptor
+from DBAC.db_dataset_ops import DbDatasetOps
 
 log = logging.getLogger("DBA")
 pd.options.mode.chained_assignment = None
@@ -14,7 +14,6 @@ pd.options.mode.chained_assignment = None
 @singleton
 class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
     def __init__(self):
-        self.config = config
         self.__configure()
         self.__validate_env()
         DbDatasetOps.__init__(self)
@@ -66,3 +65,6 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
         if not os.path.exists(self.DATA_PATH):
             os.makedirs(self.DATA_PATH)
             log.info(f"Created a new Data path: {self.DATA_PATH}")
+
+
+db = DbOperator()
