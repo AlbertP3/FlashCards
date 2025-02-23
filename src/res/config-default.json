@@ -12,8 +12,7 @@
         "show_percent_stats": true,
         "dynamic_summary": true,
         "hide_timer": false,
-        "show_cpm_timer": false,
-        "keep_window_size": true
+        "show_cpm_timer": false
     },
     "days_to_new_rev": 0,
     "pd_random_seed": 9022,
@@ -134,7 +133,7 @@
         "reverse": "Up",
         "del_cur_card": "d",
         "load_again": "r",
-        "timespent": "t",
+        "tracker": "t",
         "progress": "p",
         "config": "q",
         "fcc": "c",
@@ -308,50 +307,8 @@
         }
     },
     "sigenpat": {},
-    "geo": {
-        "default": [
-            1504,
-            886
-        ],
-        "main": [
-            476,
-            452
-        ],
-        "load": [
-            475,
-            450
-        ],
-        "efc": [
-            475,
-            450
-        ],
-        "config": [
-            682,
-            715
-        ],
-        "fcc": [
-            822,
-            430
-        ],
-        "sod": [
-            912,
-            421
-        ],
-        "mistakes": [
-            878,
-            498
-        ],
-        "stats": [
-            852,
-            498
-        ],
-        "progress": [
-            880,
-            498
-        ],
-        "timer": [
-            362,
-            415
-        ]
-    }
+    "geo": [
+        1504,
+        886
+    ]
 }

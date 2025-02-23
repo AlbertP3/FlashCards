@@ -45,7 +45,6 @@ log.debug(f"Launching Flashcards {cfg.config['version']}")
 
 from main_window_gui import MainWindowGUI
 
-MainWindowGUI.configure_scaling()
 mw = MainWindowGUI()
 
 

@@ -194,7 +194,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | sck       | Show Config Key: Syntax: sck *{sub_dict} {key}                                                                                            |
 | cls       | Clear Screen                                                                                                                              |
 | cfn       | Change File Name - changes currently loaded file_path, filename and all records in DB for this signature                                  |
-| sah       | Show Progress Chart for all languages                                                                                                     |
 | scs       | Show Current Signature                                                                                                                    |
 | lor       | List Obsolete Revisions - returns a list of *Revisions* that are in DB but not in *Revisions* folder.                                     |
 | gwd       | Get Window Dimensions                                                                                                                     |

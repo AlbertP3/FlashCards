@@ -36,18 +36,6 @@ class Config(UserDict):
         else:
             return val_on or self.data[key]
 
-    def get_geo(self, id_: str) -> list[int, int]:
-        if self.data["opt"]["keep_window_size"]:
-            return self.data["geo"]["default"]
-        else:
-            return self.data["geo"][id_]
-
-    def set_geo(self, id_: str, value: list[int]) -> None:
-        if self.data["opt"]["keep_window_size"]:
-            self.data["geo"]["default"] = value
-        else:
-            self.data["geo"][id_] = value
-
 
 def __validate(cfg: Config) -> tuple[bool, set]:
     errs = set()

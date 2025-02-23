@@ -1,36 +1,32 @@
-from sw.fcc import FccSideWindow
-from sw.efc import EFCSideWindow
-from sw.load import LoadSideWindow
-from sw.mst import MistakesSideWindow
-from sw.stats import StatsSideWindow
-from sw.prog import ProgressSideWindow
-from sw.cfg import ConfigSideWindow
-from sw.timer import TimerSideWindow
-from sw.logs import LogsSideWindow
+from sw.fcc import FccTab
+from sw.efc import EFCTab
+from sw.load import LoadTab
+from sw.mst import MistakesTab
+from sw.stats import StatsTab
+from sw.cfg import CfgTab
+from sw.trk import TrackerTab
+from sw.logs import LogsTab
+from sw.sod import SodTab
 
 
-class SideWindows(
-    FccSideWindow,
-    EFCSideWindow,
-    LoadSideWindow,
-    MistakesSideWindow,
-    StatsSideWindow,
-    ProgressSideWindow,
-    ConfigSideWindow,
-    TimerSideWindow,
-    LogsSideWindow,
-):
-    def __init__(self):
-        self.side_window_titles = dict()
-        FccSideWindow.__init__(self)
-        EFCSideWindow.__init__(self)
-        LoadSideWindow.__init__(self)
-        MistakesSideWindow.__init__(self)
-        StatsSideWindow.__init__(self)
-        ProgressSideWindow.__init__(self)
-        ConfigSideWindow.__init__(self)
-        TimerSideWindow.__init__(self)
-        LogsSideWindow.__init__(self)
+class Tabs:
+    def __init__(self, mw):
+        self.tab_names = dict()
 
-    def __del__(self):
-        del self
+        self.fcc = FccTab(mw)
+        self.sod = SodTab(mw)
+        self.efc = EFCTab(mw)
+        self.ldt = LoadTab(mw)
+        self.mst = MistakesTab(mw)
+        self.sta = StatsTab(mw)
+        self.cft = CfgTab(mw)
+        self.trk = TrackerTab(mw)
+        self.log = LogsTab(mw)
+
+        self.efc.init_cross_shortcuts()
+        self.ldt.init_cross_shortcuts()
+        self.mst.init_cross_shortcuts()
+        self.sta.init_cross_shortcuts()
+        self.cft.init_cross_shortcuts()
+        self.trk.init_cross_shortcuts()
+        self.log.init_cross_shortcuts()

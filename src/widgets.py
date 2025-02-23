@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QDialog,
     QFormLayout,
     QLineEdit,
+    QScrollBar,
 )
 from PyQt5.QtCore import (
     Qt,
@@ -368,3 +369,9 @@ class CFIDialog(QDialog):
         btn.setFont(self.qfont)
         btn.clicked.connect(func)
         return btn
+
+
+def get_scrollbar() -> QScrollBar:
+    scrollbar = QScrollBar()
+    scrollbar.setStyleSheet(config["theme"]["scrollbar_stylesheet"])
+    return scrollbar
