@@ -1,59 +1,68 @@
+import logging
+from datetime import datetime
 from PyQt5 import QtGui
-import PyQt5.QtWidgets as widget
+from PyQt5.QtWidgets import QWidget, QGridLayout, QPushButton
 from PyQt5.QtCore import Qt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.ticker import FormatStrFormatter
-from utils import format_seconds_to, fcc_queue, LogLvl
 from cfg import config
-from stats import Stats
+from utils import format_seconds_to, fcc_queue, LogLvl, format_timedelta, get_sign
+from DBAC import db_conn
+from sw.base import BaseTab
+
+log = logging.getLogger("GUI")
 
 
-class StatsSideWindow(Stats):
+class StatsTab(BaseTab):
 
-    def __init__(self):
-        self.side_window_titles["stats"] = "Statistics"
-        Stats.__init__(self)
-        self.stats_button = self.create_button(
-            self.config["icons"]["stats"], self.get_stats_sidewindow
+    def __init__(self, mw):
+        super().__init__()
+        self.mw = mw
+        self.id = "stats"
+        self.upd = 0
+        self.sig = ""
+        self.mw.tab_names[self.id] = "Statistics"
+        self.build()
+        self.mw.add_tab(self._tab, self.id)
+
+    @property
+    def cache_valid(self):
+        return (
+            self.upd >= db_conn.last_load and self.sig == self.mw.active_file.signature
         )
-        self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
-        self.init_shortcuts_stats()
 
-    def init_shortcuts_stats(self):
-        self.add_shortcut("stats", self.get_stats_sidewindow, "main")
-        self.add_shortcut("efc", self.get_efc_sidewindow, "stats")
-        self.add_shortcut("load", self.get_load_sidewindow, "stats")
-        self.add_shortcut("progress", self.get_progress_sidewindow, "stats")
-        self.add_shortcut("timespent", self.get_timer_sidewindow, "stats")
-        self.add_shortcut("config", self.get_config_sidewindow, "stats")
-        self.add_shortcut("mistakes", self.get_mistakes_sidewindow, "stats")
-        self.add_shortcut("fcc", self.get_fcc_sidewindow, "stats")
-        self.add_shortcut("sod", self.get_sod_sidewindow, "stats")
-
-    def get_stats_sidewindow(self):
-        if self.active_file.kind == self.db.KINDS.rev:
-            self.arrange_stats_sidewindow()
-            self.open_side_window(self.stats_layout, "stats")
+    def open(self):
+        if self.mw.active_file.kind == db_conn.KINDS.rev:
+            self.mw.switch_tab(self.id)
+            if not self.cache_valid:
+                self.show()
+                self.upd = db_conn.last_load
+                self.sig = self.mw.active_file.signature
         else:
             fcc_queue.put_notification(
-                f"Statistics are not available for a {self.db.KFN[self.active_file.kind]}",
-                lvl=LogLvl.warn
+                f"Statistics are not available for a {db_conn.KFN[self.mw.active_file.kind]}",
+                lvl=LogLvl.warn,
             )
 
-    def arrange_stats_sidewindow(self):
-        self.get_data_for_current_revision(self.active_file.signature)
+    def show(self):
+        self.get_data_for_current_revision(self.mw.active_file.signature)
         self.get_stats_chart()
         self.get_stats_table()
-        self.stats_layout = widget.QGridLayout()
-        self.stats_layout.addWidget(self.canvas, 0, 0)
-        self.stats_layout.addLayout(self.stat_table, 1, 0)
 
-    def get_stats_chart(self):
+    def build(self):
+        self._tab = QWidget()
+        self.stats_layout = QGridLayout()
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
-        rect = None
+        self.stats_layout.addWidget(self.canvas, 0, 0)
+        self.stat_table = QGridLayout()
+        self.stats_layout.addLayout(self.stat_table, 1, 0)
+        self.set_box(self.stats_layout)
+        self._tab.setLayout(self.stats_layout)
 
+    def get_stats_chart(self):
+        rect = None
         ax = self.figure.add_subplot()
         ax.bar(
             self.formatted_dates,
@@ -83,26 +92,26 @@ class StatsSideWindow(Stats):
                 label,
                 ha="center",
                 va="bottom",
-                color=self.config["theme"]["stat_chart_text_color"],
-                fontsize=self.config["dim"]["font_stats_size"],
+                color=config["theme"]["stat_chart_text_color"],
+                fontsize=config["dim"]["font_stats_size"],
             )
 
         # horizontal line at EFC predicate
-        if rect and self.config["opt"]["show_efc_line"]:
+        if rect and config["opt"]["show_efc_line"]:
             ax.axhline(
                 y=self.total_cards * 0.8, color="#a0a0a0", linestyle="--", zorder=-3
             )
             ax.text(
                 rect.get_x() + rect.get_width() / 1,
                 self.total_cards * 0.8,
-                f'{self.config["efc"]["threshold"]}%',
+                f'{config["efc"]["threshold"]}%',
                 va="bottom",
                 color="#a0a0a0",
-                fontsize=self.config["dim"]["font_stats_size"],
+                fontsize=config["dim"]["font_stats_size"],
             )
 
         # add labels - time spent
-        if self.config["opt"]["show_cpm_stats"]:
+        if config["opt"]["show_cpm_stats"]:
             time_spent_labels = [
                 "{:.0f}".format(self.total_cards / (x / 60)) if x else "-"
                 for x in self.time_spent_seconds
@@ -117,20 +126,20 @@ class StatsSideWindow(Stats):
                 textcoords="offset points",
                 xytext=(0, 5),
                 ha="center",
-                color=self.config["theme"]["stat_chart_text_color"],
-                fontsize=self.config["dim"]["font_stats_size"],
+                color=config["theme"]["stat_chart_text_color"],
+                fontsize=config["dim"]["font_stats_size"],
             )
 
         # Style
-        self.figure.set_facecolor(self.config["theme"]["stat_background_color"])
-        ax.set_facecolor(self.config["theme"]["stat_chart_background_color"])
+        self.figure.set_facecolor(config["theme"]["stat_background_color"])
+        ax.set_facecolor(config["theme"]["stat_chart_background_color"])
         ax.yaxis.set_major_formatter(FormatStrFormatter("%.0f"))
         ax.set_ylim([0, self.total_cards + 2])
         ax.tick_params(
-            colors=self.config["theme"]["stat_chart_text_color"],
+            colors=config["theme"]["stat_chart_text_color"],
             labelrotation=0,
             pad=1,
-            labelsize=self.config["dim"]["font_stats_size"],
+            labelsize=config["dim"]["font_stats_size"],
         )
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
@@ -141,8 +150,6 @@ class StatsSideWindow(Stats):
         self.canvas.draw()
 
     def get_stats_table(self):
-        self.stat_table = widget.QGridLayout()
-
         self.repeated_times_button = self.create_stats_button(
             f'Repeated\n{self.sum_repeated} time{"s" if self.sum_repeated > 1 else ""}'
         )
@@ -194,22 +201,94 @@ class StatsSideWindow(Stats):
             )
             self.missing_records_adj = f"±{fmt_time}"
 
-        self.total_time_spent = self.create_stats_button(f"Spent\n{self.missing_records_adj}")
+        self.total_time_spent = self.create_stats_button(
+            f"Spent\n{self.missing_records_adj}"
+        )
 
         self.stat_table.addWidget(self.repeated_times_button, 0, 0)
         self.stat_table.addWidget(self.days_from_last_rev, 0, 1)
         self.stat_table.addWidget(self.days_from_creation, 0, 2)
         self.stat_table.addWidget(self.total_time_spent, 0, 3)
 
-    def create_stats_button(self, text: str) -> widget.QPushButton:
-        new_button = widget.QPushButton(self)
-        new_button.setMinimumHeight(self.config["dim"]["stats_btn_height"])
+    def create_stats_button(self, text: str) -> QPushButton:
+        new_button = QPushButton()
+        new_button.setMinimumHeight(config["dim"]["stats_btn_height"])
         new_button.setFont(
-            QtGui.QFont(
-                self.config["theme"]["font"], self.config["dim"]["font_stats_size"]
-            )
+            QtGui.QFont(config["theme"]["font"], config["dim"]["font_stats_size"])
         )
         new_button.setText(text)
-        new_button.setStyleSheet(self.config["theme"]["button_stylesheet"])
+        new_button.setStyleSheet(config["theme"]["button_stylesheet"])
         new_button.setFocusPolicy(Qt.NoFocus)
         return new_button
+
+    def get_data_for_current_revision(self, signature):
+        db_conn.refresh()
+        db_conn.filter_where_signature_is_equal_to(signature)
+        self.chart_values = db_conn.get_chart_positives()
+        self.chart_dates = db_conn.get_chart_dates()
+        self.total_cards = db_conn.get_total_words()
+        self.total_seconds_spent = db_conn.get_total_time_spent_for_signature()
+        self.time_spent_seconds = db_conn.get_chart_time_spent()
+        self.missing_records_cnt = db_conn.get_count_of_records_missing_time()
+        self.time_spent_minutes = [
+            datetime.fromtimestamp(x).strftime("%M:%S") for x in self.time_spent_seconds
+        ]
+        self.formatted_dates = [date.strftime("%d-%m\n%Y") for date in self.chart_dates]
+        self.sum_repeated = db_conn.get_sum_repeated(db_conn.active_file.signature)
+        self.days_ago = format_timedelta(
+            db_conn.get_timedelta_from_creation(db_conn.active_file.signature)
+        )
+        self.last_rev_days_ago = format_timedelta(
+            db_conn.get_timedelta_from_last_rev(db_conn.active_file.signature)
+        )
+
+        # Create Dynamic Chain Index
+        if config["opt"]["show_percent_stats"]:
+            self.create_dynamic_chain_percentages(tight_format=True)
+        else:
+            self.create_dynamic_chain_values(tight_format=True)
+        db_conn.refresh()
+
+    def create_dynamic_chain_values(self, tight_format: bool = True):
+        self.dynamic_chain_index = [
+            self.chart_values[0] if len(self.chart_values) >= 1 else ""
+        ]
+        tight_format = "\n" if tight_format else " "
+        [
+            self.dynamic_chain_index.append(
+                "{main_val}{tf}({sign_}{dynamic})".format(
+                    main_val=self.chart_values[x],
+                    tf=tight_format,
+                    sign_=get_sign(
+                        self.chart_values[x] - self.chart_values[x - 1], neg_sign=""
+                    ),
+                    dynamic=self.chart_values[x] - self.chart_values[x - 1],
+                )
+            )
+            for x in range(1, len(self.chart_values))
+        ]
+
+    def create_dynamic_chain_percentages(self, tight_format: bool = True):
+        self.dynamic_chain_index = [
+            (
+                "{:.0%}".format(self.chart_values[0] / self.total_cards)
+                if len(self.chart_values) >= 1
+                else ""
+            )
+        ]
+        tight_format = "\n" if tight_format else " "
+        [
+            self.dynamic_chain_index.append(
+                "{main_val:.0%}{tf}{sign_}{dynamic:.0f}pp".format(
+                    main_val=self.chart_values[x] / self.total_cards,
+                    tf=tight_format,
+                    sign_=get_sign(
+                        self.chart_values[x] - self.chart_values[x - 1], neg_sign=""
+                    ),
+                    dynamic=100
+                    * (self.chart_values[x] - self.chart_values[x - 1])
+                    / self.total_cards,
+                )
+            )
+            for x in range(1, len(self.chart_values))
+        ]
