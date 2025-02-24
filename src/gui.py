@@ -204,7 +204,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def switch_tab(self, name: str):
         if name == self.active_tab_id:
             return
-        
+
         self.active_tab_id = name
         self.setWindowTitle(self.tab_names[name])
         self.tabs.setCurrentIndex(self.tab_map[name])
@@ -217,15 +217,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.stop_pace_timer()
 
     def build_layout(self):
-        self.textbox_stylesheet = config["theme"]["textbox_stylesheet"]
-        self.button_stylesheet = config["theme"]["button_stylesheet"]
         self.LAYOUT_MARGINS = (0, 0, 0, 0)
-        self.BUTTONS_HEIGHT = config["dim"]["buttons_height"]
-        self.FONT = config["theme"]["font"]
-        self.FONT_BUTTON_SIZE = config["dim"]["font_button_size"]
-        self.FONT_TEXTBOX_SIZE = config["dim"]["font_textbox_size"]
-        self.TEXTBOX_FONT = QFont(self.FONT, self.FONT_TEXTBOX_SIZE)
-        self.BUTTON_FONT = QFont(self.FONT, self.FONT_BUTTON_SIZE)
 
         self.main_tab = QWidget()
         self.main_tab_layout = QVBoxLayout(self.main_tab)
@@ -237,7 +229,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tabs.setContentsMargins(*self.LAYOUT_MARGINS)
         self.add_tab(self.main_tab, "main")
 
-        self.setStyleSheet(config["theme"]["main_stylesheet"])
+        self.setStyleSheet(config.stylesheet)
         self.setContentsMargins(*self.LAYOUT_MARGINS)
         self.setCentralWidget(self.tabs)
 
@@ -332,21 +324,20 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def create_hint_qbutton(self):
         self.hint_qbutton = QPushButton(config["icons"]["hint"], self)
-        self.hint_qbutton.setFont(QFont(self.FONT, self.FONT_BUTTON_SIZE))
+        self.hint_qbutton.setFont(config.qfont_button)
         self.hint_qbutton.setFixedSize(
             config["dim"]["hint_size"], config["dim"]["hint_size"]
         )
         self.hint_qbutton.setFocusPolicy(Qt.NoFocus)
-        self.hint_qbutton.setStyleSheet(config["theme"]["hint_stylesheet"])
         self.hint_qbutton.clicked.connect(self.show_hint)
         self.layout_first_row.addWidget(
             self.hint_qbutton, 0, 0, Qt.AlignBottom | Qt.AlignRight
         )
         self.hint_qbutton.hide()
 
-    # TODO implement theme setting
     def set_theme(self):
-        return
+        config.load_theme()
+        config.load_qfonts()
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
 
@@ -356,14 +347,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def create_textbox(self):
         self.textbox = QTextEdit(self)
         self.textbox_last_selection = ""
-        self.textbox.setFont(self.TEXTBOX_FONT)
+        self.textbox.setFont(config.qfont_textbox)
         self.textbox.setReadOnly(True)
-        self.textbox.setStyleSheet(self.textbox_stylesheet)
         self.textbox.setAlignment(Qt.AlignCenter)
         self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.textbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.__attach_textbox_ctx()
-        self.tb_cal = Caliper(self.TEXTBOX_FONT)
+        self.tb_cal = Caliper(config.qfont_textbox)
         self.tb_cmg = 0.93
         self.tb_vp = (
             self.tb_cmg * config["geo"][0],
@@ -383,9 +373,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tb_vp = (self.tb_cmg * w, self.tb_cmg * h)
 
     def __attach_textbox_ctx(self):
-        self.textbox_ctx = QMenu()
-        self.textbox_ctx.setStyleSheet(config["theme"]["ctx_stylesheet"])
-        self.textbox_ctx.setFont(self.BUTTON_FONT)
+        self.textbox_ctx = QMenu(self.textbox)
+        self.textbox_ctx.setFont(config.qfont_button)
         self.textbox.setContextMenuPolicy(Qt.CustomContextMenu)
         copy_action = QAction("Copy", self.textbox)
         copy_action.triggered.connect(self.textbox.copy)
@@ -457,21 +446,19 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def create_button(self, text, function=None) -> QPushButton:
         button = QPushButton(self)
-        button.setFixedHeight(self.BUTTONS_HEIGHT)
-        button.setFont(self.BUTTON_FONT)
+        button.setFixedHeight(config["dim"]["buttons_height"])
+        button.setFont(config.qfont_button)
         button.setText(text)
         button.setFocusPolicy(Qt.NoFocus)
-        button.setStyleSheet(self.button_stylesheet)
         if function is not None:
             button.clicked.connect(function)
         return button
 
     def create_label(self, text) -> QLabel:
         label = QLabel(self)
-        label.setFont(self.BUTTON_FONT)
+        label.setFont(config.qfont_button)
         label.setText(text)
         label.setFocusPolicy(Qt.NoFocus)
-        label.setStyleSheet(self.button_stylesheet)
         return label
 
     def show_hint(self):
@@ -488,12 +475,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         # Ensure text fits the textbox
         nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
         if nl > self.tb_nl:
-            font_size = int(self.FONT_TEXTBOX_SIZE * self.tb_nl / nl)
-            qfm = QFontMetricsF(QFont(self.FONT, font_size))
+            font_size = int(config["dim"]["font_textbox_size"] * self.tb_nl / nl)
+            qfm = QFontMetricsF(QFont(config["theme"]["font"], font_size))
             nl_ = qfm.horizontalAdvance(text) // self.tb_vp[0] + 1
             margin_top = int((self.tb_vp[1] - qfm.lineSpacing() * nl_) / 2)
         else:
-            font_size = self.FONT_TEXTBOX_SIZE
+            font_size = config["dim"]["font_textbox_size"]
             margin_top = int((self.tb_vp[1] - self.tb_cal.ls * nl - self.tb_cal.ls) / 2)
         margin_top = margin_top if margin_top > 0 else 0
         self.textbox.setFontPointSize(font_size)

@@ -67,6 +67,6 @@ class TimeChartCanvas:
         )
         self.figure.tight_layout()
         ax.get_yaxis().set_visible(False)
-        self.figure.subplots_adjust(left=0, bottom=0.08, right=1, top=1)
+        self.figure.subplots_adjust(left=0, bottom=0.1, right=1, top=1)
 
         self.canvas.draw()

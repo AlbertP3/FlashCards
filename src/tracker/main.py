@@ -4,7 +4,6 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QWidget,
 )
-from PyQt5.QtGui import QFont
 from enum import Enum
 from cfg import config
 from tracker.prog import ProgressChartCanvas
@@ -32,7 +31,6 @@ class Tracker(QGridLayout):
     def __init__(self):
         super().__init__()
         self.trk_tab_map = {}
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(1)
         self.create_tabs()
@@ -41,8 +39,7 @@ class Tracker(QGridLayout):
 
     def create_tabs(self):
         self.trk_tabs = QTabWidget()
-        self.trk_tabs.setStyleSheet(config["theme"]["ctx_stylesheet"])
-        self.trk_tabs.setFont(self.qfont)
+        self.trk_tabs.setFont(config.qfont_button)
         self.trk_tabs.setContentsMargins(1, 1, 1, 1)
 
         self.add_tab(self.get_timetable_tab(), TAB.TimeTable.value)

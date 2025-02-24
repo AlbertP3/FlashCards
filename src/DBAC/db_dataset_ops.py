@@ -7,7 +7,7 @@ from datetime import datetime
 from dataclasses import dataclass
 import os
 import csv
-from utils import fcc_queue, LogLvl
+from utils import fcc_queue, LogLvl, translate
 from cfg import config
 
 log = logging.getLogger("DBA")
@@ -328,7 +328,7 @@ class DbDatasetOps:
             dtype=str,
             sep=(
                 self.get_dialect(file_path)
-                if config.translate("csv_sniffer")
+                if translate(str(config["csv_sniffer"]))
                 else ","
             ),
             index_col=False,
@@ -347,7 +347,7 @@ class DbDatasetOps:
             csv.Sniffer()
             .sniff(
                 str(data[1]) + "\n" + str(data[2]),
-                delimiters=config.translate("csv_sniffer"),
+                delimiters=translate(str(config["csv_sniffer"])),
             )
             .delimiter
         )

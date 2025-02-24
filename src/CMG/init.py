@@ -35,7 +35,7 @@ class CMGSpawn:
 
     def _remove_adapter(self, fup: bool = True):
         self.cli.state = None
-        self.mw.fcc.console_prompt = self.mw.fcc.DEFAULT_PS1
+        self.mw.fcc.console_prompt = config["theme"]["default_ps1"]
         self.mw.setWindowTitle(self.prev_window_title)
         self.mw.fcc.fcc.post_fcc = self.orig_post_method
         self.mw.tab_names["fcc"] = self.prev_window_title

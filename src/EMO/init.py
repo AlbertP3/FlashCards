@@ -1,5 +1,5 @@
 import logging
-from utils import fcc_queue
+from utils import fcc_queue, translate
 from cfg import config
 from EMO.cli import CLI, Steps
 from DBAC import db_conn
@@ -61,7 +61,7 @@ class EMOSpawn:
         self.mw.tab_names["fcc"] = self.prev_window_title
         self.mw.setWindowTitle(self.prev_window_title)
         self.mw.fcc.fcc.execute_command = self.orig_execute_method
-        self.mw.fcc.console_prompt = self.mw.fcc.DEFAULT_PS1
+        self.mw.fcc.console_prompt = config["theme"]["default_ps1"]
         self.mw.fcc.console_log = self.HISTORY
         self.mw.fcc.console.setText("\n".join(self.mw.fcc.console_log))
         self.mw.fcc.console_log.append(self.mw.fcc.console_prompt)
@@ -83,7 +83,7 @@ class EMOSpawn:
             elif self.cli.step == Steps.decide_model:
                 self.cli.decide_model(parsed_cmd)
             elif self.cli.step == Steps.decide_exit:
-                if parsed_cmd and parsed_cmd[0].lower() in {"yes", "y", "1", ""}:
+                if parsed_cmd and translate(parsed_cmd[0], on_empty=True):
                     fcc_queue.put_log("Model Selection cancelled")
                     self.remove_adapter()
                 else:

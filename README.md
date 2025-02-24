@@ -111,7 +111,7 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 
 1. RevisionTimer for recording time spent during a *Revision*
 2. Pace Timer for switching cards after a specified time has passed (turn off by setting to 0)
-3. Timers will stop whenever the Application window is not selected or a side-window is opened
+3. Timers will stop whenever the Application window is not selected or a tab is opened
 
 
 ## Monitoring
@@ -257,18 +257,18 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | reverse      | Up     | reverse side of the current card                               |
 | del_cur_card | d      | remove current card from the set (does not affect source file) |
 | load_again   | r      | load again the current set                                     |
-| timespent    | t      | open TimeSpent sidewindow                                      |
-| progress     | p      | open Progress sidewindow                                       |
-| config       | q      | open Settings sidewindow                                       |
-| fcc          | c      | open Console sidewindow                                        |
-| efc          | e      | open EFC sidewindow                                            |
-| load         | l      | open Load sidewindow                                           |
-| mistakes     | m      | open Mistakes sidewindow                                       |
-| stats        | s      | open Statistics sidewindow                                     |
+| timespent    | t      | open TimeSpent tab                                      |
+| progress     | p      | open Progress tab                                       |
+| config       | q      | open Settings tab                                       |
+| fcc          | c      | open Console tab                                        |
+| efc          | e      | open EFC tab                                            |
+| load         | l      | open Load tab                                           |
+| mistakes     | m      | open Mistakes tab                                       |
+| stats        | s      | open Statistics tab                                     |
 | next_efc     | n      | load next recommendation                                       |
 | run_command  | Insert | placeholder. Executed on 'Enter'                               |
 | save         | w      | save current file or create a revision                         |
-| sod          | f      | open SOD sidewindow                                            |
+| sod          | f      | open SOD tab                                            |
 | hint         | h      | show a hint for current card                                   |
 | last_seen    | g      | go to the last seen card                                       |
 

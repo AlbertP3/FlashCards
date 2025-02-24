@@ -141,7 +141,7 @@ class ProgressChartCanvas:
         self.figure.suptitle(
             title, fontsize=18, y=0.92, color=config["theme"]["font_color"]
         )
-        self.figure.subplots_adjust(left=0, bottom=0.09, right=1, top=1)
+        self.figure.subplots_adjust(left=0, bottom=0.1, right=1, top=1)
 
         # synchronize axes
         max_ = max(self.chart_values.max(), self.second_chart_values.max())

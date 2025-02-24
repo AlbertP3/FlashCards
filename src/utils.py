@@ -373,3 +373,11 @@ def is_valid_filename(filename: str) -> bool:
 
 def get_caller(frame: int = 1) -> str:
     return inspect.stack()[frame].function
+
+
+def translate(text: str, on_empty: bool = False) -> bool:
+    """Parse string to boolean"""
+    if len(text) == 0:
+        return on_empty
+    else:
+        return text.lower() in {"true", "on", "1", "yes", "y"}

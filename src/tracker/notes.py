@@ -14,11 +14,9 @@ class NotesLayout:
         self._create_text_edit()
 
     def _create_text_edit(self):
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_textbox_size"])
         self.qTextEdit = QTextEdit()
-        self.qTextEdit.setFont(self.qfont)
+        self.qTextEdit.setFont(config.qfont_textbox)
         self.qTextEdit.setAcceptRichText(False)
-        self.qTextEdit.setStyleSheet(config["theme"]["textbox_stylesheet"])
         self.qTextEdit.setVerticalScrollBar(get_scrollbar())
         self.qTextEdit.setText(config.cache.get("notes", ""))
         self.qTextEdit.keyPressEvent = self.qte_ks

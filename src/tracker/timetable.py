@@ -1,6 +1,5 @@
 import logging
-from PyQt5.QtWidgets import QTextEdit, QScrollBar
-from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QTextEdit
 from PyQt5.QtCore import Qt
 from datetime import date, datetime
 from collections import OrderedDict
@@ -21,26 +20,19 @@ class TimeTablePrintout:
         self._create_text_edit()
 
     def _create_text_edit(self):
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
-        self.caliper = Caliper(self.qfont)
+        self.caliper = Caliper(config.qfont_button)
         self.qTextEdit = QTextEdit()
-        self.qTextEdit.setFont(self.qfont)
+        self.qTextEdit.setFont(config.qfont_button)
         self.qTextEdit.setAcceptRichText(False)
-        self.qTextEdit.setStyleSheet(config["theme"]["textbox_stylesheet"])
         self.qTextEdit.setVerticalScrollBar(get_scrollbar())
         self.qTextEdit.contextMenuEvent = lambda *args, **kwargs: None
         self.qTextEdit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.qTextEdit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.qTextEdit.setReadOnly(True)
 
-    def _get_scrollbar(self) -> QScrollBar:
-        scrollbar = QScrollBar()
-        scrollbar.setStyleSheet(config["theme"]["scrollbar_stylesheet"])
-        return scrollbar
-
     @property
     def lines_lim(self) -> int:
-        return int(0.95 * config["geo"][1] // self.caliper.sch) - 1
+        return int(config["geo"][1] // self.caliper.sch)
 
     def get(self) -> QTextEdit:
         return self.qTextEdit

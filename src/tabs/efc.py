@@ -98,8 +98,7 @@ class EFCTab(BaseTab):
     def create_recommendations_list(self):
         self.recoms_qlist = QListWidget()
         self.recoms_qlist.setFixedWidth(self.qlist_width)
-        self.recoms_qlist.setFont(self.BUTTON_FONT)
-        self.recoms_qlist.setStyleSheet(self.textbox_stylesheet)
+        self.recoms_qlist.setFont(config.qfont_button)
         self.recoms_qlist.setVerticalScrollBar(get_scrollbar())
         self.recoms_qlist.itemClicked.connect(self.__recoms_qlist_onclick)
         self.recoms_qlist.itemDoubleClicked.connect(self.__recoms_qlist_onDoubleClick)
@@ -114,11 +113,10 @@ class EFCTab(BaseTab):
 
     def create_load_efc_button(self):
         efc_button = QPushButton()
-        efc_button.setFixedHeight(self.BUTTON_HEIGHT)
+        efc_button.setFixedHeight(config["dim"]["buttons_height"])
         efc_button.setFixedWidth(self.qlist_width)
-        efc_button.setFont(self.BUTTON_FONT)
+        efc_button.setFont(config.qfont_button)
         efc_button.setText("Load")
-        efc_button.setStyleSheet(self.button_stylesheet)
         efc_button.clicked.connect(self.load_selected_efc)
         return efc_button
 

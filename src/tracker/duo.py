@@ -5,16 +5,14 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QLineEdit,
-    QCheckBox,
     QPushButton,
     QFormLayout,
     QTextEdit,
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
 from cfg import config
 from widgets import CheckableComboBox
-from utils import format_seconds_to, Caliper
+from utils import format_seconds_to, Caliper, translate
 from DBAC import db_conn
 from tracker.dal import dal
 from tracker.helpers import parse_to_seconds, safe_div, merge_records_by_date, get_chart
@@ -27,13 +25,8 @@ class DuoLayout(QWidget):
     def __init__(self):
         super().__init__()
         self.upd = -1
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["console_font_size"])
-        self.qfont_chart = QFont(
-            config["theme"]["font"], config["dim"]["font_stats_size"]
-        )
-        self.caliper = Caliper(self.qfont_chart)
-        self.setStyleSheet(config["theme"]["textbox_stylesheet"])
-        self.setFont(self.qfont)
+        self.caliper = Caliper(config.qfont_chart)
+        self.setFont(config.qfont_button)
         self.layout = QGridLayout()
         self.create_form()
         self.create_charts()
@@ -42,11 +35,11 @@ class DuoLayout(QWidget):
 
     @property
     def lines_lim(self) -> int:
-        return int(0.95 * config["geo"][1] // self.caliper.sch)
+        return int(0.94 * config["geo"][1] / self.caliper.sch)
 
     @property
     def pix_lim(self) -> int:
-        return int(self.chart_qte.width())
+        return int(config["geo"][0] / 1.5)
 
     def get(self) -> QGridLayout:
         return self.layout
@@ -115,7 +108,11 @@ class DuoLayout(QWidget):
         self.offset_qle = self.get_qle("0")
         self.form_layout.addRow("Offset", self.offset_qle)
 
-        self.final_cbx = self.get_qcb()
+        self.final_cbx = self.get_cbx(
+            "False",
+            ["False", "True"],
+            multi_choice=False
+        )
         self.form_layout.addRow("Final", self.final_cbx)
 
         self.submit_btn = self.get_btn("Add", self.on_submit)
@@ -130,16 +127,14 @@ class DuoLayout(QWidget):
 
     def get_qle(self, placeholder: str = "") -> QLineEdit:
         qle = QLineEdit()
-        qle.setFont(self.qfont)
-        qle.setStyleSheet(config["theme"]["textbox_stylesheet"])
+        qle.setFont(config.qfont_console)
         qle.setAlignment(Qt.AlignCenter)
         qle.setPlaceholderText(placeholder)
         return qle
 
     def get_qte(self) -> QTextEdit:
         qte = QTextEdit()
-        qte.setFont(self.qfont_chart)
-        qte.setStyleSheet(config["theme"]["textbox_stylesheet"])
+        qte.setFont(config.qfont_chart)
         qte.setContentsMargins(0, 0, 0, 0)
         qte.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         qte.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -152,8 +147,6 @@ class DuoLayout(QWidget):
             allow_multichoice=multi_choice,
             width=50,
         )
-        cb.setStyleSheet(config["theme"]["button_stylesheet"])
-        cb.setFont(self.qfont)
         if isinstance(value, dict):
             value = [k for k, v in value.items() if v is True]
         for i in content:
@@ -163,19 +156,10 @@ class DuoLayout(QWidget):
                 cb.addItem(i, is_checked=i == str(value))
         return cb
 
-    def get_qcb(self) -> QCheckBox:
-        qcb = QCheckBox()
-        qcb.setFont(self.qfont)
-        qcb.setStyleSheet(config["theme"]["button_stylesheet"])
-        qcb.setFocusPolicy(Qt.NoFocus)
-        return qcb
-
     def get_btn(self, text, function=None) -> QPushButton:
-        button = QPushButton()
+        button = QPushButton(self)
         button.setFixedHeight(config["dim"]["buttons_height"])
-        button.setFont(self.qfont)
         button.setText(text)
-        button.setStyleSheet(config["theme"]["button_stylesheet"])
         button.setFocusPolicy(Qt.NoFocus)
         if function is not None:
             button.clicked.connect(function)
@@ -186,7 +170,7 @@ class DuoLayout(QWidget):
         les = int(self.lessons_qle.text() or self.lessons_qle.placeholderText())
         ts = self.time_spent_qle.text() or self.time_spent_qle.placeholderText()
 
-        if self.final_cbx.isChecked():
+        if translate(self.final_cbx.currentDataList()[0]):
             ts = int(ts)
             dal.add_duo_record_final(lng=lng, lessons=les, timespent=ts)
         else:

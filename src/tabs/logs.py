@@ -88,10 +88,9 @@ class LogsTab(BaseTab):
 
     def create_log_console(self):
         self.console = QTextEdit()
-        self.console.setFont(QFont(config["theme"]["console_font"], 8))
+        self.console.setFont(config.qfont_logs)
         self.console.setAcceptRichText(False)
         self.console.setReadOnly(True)
-        self.console.setStyleSheet(self.textbox_stylesheet)
         self.console.setVerticalScrollBar(get_scrollbar())
         self.console.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.console.mouseDoubleClickEvent = self.on_log_console_click
@@ -135,8 +134,7 @@ class LogsTab(BaseTab):
             width=120,
         )
         self.log_src_cbx.setMinimumWidth(120)
-        self.log_src_cbx.setStyleSheet(self.button_stylesheet)
-        self.log_src_cbx.setFont(self.BUTTON_FONT)
+        self.log_src_cbx.setFont(config.qfont_button)
         for src in self.sources.keys():
             self.log_src_cbx.addItem(src, is_checked=src == self.cur_src)
         self.log_src_cbx.currentIndexChanged.connect(self.on_log_src_change)
@@ -151,8 +149,7 @@ class LogsTab(BaseTab):
 
     def create_log_search_box(self) -> QLineEdit:
         self.search_qle = QLineEdit()
-        self.search_qle.setFont(QFont(config["theme"]["console_font"], 8))
-        self.search_qle.setStyleSheet(self.textbox_stylesheet)
+        self.search_qle.setFont(config.qfont_logs)
         self.search_qle.setText(self.phrase)
         self.search_qle.textChanged.connect(self.search)
         self.search_qle.keyPressEvent = self.search_kbsc

@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from PyQt5 import QtGui
 from PyQt5.QtWidgets import QWidget, QGridLayout, QPushButton
 from PyQt5.QtCore import Qt
 from matplotlib.figure import Figure
@@ -213,11 +212,8 @@ class StatsTab(BaseTab):
     def create_stats_button(self, text: str) -> QPushButton:
         new_button = QPushButton()
         new_button.setMinimumHeight(config["dim"]["stats_btn_height"])
-        new_button.setFont(
-            QtGui.QFont(config["theme"]["font"], config["dim"]["font_stats_size"])
-        )
+        new_button.setFont(config.qfont_stats)
         new_button.setText(text)
-        new_button.setStyleSheet(config["theme"]["button_stylesheet"])
         new_button.setFocusPolicy(Qt.NoFocus)
         return new_button
 

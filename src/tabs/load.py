@@ -52,8 +52,7 @@ class LoadTab(BaseTab):
     def get_flashcard_files_list(self):
         self.files_qlist = QListWidget()
         self.files_qlist.setFixedWidth(self.qlist_width)
-        self.files_qlist.setFont(self.BUTTON_FONT)
-        self.files_qlist.setStyleSheet(self.textbox_stylesheet)
+        self.files_qlist.setFont(config.qfont_button)
         self.files_qlist.setVerticalScrollBar(get_scrollbar())
         self.files_qlist.itemClicked.connect(self.lsw_qlist_onclick)
         self.files_qlist.itemDoubleClicked.connect(self.lsw_qlist_onDoubleClick)
@@ -67,9 +66,8 @@ class LoadTab(BaseTab):
         return self.files_qlist
 
     def attach_files_qlist_ctx(self):
-        self._files_qlist_ctx = QMenu()
-        self._files_qlist_ctx.setStyleSheet(config["theme"]["ctx_stylesheet"])
-        self._files_qlist_ctx.setFont(self.BUTTON_FONT)
+        self._files_qlist_ctx = QMenu(self.files_qlist)
+        self._files_qlist_ctx.setFont(config.qfont_button)
         self.files_qlist.setContextMenuPolicy(3)
         self.files_qlist.customContextMenuRequested.connect(self.show_files_qlist_ctx)
 
@@ -164,11 +162,10 @@ class LoadTab(BaseTab):
 
     def create_load_button(self):
         load_button = QPushButton()
-        load_button.setFixedHeight(self.BUTTON_HEIGHT)
+        load_button.setFixedHeight(config["dim"]["buttons_height"])
         load_button.setFixedWidth(self.qlist_width)
-        load_button.setFont(self.BUTTON_FONT)
+        load_button.setFont(config.qfont_button)
         load_button.setText("Load")
-        load_button.setStyleSheet(self.button_stylesheet)
         load_button.clicked.connect(self.load_selected_file)
         return load_button
 

@@ -36,7 +36,6 @@ class CfgTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
-        self.themes_dict = self.load_themes()
         db_conn.update_fds()
         self.fill_config_list()
         self.update_submit_btn()
@@ -122,8 +121,8 @@ class CfgTab(BaseTab):
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Theme")
         self.theme_cbx = self.cfg_cbx(
-            config["active_theme"],
-            self.themes_dict.keys(),
+            config["theme"]["name"],
+            self.get_themes(),
             multi_choice=False,
             text="Theme",
         )
@@ -437,7 +436,7 @@ class CfgTab(BaseTab):
         new_cfg["mst"]["part_size"] = int(self.mistakes_part_size_qle.text())
         new_cfg["mst"]["part_cnt"] = int(self.mistakes_part_cnt_qle.text())
         new_cfg["mst"]["interval_days"] = int(self.mst_rev_int_qle.text())
-        new_cfg["active_theme"] = self.theme_cbx.currentDataList()[0]
+        new_cfg["theme"]["name"] = self.theme_cbx.currentDataList()[0]
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.currentDataList()[0]
@@ -517,8 +516,8 @@ class CfgTab(BaseTab):
         )
         new_cfg["tracker"]["duo"]["prelim_avg"] = int(self.tracker_avg_n.text())
 
-        if new_cfg["active_theme"] != config["active_theme"]:
-            new_cfg["theme"].update(self.themes_dict[new_cfg["active_theme"]])
+        if new_cfg["theme"]["name"] != config["theme"]["name"]:
+            config["theme"]["name"] = new_cfg["theme"]["name"]
             self.funcs_to_restart.append(self.set_theme)
         elif new_cfg["theme"] != config["theme"]:
             self.funcs_to_restart.append(self.set_theme)
@@ -578,12 +577,11 @@ class CfgTab(BaseTab):
 
     def cfg_cbx(self, value, content: list, text: str, multi_choice: bool = True):
         cb = CheckableComboBox(
-            None,
+            self.opt_scroll_area,
             allow_multichoice=multi_choice,
             width=config["geo"][0] // 2,
         )
-        cb.setStyleSheet(self.button_stylesheet)
-        cb.setFont(self.BUTTON_FONT)
+        cb.setFont(config.qfont_button)
         if isinstance(value, dict):
             value = [k for k, v in value.items() if v is True]
         for i in content:
@@ -597,33 +595,26 @@ class CfgTab(BaseTab):
     def cfg_qle(self, value: str, text: str) -> QLineEdit:
         qle = QLineEdit()
         qle.setText(str(value))
-        qle.setFont(self.BUTTON_FONT)
-        qle.setStyleSheet(self.button_stylesheet)
+        qle.setFont(config.qfont_button)
         self.opts_layout.add_widget(qle, self.create_label(text))
         return qle
 
     def create_blank_widget(self):
         blank = QLabel()
-        blank.setStyleSheet("border: 0px")
         return blank
 
-    def load_themes(self) -> dict:
-        themes_dict = dict()
-        themes_path = os.path.join(db_conn.RES_PATH, "themes")
-        theme_files = [f for f in os.listdir(themes_path) if f.endswith(".json")]
-        for f in theme_files:
-            theme = json.load(open(os.path.join(themes_path, f), "r"))
-            theme_name = f.split(".")[0]
-            themes_dict[theme_name] = theme
-        return themes_dict
+    def get_themes(self) -> dict:
+        return [f.split(".")[0] for f in os.listdir(config.THEMES_PATH) if f.endswith(".css")]
 
     def config_manual_update(self, key: str = None, subdict: str = None):
         if subdict == "theme":
+            config.load_theme()
             if key in {"console_font_size", "default_suffix"}:
+                config.load_qfonts()
                 self.mw.fcc.init_font()
                 self.mw.sod.init_font()
-                self.mw.fcc.console.setFont(self.CONSOLE_FONT)
-                self.mw.sod.console.setFont(self.CONSOLE_FONT)
+                self.mw.fcc.console.setFont(config.qfont_console)
+                self.mw.sod.console.setFont(config.qfont_console)
         elif not (key or subdict):
             self.mw.efc._efc_last_calc_time = 0
             db_conn.update_fds()

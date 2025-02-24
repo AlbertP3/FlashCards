@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import logging
-from utils import fcc_queue
+from utils import fcc_queue, translate
 from cfg import config
 from DBAC import db_conn
 from EMO.models import Models, EMOApproaches
@@ -200,7 +200,7 @@ class CLI:
         self.step = Steps.decide_model
 
     def decide_model(self, parsed_cmd: list):
-        if parsed_cmd[0].lower() in {"yes", "y", "1", ""}:
+        if translate(parsed_cmd[0], on_empty=True):
             self._update_config_with_new_model()
             self.accepted = True
             self.step = Steps.done

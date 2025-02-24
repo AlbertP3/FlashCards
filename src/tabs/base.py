@@ -4,7 +4,6 @@ from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
     QGridLayout,
-    QScrollBar,
     QPushButton,
     QLabel,
 )
@@ -22,7 +21,6 @@ class BaseConsole(QWidget):
         super().__init__()
         self.cursor_moved_by_mouse = False
         self.newline = "\n"
-        self.DEFAULT_PS1 = config["theme"]["default_ps1"]
         self.console_prompt = "> "
         self.console_log = []
         self.cmd_log = [""]
@@ -49,17 +47,12 @@ class BaseConsole(QWidget):
         return self.console.toPlainText()[self.promptend :]
 
     def init_font(self):
-        self.CONSOLE_FONT = QFont(
-            config["theme"]["console_font"],
-            config["dim"]["console_font_size"],
-        )
-        self.caliper = Caliper(self.CONSOLE_FONT)
+        self.caliper = Caliper(config.qfont_console)
 
     def run_cmd(self):
         raise NotImplementedError
 
     def build(self):
-        self.setStyleSheet(config["theme"]["main_stylesheet"])
         self._tab = QWidget()
         self.fcc_layout = QGridLayout()
         self.fcc_layout.setContentsMargins(0, 0, 0, 0)
@@ -70,20 +63,14 @@ class BaseConsole(QWidget):
     def create_console(self) -> QTextEdit:
         console = QTextEdit()
         console.keyPressEvent = self.cli_shortcuts
-        console.setFont(self.CONSOLE_FONT)
+        console.setFont(config.qfont_console)
         console.setAcceptRichText(False)
-        console.setStyleSheet(config["theme"]["textbox_stylesheet"])
         console.setVerticalScrollBar(get_scrollbar())
         console.contextMenuEvent = lambda *args, **kwargs: None
         console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         console.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.overwrite_mouse_press_event(console)
         return console
-
-    def get_scrollbar(self) -> QScrollBar:
-        scrollbar = QScrollBar()
-        scrollbar.setStyleSheet(config["theme"]["scrollbar_stylesheet"])
-        return scrollbar
 
     def overwrite_mouse_press_event(self, console: QTextEdit):
         original_mouse_press_event = console.mousePressEvent
@@ -205,16 +192,7 @@ class BaseConsole(QWidget):
 class BaseTab:
 
     def __init__(self):
-        self.textbox_stylesheet = config["theme"]["textbox_stylesheet"]
-        self.button_stylesheet = config["theme"]["button_stylesheet"]
-        self.FONT = config["theme"]["font"]
-        self.FONT_BUTTON_SIZE = config["dim"]["font_button_size"]
-        self.BUTTON_HEIGHT = config["dim"]["buttons_height"]
-        self.BUTTON_FONT = QFont(self.FONT, self.FONT_BUTTON_SIZE)
-        self.CONSOLE_FONT = QFont(
-            config["theme"]["console_font"],
-            config["dim"]["console_font_size"],
-        )
+        pass
 
     def init_cross_shortcuts(self):
         self.mw.add_shortcut(self.id, self.open, "main")
@@ -235,19 +213,17 @@ class BaseTab:
 
     def create_button(self, text, function=None) -> QPushButton:
         button = QPushButton()
-        button.setFixedHeight(self.BUTTON_HEIGHT)
-        button.setFont(self.BUTTON_FONT)
+        button.setFixedHeight(config["dim"]["buttons_height"])
+        button.setFont(config.qfont_button)
         button.setText(text)
         button.setFocusPolicy(Qt.NoFocus)
-        button.setStyleSheet(self.button_stylesheet)
         if function is not None:
             button.clicked.connect(function)
         return button
 
     def create_label(self, text) -> QLabel:
         label = QLabel()
-        label.setFont(self.BUTTON_FONT)
+        label.setFont(config.qfont_button)
         label.setText(text)
         label.setFocusPolicy(Qt.NoFocus)
-        label.setStyleSheet(self.button_stylesheet)
         return label

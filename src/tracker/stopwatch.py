@@ -24,10 +24,6 @@ class StopwatchTab(QWidget):
         super().__init__()
         self.upd = -1
         self.cat_map = dal.get_imm_category_mapping()
-        self.qfont_timer = QFont(
-            config["theme"]["font"], config["dim"]["font_textbox_size"] + 20
-        )
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.__res = 1
         self.init_ui()
 
@@ -44,8 +40,8 @@ class StopwatchTab(QWidget):
         self.layout = QVBoxLayout()
         self.timer_label = QLabel(dal.stopwatch_elapsed.toString("hh:mm:ss"))
         self.timer_label.setAlignment(Qt.AlignCenter)
-        self.timer_label.setStyleSheet(config["theme"]["textbox_stylesheet"])
-        self.timer_label.setFont(self.qfont_timer)
+        self.timer_label.setFont(config.qfont_stopwatch)
+        self.timer_label.setObjectName("stopwatch")
         self.layout.addWidget(self.timer_label)
 
         controls_layout = QHBoxLayout()
@@ -138,8 +134,7 @@ class StopwatchTab(QWidget):
             allow_multichoice=multi_choice,
             width=100,
         )
-        cb.setStyleSheet(config["theme"]["button_stylesheet"])
-        cb.setFont(self.qfont)
+        cb.setFont(config.qfont_button)
         if isinstance(value, dict):
             value = [k for k, v in value.items() if v is True]
         for i in content:
@@ -152,18 +147,16 @@ class StopwatchTab(QWidget):
     def get_btn(self, text, function=None) -> QPushButton:
         button = QPushButton()
         button.setFixedHeight(config["dim"]["buttons_height"])
-        button.setFont(self.qfont)
+        button.setFont(config.qfont_button)
         button.setText(text)
-        button.setStyleSheet(config["theme"]["button_stylesheet"])
         if function is not None:
             button.clicked.connect(function)
         return button
 
     def get_qle(self, text: str = "", placeholder: str = "") -> QLineEdit:
         qle = QLineEdit()
-        qle.setFont(self.qfont)
+        qle.setFont(config.qfont_button)
         qle.setMaximumWidth(250)
-        qle.setStyleSheet(config["theme"]["textbox_stylesheet"])
         qle.setAlignment(Qt.AlignCenter)
         qle.setText(text)
         qle.setPlaceholderText(placeholder)
@@ -174,6 +167,5 @@ class StopwatchTab(QWidget):
         completer.setCaseSensitivity(False)
         completer.setFilterMode(Qt.MatchContains)
         completer.setCompletionMode(QCompleter.PopupCompletion)
-        completer.popup().setStyleSheet(config["theme"]["hint_stylesheet"])
-        completer.popup().setFont(self.qfont)
+        completer.popup().setFont(config.qfont_button)
         return completer

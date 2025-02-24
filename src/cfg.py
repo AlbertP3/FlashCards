@@ -1,6 +1,7 @@
 import json
 from collections import UserDict
 import logging
+from PyQt5.QtGui import QFont
 
 log = logging.getLogger("CFG")
 
@@ -9,18 +10,15 @@ class Config(UserDict):
     def __init__(self):
         self.CFG_PATH = "./src/res/config.json"
         self.DEF_CFG_PATH = "./src/res/config-default.json"
+        self.THEMES_PATH = "./src/res/themes"
         self.CACHE_PATH = "./src/res/cache.json"
-        self.default_off_values = {"off", "no", "none", ""}
+        self.stylesheet = ""
 
     def load(self):
-        try:
-            self.data = json.load(open(self.CFG_PATH, "r"))
-        except FileNotFoundError:
-            self.data = json.load(open(self.DEF_CFG_PATH, "r"))
-        try:
-            self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
-        except FileNotFoundError:
-            self.cache = {"snapshot": {"file": None, "session": None}, "notes": ""}
+        self.load_data()
+        self.load_cache()
+        self.load_theme()
+        self.load_qfonts()
 
     def reload(self):
         self.data.update(json.load(open(self.CFG_PATH, "r")))
@@ -30,11 +28,51 @@ class Config(UserDict):
         json.dump(self.data, open(self.CFG_PATH, "w"), indent=4, ensure_ascii=False)
         log.debug("Saved Config and Cache")
 
-    def translate(self, key, val_on=None, val_off=None, off_values: set = None):
-        if self.data[key] in (off_values or self.default_off_values):
-            return val_off
-        else:
-            return val_on or self.data[key]
+    def load_data(self):
+        try:
+            self.data = json.load(open(self.CFG_PATH, "r"))
+        except FileNotFoundError:
+            self.data = json.load(open(self.DEF_CFG_PATH, "r"))
+
+    def load_cache(self):
+        try:
+            self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
+        except FileNotFoundError:
+            self.cache = {"snapshot": {"file": None, "session": None}, "notes": ""}
+
+    def load_theme(self):
+        try:
+            with open(f"{self.THEMES_PATH}/{self.data['theme']['name']}.css", "r") as f:
+                self.stylesheet = f.read()
+        except FileNotFoundError:
+            log.error(f"Theme {self.data['theme']['name']}.css not found!")
+
+    def load_qfonts(self):
+        self.qfont_textbox = QFont(
+            self.data["theme"]["font"],
+            self.data["dim"]["font_textbox_size"],
+        )
+        self.qfont_button = QFont(
+            self.data["theme"]["font"],
+            self.data["dim"]["font_button_size"],
+        )
+        self.qfont_console = QFont(
+            self.data["theme"]["console_font"],
+            self.data["dim"]["console_font_size"],
+        )
+        self.qfont_stats = QFont(
+            self.data["theme"]["font"],
+            self.data["dim"]["font_stats_size"],
+        )
+        self.qfont_logs = QFont(
+            self.data["theme"]["console_font"],
+            8,
+        )
+        self.qfont_chart = QFont(
+            self.data["theme"]["font"],
+            self.data["dim"]["font_stats_size"],
+        )
+        self.qfont_stopwatch =  QFont(self.data["theme"]["font"], 50)
 
 
 def __validate(cfg: Config) -> tuple[bool, set]:

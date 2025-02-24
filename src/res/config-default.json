@@ -23,7 +23,6 @@
     "init_revs_inth": 6,
     "cache_history_size": 128,
     "min_eph_cards": 3,
-    "active_theme": "dark",
     "csv_sniffer": "off",
     "synopsis": "You have reached the world's edge, none but devils play past here",
     "cell_alignment": "left",
@@ -150,26 +149,16 @@
         "logs": "1"
     },
     "theme": {
-        "font_button_size": 14,
+        "name": "dark",
         "font": "Consolas",
         "console_font": "Consolas",
-        "console_font_size": 14,
-        "font_stats_size": 9,
         "default_suffix": "-",
-        "font_textbox_size": 34,
+        "default_ps1": "> ",
         "font_color": "#E0E0E0",
-        "main_stylesheet": "background-color: #121212; margin:0px; border:1px solid #2C2C2C; padding:0px;",
-        "textbox_stylesheet": "color: #E0E0E0; background-color: #1C1C1E; border-radius: 1px; line-height: 150%; margin:0px;",
-        "button_stylesheet": "*{background-color: #242426; color: #E0E0E0; border-radius: 1px;} *:hover{background-color: #303032;} *:pressed {background-color: #343436;} QCheckBox::indicator { width: 20px; height: 20px; } QPushButton:checked { background-color: #404042;}",
-        "label_stylesheet": "*{background-color: #303032; color: #E0E0E0; border-radius: 1px;} *:hover{background-color: #363638;} *:pressed {background-color: #404042;}",
-        "scrollbar_stylesheet": "QScrollBar:vertical{background-color: #242426;width: 15px;margin: 0px;border: 1px solid #1C1C1E;} QScrollBar::handle:vertical{background-color: #303032; min-height: 20px; border: 1px solid #1C1C1E;} QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {background: none; border: none;} QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical{background: none;}",
-        "hint_stylesheet": "*{background-color: #1C1C1E; color: #E0E0E0; border-radius: 1px;} *:hover{background-color: #303032;} *:pressed {background-color: #343436;}",
-        "ctx_stylesheet": "*{background-color: #242426; color: #E0E0E0;} QMenu::item {background-color: #242426; color: #E0E0E0;} QMenu::item:selected {background-color: #303032;}",
         "stat_bar_color": "#242426",
         "stat_background_color": "#1C1C1E",
         "stat_chart_background_color": "#1C1C1E",
-        "stat_chart_text_color": "#E0E0E0",
-        "default_ps1": "> "
+        "stat_chart_text_color": "#E0E0E0"
     },
     "dim": {
         "font_button_size": 12,
@@ -185,7 +174,7 @@
         "sw_load_btn_height": 30,
         "sw_cfg_box_height": 25,
         "sw_load_qlist_width": 450,
-        "notification_height": 40,
+        "notification_height": 50,
         "spacing": 2
     },
     "icons": {

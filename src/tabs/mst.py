@@ -13,7 +13,7 @@ class MistakesTab(BaseTab):
         self.mw = mw
         self.id = "mistakes"
         self.mw.tab_names[self.id] = "Mistakes"
-        self.caliper = Caliper(self.CONSOLE_FONT)
+        self.caliper = Caliper(config.qfont_console)
         self.build()
         self.mw.add_tab(self.mistakes_qtext, self.id)
 
@@ -27,8 +27,6 @@ class MistakesTab(BaseTab):
             )
 
     def build(self):
-        self.textbox_stylesheet = config["theme"]["textbox_stylesheet"]
-        self.button_stylesheet = config["theme"]["button_stylesheet"]
         self.mistakes_layout = QGridLayout()
         self.mistakes_layout.addWidget(self.create_mistakes_list(), 0, 0)
 
@@ -47,8 +45,7 @@ class MistakesTab(BaseTab):
 
     def create_mistakes_list(self):
         self.mistakes_qtext = QTextEdit()
-        self.mistakes_qtext.setFont(self.CONSOLE_FONT)
+        self.mistakes_qtext.setFont(config.qfont_console)
         self.mistakes_qtext.setReadOnly(True)
-        self.mistakes_qtext.setStyleSheet(self.textbox_stylesheet)
         self.mistakes_qtext.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return self.mistakes_qtext

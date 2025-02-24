@@ -35,13 +35,12 @@ class CheckableComboBox(QComboBox):
             return size
 
     def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.allow_multichoice = allow_multichoice
         self._width = width or self.lineEdit().width()
         super().__init__(layout)
 
         # Make the combo editable to set a custom text, but readonly
-        self.setFont(self.qfont)
+        self.setFont(config.qfont_button)
         self.setMinimumWidth(1)
         self.setEditable(True)
         self.lineEdit().setReadOnly(True)
@@ -172,7 +171,6 @@ class CheckableComboBox(QComboBox):
 class ScrollableOptionsWidget(QWidget):
     def __init__(self):
         super().__init__()
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
         self.__create_layout()
         self.pos = self.__list_pos_gen()
 
@@ -189,10 +187,9 @@ class ScrollableOptionsWidget(QWidget):
 
     def add_label(self, text: str):
         label = QLabel()
-        label.setFont(self.qfont)
+        label.setFont(config.qfont_button)
         label.setText(text)
         label.setFocusPolicy(Qt.NoFocus)
-        label.setStyleSheet(config["theme"]["label_stylesheet"])
         label.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(label, next(self.pos), 0, 1, 2)
         next(self.pos)
@@ -200,7 +197,7 @@ class ScrollableOptionsWidget(QWidget):
     def add_spacer(self) -> QLabel:
         spacer = QLabel()
         spacer.setFocusPolicy(Qt.NoFocus)
-        spacer.setFont(self.qfont)
+        spacer.setFont(config.qfont_button)
         self.layout.addWidget(spacer, next(self.pos), 0, 1, 2)
         next(self.pos)
 
@@ -227,12 +224,12 @@ class NotificationPopup(QWidget):
         self.label = QLabel("", self)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setWordWrap(True)
-        self.label.setFont(QFont(config["theme"]["font"], 12))
+        self.label.setFont(config.qfont_button)
+        self.label.setObjectName("notification")
         self.setFixedSize(
-            int(self.parent().width() // 1.8), config["dim"]["notification_height"]
+            int(self.parent().width() // 1.5), config["dim"]["notification_height"]
         )
         layout.addWidget(self.label)
-        self.setStyleSheet(config["theme"]["button_stylesheet"])
         self.__configure_animations()
         self.__func = lambda: None
         self.is_visible = False
@@ -318,9 +315,7 @@ class NotificationPopup(QWidget):
 class CFIDialog(QDialog):
     def __init__(self, parent, start: int, cnt: int):
         super().__init__(parent)
-        self.qfont = QFont(config["theme"]["font"], config["dim"]["font_button_size"])
-        self.setStyleSheet(config["theme"]["ctx_stylesheet"])
-        self.setFont(self.qfont)
+        self.setFont(config.qfont_button)
         self.setWindowTitle(" ")
         self.setMinimumWidth(250)
         self.layout = QVBoxLayout()
@@ -358,20 +353,19 @@ class CFIDialog(QDialog):
     def create_qle(self, text: str = "") -> QLineEdit:
         qle = QLineEdit()
         qle.setFixedHeight(config["dim"]["buttons_height"])
-        qle.setFont(self.qfont)
+        qle.setFont(config.qfont_button)
         qle.setText(text)
+        qle.setObjectName("qdialog")
         return qle
 
     def create_btn(self, text: str, func) -> QPushButton:
         btn = QPushButton(text)
-        btn.setStyleSheet(config["theme"]["button_stylesheet"])
         btn.setFixedHeight(config["dim"]["buttons_height"])
-        btn.setFont(self.qfont)
+        btn.setFont(config.qfont_button)
         btn.clicked.connect(func)
         return btn
 
 
 def get_scrollbar() -> QScrollBar:
     scrollbar = QScrollBar()
-    scrollbar.setStyleSheet(config["theme"]["scrollbar_stylesheet"])
     return scrollbar
