@@ -8,12 +8,11 @@ from types import FrameType
 
 CWD = os.path.dirname(os.path.abspath(__file__))
 
-
-def configure_logging(log_level, plt_log_level="error"):
+def configure_logging():
     logging.basicConfig(
         format="%(asctime)s.%(msecs)03d [%(name)s] %(levelname)s %(message)s <%(filename)s(%(lineno)d)>",
         datefmt="%Y-%m-%dT%H:%M:%S",
-        level=log_level,
+        level="DEBUG",
         handlers=(
             RotatingFileHandler(
                 filename=os.path.realpath(f"{CWD}/../fcs.log"),
@@ -25,18 +24,18 @@ def configure_logging(log_level, plt_log_level="error"):
     )
     LOGGER = logging.getLogger("FCS")
     sys.stderr.write = LOGGER.critical
-    matplotlib.set_loglevel(plt_log_level)
+    matplotlib.set_loglevel("error")
 
 
+configure_logging()
 try:
     import cfg
 except Exception as e:
-    configure_logging("DEBUG", "DEBUG")
     log = logging.getLogger("FCS")
     log.critical(e, exc_info=True)
     sys.exit(1)
 
-configure_logging(cfg.config["log_level"])
+logging.getLogger().setLevel(cfg.config["log_level"])
 log = logging.getLogger("FCS")
 sys.stdout.write = lambda msg: log.debug(msg, stacklevel=2) if msg != "\n" else None
 sys.stderr.write = lambda msg: log.error(msg, stacklevel=2) if msg != "\n" else None

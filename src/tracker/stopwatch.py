@@ -146,7 +146,6 @@ class StopwatchTab(QWidget):
 
     def get_btn(self, text, function=None) -> QPushButton:
         button = QPushButton()
-        button.setFixedHeight(config["dim"]["buttons_height"])
         button.setFont(config.qfont_button)
         button.setText(text)
         if function is not None:

@@ -249,28 +249,27 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 
 
 ## Keyboard Shortcuts
-| *Name*       | *Key*  | *Description*                                                  |
-| ------------ | ------ | -------------------------------------------------------------- |
-| next         | Right  | go to next card or mark as posivite                            |
-| prev         | Left   | go to previous card                                            |
-| negative     | Down   | mark current card as negative                                  |
-| reverse      | Up     | reverse side of the current card                               |
-| del_cur_card | d      | remove current card from the set (does not affect source file) |
-| load_again   | r      | load again the current set                                     |
-| timespent    | t      | open TimeSpent tab                                      |
-| progress     | p      | open Progress tab                                       |
-| config       | q      | open Settings tab                                       |
-| fcc          | c      | open Console tab                                        |
-| efc          | e      | open EFC tab                                            |
-| load         | l      | open Load tab                                           |
-| mistakes     | m      | open Mistakes tab                                       |
-| stats        | s      | open Statistics tab                                     |
-| next_efc     | n      | load next recommendation                                       |
-| run_command  | Insert | placeholder. Executed on 'Enter'                               |
-| save         | w      | save current file or create a revision                         |
-| sod          | f      | open SOD tab                                            |
-| hint         | h      | show a hint for current card                                   |
-| last_seen    | g      | go to the last seen card                                       |
+| *Name*       | *Key* | *Description*                                                  |
+| ------------ | ----- | -------------------------------------------------------------- |
+| next         | Right | go to next card or mark as posivite                            |
+| prev         | Left  | go to previous card                                            |
+| negative     | Down  | mark current card as negative                                  |
+| reverse      | Up    | reverse side of the current card                               |
+| del_cur_card | d     | remove current card from the set (does not affect source file) |
+| load_again   | r     | load again the current set                                     |
+| timespent    | t     | open TimeSpent tab                                             |
+| progress     | p     | open Progress tab                                              |
+| config       | q     | open Settings tab                                              |
+| fcc          | c     | open Console tab                                               |
+| efc          | e     | open EFC tab                                                   |
+| load         | l     | open Load tab                                                  |
+| mistakes     | m     | open Mistakes tab                                              |
+| stats        | s     | open Statistics tab                                            |
+| next_efc     | n     | load next recommendation                                       |
+| save         | w     | save current file or create a revision                         |
+| sod          | f     | open SOD tab                                                   |
+| hint         | h     | show a hint for current card                                   |
+| last_seen    | g     | go to the last seen card                                       |
 
 
 ## ToDo

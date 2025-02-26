@@ -41,7 +41,6 @@ class LoadTab(BaseTab):
             self.files_qlist.setCurrentRow(self.cur_load_index)
 
     def build(self):
-        self.qlist_width = config["dim"]["sw_load_qlist_width"]
         self._tab = QWidget()
         self.load_layout = QGridLayout()
         self.set_box(self.load_layout)
@@ -51,7 +50,6 @@ class LoadTab(BaseTab):
 
     def get_flashcard_files_list(self):
         self.files_qlist = QListWidget()
-        self.files_qlist.setFixedWidth(self.qlist_width)
         self.files_qlist.setFont(config.qfont_button)
         self.files_qlist.setVerticalScrollBar(get_scrollbar())
         self.files_qlist.itemClicked.connect(self.lsw_qlist_onclick)
@@ -162,8 +160,6 @@ class LoadTab(BaseTab):
 
     def create_load_button(self):
         load_button = QPushButton()
-        load_button.setFixedHeight(config["dim"]["buttons_height"])
-        load_button.setFixedWidth(self.qlist_width)
         load_button.setFont(config.qfont_button)
         load_button.setText("Load")
         load_button.clicked.connect(self.load_selected_file)

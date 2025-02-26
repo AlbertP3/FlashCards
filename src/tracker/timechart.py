@@ -37,7 +37,7 @@ class TimeChartCanvas:
         ax.bar(
             self.formatted_dates,
             self.chart_values,
-            color=config["theme"]["stat_bar_color"],
+            color=config.mpl["stat_bar_color"],
             edgecolor="#000000",
             linewidth=0.7,
             align="center",
@@ -51,19 +51,19 @@ class TimeChartCanvas:
                 label,
                 ha="center",
                 va="bottom",
-                color=config["theme"]["stat_chart_text_color"],
-                fontsize=config["dim"]["font_stats_size"],
+                color=config.mpl["stat_chart_text_color"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # Style
-        self.figure.set_facecolor(config["theme"]["stat_background_color"])
-        ax.set_facecolor(config["theme"]["stat_chart_background_color"])
+        self.figure.set_facecolor(config.mpl["stat_background_color"])
+        ax.set_facecolor(config.mpl["stat_chart_background_color"])
         ax.set_ylim([0, max(self.chart_values) * 1.2])
         ax.tick_params(
-            colors=config["theme"]["stat_chart_text_color"],
+            colors=config.mpl["stat_chart_text_color"],
             labelrotation=0,
             pad=1,
-            labelsize=config["dim"]["font_stats_size"],
+            labelsize=config["theme"]["font_stats_size"],
         )
         self.figure.tight_layout()
         ax.get_yaxis().set_visible(False)

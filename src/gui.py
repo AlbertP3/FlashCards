@@ -1,4 +1,5 @@
 import os
+import subprocess
 import traceback
 import sys
 import logging
@@ -70,6 +71,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.show()
         self.__onload_initiate_flashcards()
         self.__onload_notifications()
+        self.reload_current_text()
         self.q_app.exec()
 
     def __onload_initiate_flashcards(self):
@@ -244,12 +246,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.main_tab_layout.addLayout(self.layout_third_row, 2)
         self.main_tab_layout.addLayout(self.layout_fourth_row, 3)
 
-        self.main_tab_layout.setSpacing(config["dim"]["spacing"])
-        self.layout_first_row.setSpacing(config["dim"]["spacing"])
-        self.layout_second_row.setSpacing(config["dim"]["spacing"])
-        self.layout_third_row.setSpacing(config["dim"]["spacing"])
-        self.layout_fourth_row.setSpacing(config["dim"]["spacing"])
-        self.layout_next_navigation.setSpacing(config["dim"]["spacing"])
+        self.main_tab_layout.setSpacing(config["theme"]["spacing"])
+        self.layout_first_row.setSpacing(config["theme"]["spacing"])
+        self.layout_second_row.setSpacing(config["theme"]["spacing"])
+        self.layout_third_row.setSpacing(config["theme"]["spacing"])
+        self.layout_fourth_row.setSpacing(config["theme"]["spacing"])
+        self.layout_next_navigation.setSpacing(config["theme"]["spacing"])
 
         # Buttons
         self.next_button = self.create_button(
@@ -318,16 +320,14 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         # TODO make use of this button
         self.progress_button = self.create_button(
             config["icons"]["progress"],
-            lambda: fcc_queue.put_notification("Progress moved to Tracker", lvl=LogLvl),
+            lambda: fcc_queue.put_notification("Progress moved to Tracker", lvl=LogLvl.warn),
         )
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
 
     def create_hint_qbutton(self):
         self.hint_qbutton = QPushButton(config["icons"]["hint"], self)
+        self.hint_qbutton.setObjectName("hint")
         self.hint_qbutton.setFont(config.qfont_button)
-        self.hint_qbutton.setFixedSize(
-            config["dim"]["hint_size"], config["dim"]["hint_size"]
-        )
         self.hint_qbutton.setFocusPolicy(Qt.NoFocus)
         self.hint_qbutton.clicked.connect(self.show_hint)
         self.layout_first_row.addWidget(
@@ -335,11 +335,17 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         )
         self.hint_qbutton.hide()
 
-    def set_theme(self):
+    def reload_theme(self):
         config.load_theme()
         config.load_qfonts()
-        self.display_text(self.get_current_card().iloc[self.side])
+        self.setStyleSheet(config.stylesheet)
+        self.reload_current_text()
         self.update_words_button()
+
+    def restart_app(self):
+        self.closeEvent(None)
+        subprocess.Popen([sys.executable] + sys.argv)
+        sys.exit()
 
     def update_default_side(self):
         super().update_default_side()
@@ -355,11 +361,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.__attach_textbox_ctx()
         self.tb_cal = Caliper(config.qfont_textbox)
         self.tb_cmg = 0.93
-        self.tb_vp = (
-            self.tb_cmg * config["geo"][0],
-            self.tb_cmg * (config["geo"][1] - 3 * config["dim"]["buttons_height"]),
-        )
-        self.tb_nl = self.tb_vp[1] // self.tb_cal.ls
         self.textbox.showEvent = self.__textbox_show_event
         return self.textbox
 
@@ -446,7 +447,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def create_button(self, text, function=None) -> QPushButton:
         button = QPushButton(self)
-        button.setFixedHeight(config["dim"]["buttons_height"])
         button.setFont(config.qfont_button)
         button.setText(text)
         button.setFocusPolicy(Qt.NoFocus)
@@ -475,12 +475,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         # Ensure text fits the textbox
         nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
         if nl > self.tb_nl:
-            font_size = int(config["dim"]["font_textbox_size"] * self.tb_nl / nl)
+            font_size = int(config["theme"]["font_textbox_size"] * self.tb_nl / nl)
             qfm = QFontMetricsF(QFont(config["theme"]["font"], font_size))
             nl_ = qfm.horizontalAdvance(text) // self.tb_vp[0] + 1
             margin_top = int((self.tb_vp[1] - qfm.lineSpacing() * nl_) / 2)
         else:
-            font_size = config["dim"]["font_textbox_size"]
+            font_size = config["theme"]["font_textbox_size"]
             margin_top = int((self.tb_vp[1] - self.tb_cal.ls * nl - self.tb_cal.ls) / 2)
         margin_top = margin_top if margin_top > 0 else 0
         self.textbox.setFontPointSize(font_size)
@@ -492,6 +492,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.hint_qbutton.show()
         else:
             self.hint_qbutton.hide()
+
+    def reload_current_text(self):
+        self.display_text(self.textbox.toPlainText())
 
     def click_save_button(self):
         if self.active_file.kind == db_conn.KINDS.rev:

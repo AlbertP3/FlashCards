@@ -11,5 +11,7 @@ pytest.ini
 build/
 data/
 src/res/model.pkl
+src/res/themes/*
+!src/res/themes/gvbx.css
 src/res/tmp*
 src/res/*.csv

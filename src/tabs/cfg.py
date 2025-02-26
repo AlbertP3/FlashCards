@@ -131,7 +131,7 @@ class CfgTab(BaseTab):
             text="Font",
         )
         self.font_size_qle = self.cfg_qle(
-            config["dim"]["font_textbox_size"],
+            config["theme"]["font_textbox_size"],
             text="Font size",
         )
         self.console_font_qle = self.cfg_qle(
@@ -139,11 +139,11 @@ class CfgTab(BaseTab):
             text="Console font",
         )
         self.console_font_size_qle = self.cfg_qle(
-            config["dim"]["console_font_size"],
+            config["theme"]["console_font_size"],
             text="Console font size",
         )
         self.button_font_size_qle = self.cfg_qle(
-            config["dim"]["font_button_size"],
+            config["theme"]["font_button_size"],
             text="Button font size",
         )
         self.default_suffix_qle = self.cfg_qle(
@@ -151,7 +151,7 @@ class CfgTab(BaseTab):
             text="Default suffix",
         )
         self.spacing_qle = self.cfg_qle(
-            config["dim"]["spacing"],
+            config["theme"]["spacing"],
             text="Spacing",
         )
         self.cell_alignment_cbx = self.cfg_cbx(
@@ -415,7 +415,7 @@ class CfgTab(BaseTab):
         self.config_layout.addWidget(self.submit_btn)
 
     def collect_settings(self) -> dict:
-        new_cfg = deepcopy(config)
+        new_cfg = deepcopy(config.data)
         new_cfg["card_default_side"] = self.card_default_cbx.currentDataList()[0]
         new_cfg["languages"] = self.languages_cbx.currentDataList()
         new_cfg["efc"]["threshold"] = int(self.efc_threshold_qle.text())
@@ -493,11 +493,11 @@ class CfgTab(BaseTab):
         new_cfg["min_eph_cards"] = int(self.min_eph_cards_qle.text())
         new_cfg["theme"]["font"] = self.font_qle.text()
         new_cfg["theme"]["console_font"] = self.console_font_qle.text()
-        new_cfg["dim"]["font_textbox_size"] = int(self.font_size_qle.text())
-        new_cfg["dim"]["console_font_size"] = int(self.console_font_size_qle.text())
-        new_cfg["dim"]["font_button_size"] = int(self.button_font_size_qle.text())
+        new_cfg["theme"]["font_textbox_size"] = int(self.font_size_qle.text())
+        new_cfg["theme"]["console_font_size"] = int(self.console_font_size_qle.text())
+        new_cfg["theme"]["font_button_size"] = int(self.button_font_size_qle.text())
         new_cfg["theme"]["default_suffix"] = self.default_suffix_qle.text()
-        new_cfg["dim"]["spacing"] = int(self.spacing_qle.text())
+        new_cfg["theme"]["spacing"] = int(self.spacing_qle.text())
 
         for k, v in self.tracker_statcols_active_group.items():
             new_cfg["tracker"]["stat_cols"][k]["active"] = (
@@ -518,11 +518,11 @@ class CfgTab(BaseTab):
 
         if new_cfg["theme"]["name"] != config["theme"]["name"]:
             config["theme"]["name"] = new_cfg["theme"]["name"]
-            self.funcs_to_restart.append(self.set_theme)
+            self.funcs_to_restart.append(self.mw.restart_app)
         elif new_cfg["theme"] != config["theme"]:
-            self.funcs_to_restart.append(self.set_theme)
-        elif new_cfg["dim"] != config["dim"]:
-            self.funcs_to_restart.append(self.set_theme)
+            self.funcs_to_restart.append(self.mw.restart_app)
+        elif new_cfg["theme"] != config["theme"]:
+            self.funcs_to_restart.append(self.mw.restart_app)
 
         if new_cfg["allow_file_monitor"] != config["allow_file_monitor"]:
             self.funcs_to_restart.append(self._modify_file_monitor)

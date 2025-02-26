@@ -66,8 +66,8 @@ class StatsTab(BaseTab):
         ax.bar(
             self.formatted_dates,
             self.chart_values,
-            color=config["theme"]["stat_bar_color"],
-            edgecolor="#000000",
+            color=config.mpl["stat_bar_color"],
+            edgecolor=config.mpl["chart_edge_color"],
             linewidth=0.7,
             align="center",
         )
@@ -77,7 +77,7 @@ class StatsTab(BaseTab):
         time_spent_plot.plot(
             self.formatted_dates,
             self.time_spent_minutes,
-            color="#979dac",
+            color=config.mpl["chart_secondary_color"],
             linewidth=1,
             zorder=9,
         )
@@ -91,22 +91,25 @@ class StatsTab(BaseTab):
                 label,
                 ha="center",
                 va="bottom",
-                color=config["theme"]["stat_chart_text_color"],
-                fontsize=config["dim"]["font_stats_size"],
+                color=config.mpl["stat_chart_text_color"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # horizontal line at EFC predicate
         if rect and config["opt"]["show_efc_line"]:
             ax.axhline(
-                y=self.total_cards * 0.8, color="#a0a0a0", linestyle="--", zorder=-3
+                y=self.total_cards * 0.8,
+                color=config.mpl["chart_line_color"],
+                linestyle="--",
+                zorder=-3,
             )
             ax.text(
                 rect.get_x() + rect.get_width() / 1,
                 self.total_cards * 0.8,
                 f'{config["efc"]["threshold"]}%',
                 va="bottom",
-                color="#a0a0a0",
-                fontsize=config["dim"]["font_stats_size"],
+                color=config.mpl["chart_line_color"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # add labels - time spent
@@ -125,20 +128,20 @@ class StatsTab(BaseTab):
                 textcoords="offset points",
                 xytext=(0, 5),
                 ha="center",
-                color=config["theme"]["stat_chart_text_color"],
-                fontsize=config["dim"]["font_stats_size"],
+                color=config.mpl["stat_chart_text_color"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # Style
-        self.figure.set_facecolor(config["theme"]["stat_background_color"])
-        ax.set_facecolor(config["theme"]["stat_chart_background_color"])
+        self.figure.set_facecolor(config.mpl["stat_background_color"])
+        ax.set_facecolor(config.mpl["stat_chart_background_color"])
         ax.yaxis.set_major_formatter(FormatStrFormatter("%.0f"))
         ax.set_ylim([0, self.total_cards + 2])
         ax.tick_params(
-            colors=config["theme"]["stat_chart_text_color"],
+            colors=config.mpl["stat_chart_text_color"],
             labelrotation=0,
             pad=1,
-            labelsize=config["dim"]["font_stats_size"],
+            labelsize=config["theme"]["font_stats_size"],
         )
         self.figure.tight_layout(pad=0.1)
         ax.get_yaxis().set_visible(False)
@@ -211,7 +214,6 @@ class StatsTab(BaseTab):
 
     def create_stats_button(self, text: str) -> QPushButton:
         new_button = QPushButton()
-        new_button.setMinimumHeight(config["dim"]["stats_btn_height"])
         new_button.setFont(config.qfont_stats)
         new_button.setText(text)
         new_button.setFocusPolicy(Qt.NoFocus)

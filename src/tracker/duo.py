@@ -158,7 +158,6 @@ class DuoLayout(QWidget):
 
     def get_btn(self, text, function=None) -> QPushButton:
         button = QPushButton(self)
-        button.setFixedHeight(config["dim"]["buttons_height"])
         button.setText(text)
         button.setFocusPolicy(Qt.NoFocus)
         if function is not None:

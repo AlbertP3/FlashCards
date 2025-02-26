@@ -571,7 +571,7 @@ class FCC:
             self.mw.switch_tab("main")
             self.mw._modify_file_monitor()
             self.mw.config_manual_update()
-            self.mw.set_theme()
+            self.mw.restart_app()
             self.post_fcc("Application restarted")
             self.mw.fcc.open()
         else:

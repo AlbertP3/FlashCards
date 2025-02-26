@@ -31,7 +31,6 @@ class CheckableComboBox(QComboBox):
     class Delegate(QStyledItemDelegate):
         def sizeHint(self, option, index):
             size = super().sizeHint(option, index)
-            size.setHeight(config["dim"]["sw_cfg_box_height"])
             return size
 
     def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
@@ -226,9 +225,6 @@ class NotificationPopup(QWidget):
         self.label.setWordWrap(True)
         self.label.setFont(config.qfont_button)
         self.label.setObjectName("notification")
-        self.setFixedSize(
-            int(self.parent().width() // 1.5), config["dim"]["notification_height"]
-        )
         layout.addWidget(self.label)
         self.__configure_animations()
         self.__func = lambda: None
@@ -257,9 +253,8 @@ class NotificationPopup(QWidget):
             self.__func = lambda: func(*args, **kwargs)
         else:
             self.__func = lambda: None
-        x, y = self._get_x_y()
-        self.setGeometry(QRect(x, y, self.width(), self.height()))
         self.show()
+        self.update_position()
         self.enter_animation.start()
         self.timer = QTimer()
         self.timer.setSingleShot(True)
@@ -268,13 +263,10 @@ class NotificationPopup(QWidget):
             self.timer.start(config["popups"]["timeout_ms"])
         self.is_visible = True
 
-    def _get_x_y(self) -> tuple[int, int]:
+    def update_position(self):
         pargeo = self.parent().geometry()
         x = int(pargeo.x() + 0.5 * self.parent().width() - 0.5 * self.width())
-        return x, pargeo.y()
-
-    def update_position(self):
-        self.move(*self._get_x_y())
+        self.move(x, pargeo.y())
 
     def hide_notification(self):
         """
@@ -320,7 +312,7 @@ class CFIDialog(QDialog):
         self.setMinimumWidth(250)
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(1, 1, 1, 1)
-        self.layout.setSpacing(config["dim"]["spacing"])
+        self.layout.setSpacing(config["theme"]["spacing"])
         self.form_layout = QFormLayout()
         self.start_qle = self.create_qle(str(start))
         self.cnt_qle = self.create_qle()
@@ -352,7 +344,6 @@ class CFIDialog(QDialog):
 
     def create_qle(self, text: str = "") -> QLineEdit:
         qle = QLineEdit()
-        qle.setFixedHeight(config["dim"]["buttons_height"])
         qle.setFont(config.qfont_button)
         qle.setText(text)
         qle.setObjectName("qdialog")
@@ -360,7 +351,6 @@ class CFIDialog(QDialog):
 
     def create_btn(self, text: str, func) -> QPushButton:
         btn = QPushButton(text)
-        btn.setFixedHeight(config["dim"]["buttons_height"])
         btn.setFont(config.qfont_button)
         btn.clicked.connect(func)
         return btn

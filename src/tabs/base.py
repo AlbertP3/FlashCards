@@ -209,11 +209,10 @@ class BaseTab:
 
     def set_box(self, layout):
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(config["dim"]["spacing"])
+        layout.setSpacing(config["theme"]["spacing"])
 
     def create_button(self, text, function=None) -> QPushButton:
         button = QPushButton()
-        button.setFixedHeight(config["dim"]["buttons_height"])
         button.setFont(config.qfont_button)
         button.setText(text)
         button.setFocusPolicy(Qt.NoFocus)

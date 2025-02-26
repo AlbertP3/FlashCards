@@ -53,8 +53,8 @@ class ProgressChartCanvas:
         total_words_plot.bar(
             self.formatted_dates,
             self.second_chart_values,
-            color="#979dac",
-            edgecolor="#000000",
+            color=config.mpl["chart_secondary_color"],
+            edgecolor=config.mpl["chart_edge_color"],
             linewidth=0.7,
             align="center",
             zorder=9,
@@ -64,8 +64,8 @@ class ProgressChartCanvas:
         positives_plot.bar(
             self.formatted_dates,
             self.chart_values,
-            color=config["theme"]["stat_bar_color"],
-            edgecolor="#000000",
+            color=config.mpl["stat_bar_color"],
+            edgecolor=config.mpl["chart_edge_color"],
             linewidth=0.7,
             align="center",
             zorder=0,
@@ -75,7 +75,7 @@ class ProgressChartCanvas:
         revision_count_plot.plot(
             self.formatted_dates,
             self.revision_count,
-            color="#979dac",
+            color=config.mpl["chart_secondary_color"],
             linewidth=1,
             zorder=9,
         )
@@ -90,9 +90,9 @@ class ProgressChartCanvas:
                 label,
                 ha="center",
                 va="bottom",
-                color=config["theme"]["stat_chart_text_color"],
+                color=config.mpl["stat_chart_text_color"],
                 zorder=10,
-                fontsize=config["dim"]["font_stats_size"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # add labels - total sum
@@ -108,9 +108,9 @@ class ProgressChartCanvas:
                 label,
                 ha="center",
                 va="bottom",
-                color=config["theme"]["stat_chart_text_color"],
+                color=config.mpl["stat_chart_text_color"],
                 zorder=10,
-                fontsize=config["dim"]["font_stats_size"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # add labels - repeated times
@@ -122,16 +122,16 @@ class ProgressChartCanvas:
                 textcoords="offset points",
                 xytext=(0, 5),
                 ha="center",
-                color=config["theme"]["stat_chart_text_color"],
-                fontsize=config["dim"]["font_stats_size"],
+                color=config.mpl["stat_chart_text_color"],
+                fontsize=config["theme"]["font_stats_size"],
             )
 
         # Style
-        self.figure.set_facecolor(config["theme"]["stat_background_color"])
-        total_words_plot.set_facecolor(config["theme"]["stat_chart_background_color"])
+        self.figure.set_facecolor(config.mpl["stat_background_color"])
+        total_words_plot.set_facecolor(config.mpl["stat_chart_background_color"])
         total_words_plot.tick_params(
-            colors=config["theme"]["stat_chart_text_color"],
-            labelsize=config["dim"]["font_stats_size"],
+            colors=config.mpl["stat_chart_text_color"],
+            labelsize=config["theme"]["font_stats_size"],
         )
         self.figure.tight_layout()
         positives_plot.get_yaxis().set_visible(False)
@@ -139,7 +139,7 @@ class ProgressChartCanvas:
         positives_plot.get_xaxis().set_visible(False)
         title = " & ".join(config["languages"])
         self.figure.suptitle(
-            title, fontsize=18, y=0.92, color=config["theme"]["font_color"]
+            title, fontsize=18, y=0.92, color=config.mpl["font_color"]
         )
         self.figure.subplots_adjust(left=0, bottom=0.1, right=1, top=1)
 
