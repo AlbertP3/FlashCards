@@ -1,5 +1,4 @@
-from PyQt5.QtWidgets import QGridLayout, QTextEdit
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QTextEdit, QVBoxLayout
 from utils import fcc_queue, LogLvl, Caliper
 from cfg import config
 from tabs.base import BaseTab
@@ -13,7 +12,7 @@ class MistakesTab(BaseTab):
         self.mw = mw
         self.id = "mistakes"
         self.mw.tab_names[self.id] = "Mistakes"
-        self.caliper = Caliper(config.qfont_console)
+        self.caliper = Caliper(config.qfont_console, mg=0.98)
         self.build()
         self.mw.add_tab(self.mistakes_qtext, self.id)
 
@@ -27,25 +26,25 @@ class MistakesTab(BaseTab):
             )
 
     def build(self):
-        self.mistakes_layout = QGridLayout()
-        self.mistakes_layout.addWidget(self.create_mistakes_list(), 0, 0)
+        self.mistakes_layout = QVBoxLayout()
+        self.mistakes_layout.addWidget(self.create_mistakes_list(), stretch=1)
 
     def show_mistakes(self):
-        out, sep = list(), " | "
-        cell_args = {
-            "pixlim": (config["geo"][0] - self.caliper.strwidth(sep))
-            / 2,
-            "align": config["cell_alignment"],
-        }
+        out = list()
+        sep = " | "
+        px = (self.mistakes_qtext.viewport().width() - self.caliper.strwidth(sep)) / 2
         for m in self.mw.mistakes_list:
-            m1 = self.caliper.make_cell(m[self.mw.default_side], **cell_args)
-            m2 = self.caliper.make_cell(m[1 - self.mw.default_side], **cell_args)
+            m1 = self.caliper.make_cell(
+                m[self.mw.default_side], pixlim=px, align="left"
+            )
+            m2 = self.caliper.make_cell(
+                m[1 - self.mw.default_side], pixlim=px, align="left"
+            )
             out.append(f"{m1}{sep}{m2}")
-        self.mistakes_qtext.setText("\n".join(out))
+        self.mistakes_qtext.setPlainText("\n".join(out))
 
     def create_mistakes_list(self):
         self.mistakes_qtext = QTextEdit()
         self.mistakes_qtext.setFont(config.qfont_console)
         self.mistakes_qtext.setReadOnly(True)
-        self.mistakes_qtext.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         return self.mistakes_qtext

@@ -3,16 +3,15 @@ from PyQt5.QtWidgets import (
     QTextEdit,
     QApplication,
     QWidget,
-    QGridLayout,
+    QVBoxLayout,
     QPushButton,
     QLabel,
 )
-from PyQt5.QtGui import QTextCursor, QKeyEvent, QFont
+from PyQt5.QtGui import QTextCursor, QKeyEvent
 from PyQt5.QtCore import Qt
 from data_types import non_space_lng_re
 from utils import Caliper
 from cfg import config
-from widgets import get_scrollbar
 
 
 class BaseConsole(QWidget):
@@ -47,17 +46,17 @@ class BaseConsole(QWidget):
         return self.console.toPlainText()[self.promptend :]
 
     def init_font(self):
-        self.caliper = Caliper(config.qfont_console)
+        self.caliper = Caliper(config.qfont_console, mg=0.96)
 
     def run_cmd(self):
         raise NotImplementedError
 
     def build(self):
         self._tab = QWidget()
-        self.fcc_layout = QGridLayout()
+        self.fcc_layout = QVBoxLayout()
         self.fcc_layout.setContentsMargins(0, 0, 0, 0)
         self.console = self.create_console()
-        self.fcc_layout.addWidget(self.console, 0, 0)
+        self.fcc_layout.addWidget(self.console, stretch=1)
         self._tab.setLayout(self.fcc_layout)
 
     def create_console(self) -> QTextEdit:
@@ -65,7 +64,6 @@ class BaseConsole(QWidget):
         console.keyPressEvent = self.cli_shortcuts
         console.setFont(config.qfont_console)
         console.setAcceptRichText(False)
-        console.setVerticalScrollBar(get_scrollbar())
         console.contextMenuEvent = lambda *args, **kwargs: None
         console.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         console.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

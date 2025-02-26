@@ -9,16 +9,16 @@ log = logging.getLogger("SOD")
 
 class SODspawn:
 
-    def __init__(self, stream_out):
-        self.sout = stream_out
-        self.cli = CLI(output=self.sout)
-        self.sout.console_prompt = self.cli.prompt.PHRASE
-        self.cli.send_output(self.sout.console_prompt)
+    def __init__(self, tab):
+        self.tab = tab
+        self.cli = CLI(tab=self.tab)
+        self.tab.console_prompt = self.cli.prompt.PHRASE
+        self.cli.send_output(self.tab.console_prompt)
 
     def post(self, msg):
-        if msg != self.sout.console_prompt:
+        if msg != self.tab.console_prompt:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
-            self.sout.console_log.append(msg)
+            self.tab.console_log.append(msg)
 
     def execute_command(
         self, parsed_input: list, followup_prompt: bool = True
@@ -30,8 +30,8 @@ class SODspawn:
             self.cli.set_output_prompt(self.cli.prompt.PHRASE)
         else:
             self.run(parsed_input)
-        self.cli.send_output(self.sout.console_prompt + self.sout.editable_output)
-        self.sout.editable_output = ""
+        self.cli.send_output(self.tab.console_prompt + self.tab.editable_output)
+        self.tab.editable_output = ""
 
     def run(self, cmd: list):
         if (
@@ -48,7 +48,7 @@ class SODspawn:
                 self.cli.reset_state()
                 self.cli.init_set_languages()
                 self.cli.cls(self.cli.msg.SAVE_ABORTED)
-                self.sout.console_prompt = self.cli.prompt.PHRASE
+                self.tab.console_prompt = self.cli.prompt.PHRASE
             elif self.cli.state.QUEUE_MODE:
                 self.cli.setup_queue_unpacking()
             else:  # Exit SOD - not available in dedicated tab

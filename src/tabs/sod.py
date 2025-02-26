@@ -10,7 +10,7 @@ class SodTab(BaseConsole):
         self.build()
         self.mw.tab_names["sod"] = "Dictionary"
         self.editable_output = ""
-        self.sod = SODspawn(stream_out=self)
+        self.sod = SODspawn(tab=self)
         self.mw.add_shortcut("sod", self.open, "main")
         self.mw.add_shortcut("run_command", self.run_cmd, "sod")
         self.mw.add_tab(self._tab, "sod")

@@ -154,12 +154,6 @@ class CfgTab(BaseTab):
             config["theme"]["spacing"],
             text="Spacing",
         )
-        self.cell_alignment_cbx = self.cfg_cbx(
-            config["cell_alignment"],
-            ["left", "right", "center"],
-            multi_choice=False,
-            text="Cell alignment",
-        )
         self.synopsis_qle = self.cfg_qle(config["synopsis"], text="Synopsis")
 
         self.opts_layout.add_spacer()
@@ -466,7 +460,6 @@ class CfgTab(BaseTab):
         ] = self.hide_tips_connector_cbx.currentDataList()[0]
         new_cfg["timespent_len"] = int(self.timespent_len_qle.text())
         new_cfg["synopsis"] = self.synopsis_qle.text()
-        new_cfg["cell_alignment"] = self.cell_alignment_cbx.currentDataList()[0]
         new_cfg["EMO"]["discretizer"] = self.emo_discretizer_cbx.currentDataList()[0]
         new_cfg["EMO"]["languages"] = self.emo_lngs_cbx.currentDataList()
         new_cfg["EMO"]["approach"] = self.emo_approach_cbx.currentDataList()[0]

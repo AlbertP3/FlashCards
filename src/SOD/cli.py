@@ -58,18 +58,16 @@ class Prompt:
 
 class CLI:
 
-    def __init__(self, output) -> None:
+    def __init__(self, tab) -> None:
         self.state = State()
         self.prompt = Prompt()
         self.msg = Message()
         self.transl = str()
         self.phrase = str()
         self.queue_dict = OrderedDict()
-        self.output = output
+        self.tab = tab
         self.init_cli_args()
-        self.re_excl_dirs = re.compile(
-            config["SOD"]["exclude_pattern"], re.IGNORECASE
-        )
+        self.re_excl_dirs = re.compile(config["SOD"]["exclude_pattern"], re.IGNORECASE)
         self.dicts = Dict_Services()
         self.init_file_handler()
         self.selection_queue = list()
@@ -78,41 +76,23 @@ class CLI:
 
     @property
     def caliper(self) -> Caliper:
-        return self.output.caliper
+        return self.tab.caliper
 
     @property
     @cache
     def pix_lim(self) -> int:
-        return int(
-            0.98
-            * (
-                self.output.console.width()
-                - self.output.console.contentsMargins().left()
-                - self.output.console.contentsMargins().right()
-            )
-        )
+        return self.tab.console.viewport().width()
 
     @property
     @cache
     def lines_lim(self) -> int:
-        return (
-            int(
-                (
-                    self.output.console.height()
-                    - self.output.console.contentsMargins().top()
-                    - self.output.console.contentsMargins().bottom()
-                )
-                // self.caliper.sch
-            )
-            - 2
-        )
+        # -1 excludes status bar
+        return int(self.tab.console.viewport().height() // self.caliper.sch) - 1
 
     def init_file_handler(self):
         try:
             self.fh = get_filehandler(config["SOD"]["last_file"])
-            self.output.mw.file_monitor_add_protected_path(
-                config["SOD"]["last_file"]
-            )
+            self.tab.mw.file_monitor_add_protected_path(config["SOD"]["last_file"])
             self.init_set_languages()
             self.cls()
         except (FileNotFoundError, AttributeError) as e:
@@ -152,10 +132,10 @@ class CLI:
         return self.dicts.dict_service == "local"
 
     def refresh_file_handler(self):
-        self.output.mw.file_monitor_del_protected_path(self.fh.path)
+        self.tab.mw.file_monitor_del_protected_path(self.fh.path)
         self.fh.close()
         self.fh = get_filehandler(config["SOD"]["last_file"])
-        self.output.mw.file_monitor_add_protected_path(self.fh.path)
+        self.tab.mw.file_monitor_add_protected_path(self.fh.path)
         self.init_set_languages()
 
     def update_file_handler(self, filepath: str) -> FileHandler:
@@ -179,9 +159,9 @@ class CLI:
             fh = get_filehandler(filepath)
             if self.fh:
                 self.fh.close()
-                self.output.mw.file_monitor_del_protected_path(self.fh.path)
+                self.tab.mw.file_monitor_del_protected_path(self.fh.path)
             self.fh = fh
-            self.output.mw.file_monitor_add_protected_path(self.fh.path)
+            self.tab.mw.file_monitor_add_protected_path(self.fh.path)
             self.init_set_languages()
             self.cls()
         except re.error:
@@ -197,11 +177,11 @@ class CLI:
         self.state = State()
 
     def set_output_prompt(self, t):
-        self.output.console_prompt = t
+        self.tab.console_prompt = t
 
     def send_output(self, text: str):
-        self.output.console.append(text)
-        self.output.console_log.extend(text.split("\n"))
+        self.tab.console.append(text)
+        self.tab.console_log.extend(text.split("\n"))
 
     def execute_command(self, parsed_phrase: list):
         parsed_phrase = self.handle_prefix(parsed_phrase)
@@ -476,12 +456,12 @@ class CLI:
             phrase, translations = l2[1].strip(), l2[2].strip()
             self.queue_dict[phrase] = [[translations], [phrase], ["MANUAL"]]
             cleaned_text = (
-                self.output.console.toPlainText()
+                self.tab.console.toPlainText()
                 .replace(f" {self.sep_manual} ", " ")
                 .replace(translations, "")
             )
-            self.output.console.setText(cleaned_text)
-            self.output.console_log = cleaned_text
+            self.tab.console.setText(cleaned_text)
+            self.tab.console_log = cleaned_text
             transl = translations
             warnings = None
         else:  # Online Dictionary
@@ -712,14 +692,14 @@ class CLI:
 
     def res_edit_parse(self, parsed_cmd):
         if self.state.MODIFY_RES_EDIT_MODE[0] == "m":
-            c = self.output.console.toPlainText()
+            c = self.tab.console.toPlainText()
             e_index = c.rfind("Modify: ") + 8
             self.phrase = c[e_index:]
             self.fh.update_dtracker(new_phrase=self.phrase)
         elif self.state.MODIFY_RES_EDIT_MODE[0] == "a":
             self.res_edit.append(" ".join(parsed_cmd))
         elif self.state.MODIFY_RES_EDIT_MODE[0] == "e":
-            c = self.output.console.toPlainText()
+            c = self.tab.console.toPlainText()
             e_index = c.rfind("Edit: ") + 6
             self.res_edit.append(c[e_index:])
 
@@ -734,18 +714,18 @@ class CLI:
             new_prompt = f"Edit: "
             extra = self.translations[int(r[1:]) - 1]
         else:
-            new_prompt = self.output.console_prompt
+            new_prompt = self.tab.console_prompt
             extra = ""
         self.set_output_prompt(new_prompt)
-        self.output.editable_output = extra
+        self.tab.editable_output = extra
 
     def cls(self, msg="", keep_content=False, keep_cmd=False):
         if keep_content:
-            content = self.output.console.toPlainText().split("\n")[1:]
+            content = self.tab.console.toPlainText().split("\n")[1:]
             if not keep_cmd and content:
                 content.pop()
-        self.output.console.setText("")
-        self.output.console_log = []
+        self.tab.console.setText("")
+        self.tab.console_log = []
         self.__post_status_bar(msg)
         if keep_content and content:
             self.send_output("\n".join(content))
@@ -792,7 +772,7 @@ class CLI:
                 [" (<SRC_LNG>^<TGT_LNG>)", "change source/target language"],
                 [" <blank>", "exit SOD or finish Queue mode"],
             ],
-            pixlim=1.1 * self.pix_lim,
+            pixlim=self.pix_lim,
             sep=" --> ",
             align=["left", "left"],
             keep_last_border=False,
@@ -806,7 +786,7 @@ class CLI:
                 [" d<N>", "remove record from source file"],
                 [" <blank>", "abort"],
             ],
-            pixlim=1.1 * self.pix_lim,
+            pixlim=self.pix_lim,
             sep=" --> ",
             align=["left", "left"],
             keep_last_border=False,

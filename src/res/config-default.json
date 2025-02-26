@@ -25,7 +25,6 @@
     "min_eph_cards": 3,
     "csv_sniffer": "off",
     "synopsis": "You have reached the world's edge, none but devils play past here",
-    "cell_alignment": "left",
     "ILN": {},
     "CRE": {
         "count": 0,

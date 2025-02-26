@@ -404,7 +404,7 @@ class FCC:
             "pixlim": (
                 0.94 * (config["geo"][0] - self.mw.fcc.caliper.strwidth(sep)) / 2
             ),
-            "align": config["cell_alignment"],
+            "align": "left",
         }
         rng = (
             range(lim)

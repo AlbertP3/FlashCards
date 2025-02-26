@@ -231,22 +231,23 @@ def flatten_dict(d: dict, root: str = "BASE", lim_chars: int = None) -> list:
 class Caliper:
     """Works on pixels!"""
 
-    def __init__(self, qFont: QFont, suffix: str = "", filler: str = "\u0020"):
+    def __init__(self, qFont: QFont, suf: str = "", fill: str = "\u0020", mg=1):
+        self.doc_margin = mg
         self.fmetrics = QFontMetricsF(qFont)
-        self.suffix = suffix or config["theme"]["default_suffix"]
+        self.suffix = suf or config["theme"]["default_suffix"]
         self.scw = self.fmetrics.maxWidth()
         self.sch = self.fmetrics.height()
         self.ls = self.fmetrics.lineSpacing()
         self.suflen = self.strwidth(self.suffix)
-        self.filler = filler
-        self.fillerlen = self.strwidth(filler)
+        self.filler = fill
+        self.fillerlen = self.strwidth(fill)
 
     @cache
     def pixlen(self, char: str) -> float:
-        return self.fmetrics.width(char)
+        return self.fmetrics.horizontalAdvance(char) * self.doc_margin
 
     def strwidth(self, text: str) -> float:
-        return self.fmetrics.horizontalAdvance(text)
+        return self.fmetrics.horizontalAdvance(text) * self.doc_margin
 
     def abbreviate(self, text: str, pixlim: float) -> str:
         """Trims text to the given pixel-length"""
