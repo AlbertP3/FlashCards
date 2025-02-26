@@ -1,3 +1,6 @@
+import os
+import subprocess
+import logging
 from PyQt5.QtWidgets import (
     QWidget,
     QGridLayout,
@@ -14,6 +17,8 @@ from widgets import get_scrollbar
 from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
+
+log = logging.getLogger("GUI")
 
 
 class LoadTab(BaseTab):
@@ -71,12 +76,51 @@ class LoadTab(BaseTab):
 
     def show_files_qlist_ctx(self, position):
         self._files_qlist_ctx.clear()
-        act = QAction("Create…", self.files_qlist)
-        act.triggered.connect(self.show_input_dialog)
-        self._files_qlist_ctx.addAction(act)
+        create_iln = QAction("Create…", self.files_qlist)
+        create_iln.triggered.connect(self.show_input_dialog_ILN)
+        self._files_qlist_ctx.addAction(create_iln)
+        reveal = QAction("Reveal")
+        reveal.triggered.connect(self.reveal_file)
+        self._files_qlist_ctx.addAction(reveal)
+        folder = QAction("Folder")
+        folder.triggered.connect(self.open_folder)
+        self._files_qlist_ctx.addAction(folder)
         self._files_qlist_ctx.exec_(QCursor.pos())
 
-    def show_input_dialog(self):
+    def reveal_file(self):
+        """Opens selected file in external program"""
+        try:
+            fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
+            cmd = config["reveal_file_cmd"]
+            if not cmd:
+                raise KeyError
+            subprocess.Popen([cmd, fd.filepath], shell=False)
+        except KeyError:
+            fcc_queue.put_notification("Reveal file command is missing", LogLvl.err)
+        except Exception as e:
+            log.error(f"Error opening {fd.filepath} with {cmd}: {e}", exc_info=True)
+            fcc_queue.put_notification(
+                f"Error opening {fd.filepath}", LogLvl.err, func=self.mw.log.open
+            )
+
+    def open_folder(self):
+        """Opens containing folder"""
+        try:
+            fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
+            dir = os.path.dirname(fd.filepath)
+            cmd = config["open_containing_dir_cmd"]
+            if not cmd:
+                raise KeyError
+            subprocess.Popen([cmd, dir], shell=False)
+        except KeyError:
+            fcc_queue.put_notification("Open folder command is missing", LogLvl.err)
+        except Exception as e:
+            log.error(f"Error opening directory {dir}: {e}", exc_info=True)
+            fcc_queue.put_notification(
+                f"Error opening directory {dir}", LogLvl.err, func=self.mw.log.open
+            )
+
+    def show_input_dialog_ILN(self):
         fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
         start = config["ILN"].get(fd.filepath, 0)
         cnt = db_conn.get_lines_count(fd) - start

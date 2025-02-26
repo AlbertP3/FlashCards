@@ -398,12 +398,17 @@ class CfgTab(BaseTab):
             multi_choice=False,
             text="CSV sniffer",
         )
-        self.timespent_len_qle = self.cfg_qle(
-            config["timespent_len"], text="Timespent display length"
-        )
         self.cache_hist_size_qle = self.cfg_qle(
             config["cache_history_size"],
             text="Cache history size",
+        )
+        self.open_folder_cmd_qle = self.cfg_qle(
+            config["open_containing_dir_cmd"],
+            "Open folder command"
+        )
+        self.reveal_file_cmd_qle = self.cfg_qle(
+            config["reveal_file_cmd"],
+            "Reveal file command"
         )
         self.opts_layout.add_spacer()
         self.config_layout.addWidget(self.submit_btn)
@@ -458,7 +463,6 @@ class CfgTab(BaseTab):
         new_cfg["hide_tips"][
             "connector"
         ] = self.hide_tips_connector_cbx.currentDataList()[0]
-        new_cfg["timespent_len"] = int(self.timespent_len_qle.text())
         new_cfg["synopsis"] = self.synopsis_qle.text()
         new_cfg["EMO"]["discretizer"] = self.emo_discretizer_cbx.currentDataList()[0]
         new_cfg["EMO"]["languages"] = self.emo_lngs_cbx.currentDataList()
@@ -508,6 +512,8 @@ class CfgTab(BaseTab):
             self.tracker_duo_active.currentDataList()[0] == "True"
         )
         new_cfg["tracker"]["duo"]["prelim_avg"] = int(self.tracker_avg_n.text())
+        new_cfg["reveal_file_cmd"] = self.reveal_file_cmd_qle.text()
+        new_cfg["open_containing_dir_cmd"] = self.open_folder_cmd_qle.text()
 
         if new_cfg["theme"]["name"] != config["theme"]["name"]:
             config["theme"]["name"] = new_cfg["theme"]["name"]

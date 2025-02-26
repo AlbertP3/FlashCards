@@ -111,7 +111,6 @@ def __validate(cfg: Config) -> tuple[bool, set]:
         "efc.threshold": cfg["efc"]["threshold"],
         "efc.cache_expiry_hours": cfg["efc"]["cache_expiry_hours"],
         "cache_history_size": cfg["cache_history_size"],
-        "timespent_len": cfg["timespent_len"],
         "timeout_ms": cfg["popups"]["timeout_ms"],
         "show_animation_ms": cfg["popups"]["show_animation_ms"],
         "hide_animation_ms": cfg["popups"]["hide_animation_ms"],

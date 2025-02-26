@@ -234,7 +234,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | mistakes_part_cnt             | maximum number of *Mistakes* files. Automatic rotation and partitioning is applied                                          |
 | mistakes_part_size            | limit the number of cards stored in one *Mistakes* file                                                                     |
 | card_default_side             | Specifies with side of the card is displayed first. Valid choices are: 1, 0, random                                         |
-| timespent_len                 | count of months back that are shown on the TimeSpent window                                                                 |
 | emo_discretizer               | which discretization function should EMO use: yeo-johnson, decision-tree                                                    |
 | emo_cap_fold                  | determines the quantile cap on both sides of the data distribution                                                          |
 | csv_sniffer                   | allows use of custom separators eg. ';,'. Defaults to a comma if turned off                                                 |
