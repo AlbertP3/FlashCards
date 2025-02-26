@@ -7,7 +7,6 @@ from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
     QPushButton,
-    QTextEdit,
     QLabel,
     QMainWindow,
     QTabWidget,
@@ -21,7 +20,6 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import (
     QWindow,
     QIcon,
-    QFontMetricsF,
     QKeySequence,
     QFont,
     QResizeEvent,
@@ -71,7 +69,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.show()
         self.__onload_initiate_flashcards()
         self.__onload_notifications()
-        self.reload_current_text()
         self.q_app.exec()
 
     def __onload_initiate_flashcards(self):
@@ -320,7 +317,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         # TODO make use of this button
         self.progress_button = self.create_button(
             config["icons"]["progress"],
-            lambda: fcc_queue.put_notification("Progress moved to Tracker", lvl=LogLvl.warn),
+            lambda: fcc_queue.put_notification(
+                "Progress moved to Tracker", lvl=LogLvl.warn
+            ),
         )
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
 
@@ -339,7 +338,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         config.load_theme()
         config.load_qfonts()
         self.setStyleSheet(config.stylesheet)
-        self.reload_current_text()
         self.update_words_button()
 
     def restart_app(self):
@@ -351,34 +349,54 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         super().update_default_side()
 
     def create_textbox(self):
-        self.textbox = QTextEdit(self)
+        self.textbox = QLabel(self)
         self.textbox_last_selection = ""
         self.textbox.setFont(config.qfont_textbox)
-        self.textbox.setReadOnly(True)
+        self.textbox.setWordWrap(True)
         self.textbox.setAlignment(Qt.AlignCenter)
-        self.textbox.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.textbox.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.textbox.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.textbox.setCursor(Qt.IBeamCursor)
         self.__attach_textbox_ctx()
         self.tb_cal = Caliper(config.qfont_textbox)
-        self.tb_cmg = 0.93
         self.textbox.showEvent = self.__textbox_show_event
         return self.textbox
 
+    def display_text(self, text: str):
+        if self.allow_hide_tips and self.should_hide_tips():
+            text, chg = self.tips_hide_re.subn("", text)
+        else:
+            chg = 0
+
+        # Ensure text fits the textbox
+        nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
+        if nl > self.tb_nl:
+            font_size = int(config["theme"]["font_textbox_size"] * self.tb_nl / nl)
+        else:
+            font_size = config["theme"]["font_textbox_size"]
+
+        self.textbox.setFont(QFont(config["theme"]["font"], font_size))
+        self.textbox.setText(text)
+
+        if chg:
+            self.hint_qbutton.show()
+        else:
+            self.hint_qbutton.hide()
+
     def __textbox_show_event(self, event):
-        QTextEdit.showEvent(self.textbox, event)
+        QLabel.showEvent(self.textbox, event)
         self._set_textbox_chr_space()
 
     def _set_textbox_chr_space(self, event=None):
         _, _, w, h = self.textbox.geometry().getRect()
-        self.tb_nl = self.tb_cmg * h // self.tb_cal.sch
-        self.tb_vp = (self.tb_cmg * w, self.tb_cmg * h)
+        self.tb_nl = h // self.tb_cal.sch
+        self.tb_vp = (w, h)
 
     def __attach_textbox_ctx(self):
         self.textbox_ctx = QMenu(self.textbox)
         self.textbox_ctx.setFont(config.qfont_button)
         self.textbox.setContextMenuPolicy(Qt.CustomContextMenu)
         copy_action = QAction("Copy", self.textbox)
-        copy_action.triggered.connect(self.textbox.copy)
+        copy_action.triggered.connect(self.__text_box_copy_to_clipboard)
         self.textbox_ctx.addAction(copy_action)
 
         if config["lookup"]["mode"] == "auto":
@@ -393,12 +411,16 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
         self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
 
+    def __text_box_copy_to_clipboard(self):
+        sel = self.textbox.selectedText()
+        QApplication.clipboard().setText(sel or self.textbox.text())
+
     def textbox_ctx_menu_open(self, position):
         self.textbox_ctx.exec_(QCursor.pos())
 
     def __lookup_sod_auto(self, event):
-        QTextEdit.mouseReleaseEvent(self.textbox, event)
-        sel = self.textbox.textCursor().selectedText()
+        QLabel.mouseReleaseEvent(self.textbox, event)
+        sel = self.textbox.selectedText()
         if sel != self.textbox_last_selection:
             if len(sel) >= 1:
                 if self.side == 0:
@@ -415,7 +437,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.textbox_last_selection = sel
 
     def __lookup_sod_quick(self):
-        sel = self.textbox.textCursor().selectedText()
+        sel = self.textbox.selectedText()
         if self.side == 0:
             lng = self.sod.sod.cli.fh.foreign_lng
         else:
@@ -429,7 +451,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.notification_timer_func()
 
     def __lookup_sod_full(self):
-        sel = self.textbox.textCursor().selectedText()
+        sel = self.textbox.selectedText()
         if self.sod.sod.can_do_lookup():
             self.sod.sod.cli.cls()
             self.sod.sod.cli.reset_state()
@@ -465,36 +487,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if not self.is_synopsis:
             self.allow_hide_tips = not self.allow_hide_tips
             self.display_text(self.get_current_card().iloc[self.side])
-
-    def display_text(self, text: str):
-        if self.allow_hide_tips and self.should_hide_tips():
-            text, chg = self.tips_hide_re.subn("", text)
-        else:
-            chg = 0
-
-        # Ensure text fits the textbox
-        nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
-        if nl > self.tb_nl:
-            font_size = int(config["theme"]["font_textbox_size"] * self.tb_nl / nl)
-            qfm = QFontMetricsF(QFont(config["theme"]["font"], font_size))
-            nl_ = qfm.horizontalAdvance(text) // self.tb_vp[0] + 1
-            margin_top = int((self.tb_vp[1] - qfm.lineSpacing() * nl_) / 2)
-        else:
-            font_size = config["theme"]["font_textbox_size"]
-            margin_top = int((self.tb_vp[1] - self.tb_cal.ls * nl - self.tb_cal.ls) / 2)
-        margin_top = margin_top if margin_top > 0 else 0
-        self.textbox.setFontPointSize(font_size)
-        self.textbox.setText(text)
-        self.textbox.setViewportMargins(0, margin_top, 0, 0)
-        self.textbox.setAlignment(Qt.AlignCenter)
-
-        if chg:
-            self.hint_qbutton.show()
-        else:
-            self.hint_qbutton.hide()
-
-    def reload_current_text(self):
-        self.display_text(self.textbox.toPlainText())
 
     def click_save_button(self):
         if self.active_file.kind == db_conn.KINDS.rev:

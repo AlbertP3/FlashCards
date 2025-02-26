@@ -34,7 +34,7 @@ class MistakesTab(BaseTab):
         out, sep = list(), " | "
         cell_args = {
             "pixlim": (config["geo"][0] - self.caliper.strwidth(sep))
-            // 2.02,
+            / 2,
             "align": config["cell_alignment"],
         }
         for m in self.mw.mistakes_list:
