@@ -1,6 +1,6 @@
 import joblib  # type: ignore
 import os
-from time import time
+from time import time, perf_counter
 from random import choice
 from datetime import datetime
 import logging
@@ -18,11 +18,13 @@ from DBAC import db_conn
 
 log = logging.getLogger("EFC")
 
+
 class StandardModel:
     """
     Based on Ebbinghaus Forgetting Curve
     Estimates the percentage of words in-memory
     """
+
     def __init__(self):
         self.name = "CST"
         self.mtime = 0
@@ -48,7 +50,7 @@ class StandardModel:
             s = (repeated_times**x1 + 0.01 * prev_score * x2) - (x3 * exp(total * x4))
             preds.append([100 * exp(-ts_last_rev / (24 * s))])
         return preds
-    
+
 
 class EFCTab(BaseTab):
 
@@ -211,10 +213,10 @@ class EFCTab(BaseTab):
             log.debug("Used cached EFC recommendations")
             return self._recoms
         else:
-            log.debug("Calculated new EFC recommendations")
             return self.__get_recommendations()
 
     def __get_recommendations(self) -> list[dict]:
+        t0 = perf_counter()
         self._recoms = list()
         db_conn.refresh()
         if config["mst"]["interval_days"] > 0:
@@ -264,6 +266,9 @@ class EFCTab(BaseTab):
                 x[config["efc"]["sort"]["key_2"]],
             )
         )
+        log.debug(
+            f"Calculated new EFC recommendations in {1000*(perf_counter()-t0):.0f}ms"
+        )
         return self._recoms
 
     def get_efc_data(
@@ -298,9 +303,7 @@ class EFCTab(BaseTab):
                 cnt = len(data)
                 if cnt < config["init_revs_cnt"]:
                     is_initial = True
-                    efc = [
-                        [0 if since_last_rev >= config["init_revs_inth"] else 100]
-                    ]
+                    efc = [[0 if since_last_rev >= config["init_revs_inth"] else 100]]
                     pred = (
                         config["init_revs_inth"] - since_last_rev
                         if since_last_rev <= config["init_revs_inth"]
@@ -420,9 +423,7 @@ class EFCTab(BaseTab):
                 if fd.lng == lng:
                     time_delta = db_conn.get_timedelta_from_creation(fd.signature)
                     if time_delta.days >= config["days_to_new_rev"]:
-                        recom_text = config["recoms"].get(
-                            lng, f"It's time for {lng}"
-                        )
+                        recom_text = config["recoms"].get(lng, f"It's time for {lng}")
                         recoms.append(
                             {
                                 "fp": choice(

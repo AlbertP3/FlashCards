@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import QTextEdit, QVBoxLayout
+from PyQt5.QtCore import Qt
 from utils import fcc_queue, LogLvl, Caliper
 from cfg import config
 from tabs.base import BaseTab
@@ -12,7 +13,7 @@ class MistakesTab(BaseTab):
         self.mw = mw
         self.id = "mistakes"
         self.mw.tab_names[self.id] = "Mistakes"
-        self.caliper = Caliper(config.qfont_console, mg=0.98)
+        self.caliper = Caliper(config.qfont_console, mg=0.96)
         self.build()
         self.mw.add_tab(self.mistakes_qtext, self.id)
 
@@ -46,5 +47,6 @@ class MistakesTab(BaseTab):
     def create_mistakes_list(self):
         self.mistakes_qtext = QTextEdit()
         self.mistakes_qtext.setFont(config.qfont_console)
+        self.mistakes_qtext.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.mistakes_qtext.setReadOnly(True)
         return self.mistakes_qtext

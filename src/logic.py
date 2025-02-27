@@ -4,7 +4,7 @@ from datetime import datetime
 from random import randint
 import pandas as pd
 from DBAC import db_conn, FileDescriptor
-from utils import *
+from utils import fcc_queue, LogLvl, format_seconds_to
 from cfg import config
 from data_types import HIDE_TIPS_POLICIES
 from rev_summary import SummaryGenerator
@@ -86,11 +86,20 @@ class MainWindowLogic:
             self.total_words, self.positives, seconds_spent, is_first=0
         )
         self.is_recorded = True
+        self.skip_efc_reload_regular()
         if self.active_file.filepath in config["CRE"]["items"]:
             self._update_cre()
             fcc_queue.put_log(self._get_cre_stat())
             if not config["CRE"]["items"]:
                 self._cre_finalize()
+
+    def skip_efc_reload_regular(self):
+        self.efc._db_load_time_efc = db_conn.last_load
+        for i, v in enumerate(self.efc._recoms):
+            if v["fp"] == self.active_file.filepath:
+                del self.efc._recoms[i]
+                self.efc.recoms_qlist.takeItem(i)
+                break
 
     def _update_cre(self):
         config["CRE"]["items"].remove(self.active_file.filepath)
@@ -173,6 +182,27 @@ class MainWindowLogic:
         self.load_flashcards(db_conn.files[newfp])
         self.update_backend_parameters()
         self.update_interface_parameters()
+        self.skip_efc_reload_initial()
+
+    def skip_efc_reload_initial(self):
+        self.efc._db_load_time_efc = db_conn.last_load
+        self.efc._recoms.append(
+            {
+                "fp": self.active_file.filepath,
+                "disp": f"{config['icons']['initial']} {self.active_file.signature}",
+                "score": 0,
+                "is_init": True,
+            }
+        )
+        self.efc._recoms.sort(
+            key=lambda x: (
+                x[config["efc"]["sort"]["key_1"]],
+                x[config["efc"]["sort"]["key_2"]],
+            )
+        )
+        self.efc.recoms_qlist.clear()
+        self.efc.show_recommendations()
+        
 
     def update_backend_parameters(self):
         config["onload_filepath"] = self.active_file.filepath

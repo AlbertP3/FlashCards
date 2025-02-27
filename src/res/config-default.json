@@ -86,7 +86,7 @@
     },
     "efc": {
         "threshold": 80,
-        "cache_expiry_hours": 3,
+        "cache_expiry_hours": 1,
         "opt": {
             "reversed": false,
             "random": true,
