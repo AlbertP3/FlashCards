@@ -32,6 +32,11 @@ QComboBox QAbstractItemView::item {
     padding: 5px;
 }
 
+QListView::item:selected {
+    background-color: #D79921;
+    color: #1D2021;
+}
+
 QLabel#stopwatch {
     background-color: #2a2827;
 }
@@ -149,7 +154,7 @@ QLineEdit#qdialog {
     -stat_background_color: #282828;
     -stat_chart_background_color: #1d2021;
     -stat_chart_text_color: #fbf1c7;
-    -chart_secondary_color : #756245;
+    -chart_secondary_color: #756245;
     -chart_edge_color: #000000;
     -chart_line_color: #a0a0a0;
 }

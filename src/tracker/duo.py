@@ -35,7 +35,7 @@ class DuoLayout(QWidget):
 
     @property
     def lines_lim(self) -> int:
-        return int(0.94 * config["geo"][1] / self.caliper.sch)
+        return int(self.chart_qte.viewport().height() // self.caliper.sch)
 
     @property
     def pix_lim(self) -> int:
@@ -78,6 +78,7 @@ class DuoLayout(QWidget):
                                 data, self.lines_lim // 2 - 1
                             ),
                             [" "],
+                            [" "],
                             self.get_chart_last_7_days(data, self.lines_lim // 2 - 1),
                         ]
                     )
@@ -108,11 +109,7 @@ class DuoLayout(QWidget):
         self.offset_qle = self.get_qle("0")
         self.form_layout.addRow("Offset", self.offset_qle)
 
-        self.final_cbx = self.get_cbx(
-            "False",
-            ["False", "True"],
-            multi_choice=False
-        )
+        self.final_cbx = self.get_cbx("False", ["False", "True"], multi_choice=False)
         self.form_layout.addRow("Final", self.final_cbx)
 
         self.submit_btn = self.get_btn("Add", self.on_submit)
@@ -169,7 +166,7 @@ class DuoLayout(QWidget):
         les = int(self.lessons_qle.text() or self.lessons_qle.placeholderText())
         ts = self.time_spent_qle.text() or self.time_spent_qle.placeholderText()
 
-        if translate(self.final_cbx.currentDataList()[0]):
+        if self.final_cbx.currentDataList()[0] == "True":
             ts = int(ts)
             dal.add_duo_record_final(lng=lng, lessons=les, timespent=ts)
         else:
@@ -181,7 +178,7 @@ class DuoLayout(QWidget):
         self.lessons_qle.clear()
         self.time_spent_qle.clear()
         self.offset_qle.clear()
-        self.final_cbx.setChecked(False)
+        self.final_cbx.setCurrentIndex(0)
         self.upd = -1
         self.refresh()
 

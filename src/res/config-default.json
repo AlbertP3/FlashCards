@@ -154,6 +154,7 @@
         "console_font": "Consolas",
         "font_button_size": 12,
         "font_textbox_size": 28,
+        "font_textbox_min_size": 10,
         "font_stats_size": 9,
         "console_font_size": 12,
         "spacing": 1,

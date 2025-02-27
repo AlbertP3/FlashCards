@@ -370,7 +370,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         # Ensure text fits the textbox
         nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
         if nl > self.tb_nl:
-            font_size = int(config["theme"]["font_textbox_size"] * self.tb_nl / nl)
+            font_size = max(
+                int(config["theme"]["font_textbox_size"] * self.tb_nl / nl), 
+                config["theme"]["font_textbox_min_size"]
+            )
         else:
             font_size = config["theme"]["font_textbox_size"]
 
@@ -387,8 +390,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self._set_textbox_chr_space()
 
     def _set_textbox_chr_space(self, event=None):
-        _, _, w, h = self.textbox.geometry().getRect()
-        self.tb_nl = h // self.tb_cal.sch
+        # Workaround for a known issue of invalid geo reports
+        # for QLabels with word-wrap and no fixed width
+        w = config["geo"][0] * 0.98
+        h = config["geo"][1] - 3.1 * self.next_button.height()
+        self.tb_nl = h // self.tb_cal.ls
         self.tb_vp = (w, h)
 
     def __attach_textbox_ctx(self):
@@ -1054,6 +1060,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self._set_textbox_chr_space()
             self.sod.sod.cli.__class__.pix_lim.fget.cache_clear()
             self.sod.sod.cli.__class__.lines_lim.fget.cache_clear()
+            self.trk.trk.duo_layout.upd = -1
+            self.trk.trk.tt_printout.upd = -1
         except AttributeError:
             pass
 

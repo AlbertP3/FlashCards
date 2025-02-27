@@ -134,6 +134,10 @@ class CfgTab(BaseTab):
             config["theme"]["font_textbox_size"],
             text="Font size",
         )
+        self.font_min_size_qle = self.cfg_qle(
+            config["theme"]["font_textbox_min_size"],
+            text="Font minimum size",
+        )
         self.console_font_qle = self.cfg_qle(
             config["theme"]["console_font"],
             text="Console font",
@@ -491,6 +495,7 @@ class CfgTab(BaseTab):
         new_cfg["theme"]["font"] = self.font_qle.text()
         new_cfg["theme"]["console_font"] = self.console_font_qle.text()
         new_cfg["theme"]["font_textbox_size"] = int(self.font_size_qle.text())
+        new_cfg["theme"]["font_textbox_min_size"] = int(self.font_min_size_qle.text())
         new_cfg["theme"]["console_font_size"] = int(self.console_font_size_qle.text())
         new_cfg["theme"]["font_button_size"] = int(self.button_font_size_qle.text())
         new_cfg["theme"]["default_suffix"] = self.default_suffix_qle.text()

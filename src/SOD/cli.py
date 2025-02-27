@@ -375,9 +375,9 @@ class CLI:
         self.dicts.set_languages(src_lng, None)
 
         translations, originals, warnings = self.dicts.get_info_about_phrase(phrase)
+        found_cnt = 0
         if translations:
             pattern = re.compile(config["lookup"]["pattern"])
-            found_cnt = 0
             found = False
             for r in originals:
                 if p := pattern.findall(r):

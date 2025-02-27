@@ -192,7 +192,7 @@ class DataAccessLayer:
             writer.writeheader()
             writer.writerows(rows)
         fcc_queue.put_notification(
-            f"Added Duo preliminary record [{rows[-1]['lessons']}]",
+            f"Added Duo preliminary record #{rows[-1]['lessons']}",
             LogLvl.important,
         )
         log.info(f"{'Updated' if found else 'Added'} Duo Preliminary: {rows[-1]}")

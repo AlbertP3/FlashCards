@@ -117,6 +117,7 @@ def __validate(cfg: Config) -> tuple[bool, set]:
         "active_interval_ms": cfg["popups"]["active_interval_ms"],
         "idle_interval_ms": cfg["popups"]["idle_interval_ms"],
         "font_textbox_size": cfg["theme"]["font_textbox_size"],
+        "font_textbox_min_size": cfg["theme"]["font_textbox_min_size"],
         "console_font_size": cfg["theme"]["console_font_size"],
         "font_button_size": cfg["theme"]["font_button_size"],
         "prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],

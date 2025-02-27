@@ -17,9 +17,9 @@ class TrackerTab(BaseTab):
     def open(self):
         self.mw.switch_tab(self.id)
         dal.get_data()
-        self.tracker_layout.refresh_current_tab()
+        self.trk.refresh_current_tab()
 
     def build(self):
         self._tab = QWidget()
-        self.tracker_layout = Tracker()
-        self._tab.setLayout(self.tracker_layout)
+        self.trk = Tracker()
+        self._tab.setLayout(self.trk)
