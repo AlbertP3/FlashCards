@@ -99,6 +99,7 @@ class MainWindowLogic:
             if v["fp"] == self.active_file.filepath:
                 del self.efc._recoms[i]
                 self.efc.recoms_qlist.takeItem(i)
+                self.efc.files_count -= 1
                 break
 
     def _update_cre(self):

@@ -45,6 +45,7 @@ class StatsTab(BaseTab):
             )
 
     def show(self):
+        self.figure.clear()
         self.get_data_for_current_revision(self.mw.active_file.signature)
         self.get_stats_chart()
         self.get_stats_table()

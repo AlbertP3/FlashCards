@@ -92,7 +92,9 @@ class DBQueries:
         with open(self.DB_PATH, "a") as fd:
             dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
             dw.writerow(record)
-        fcc_queue.put_notification(f"Recorded {self.active_file.signature}", lvl=LogLvl.important)
+        fcc_queue.put_notification(
+            f"Recorded {self.active_file.signature}", lvl=LogLvl.important
+        )
         log.info(f"Created Record: {record}")
 
     @write_op

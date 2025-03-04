@@ -4,7 +4,6 @@ from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
-    QPushButton,
     QLabel,
 )
 from PyQt5.QtGui import QTextCursor, QKeyEvent
@@ -208,15 +207,6 @@ class BaseTab:
     def set_box(self, layout):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(config["theme"]["spacing"])
-
-    def create_button(self, text, function=None) -> QPushButton:
-        button = QPushButton()
-        button.setFont(config.qfont_button)
-        button.setText(text)
-        button.setFocusPolicy(Qt.NoFocus)
-        if function is not None:
-            button.clicked.connect(function)
-        return button
 
     def create_label(self, text) -> QLabel:
         label = QLabel()

@@ -330,6 +330,8 @@ class LogsTab(BaseTab):
                             "efc_recoms": self.mw.efc._recoms,
                             "_efc_last_calc_time": self.mw.efc._efc_last_calc_time,
                             "_db_load_time_efc": self.mw.efc._db_load_time_efc,
+                            "cur_efc_index": self.mw.efc.cur_efc_index,
+                            "efc_files_count": self.mw.efc.files_count,
                             "should_hide_tips": self.mw.should_hide_tips(),
                             "active_file_path": self.mw.active_file.filepath,
                         },

@@ -4,13 +4,11 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
-    QPushButton,
     QLineEdit,
     QCompleter,
 )
-from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QTime, QTimer, QStringListModel
-from widgets import CheckableComboBox
+from widgets import CheckableComboBox, get_button
 from DBAC import db_conn
 from cfg import config
 from tracker.structs import IMM_CATS
@@ -64,16 +62,13 @@ class StopwatchTab(QWidget):
         self.on_category_change()
         controls_layout.addWidget(self.title_qle)
 
-        self.pause_btn = self.get_btn("Start")
-        self.pause_btn.clicked.connect(self.toggle_timer)
+        self.pause_btn = get_button(self, "Start", self.toggle_timer)
         controls_layout.addWidget(self.pause_btn)
 
-        self.commit_btn = self.get_btn("Commit")
-        self.commit_btn.clicked.connect(self.commit_action)
+        self.commit_btn = get_button(self, "Commit", self.commit_action)
         controls_layout.addWidget(self.commit_btn)
 
-        self.cancel_btn = self.get_btn("Cancel")
-        self.cancel_btn.clicked.connect(self.reset_timer)
+        self.cancel_btn = get_button(self, "Cancel", self.reset_timer)
         controls_layout.addWidget(self.cancel_btn)
 
         self.layout.addLayout(controls_layout)
@@ -143,14 +138,6 @@ class StopwatchTab(QWidget):
             except TypeError:
                 cb.addItem(i, is_checked=i == str(value))
         return cb
-
-    def get_btn(self, text, function=None) -> QPushButton:
-        button = QPushButton()
-        button.setFont(config.qfont_button)
-        button.setText(text)
-        if function is not None:
-            button.clicked.connect(function)
-        return button
 
     def get_qle(self, text: str = "", placeholder: str = "") -> QLineEdit:
         qle = QLineEdit()

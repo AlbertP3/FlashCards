@@ -1,6 +1,5 @@
 import logging
 import os
-import json
 import re
 from copy import deepcopy
 from typing import Callable
@@ -14,7 +13,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from data_types import HIDE_TIPS_POLICIES
-from widgets import CheckableComboBox, ScrollableOptionsWidget, get_scrollbar
+from widgets import CheckableComboBox, ScrollableOptionsWidget, get_scrollbar, get_button
 from utils import fcc_queue, LogLvl
 from cfg import config, validate
 from DBAC import db_conn
@@ -50,7 +49,7 @@ class CfgTab(BaseTab):
         self.opt_scroll_area.setVerticalScrollBar(get_scrollbar())
         self.config_layout.addWidget(self.opt_scroll_area)
         self.set_box(self.config_layout)
-        self.submit_btn = self.create_button("")
+        self.submit_btn = get_button()
         self._tab.setLayout(self.config_layout)
 
     def update_submit_btn(self) -> QPushButton:

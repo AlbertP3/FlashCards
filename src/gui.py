@@ -6,7 +6,6 @@ import logging
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
-    QPushButton,
     QLabel,
     QMainWindow,
     QTabWidget,
@@ -31,7 +30,7 @@ from logic import MainWindowLogic
 import tabs
 from utils import fcc_queue, format_seconds_to, Caliper, LogLvl
 from DBAC import FileDescriptor, db_conn
-from widgets import NotificationPopup
+from widgets import NotificationPopup, get_button
 from cfg import config
 
 log = logging.getLogger("GUI")
@@ -251,32 +250,31 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.layout_next_navigation.setSpacing(config["theme"]["spacing"])
 
         # Buttons
-        self.next_button = self.create_button(
-            config["icons"]["next"], self.click_next_button
+        self.next_button = get_button(
+            self, config["icons"]["next"], self.click_next_button
         )
-        self.prev_button = self.create_button(
-            config["icons"]["prev"], self.click_prev_button
+        self.prev_button = get_button(
+            self, config["icons"]["prev"], self.click_prev_button
         )
-        self.reverse_button = self.create_button(
-            config["icons"]["reverse"], self.reverse_side
+        self.reverse_button = get_button(
+            self, config["icons"]["reverse"], self.reverse_side
         )
-        self.positive_button = self.create_button(
-            config["icons"]["positive"], self.click_positive
+        self.positive_button = get_button(
+            self, config["icons"]["positive"], self.click_positive
         )
-        self.negative_button = self.create_button(
-            config["icons"]["negative"], self.click_negative
+        self.negative_button = get_button(
+            self, config["icons"]["negative"], self.click_negative
         )
-        self.score_button = self.create_button(config["icons"]["score"])
-        self.save_button = self.create_button(
-            config["icons"]["save"], self.click_save_button
+        self.save_button = get_button(
+            self, config["icons"]["save"], self.click_save_button
         )
-        self.del_button = self.create_button(
-            config["icons"]["del"], self.delete_current_card
+        self.del_button = get_button(
+            self, config["icons"]["del"], self.delete_current_card
         )
-        self.load_again_button = self.create_button(
-            config["icons"]["again"], self.load_again_click
+        self.load_again_button = get_button(
+            self, config["icons"]["again"], self.load_again_click
         )
-        self.words_button = self.create_button(config["icons"]["words"])
+        self.words_button = get_button(self, config["icons"]["words"])
 
         # Widgets
         self.layout_second_row.addWidget(self.prev_button, 0, 0)
@@ -290,32 +288,31 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.layout_third_row.addWidget(self.load_again_button, 2, 1)
         self.layout_third_row.addWidget(self.del_button, 2, 3)
         self.layout_third_row.addWidget(self.save_button, 2, 4)
-        self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.layout_fourth_row.addWidget(self.words_button, 3, 3)
         self.layout_first_row.addWidget(self.create_textbox(), 0, 0)
         self.create_hint_qbutton()
 
     def build_layout_extra(self):
         """Creates elements inherited from tabs"""
-        self.config_button = self.create_button(
-            config["icons"]["config"], self.cft.open
-        )
+        self.config_button = get_button(self, config["icons"]["config"], self.cft.open)
         self.layout_third_row.addWidget(self.config_button, 2, 5)
-        self.timer_button = self.create_button(
-            config["icons"]["timer_stop"], self.trk.open
+        self.timer_button = get_button(
+            self, config["icons"]["timer_stop"], self.trk.open
         )
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
-        self.sod_button = self.create_button(config["icons"]["sod"], self.sod.open)
+        self.sod_button = get_button(self, config["icons"]["sod"], self.sod.open)
         self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
-        self.efc_button = self.create_button(config["icons"]["efc"], self.efc.open)
+        self.efc_button = get_button(self, config["icons"]["efc"], self.efc.open)
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
-        self.load_button = self.create_button(config["icons"]["load"], self.ldt.open)
+        self.load_button = get_button(self, config["icons"]["load"], self.ldt.open)
         self.layout_third_row.addWidget(self.load_button, 2, 0)
-        self.score_button.clicked.connect(self.mst.open)
-        self.stats_button = self.create_button(config["icons"]["stats"], self.sta.open)
+        self.score_button = get_button(self, config["icons"]["score"], self.mst.open)
+        self.layout_fourth_row.addWidget(self.score_button, 3, 0)
+        self.stats_button = get_button(self, config["icons"]["stats"], self.sta.open)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
         # TODO make use of this button
-        self.progress_button = self.create_button(
+        self.progress_button = get_button(
+            self,
             config["icons"]["progress"],
             lambda: fcc_queue.put_notification(
                 "Progress moved to Tracker", lvl=LogLvl.warn
@@ -324,11 +321,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
 
     def create_hint_qbutton(self):
-        self.hint_qbutton = QPushButton(config["icons"]["hint"], self)
+        self.hint_qbutton = get_button(self, config["icons"]["hint"], self.show_hint)
         self.hint_qbutton.setObjectName("hint")
-        self.hint_qbutton.setFont(config.qfont_button)
-        self.hint_qbutton.setFocusPolicy(Qt.NoFocus)
-        self.hint_qbutton.clicked.connect(self.show_hint)
         self.layout_first_row.addWidget(
             self.hint_qbutton, 0, 0, Qt.AlignBottom | Qt.AlignRight
         )
@@ -371,8 +365,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
         if nl > self.tb_nl:
             font_size = max(
-                int(config["theme"]["font_textbox_size"] * self.tb_nl / nl), 
-                config["theme"]["font_textbox_min_size"]
+                int(config["theme"]["font_textbox_size"] * self.tb_nl / nl),
+                config["theme"]["font_textbox_min_size"],
             )
         else:
             font_size = config["theme"]["font_textbox_size"]
@@ -472,15 +466,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             fcc_queue.put_notification(
                 "Lookup is unavailable in the current state", lvl=LogLvl.warn
             )
-
-    def create_button(self, text, function=None) -> QPushButton:
-        button = QPushButton(self)
-        button.setFont(config.qfont_button)
-        button.setText(text)
-        button.setFocusPolicy(Qt.NoFocus)
-        if function is not None:
-            button.clicked.connect(function)
-        return button
 
     def create_label(self, text) -> QLabel:
         label = QLabel(self)
@@ -703,15 +688,14 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.click_next_button()
 
     def handle_graded_complete(self):
-        if self.positives + self.negatives == self.total_words:
-            self.update_score_button()
-            if self.active_file.kind == db_conn.KINDS.rev:
-                self.synopsis = self.get_rating_message()
-            else:
-                self.synopsis = config["synopsis"]
-            self.is_synopsis = True
-            self.display_text(self.synopsis)
-            self.record_revision_to_db(seconds_spent=self.seconds_spent)
+        self.update_score_button()
+        if self.active_file.kind == db_conn.KINDS.rev:
+            self.synopsis = self.get_rating_message()
+        else:
+            self.synopsis = config["synopsis"]
+        self.is_synopsis = True
+        self.display_text(self.synopsis)
+        self.record_revision_to_db(seconds_spent=self.seconds_spent)
         self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
         self.stop_timer()

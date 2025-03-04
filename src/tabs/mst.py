@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QTextEdit, QVBoxLayout
 from PyQt5.QtCore import Qt
 from utils import fcc_queue, LogLvl, Caliper
+from widgets import get_scrollbar
 from cfg import config
 from tabs.base import BaseTab
 from DBAC import db_conn
@@ -47,6 +48,7 @@ class MistakesTab(BaseTab):
     def create_mistakes_list(self):
         self.mistakes_qtext = QTextEdit()
         self.mistakes_qtext.setFont(config.qfont_console)
+        self.mistakes_qtext.setVerticalScrollBar(get_scrollbar())
         self.mistakes_qtext.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.mistakes_qtext.setReadOnly(True)
         return self.mistakes_qtext

@@ -8,12 +8,10 @@ from PyQt5.QtWidgets import (
     QShortcut,
     QAction,
     QMenu,
-    QPushButton,
 )
 from PyQt5.QtGui import QKeySequence, QCursor
 from utils import fcc_queue, LogLvl
-from widgets import CFIDialog
-from widgets import get_scrollbar
+from widgets import CFIDialog, get_button, get_scrollbar
 from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
@@ -50,7 +48,9 @@ class LoadTab(BaseTab):
         self.load_layout = QGridLayout()
         self.set_box(self.load_layout)
         self.load_layout.addWidget(self.get_flashcard_files_list(), 0, 0)
-        self.load_layout.addWidget(self.create_load_button(), 1, 0, 1, 1)
+        self.load_layout.addWidget(
+            get_button(None, "Load", self.load_selected_file), 1, 0, 1, 1
+        )
         self._tab.setLayout(self.load_layout)
 
     def get_flashcard_files_list(self):
@@ -130,6 +130,7 @@ class LoadTab(BaseTab):
             self.cfi(fd, start, cnt)
 
     def cfi(self, fd: FileDescriptor, start: int, cnt: int):
+        """Loads a temporary language set"""
         data = db_conn.load_dataset(fd, do_shuffle=False, activate=False)
         if cnt == 0:
             len_parent = data.shape[0]
@@ -201,13 +202,6 @@ class LoadTab(BaseTab):
             self.load_map[i] = fd.filepath
             i += 1
         self.files_count = self.files_qlist.count()
-
-    def create_load_button(self):
-        load_button = QPushButton()
-        load_button.setFont(config.qfont_button)
-        load_button.setText("Load")
-        load_button.clicked.connect(self.load_selected_file)
-        return load_button
 
     def nagivate_load_list(self, move: int):
         new_index = self.cur_load_index + move

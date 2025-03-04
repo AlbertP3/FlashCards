@@ -5,14 +5,13 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QLineEdit,
-    QPushButton,
     QFormLayout,
     QTextEdit,
 )
 from PyQt5.QtCore import Qt
 from cfg import config
-from widgets import CheckableComboBox
-from utils import format_seconds_to, Caliper, translate
+from widgets import CheckableComboBox, get_button
+from utils import format_seconds_to, Caliper
 from DBAC import db_conn
 from tracker.dal import dal
 from tracker.helpers import parse_to_seconds, safe_div, merge_records_by_date, get_chart
@@ -112,7 +111,7 @@ class DuoLayout(QWidget):
         self.final_cbx = self.get_cbx("False", ["False", "True"], multi_choice=False)
         self.form_layout.addRow("Final", self.final_cbx)
 
-        self.submit_btn = self.get_btn("Add", self.on_submit)
+        self.submit_btn = get_button(self, "Add", self.on_submit)
         self.form_layout.addRow(self.submit_btn)
 
         for i in range(self.form_layout.rowCount()):
@@ -152,14 +151,6 @@ class DuoLayout(QWidget):
             except TypeError:
                 cb.addItem(i, is_checked=i == str(value))
         return cb
-
-    def get_btn(self, text, function=None) -> QPushButton:
-        button = QPushButton(self)
-        button.setText(text)
-        button.setFocusPolicy(Qt.NoFocus)
-        if function is not None:
-            button.clicked.connect(function)
-        return button
 
     def on_submit(self):
         lng = self.lng_cbx.currentDataList()[0]

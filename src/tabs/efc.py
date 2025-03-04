@@ -4,15 +4,14 @@ from time import time, perf_counter
 from random import choice
 from datetime import datetime
 import logging
-from PyQt5.QtWidgets import QGridLayout, QListWidget, QPushButton, QWidget
-from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QGridLayout, QListWidget, QWidget
 from random import shuffle
 import statistics
 import numpy as np
 from math import exp
 from utils import fcc_queue, LogLvl, format_seconds_to
 from cfg import config
-from widgets import get_scrollbar
+from widgets import get_scrollbar, get_button
 from tabs.base import BaseTab
 from DBAC import db_conn
 
@@ -92,7 +91,9 @@ class EFCTab(BaseTab):
         self._tab = QWidget()
         self.efc_layout = QGridLayout()
         self.efc_layout.addWidget(self.create_recommendations_list(), 0, 0)
-        self.efc_layout.addWidget(self.create_load_efc_button(), 1, 0, 1, 1)
+        self.efc_layout.addWidget(
+            get_button(None, "Load", self.load_selected_efc), 1, 0, 1, 1
+        )
         self.set_box(self.efc_layout)
         self._tab.setLayout(self.efc_layout)
 
@@ -110,13 +111,6 @@ class EFCTab(BaseTab):
     def __recoms_qlist_onDoubleClick(self, item):
         self.cur_efc_index = self.recoms_qlist.currentRow()
         self.load_selected_efc()
-
-    def create_load_efc_button(self):
-        efc_button = QPushButton()
-        efc_button.setFont(config.qfont_button)
-        efc_button.setText("Load")
-        efc_button.clicked.connect(self.load_selected_efc)
-        return efc_button
 
     def nagivate_efc_list(self, move: int):
         new_index = self.cur_efc_index + move

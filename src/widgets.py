@@ -16,13 +16,28 @@ from PyQt5.QtCore import (
     Qt,
     QPropertyAnimation,
     QTimer,
-    QRect,
     pyqtSignal,
     QEvent,
 )
-from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem, QFont
+from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem
 from typing import Callable
 from cfg import config
+
+
+def get_button(parent=None, text="", function=None) -> QPushButton:
+        button = QPushButton(parent)
+        button.setFont(config.qfont_button)
+        button.setText(text)
+        button.setFocusPolicy(Qt.NoFocus)
+        if function is not None:
+            button.clicked.connect(function)
+            button.setCursor(Qt.PointingHandCursor)
+        return button
+
+def get_scrollbar() -> QScrollBar:
+    scrollbar = QScrollBar()
+    scrollbar.setCursor(Qt.PointingHandCursor)
+    return scrollbar
 
 
 class CheckableComboBox(QComboBox):
@@ -251,8 +266,10 @@ class NotificationPopup(QWidget):
         self.label.setText(message)
         if callable(func):
             self.__func = lambda: func(*args, **kwargs)
+            self.setCursor(Qt.PointingHandCursor)
         else:
             self.__func = lambda: None
+            self.setCursor(Qt.ArrowCursor)
         self.show()
         self.update_position()
         self.enter_animation.start()
@@ -324,7 +341,7 @@ class CFIDialog(QDialog):
         self.form_layout.addRow("From ", self.start_qle)
         self.form_layout.addRow("Count", self.cnt_qle)
         self.layout.addLayout(self.form_layout)
-        self.submit_btn = self.create_btn("Create", self.accept)
+        self.submit_btn = get_button(self, "Create", self.accept)
         self.layout.addWidget(self.submit_btn)
         self.setLayout(self.layout)
 
@@ -348,14 +365,3 @@ class CFIDialog(QDialog):
         qle.setText(text)
         qle.setObjectName("qdialog")
         return qle
-
-    def create_btn(self, text: str, func) -> QPushButton:
-        btn = QPushButton(text)
-        btn.setFont(config.qfont_button)
-        btn.clicked.connect(func)
-        return btn
-
-
-def get_scrollbar() -> QScrollBar:
-    scrollbar = QScrollBar()
-    return scrollbar
