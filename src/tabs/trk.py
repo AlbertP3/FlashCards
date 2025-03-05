@@ -10,9 +10,8 @@ class TrackerTab(BaseTab):
         super().__init__()
         self.mw = mw
         self.id = "tracker"
-        self.mw.tab_names[self.id] = "Tracker"
         self.build()
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Tracker")
 
     def open(self):
         self.mw.switch_tab(self.id)

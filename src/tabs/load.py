@@ -25,10 +25,9 @@ class LoadTab(BaseTab):
         super().__init__()
         self.id = "load"
         self.mw = mw
-        self.mw.tab_names["load"] = "Load"
         self.cur_load_index = 0
         self.build()
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Load")
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()

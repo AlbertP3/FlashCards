@@ -28,10 +28,9 @@ class CfgTab(BaseTab):
         super().__init__()
         self.id = "config"
         self.mw = mw
-        self.mw.tab_names[self.id] = "Settings"
         self.funcs_to_restart = list()
         self.build()
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Settings")
 
     def open(self):
         self.mw.switch_tab(self.id)

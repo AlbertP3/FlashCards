@@ -9,10 +9,9 @@ class FccTab(BaseConsole):
         super().__init__()
         self.id = "fcc"
         self.mw = mw
-        self.mw.tab_names[self.id] = "Console"
         self.build()
         self.fcc = FCC(self.mw, sout=self.console)
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Console")
 
     def open(self):
         self.mw.switch_tab(self.id)

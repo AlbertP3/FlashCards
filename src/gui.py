@@ -116,8 +116,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def apply_session_snapshot(self):
         self._apply_session_snapshot_backend()
         suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
-        self.tab_names[self.id] = f"{self.active_file.basename}{suffix}"
-        self.setWindowTitle(self.tab_names[self.id])
+        title = f"{self.active_file.basename}{suffix}"
+        self.tab_map[self.id]["title"] = title
+        self.setWindowTitle(title)
         self.change_revmode(self.revmode)
         self.update_words_button()
         self.update_score_button()
@@ -151,8 +152,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.center_window()
 
     def init_tabs(self):
-        self.tab_names = dict()
-
         self.fcc = tabs.FccTab(self)
         self.sod = tabs.SodTab(self)
         self.efc = tabs.EFCTab(self)
@@ -173,8 +172,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.trk.init_cross_shortcuts()
         self.log.init_cross_shortcuts()
 
-    def add_tab(self, widget, name):
-        self.tab_map[name] = len(self.tab_map)
+    def add_tab(self, widget, name, title):
+        self.tab_map[name] = {"index": len(self.tab_map), "title": title}
         self.tabs.addTab(widget, name)
 
     def switch_tab(self, name: str):
@@ -182,8 +181,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             return
 
         self.active_tab_id = name
-        self.setWindowTitle(self.tab_names[name])
-        self.tabs.setCurrentIndex(self.tab_map[name])
+        self.setWindowTitle(self.tab_map[name]["title"])
+        self.tabs.setCurrentIndex(self.tab_map[name]["index"])
 
         if name == self.id:
             self.resume_timer()
@@ -203,7 +202,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tabs = QTabWidget()
         self.tabs.tabBar().hide()
         self.tabs.setContentsMargins(*self.LAYOUT_MARGINS)
-        self.add_tab(self.main_tab, self.id)
+        self.add_tab(self.main_tab, self.id, self.id)
 
         self.setStyleSheet(config.stylesheet)
         self.setContentsMargins(*self.LAYOUT_MARGINS)
@@ -547,8 +546,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def update_interface_parameters(self):
         suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
-        self.tab_names[self.id] = f"{self.active_file.basename}{suffix}"
-        self.setWindowTitle(self.tab_names[self.id])
+        title = f"{self.active_file.basename}{suffix}"
+        self.tab_map[self.id]["title"] = title
+        self.setWindowTitle(title)
         self.change_revmode(self.active_file.kind in db_conn.GRADED)
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()

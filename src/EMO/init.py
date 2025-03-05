@@ -13,8 +13,7 @@ class EMOSpawn:
 
     def __init__(self, mw):
         self.mw = mw
-        self.mw.tab_names["fcc"] = "EFC Model Optimizer"
-        self.mw.setWindowTitle(self.mw.tab_names["fcc"])
+        self.mw.setWindowTitle("EFC Model Optimizer")
         self.cli = CLI(fcc=self.mw.fcc)
         self.adapt()
         self.init_emo()
@@ -34,7 +33,6 @@ class EMOSpawn:
         self.HISTORY: list = self.mw.fcc.console_log.copy()
         self.CMD_HISTORY: list = self.mw.fcc.cmd_log.copy()
         self.mw.fcc.cmd_log = [""]
-        self.prev_window_title = self.mw.tab_names["fcc"]
         self.orig_post_method = self.mw.fcc.fcc.post_fcc
         self.orig_execute_method = self.mw.fcc.fcc.execute_command
         self.mw.fcc.fcc.post_fcc = self.monkey_patch_post
@@ -58,8 +56,7 @@ class EMOSpawn:
     def remove_adapter(self):
         self.mw.fcc.cls()
         self.mw.fcc.fcc.post_fcc = self.orig_post_method
-        self.mw.tab_names["fcc"] = self.prev_window_title
-        self.mw.setWindowTitle(self.prev_window_title)
+        self.mw.setWindowTitle(self.mw.tab_map["fcc"]["title"])
         self.mw.fcc.fcc.execute_command = self.orig_execute_method
         self.mw.fcc.console_prompt = config["theme"]["default_ps1"]
         self.mw.fcc.console_log = self.HISTORY

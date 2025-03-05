@@ -21,9 +21,8 @@ class StatsTab(BaseTab):
         self.id = "stats"
         self.upd = 0
         self.sig = ""
-        self.mw.tab_names[self.id] = "Statistics"
         self.build()
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Statistics")
 
     @property
     def cache_valid(self):

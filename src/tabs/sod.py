@@ -9,10 +9,9 @@ class SodTab(BaseConsole):
         self.id = "sod"
         self.mw = mw
         self.build()
-        self.mw.tab_names[self.id] = "Dictionary"
         self.editable_output = ""
         self.sod = SODspawn(tab=self)
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Dictionary")
 
     def open(self):
         self.mw.switch_tab(self.id)

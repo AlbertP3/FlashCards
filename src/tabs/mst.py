@@ -13,10 +13,9 @@ class MistakesTab(BaseTab):
         super().__init__()
         self.mw = mw
         self.id = "mistakes"
-        self.mw.tab_names[self.id] = "Mistakes"
         self.caliper = Caliper(config.qfont_console, mg=0.96)
         self.build()
-        self.mw.add_tab(self.mistakes_qtext, self.id)
+        self.mw.add_tab(self.mistakes_qtext, self.id, "Mistakes")
 
     def open(self):
         if self.mw.active_file.kind in db_conn.GRADED:

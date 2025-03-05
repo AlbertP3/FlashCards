@@ -57,8 +57,7 @@ class LogsTab(BaseTab):
         self.cur_src = "logs"
         self.sources = self.__get_sources()
         self.build()
-        self.mw.tab_names[self.id] = "Logs"
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "Logs")
 
     def open(self, scroll_end = False):
         self.mw.switch_tab(self.id)
@@ -316,7 +315,6 @@ class LogsTab(BaseTab):
                                     "allow_hide_tips",
                                     "mistakes_saved",
                                     "is_revision",
-                                    "tab_names",
                                     "notification_timer",
                                     "pace_spent",
                                     "pace_timer_interval",

@@ -63,11 +63,10 @@ class EFCTab(BaseTab):
         self._db_load_time_efc = 0
         self.files_count = 0
         self._recoms: list[dict] = list()  # {fp, disp, score, is_init}
-        self.mw.tab_names[self.id] = "EFC"
         self.cur_efc_index = 0
         self.build()
         self.show_recommendations()
-        self.mw.add_tab(self._tab, self.id)
+        self.mw.add_tab(self._tab, self.id, "EFC")
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
