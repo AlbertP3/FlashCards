@@ -50,13 +50,17 @@ class BaseConsole(QWidget):
     def run_cmd(self):
         raise NotImplementedError
 
+    def init_cross_shortcuts(self):
+        self.mw.add_ks(config["kbsc"][self.id], self.open, self.mw)
+        self.mw.add_ks(config["kbsc"]["run_command"], self.run_cmd, self)
+
     def build(self):
         self._tab = QWidget()
-        self.fcc_layout = QVBoxLayout()
-        self.fcc_layout.setContentsMargins(0, 0, 0, 0)
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.console = self.create_console()
-        self.fcc_layout.addWidget(self.console, stretch=1)
-        self._tab.setLayout(self.fcc_layout)
+        self.layout.addWidget(self.console, stretch=1)
+        self._tab.setLayout(self.layout)
 
     def create_console(self) -> QTextEdit:
         console = QTextEdit()
@@ -186,23 +190,23 @@ class BaseConsole(QWidget):
         self.move_cursor_to_end()
 
 
-class BaseTab:
+class BaseTab(QWidget):
 
     def __init__(self):
-        pass
+        super().__init__()
 
     def init_cross_shortcuts(self):
-        self.mw.add_shortcut(self.id, self.open, "main")
-        self.mw.add_shortcut("efc", self.mw.efc.open, self.id)
-        self.mw.add_shortcut("next_efc", self.mw.efc.load_next_efc, self.id)
-        self.mw.add_shortcut("tracker", self.mw.trk.open, self.id)
-        self.mw.add_shortcut("config", self.mw.cft.open, self.id)
-        self.mw.add_shortcut("stats", self.mw.sta.open, self.id)
-        self.mw.add_shortcut("mistakes", self.mw.mst.open, self.id)
-        self.mw.add_shortcut("fcc", self.mw.fcc.open, self.id)
-        self.mw.add_shortcut("sod", self.mw.sod.open, self.id)
-        self.mw.add_shortcut("load", self.mw.ldt.open, self.id)
-        self.mw.add_shortcut("logs", self.mw.log.open, self.id)
+        self.mw.add_ks(config["kbsc"][self.id], self.open, self.mw)
+        self.mw.add_ks(config["kbsc"]["efc"], self.mw.efc.open, self)
+        self.mw.add_ks(config["kbsc"]["next_efc"], self.mw.efc.load_next_efc, self)
+        self.mw.add_ks(config["kbsc"]["tracker"], self.mw.trk.open, self)
+        self.mw.add_ks(config["kbsc"]["config"], self.mw.cft.open, self)
+        self.mw.add_ks(config["kbsc"]["stats"], self.mw.sta.open, self)
+        self.mw.add_ks(config["kbsc"]["mistakes"], self.mw.mst.open, self)
+        self.mw.add_ks(config["kbsc"]["fcc"], self.mw.fcc.open, self)
+        self.mw.add_ks(config["kbsc"]["sod"], self.mw.sod.open, self)
+        self.mw.add_ks(config["kbsc"]["load"], self.mw.ldt.open, self)
+        self.mw.add_ks(config["kbsc"]["logs"], self.mw.log.open, self)
 
     def set_box(self, layout):
         layout.setContentsMargins(0, 0, 0, 0)

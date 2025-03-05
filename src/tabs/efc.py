@@ -67,11 +67,18 @@ class EFCTab(BaseTab):
         self.cur_efc_index = 0
         self.build()
         self.show_recommendations()
-        self.mw.add_shortcut("run_command", self.load_selected_efc, self.id)
-        self.mw.add_shortcut("negative", lambda: self.nagivate_efc_list(1), self.id)
-        self.mw.add_shortcut("reverse", lambda: self.nagivate_efc_list(-1), self.id)
-        self.mw.add_shortcut("next_efc", self.load_next_efc, "main")
         self.mw.add_tab(self._tab, self.id)
+
+    def init_cross_shortcuts(self):
+        super().init_cross_shortcuts()
+        self.mw.add_ks(config["kbsc"]["run_command"], self.load_selected_efc, self)
+        self.mw.add_ks(
+            config["kbsc"]["negative"], lambda: self.nagivate_efc_list(1), self
+        )
+        self.mw.add_ks(
+            config["kbsc"]["reverse"], lambda: self.nagivate_efc_list(-1), self
+        )
+        self.mw.add_ks(config["kbsc"]["next_efc"], self.load_next_efc, self.mw)
 
     def open(self):
         self.mw.switch_tab(self.id)

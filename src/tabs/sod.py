@@ -6,17 +6,16 @@ class SodTab(BaseConsole):
 
     def __init__(self, mw):
         super().__init__()
+        self.id = "sod"
         self.mw = mw
         self.build()
-        self.mw.tab_names["sod"] = "Dictionary"
+        self.mw.tab_names[self.id] = "Dictionary"
         self.editable_output = ""
         self.sod = SODspawn(tab=self)
-        self.mw.add_shortcut("sod", self.open, "main")
-        self.mw.add_shortcut("run_command", self.run_cmd, "sod")
-        self.mw.add_tab(self._tab, "sod")
+        self.mw.add_tab(self._tab, self.id)
 
     def open(self):
-        self.mw.switch_tab("sod")
+        self.mw.switch_tab(self.id)
         if self.sod.is_state_clear():
             self.sod.cli.init_set_languages()
             self.sod.cli.cls(keep_cmd=True, keep_content=True)

@@ -29,9 +29,12 @@ class LoadTab(BaseTab):
         self.cur_load_index = 0
         self.build()
         self.mw.add_tab(self._tab, self.id)
-        self.mw.add_shortcut("run_command", self.load_selected_file, self.id)
-        self.mw.add_shortcut("negative", lambda: self.nagivate_load_list(1), self.id)
-        self.mw.add_shortcut("reverse", lambda: self.nagivate_load_list(-1), self.id)
+
+    def init_cross_shortcuts(self):
+        super().init_cross_shortcuts()
+        self.mw.add_ks(config["kbsc"]["run_command"], self.load_selected_file, self)
+        self.mw.add_ks(config["kbsc"]["negative"], lambda: self.nagivate_load_list(1), self)
+        self.mw.add_ks(config["kbsc"]["reverse"], lambda: self.nagivate_load_list(-1), self)
 
     def open(self):
         self.mw.switch_tab(self.id)

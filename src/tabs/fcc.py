@@ -7,16 +7,15 @@ class FccTab(BaseConsole):
 
     def __init__(self, mw):
         super().__init__()
+        self.id = "fcc"
         self.mw = mw
-        self.mw.tab_names["fcc"] = "Console"
+        self.mw.tab_names[self.id] = "Console"
         self.build()
         self.fcc = FCC(self.mw, sout=self.console)
-        self.mw.add_shortcut("fcc", self.open, "main")
-        self.mw.add_shortcut("run_command", self.run_cmd, "fcc")
-        self.mw.add_tab(self._tab, "fcc")
+        self.mw.add_tab(self._tab, self.id)
 
     def open(self):
-        self.mw.switch_tab("fcc")
+        self.mw.switch_tab(self.id)
         self.__load_content()
         scrollbar = self.console.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())

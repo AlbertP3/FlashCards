@@ -7,10 +7,10 @@ from tabs.base import BaseTab
 class TrackerTab(BaseTab):
 
     def __init__(self, mw):
+        super().__init__()
         self.mw = mw
         self.id = "tracker"
         self.mw.tab_names[self.id] = "Tracker"
-        self.mw.add_shortcut(self.id, self.open, "main")
         self.build()
         self.mw.add_tab(self._tab, self.id)
 

@@ -40,6 +40,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def __init__(self):
         self.configure_scaling()
+        self.id = "main"
         self.__last_focus_out_timer_state = False
         self.tab_map = {}
         self.q_app = QApplication(["FlashCards"])
@@ -115,8 +116,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def apply_session_snapshot(self):
         self._apply_session_snapshot_backend()
         suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
-        self.tab_names["main"] = f"{self.active_file.basename}{suffix}"
-        self.setWindowTitle(self.tab_names["main"])
+        self.tab_names[self.id] = f"{self.active_file.basename}{suffix}"
+        self.setWindowTitle(self.tab_names[self.id])
         self.change_revmode(self.revmode)
         self.update_words_button()
         self.update_score_button()
@@ -137,36 +138,16 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def build_interface(self):
         self.configure_window()
         self.build_layout()
-        self.add_shortcuts()
+        self.init_cross_shortcuts()
         self.init_tabs()
         self.build_layout_extra()
 
     def configure_window(self):
-        # Set Window Parameters
         self.setWindowIcon(QIcon(os.path.join(db_conn.RES_PATH, "icon.png")))
         self.set_geometry(config["geo"])
         self.q_app.setStyle("Fusion")
-
-        # Shortcuts
-        self.used_keybindings = set()
-        self.nav_mapping = dict()
-        for sw_id in {
-            "main",
-            "load",
-            "efc",
-            "config",
-            "mistakes",
-            "stats",
-            "tracker",
-            "logs",
-            "fcc",
-            "sod",
-        }:
-            self.create_ks_mapping(sw_id)
-
-        # Initialize
         self.popup = NotificationPopup(self)
-        self.active_tab_id: str = "main"
+        self.active_tab_id: str = self.id
         self.center_window()
 
     def init_tabs(self):
@@ -182,6 +163,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.trk = tabs.TrackerTab(self)
         self.log = tabs.LogsTab(self)
 
+        self.fcc.init_cross_shortcuts()
+        self.sod.init_cross_shortcuts()
         self.efc.init_cross_shortcuts()
         self.ldt.init_cross_shortcuts()
         self.mst.init_cross_shortcuts()
@@ -189,11 +172,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.cft.init_cross_shortcuts()
         self.trk.init_cross_shortcuts()
         self.log.init_cross_shortcuts()
-
-    def create_ks_mapping(self, ident: str):
-        # create dict[window_id][nagivation]=dummy_function
-        # for managing keybindings calls dependent on context of the current tab
-        self.nav_mapping[ident] = {k: lambda: "" for k in config["kbsc"].keys()}
 
     def add_tab(self, widget, name):
         self.tab_map[name] = len(self.tab_map)
@@ -207,7 +185,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.setWindowTitle(self.tab_names[name])
         self.tabs.setCurrentIndex(self.tab_map[name])
 
-        if name == "main":
+        if name == self.id:
             self.resume_timer()
             self.resume_pace_timer()
         elif self.TIMER_RUNNING_FLAG:
@@ -225,7 +203,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tabs = QTabWidget()
         self.tabs.tabBar().hide()
         self.tabs.setContentsMargins(*self.LAYOUT_MARGINS)
-        self.add_tab(self.main_tab, "main")
+        self.add_tab(self.main_tab, self.id)
 
         self.setStyleSheet(config.stylesheet)
         self.setContentsMargins(*self.LAYOUT_MARGINS)
@@ -552,6 +530,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             db_conn.shuffle_dataset()
         else:
             db_conn.load_dataset(self.active_file)
+        self.switch_tab(self.id)
         self.update_backend_parameters()
         self.update_interface_parameters()
 
@@ -562,14 +541,14 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.load_flashcards(fd)
         self.update_backend_parameters()
         self.update_interface_parameters()
-        self.switch_tab("main")
+        self.switch_tab(self.id)
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
 
     def update_interface_parameters(self):
         suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
-        self.tab_names["main"] = f"{self.active_file.basename}{suffix}"
-        self.setWindowTitle(self.tab_names["main"])
+        self.tab_names[self.id] = f"{self.active_file.basename}{suffix}"
+        self.setWindowTitle(self.tab_names[self.id])
         self.change_revmode(self.active_file.kind in db_conn.GRADED)
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
@@ -703,28 +682,21 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if self.negatives != 0 and config["mst"]["opt"]["show_mistakes_after_revision"]:
             self.mst.open()
 
-    def add_shortcuts(self):
-        self.add_shortcut("next", self.ks_nav_next, "main")
-        self.add_shortcut("negative", self.ks_nav_negative, "main")
-        self.add_shortcut("prev", self.click_prev_button, "main")
-        self.add_shortcut("reverse", self.reverse_side, "main")
-        self.add_shortcut("del_cur_card", self.delete_current_card, "main")
-        self.add_shortcut("load_again", self.load_again_click, "main")
-        self.add_shortcut("save", self.click_save_button, "main")
-        self.add_shortcut("hint", self.show_hint, "main")
-        self.add_shortcut("last_seen", self.goto_last_seen_card, "main")
+    def init_cross_shortcuts(self):
+        self.add_ks(config["kbsc"]["next"], self.ks_nav_next, self)
+        self.add_ks(config["kbsc"]["negative"], self.ks_nav_negative, self)
+        self.add_ks(config["kbsc"]["prev"], self.click_prev_button, self)
+        self.add_ks(config["kbsc"]["reverse"], self.reverse_side, self)
+        self.add_ks(config["kbsc"]["del_cur_card"], self.delete_current_card, self)
+        self.add_ks(config["kbsc"]["load_again"], self.load_again_click, self)
+        self.add_ks(config["kbsc"]["save"], self.click_save_button, self)
+        self.add_ks(config["kbsc"]["hint"], self.show_hint, self)
+        self.add_ks(config["kbsc"]["last_seen"], self.goto_last_seen_card, self)
+        self.add_ks(Qt.Key_Escape, lambda: self.switch_tab(self.id), self)
 
-    def add_shortcut(self, action: str, function, sw_id: str = "main"):
-        # binding twice on the same key breaks the shortcut permanently
-        key = config["kbsc"][action]
-        self.nav_mapping[sw_id][action] = function
-        if key not in self.used_keybindings:
-            self.used_keybindings.add(key)
-            shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.activated.connect(lambda: self._exec_ks(action))
-
-    def _exec_ks(self, action):
-        self.nav_mapping[self.active_tab_id][action]()
+    def add_ks(self, key: str, func, tab):
+        shortcut = QShortcut(QKeySequence(key), tab)
+        shortcut.activated.connect(func)
 
     def ks_nav_next(self):
         if self.revmode:
@@ -737,12 +709,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.click_negative()
         else:
             self.click_next_button()
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape:
-            self.switch_tab("main")
-        elif event.key() == Qt.Key_Return:
-            self.nav_mapping[self.active_tab_id]["run_command"]()
 
     def center_window(self):
         frame_geo = self.frameGeometry()
@@ -870,7 +836,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if (
             self.seconds_spent != 0
             and self.is_recorded is False
-            and self.active_tab_id == "main"
+            and self.active_tab_id == self.id
         ):
             conditions_met = True
         else:
@@ -955,7 +921,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if (
             not self.is_recorded
             and self.cards_seen != 0
-            and self.active_tab_id == "main"
+            and self.active_tab_id == self.id
         ):
             self.start_pace_timer()
 
