@@ -139,8 +139,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def build_interface(self):
         self.configure_window()
         self.build_layout()
-        self.init_cross_shortcuts()
         self.init_tabs()
+        self.init_cross_shortcuts()
         self.build_layout_extra()
 
     def configure_window(self):
@@ -683,16 +683,17 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.mst.open()
 
     def init_cross_shortcuts(self):
-        self.add_ks(config["kbsc"]["next"], self.ks_nav_next, self)
-        self.add_ks(config["kbsc"]["negative"], self.ks_nav_negative, self)
-        self.add_ks(config["kbsc"]["prev"], self.click_prev_button, self)
-        self.add_ks(config["kbsc"]["reverse"], self.reverse_side, self)
-        self.add_ks(config["kbsc"]["del_cur_card"], self.delete_current_card, self)
-        self.add_ks(config["kbsc"]["load_again"], self.load_again_click, self)
-        self.add_ks(config["kbsc"]["save"], self.click_save_button, self)
-        self.add_ks(config["kbsc"]["hint"], self.show_hint, self)
-        self.add_ks(config["kbsc"]["last_seen"], self.goto_last_seen_card, self)
         self.add_ks(Qt.Key_Escape, lambda: self.switch_tab(self.id), self)
+        self.add_ks(config["kbsc"]["next"], self.ks_nav_next, self.main_tab)
+        self.add_ks(config["kbsc"]["negative"], self.ks_nav_negative, self.main_tab)
+        self.add_ks(config["kbsc"]["prev"], self.click_prev_button, self.main_tab)
+        self.add_ks(config["kbsc"]["reverse"], self.reverse_side, self.main_tab)
+        self.add_ks(config["kbsc"]["del_cur_card"], self.delete_current_card, self.main_tab)
+        self.add_ks(config["kbsc"]["load_again"], self.load_again_click, self.main_tab)
+        self.add_ks(config["kbsc"]["save"], self.click_save_button, self.main_tab)
+        self.add_ks(config["kbsc"]["hint"], self.show_hint, self.main_tab)
+        self.add_ks(config["kbsc"]["last_seen"], self.goto_last_seen_card, self.main_tab)
+        self.add_ks(config["kbsc"]["next_efc"], self.efc.load_next_efc, self.main_tab)
 
     def add_ks(self, key: str, func, tab):
         shortcut = QShortcut(QKeySequence(key), tab)

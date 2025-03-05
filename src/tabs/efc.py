@@ -5,6 +5,7 @@ from random import choice
 from datetime import datetime
 import logging
 from PyQt5.QtWidgets import QGridLayout, QListWidget, QWidget
+from PyQt5.QtCore import Qt
 from random import shuffle
 import statistics
 import numpy as np
@@ -70,20 +71,30 @@ class EFCTab(BaseTab):
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
-        self.mw.add_ks(config["kbsc"]["run_command"], self.load_selected_efc, self)
         self.mw.add_ks(
-            config["kbsc"]["negative"], lambda: self.nagivate_efc_list(1), self
+            config["kbsc"]["negative"],
+            lambda: self.nagivate_efc_list(1),
+            self.recoms_qlist,
         )
         self.mw.add_ks(
-            config["kbsc"]["reverse"], lambda: self.nagivate_efc_list(-1), self
+            config["kbsc"]["reverse"],
+            lambda: self.nagivate_efc_list(-1),
+            self.recoms_qlist,
         )
-        self.mw.add_ks(config["kbsc"]["next_efc"], self.load_next_efc, self.mw)
+        self.mw.add_ks("Home", lambda: self.set_efc_list_index(0), self.recoms_qlist)
+        self.mw.add_ks(
+            "End",
+            lambda: self.set_efc_list_index(self.files_count - 1),
+            self.recoms_qlist,
+        )
+        self.mw.add_ks(Qt.Key_Return, self.load_selected_efc, self.recoms_qlist)
 
     def open(self):
         self.mw.switch_tab(self.id)
         if not self.cache_valid:
             self.recoms_qlist.clear()
             self.show_recommendations()
+        self.recoms_qlist.setFocus()
 
     def show_recommendations(self):
         for r in self.get_recommendations():
@@ -126,6 +137,10 @@ class EFCTab(BaseTab):
             self.cur_efc_index = 0
         else:
             self.cur_efc_index = new_index
+        self.recoms_qlist.setCurrentRow(self.cur_efc_index)
+
+    def set_efc_list_index(self, index: int):
+        self.cur_efc_index = index
         self.recoms_qlist.setCurrentRow(self.cur_efc_index)
 
     def load_selected_efc(self):

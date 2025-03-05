@@ -52,7 +52,6 @@ class BaseConsole(QWidget):
 
     def init_cross_shortcuts(self):
         self.mw.add_ks(config["kbsc"][self.id], self.open, self.mw)
-        self.mw.add_ks(config["kbsc"]["run_command"], self.run_cmd, self)
 
     def build(self):
         self._tab = QWidget()

@@ -5,11 +5,11 @@ from PyQt5.QtWidgets import (
     QWidget,
     QGridLayout,
     QListWidget,
-    QShortcut,
     QAction,
     QMenu,
 )
-from PyQt5.QtGui import QKeySequence, QCursor
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QCursor
 from utils import fcc_queue, LogLvl
 from widgets import CFIDialog, get_button, get_scrollbar
 from cfg import config
@@ -31,9 +31,23 @@ class LoadTab(BaseTab):
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
-        self.mw.add_ks(config["kbsc"]["run_command"], self.load_selected_file, self)
-        self.mw.add_ks(config["kbsc"]["negative"], lambda: self.nagivate_load_list(1), self)
-        self.mw.add_ks(config["kbsc"]["reverse"], lambda: self.nagivate_load_list(-1), self)
+        self.mw.add_ks(
+            config["kbsc"]["negative"],
+            lambda: self.nagivate_load_list(1),
+            self.files_qlist,
+        )
+        self.mw.add_ks(
+            config["kbsc"]["reverse"],
+            lambda: self.nagivate_load_list(-1),
+            self.files_qlist,
+        )
+        self.mw.add_ks("Home", lambda: self.set_load_list_index(0), self.files_qlist)
+        self.mw.add_ks(
+            "End",
+            lambda: self.set_load_list_index(self.files_count - 1),
+            self.files_qlist,
+        )
+        self.mw.add_ks(Qt.Key_Return, self.load_selected_file, self.files_qlist)
 
     def open(self):
         self.mw.switch_tab(self.id)
@@ -62,12 +76,6 @@ class LoadTab(BaseTab):
         self.files_qlist.itemClicked.connect(self.lsw_qlist_onclick)
         self.files_qlist.itemDoubleClicked.connect(self.lsw_qlist_onDoubleClick)
         self.attach_files_qlist_ctx()
-        QShortcut(QKeySequence("Home"), self.files_qlist).activated.connect(
-            lambda: self.files_qlist.setCurrentRow(0)
-        )
-        QShortcut(QKeySequence("End"), self.files_qlist).activated.connect(
-            lambda: self.files_qlist.setCurrentRow(self.files_qlist.count() - 1)
-        )
         return self.files_qlist
 
     def attach_files_qlist_ctx(self):
@@ -213,6 +221,10 @@ class LoadTab(BaseTab):
             self.cur_load_index = 0
         else:
             self.cur_load_index = new_index
+        self.files_qlist.setCurrentRow(self.cur_load_index)
+
+    def set_load_list_index(self, index: int):
+        self.cur_load_index = index
         self.files_qlist.setCurrentRow(self.cur_load_index)
 
     def load_selected_file(self):
