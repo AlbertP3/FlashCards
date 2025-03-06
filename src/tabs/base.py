@@ -51,7 +51,18 @@ class BaseConsole(QWidget):
         raise NotImplementedError
 
     def init_cross_shortcuts(self):
-        self.mw.add_ks(config["kbsc"][self.id], self.open, self.mw)
+        k = config["kbsc"]
+        self.mw.add_ks(k[self.id], self.open, self.mw)
+        self.mw.add_ks(f"{k['mod']}+{k['efc']}", self.mw.efc.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['next_efc']}", self.mw.efc.load_next_efc, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['tracker']}", self.mw.trk.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['config']}", self.mw.cft.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['stats']}", self.mw.sta.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['mistakes']}", self.mw.mst.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['fcc']}", self.mw.fcc.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['sod']}", self.mw.sod.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['load']}", self.mw.ldt.open, self.console)
+        self.mw.add_ks(f"{k['mod']}+{k['logs']}", self.mw.log.open, self.console)
 
     def build(self):
         self._tab = QWidget()

@@ -126,6 +126,7 @@
         "files_list": []
     },
     "kbsc": {
+        "mod": "Alt",
         "next": "Right",
         "prev": "Left",
         "negative": "Down",

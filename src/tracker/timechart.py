@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from cfg import config
@@ -12,6 +13,7 @@ class TimeChartCanvas:
 
     def __init__(self):
         self.upd = -1
+        self.upd_date = date.today()
         self.figure = Figure(figsize=(8, 4))
         self.canvas = FigureCanvas(self.figure)
 
@@ -19,10 +21,11 @@ class TimeChartCanvas:
         return self.canvas
 
     def refresh(self):
-        if self.upd < dal.upd:
+        if self.upd < dal.upd or self.upd_date < date.today():
             self._calculate()
             self._generate()
             self.upd = dal.upd
+            self.upd_date = date.today()
             log.debug("Refreshed TimeChart Tab")
 
     def _calculate(self):

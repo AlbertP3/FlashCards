@@ -209,7 +209,7 @@ class DataAccessLayer:
         with open(self.spc.imm_path, "a") as f:
             DictWriter(f, self.spc.imm_cols, delimiter=self.spc.sep).writerow(record)
         fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
-        log.debug(f"Added Immersion: {record}")
+        log.info(f"Added Immersion: {record}")
         self.upd = time()
 
     def get_data(self) -> RecordOrderedDict:

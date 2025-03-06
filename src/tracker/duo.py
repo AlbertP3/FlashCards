@@ -24,6 +24,7 @@ class DuoLayout(QWidget):
     def __init__(self):
         super().__init__()
         self.upd = -1
+        self.upd_date = date.today()
         self.caliper = Caliper(config.qfont_chart)
         self.setFont(config.qfont_button)
         self.layout = QGridLayout()
@@ -44,7 +45,7 @@ class DuoLayout(QWidget):
         return self.layout
 
     def refresh(self):
-        if self.upd < dal.upd:
+        if self.upd < dal.upd or self.upd_date < date.today():
             data = dal.get_data()
 
             try:
@@ -85,6 +86,7 @@ class DuoLayout(QWidget):
             ]
             self.fill_charts()
             self.upd = dal.upd
+            self.upd_date = date.today()
             log.debug("Refreshed Duo Tab")
 
     def create_form(self):

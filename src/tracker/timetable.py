@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from PyQt5.QtWidgets import QTextEdit
 from PyQt5.QtCore import Qt
 from datetime import date, datetime
@@ -17,6 +18,7 @@ class TimeTablePrintout:
 
     def __init__(self):
         self.upd = -1
+        self.upd_date = date.today()
         self._create_text_edit()
 
     def _create_text_edit(self):
@@ -38,7 +40,7 @@ class TimeTablePrintout:
         return self.qTextEdit
 
     def refresh(self):
-        if self.upd < dal.upd:
+        if self.upd < dal.upd or self.upd_date < date.today():
             data = dal.get_data()
             self.start_date = next(iter(data))
             data = merge_records_by_date(
@@ -47,6 +49,7 @@ class TimeTablePrintout:
             printout = self.get_timespent_printout(data)
             self.qTextEdit.setText(printout)
             self.upd = dal.upd
+            self.upd_date = date.today()
             log.debug("Refreshed TimeTable Tab")
 
     def get_timespent_printout(self, data: StrRecordOrderedDict) -> str:

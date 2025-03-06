@@ -174,7 +174,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def add_tab(self, widget, name, title):
         self.tab_map[name] = {"index": len(self.tab_map), "title": title}
-        self.tabs.addTab(widget, name)
+        self.tabs.addTab(widget, title)
 
     def switch_tab(self, name: str):
         if name == self.active_tab_id:
@@ -202,7 +202,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tabs = QTabWidget()
         self.tabs.tabBar().hide()
         self.tabs.setContentsMargins(*self.LAYOUT_MARGINS)
-        self.add_tab(self.main_tab, self.id, self.id)
+        self.add_tab(self.main_tab, self.id, "Main")
 
         self.setStyleSheet(config.stylesheet)
         self.setContentsMargins(*self.LAYOUT_MARGINS)

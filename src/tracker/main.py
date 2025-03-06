@@ -61,6 +61,9 @@ class Tracker(QGridLayout):
         ci = self.trk_tabs.currentIndex()
         self.on_tab_changed(ci)
 
+    def switch_tab(self, move: int):
+        self.trk_tabs.setCurrentIndex(self.trk_tabs.currentIndex() + move)
+
     def on_tab_changed(self, index: int):
         tid = self.trk_tabs.tabText(index)
         if tid == TAB.TimeChart.value:
