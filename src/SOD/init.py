@@ -3,13 +3,17 @@ import logging
 from utils import fcc_queue, LogLvl
 from cfg import config
 from SOD.cli import CLI
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tabs.sod import SodTab
 
 log = logging.getLogger("SOD")
 
 
 class SODspawn:
 
-    def __init__(self, tab):
+    def __init__(self, tab: "SodTab"):
         self.tab = tab
         self.cli = CLI(tab=self.tab)
         self.tab.console_prompt = self.cli.prompt.PHRASE
@@ -20,9 +24,7 @@ class SODspawn:
             self.cli.cls(msg, keep_content=True, keep_cmd=True)
             self.tab.console_log.append(msg)
 
-    def execute_command(
-        self, parsed_input: list, followup_prompt: bool = True
-    ):
+    def execute_command(self, parsed_input: list, followup_prompt: bool = True):
         if parsed_input[0] == "cls":
             self.cli.reset_state()
             self.cli.init_set_languages()

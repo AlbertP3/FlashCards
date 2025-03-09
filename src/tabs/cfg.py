@@ -7,24 +7,32 @@ from PyQt5.QtWidgets import (
     QWidget,
     QGridLayout,
     QScrollArea,
-    QPushButton,
     QLineEdit,
     QLabel,
 )
 from PyQt5.QtCore import Qt
 from data_types import HIDE_TIPS_POLICIES
-from widgets import CheckableComboBox, ScrollableOptionsWidget, get_scrollbar, get_button
+from widgets import (
+    CheckableComboBox,
+    ScrollableOptionsWidget,
+    get_scrollbar,
+    get_button,
+)
 from utils import fcc_queue, LogLvl
 from cfg import config, validate
 from DBAC import db_conn
 from tabs.base import BaseTab
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("GUI")
 
 
 class CfgTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.id = "config"
         self.mw = mw
@@ -48,13 +56,15 @@ class CfgTab(BaseTab):
         self.opt_scroll_area.setVerticalScrollBar(get_scrollbar())
         self.config_layout.addWidget(self.opt_scroll_area)
         self.set_box(self.config_layout)
-        self.submit_btn = get_button()
+        self.submit_btn = get_button(function=lambda: None)
         self._tab.setLayout(self.config_layout)
 
-    def update_submit_btn(self) -> QPushButton:
+    def update_submit_btn(self):
         if self.funcs_to_restart:
             self.submit_btn.setText("Click to restart")
-            self.submit_btn.clicked.connect(lambda: self.__on_config_commit_restart(self.funcs_to_restart))
+            self.submit_btn.clicked.connect(
+                lambda: self.__on_config_commit_restart(self.funcs_to_restart)
+            )
         else:
             self.submit_btn.setText("Confirm changes")
             self.submit_btn.clicked.connect(self.commit_config_update)
@@ -405,12 +415,10 @@ class CfgTab(BaseTab):
             text="Cache history size",
         )
         self.open_folder_cmd_qle = self.cfg_qle(
-            config["open_containing_dir_cmd"],
-            "Open folder command"
+            config["open_containing_dir_cmd"], "Open folder command"
         )
         self.reveal_file_cmd_qle = self.cfg_qle(
-            config["reveal_file_cmd"],
-            "Reveal file command"
+            config["reveal_file_cmd"], "Reveal file command"
         )
         self.opts_layout.add_spacer()
         self.config_layout.addWidget(self.submit_btn)
@@ -605,8 +613,12 @@ class CfgTab(BaseTab):
         blank = QLabel()
         return blank
 
-    def get_themes(self) -> dict:
-        return [f.split(".")[0] for f in os.listdir(config.THEMES_PATH) if f.endswith(".css")]
+    def get_themes(self) -> list:
+        return [
+            f.split(".")[0]
+            for f in os.listdir(config.THEMES_PATH)
+            if f.endswith(".css")
+        ]
 
     def config_manual_update(self, key: str = None, subdict: str = None):
         if subdict == "theme":

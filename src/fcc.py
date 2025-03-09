@@ -11,7 +11,10 @@ from DBAC import db_conn
 from EMO.init import EMOSpawn
 from CMG.init import CMGSpawn
 from cfg import config
-from logic import MainWindowLogic
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("FCC")
 
@@ -19,7 +22,7 @@ log = logging.getLogger("FCC")
 class FCC:
     # Flashcards console commands allows access to extra functionality
 
-    def __init__(self, mw: MainWindowLogic, sout: QTextEdit):
+    def __init__(self, mw: "MainWindowGUI", sout: QTextEdit):
         self.mw = mw
         self.console = sout
         self.DOCS = {
@@ -62,7 +65,7 @@ class FCC:
         if followup_prompt:
             self.post_fcc(self.mw.fcc.console_prompt)
         else:
-            self.mw.move_cursor_to_end()
+            self.mw.fcc.move_cursor_to_end()
 
     def is_allowed_command(self, command):
         return command in self.DOCS.keys()
@@ -569,8 +572,8 @@ class FCC:
             self.post_fcc("Config reloaded")
         elif parsed_cmd[1] == "restart":
             self.mw.switch_tab("main")
-            self.mw._modify_file_monitor()
-            self.mw.config_manual_update()
+            self.mw.cft._modify_file_monitor()
+            self.mw.cft.config_manual_update()
             self.mw.restart_app()
             self.post_fcc("Application restarted")
             self.mw.fcc.open()
@@ -588,5 +591,5 @@ class FCC:
         if self.mw.active_file.tmp and self.mw.active_file.data.shape[0] > 1:
             db_conn.create_tmp_file_backup()
         self.mw.create_session_snapshot()
-        self.mw.config.save()
+        config.save()
         self.post_fcc("Dumped session data")

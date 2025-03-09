@@ -5,11 +5,15 @@ from widgets import get_scrollbar
 from cfg import config
 from tabs.base import BaseTab
 from DBAC import db_conn
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 
 class MistakesTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.mw = mw
         self.id = "mistakes"

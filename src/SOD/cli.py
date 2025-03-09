@@ -5,10 +5,14 @@ import re
 import os
 from functools import cache
 from SOD.dicts import Dict_Services
-from SOD.file_handler import get_filehandler, FileHandler
+from SOD.file_handler import get_filehandler
 from DBAC import db_conn
 from utils import Caliper
 from cfg import config
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tabs.sod import SodTab
 
 log = logging.getLogger("SOD")
 
@@ -58,7 +62,7 @@ class Prompt:
 
 class CLI:
 
-    def __init__(self, tab) -> None:
+    def __init__(self, tab: "SodTab") -> None:
         self.state = State()
         self.prompt = Prompt()
         self.msg = Message()
@@ -138,7 +142,7 @@ class CLI:
         self.tab.mw.file_monitor_add_protected_path(self.fh.path)
         self.init_set_languages()
 
-    def update_file_handler(self, filepath: str) -> FileHandler:
+    def update_file_handler(self, filepath: str):
         """
         Searches for a matching file using regex.
         Uses files_list if available, else all language files
@@ -461,7 +465,7 @@ class CLI:
                 .replace(translations, "")
             )
             self.tab.console.setText(cleaned_text)
-            self.tab.console_log = cleaned_text
+            self.tab.console_log = cleaned_text.split("\n")
             transl = translations
             warnings = None
         else:  # Online Dictionary

@@ -15,6 +15,10 @@ from cfg import config
 from widgets import get_scrollbar, get_button
 from tabs.base import BaseTab
 from DBAC import db_conn
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("EFC")
 
@@ -54,7 +58,7 @@ class StandardModel:
 
 class EFCTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.id = "efc"
         self.mw = mw
@@ -151,7 +155,8 @@ class EFCTab(BaseTab):
     def load_next_efc(self):
         if (
             config["efc"]["opt"]["require_recorded"]
-            and self.positives + self.negatives != 0
+            and self.mw.positives + self.mw.negatives != 0
+            and not self.mw.is_recorded
         ):
             fcc_queue.put_notification(
                 "Finish your current revision before proceeding", lvl=LogLvl.warn
@@ -161,7 +166,7 @@ class EFCTab(BaseTab):
             self.mw.save_current_mistakes()
 
         if config["CRE"]["items"]:
-            self.fcc.fcc.execute_command(["cre"])
+            self.mw.fcc.fcc.execute_command(["cre"])
         else:
             self.__load_next_efc()
 
@@ -182,7 +187,7 @@ class EFCTab(BaseTab):
         if config["efc"]["opt"]["random"]:
             shuffle(recs)
         if config["efc"]["opt"]["reversed"]:
-            recs = reversed(recs)
+            recs = list(reversed(recs))
         if config["efc"]["opt"]["new_first"]:
             recs.sort(key=lambda x: x["is_init"], reverse=True)
 
@@ -287,8 +292,8 @@ class EFCTab(BaseTab):
         return self._recoms
 
     def get_efc_data(
-        self, preds: bool = False, signatures: set = None
-    ) -> list[str, float, str, float, str, bool]:
+        self, preds: bool = False, signatures: Optional[set] = None
+    ) -> list:
         """
         Calculates EFC scores for Revisions.
         Returns: list[signature, days_since_last_rev, efc_score, pred_due_hours, filepath, is_initial].

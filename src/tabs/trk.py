@@ -3,11 +3,15 @@ from tracker import Tracker
 from tracker.dal import dal
 from tabs.base import BaseTab
 from PyQt5.QtCore import Qt
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 
 class TrackerTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.mw = mw
         self.id = "tracker"

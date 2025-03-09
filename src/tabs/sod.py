@@ -1,10 +1,14 @@
 from tabs.base import BaseConsole
 from SOD.init import SODspawn
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 
 class SodTab(BaseConsole):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.id = "sod"
         self.mw = mw

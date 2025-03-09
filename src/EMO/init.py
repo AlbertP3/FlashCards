@@ -3,6 +3,10 @@ from utils import fcc_queue, translate
 from cfg import config
 from EMO.cli import CLI, Steps
 from DBAC import db_conn
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 
 log = logging.getLogger("EMO")
@@ -11,7 +15,7 @@ log = logging.getLogger("EMO")
 class EMOSpawn:
     # EFC Model Optimizer
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         self.mw = mw
         self.mw.setWindowTitle("EFC Model Optimizer")
         self.cli = CLI(fcc=self.mw.fcc)

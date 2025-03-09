@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 import logging
 import re
 import pandas as pd
@@ -14,16 +14,29 @@ log = logging.getLogger("SOD")
 
 
 class FileHandler(ABC):
-    @abstractproperty
+
+    def __init__(self):
+        self.path: str
+        self.filename: str
+        self.wb: openpyxl.Workbook
+        self.native_lng: str
+        self.foreign_lng: str
+        self.raw_data: pd.DataFrame
+        self.data: OrderedDict
+        self.dtracker: tuple
+        self.last_write_time: float
+
+    @property
+    @abstractmethod
     def total_rows(self):
         pass
 
     @abstractmethod
-    def append_content(self) -> tuple[bool, str]:
+    def append_content(self, foreign_word: str, domestic_word: str) -> tuple[bool, str]:
         pass
 
     @abstractmethod
-    def edit_content(self) -> tuple[bool, str]:
+    def edit_content(self, foreign_word: str, domestic_word: str) -> tuple[bool, str]:
         pass
 
     @abstractmethod
@@ -43,7 +56,7 @@ class FileHandler(ABC):
 
         return inner
 
-    def get_languages(self) -> tuple[str]:
+    def get_languages(self) -> tuple:
         """returns values from header rows indicating languages used"""
         return self.native_lng, self.foreign_lng
 
@@ -59,24 +72,26 @@ class FileHandler(ABC):
             return False
 
     @cache
-    def get_translations(self, phrase: str, is_from_native: bool) -> tuple[list]:
+    def get_translations(self, phrase: str, is_from_native: bool) -> tuple:
         tran, orig = list(), list()
         i = int(is_from_native)
         for v in self.data.values():
             if phrase.lower() in v[i].lower():
-                tran.append(v[1 - i]), orig.append(v[i])
+                tran.append(v[1 - i])
+                orig.append(v[i])
         return tran, orig
 
     @cache
     def get_translations_with_regex(
         self, phrase: str, is_from_native: bool
-    ) -> tuple[list]:
+    ) -> tuple:
         pattern = re.compile(phrase, re.IGNORECASE)
         tran, orig = list(), list()
         i = int(is_from_native)
         for v in self.data.values():
             if pattern.search(v[i]):
-                tran.append(v[1 - i]), orig.append(v[i])
+                tran.append(v[1 - i])
+                orig.append(v[i])
         return tran, orig
 
     def clear_cache(self):
@@ -267,9 +282,9 @@ class CSVFileHandler(FileHandler):
 class VoidFileHandler(FileHandler):
     def __init__(self, path=""):
         self.path = path
-        self.filename = None
-        self.native_lng = None
-        self.foreign_lng = None
+        self.filename = ""
+        self.native_lng = ""
+        self.foreign_lng = ""
         self.last_write_time = 0
 
     @property
@@ -298,8 +313,8 @@ class VoidFileHandler(FileHandler):
     def clear_cache(self):
         return
 
-    def get_languages(self) -> tuple[str]:
-        return [self.foreign_lng, self.native_lng]
+    def get_languages(self) -> tuple:
+        return (self.foreign_lng, self.native_lng)
 
     def update_dtracker(self, new_row: int = None, new_phrase: str = None):
         return

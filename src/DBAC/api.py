@@ -1,14 +1,23 @@
 import pandas as pd
 import os
 import logging
+from dataclasses import dataclass
 from utils import singleton
-from cfg import config
 from DBAC.db_queries import DBQueries
 from DBAC.db_efc import DbEFCQueries
 from DBAC.db_dataset_ops import DbDatasetOps
 
 log = logging.getLogger("DBA")
 pd.options.mode.chained_assignment = None
+
+
+@dataclass
+class FlashCardKinds:
+    mst = "M"
+    lng = "L"
+    rev = "R"
+    eph = "E"
+    unk = "U"
 
 
 @singleton
@@ -22,11 +31,7 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
         self.update_fds()
 
     def __configure(self):
-        self.KINDS = type(
-            "FileKindsEnum",
-            (object,),
-            {"mst": "M", "lng": "L", "rev": "R", "eph": "E", "unk": "U"},
-        )()
+        self.KINDS = FlashCardKinds()
         self.KFN = {
             "M": "Mistakes",
             "L": "Language",

@@ -21,6 +21,10 @@ from cfg import config
 from tracker.dal import dal as tracker_dal
 from tabs.base import BaseTab
 from DBAC import db_conn
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("GUI")
 
@@ -49,7 +53,7 @@ class LogHighlighter(QSyntaxHighlighter):
 
 class LogsTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.mw = mw
         self.id = "logs"

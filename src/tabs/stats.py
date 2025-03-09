@@ -9,13 +9,17 @@ from cfg import config
 from utils import format_seconds_to, fcc_queue, LogLvl, format_timedelta, get_sign
 from DBAC import db_conn
 from tabs.base import BaseTab
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("GUI")
 
 
 class StatsTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.mw = mw
         self.id = "stats"

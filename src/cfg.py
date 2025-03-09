@@ -102,7 +102,7 @@ class Config(UserDict):
         self.qfont_stopwatch = QFont(self.data["theme"]["font"], 50)
 
 
-def __validate(cfg: Config) -> tuple[bool, set]:
+def __validate(cfg: dict) -> tuple[bool, set]:
     errs = set()
     int_gt_0 = {
         "interval_days": cfg["mst"]["interval_days"],

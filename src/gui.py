@@ -172,19 +172,19 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.trk.init_cross_shortcuts()
         self.log.init_cross_shortcuts()
 
-    def add_tab(self, widget, name, title):
-        self.tab_map[name] = {"index": len(self.tab_map), "title": title}
+    def add_tab(self, widget, id, title):
+        self.tab_map[id] = {"index": len(self.tab_map), "title": title}
         self.tabs.addTab(widget, title)
 
-    def switch_tab(self, name: str):
-        if name == self.active_tab_id:
+    def switch_tab(self, id: str):
+        if id == self.active_tab_id:
             return
 
-        self.active_tab_id = name
-        self.setWindowTitle(self.tab_map[name]["title"])
-        self.tabs.setCurrentIndex(self.tab_map[name]["index"])
+        self.active_tab_id = id
+        self.setWindowTitle(self.tab_map[id]["title"])
+        self.tabs.setCurrentIndex(self.tab_map[id]["index"])
 
-        if name == self.id:
+        if id == self.id:
             self.resume_timer()
             self.resume_pace_timer()
         elif self.TIMER_RUNNING_FLAG:

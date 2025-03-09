@@ -15,13 +15,17 @@ from widgets import CFIDialog, get_button, get_scrollbar
 from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("GUI")
 
 
 class LoadTab(BaseTab):
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
         self.id = "load"
         self.mw = mw

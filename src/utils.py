@@ -231,7 +231,9 @@ def flatten_dict(d: dict, root: str = "BASE", lim_chars: int = None) -> list:
 class Caliper:
     """Works on pixels!"""
 
-    def __init__(self, qFont: QFont, suf: str = "", fill: str = "\u0020", mg=1):
+    def __init__(
+        self, qFont: QFont, suf: str = "", fill: str = "\u0020", mg: float = 1.0
+    ):
         self.doc_margin = mg
         self.fmetrics = QFontMetricsF(qFont)
         self.suffix = suf or config["theme"]["default_suffix"]
