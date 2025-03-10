@@ -62,7 +62,13 @@ class Tracker(QGridLayout):
         self.on_tab_changed(ci)
 
     def switch_tab(self, move: int):
-        self.trk_tabs.setCurrentIndex(self.trk_tabs.currentIndex() + move)
+        new_index = self.trk_tabs.currentIndex() + move
+        cnt = self.trk_tabs.count()
+        if new_index >= cnt:
+            new_index = 0
+        elif new_index < 0:
+            new_index = cnt - 1
+        self.trk_tabs.setCurrentIndex(new_index)
 
     def on_tab_changed(self, index: int):
         tid = self.trk_tabs.tabText(index)

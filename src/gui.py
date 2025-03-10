@@ -287,13 +287,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.stats_button = get_button(self, config["icons"]["stats"], self.sta.open)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
-        # TODO make use of this button
         self.progress_button = get_button(
-            self,
-            config["icons"]["progress"],
-            lambda: fcc_queue.put_notification(
-                "Progress moved to Tracker", lvl=LogLvl.warn
-            ),
+            self, config["icons"]["modcard"], self.modify_card_result
         )
         self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
 
@@ -688,11 +683,15 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.add_ks(config["kbsc"]["negative"], self.ks_nav_negative, self.main_tab)
         self.add_ks(config["kbsc"]["prev"], self.click_prev_button, self.main_tab)
         self.add_ks(config["kbsc"]["reverse"], self.reverse_side, self.main_tab)
-        self.add_ks(config["kbsc"]["del_cur_card"], self.delete_current_card, self.main_tab)
+        self.add_ks(
+            config["kbsc"]["del_cur_card"], self.delete_current_card, self.main_tab
+        )
         self.add_ks(config["kbsc"]["load_again"], self.load_again_click, self.main_tab)
         self.add_ks(config["kbsc"]["save"], self.click_save_button, self.main_tab)
         self.add_ks(config["kbsc"]["hint"], self.show_hint, self.main_tab)
-        self.add_ks(config["kbsc"]["last_seen"], self.goto_last_seen_card, self.main_tab)
+        self.add_ks(
+            config["kbsc"]["last_seen"], self.goto_last_seen_card, self.main_tab
+        )
         self.add_ks(config["kbsc"]["next_efc"], self.efc.load_next_efc, self.main_tab)
 
     def add_ks(self, key: str, func, tab):
