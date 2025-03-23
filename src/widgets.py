@@ -21,18 +21,21 @@ from PyQt5.QtCore import (
 )
 from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem
 from typing import Callable
+from utils import fcc_queue, LogLvl, is_valid_filename
+from DBAC import db_conn
 from cfg import config
 
 
 def get_button(parent=None, text="", function=None) -> QPushButton:
-        button = QPushButton(parent)
-        button.setFont(config.qfont_button)
-        button.setText(text)
-        button.setFocusPolicy(Qt.NoFocus)
-        if function is not None:
-            button.clicked.connect(function)
-            button.setCursor(Qt.PointingHandCursor)
-        return button
+    button = QPushButton(parent)
+    button.setFont(config.qfont_button)
+    button.setText(text)
+    button.setFocusPolicy(Qt.NoFocus)
+    if function is not None:
+        button.clicked.connect(function)
+        button.setCursor(Qt.PointingHandCursor)
+    return button
+
 
 def get_scrollbar() -> QScrollBar:
     scrollbar = QScrollBar()
@@ -358,6 +361,46 @@ class CFIDialog(QDialog):
             cnt = 0
 
         return start, cnt
+
+    def create_qle(self, text: str = "") -> QLineEdit:
+        qle = QLineEdit()
+        qle.setFont(config.qfont_button)
+        qle.setText(text)
+        qle.setObjectName("qdialog")
+        return qle
+
+
+class RenameDialog(QDialog):
+    def __init__(self, parent, old_filename: str):
+        super().__init__(parent)
+        self.old_filename = old_filename
+        self.setFont(config.qfont_button)
+        self.setWindowTitle(" ")
+        self.setMinimumWidth(250)
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(1, 1, 1, 1)
+        self.layout.setSpacing(config["theme"]["spacing"])
+        self.form_layout = QFormLayout()
+        self.filename_qle = self.create_qle(self.old_filename)
+        self.form_layout.addRow("New Filename  ", self.filename_qle)
+        self.layout.addLayout(self.form_layout)
+        self.submit_btn = get_button(self, "Rename", self.on_submit)
+        self.layout.addWidget(self.submit_btn)
+        self.setLayout(self.layout)
+
+    def on_submit(self):
+        new_filename = self.filename_qle.text()
+        if not is_valid_filename(new_filename):
+            fcc_queue.put_notification("Invalid filename provided", lvl=LogLvl.err)
+        elif new_filename in db_conn.get_all_files(use_basenames=True, excl_ext=True):
+            fcc_queue.put_notification(
+                "Provided filename already exists", lvl=LogLvl.err
+            )
+        else:
+            self.accept()
+
+    def get_filename(self) -> str:
+        return self.filename_qle.text()
 
     def create_qle(self, text: str = "") -> QLineEdit:
         qle = QLineEdit()

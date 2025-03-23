@@ -115,10 +115,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def apply_session_snapshot(self):
         self._apply_session_snapshot_backend()
-        suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
-        title = f"{self.active_file.basename}{suffix}"
-        self.tab_map[self.id]["title"] = title
-        self.setWindowTitle(title)
+        self.setWindowTitle(self.get_title())
         self.change_revmode(self.revmode)
         self.update_words_button()
         self.update_score_button()
@@ -287,10 +284,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
         self.stats_button = get_button(self, config["icons"]["stats"], self.sta.open)
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
-        self.progress_button = get_button(
+        self.mcr_button = get_button(
             self, config["icons"]["modcard"], self.modify_card_result
         )
-        self.layout_fourth_row.addWidget(self.progress_button, 3, 2)
+        self.layout_fourth_row.addWidget(self.mcr_button, 3, 2)
 
     def create_hint_qbutton(self):
         self.hint_qbutton = get_button(self, config["icons"]["hint"], self.show_hint)
@@ -316,7 +313,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def create_textbox(self):
         self.textbox = QLabel(self)
-        self.textbox_last_selection = ""
         self.textbox.setFont(config.qfont_textbox)
         self.textbox.setWordWrap(True)
         self.textbox.setAlignment(Qt.AlignCenter)
@@ -393,20 +389,18 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def __lookup_sod_auto(self, event):
         QLabel.mouseReleaseEvent(self.textbox, event)
         sel = self.textbox.selectedText()
-        if sel != self.textbox_last_selection:
-            if len(sel) >= 1:
-                if self.side == 0:
-                    lng = self.sod.sod.cli.fh.foreign_lng
-                else:
-                    lng = self.sod.sod.cli.fh.native_lng
-                msg = self.sod.sod.cli.lookup(sel, lng)
-                fcc_queue.put_notification(
-                    msg, lvl=LogLvl.important, func=lambda: self.__lookup_sod_full()
-                )
-                if self.notification_timer:
-                    # Immediately show the notification
-                    self.notification_timer_func()
-            self.textbox_last_selection = sel
+        if sel:
+            if self.side == 0:
+                lng = self.sod.sod.cli.fh.foreign_lng
+            else:
+                lng = self.sod.sod.cli.fh.native_lng
+            msg = self.sod.sod.cli.lookup(sel, lng)
+            fcc_queue.put_notification(
+                msg, lvl=LogLvl.important, func=lambda: self.__lookup_sod_full()
+            )
+            if self.notification_timer:
+                # Immediately show the notification
+                self.notification_timer_func()
 
     def __lookup_sod_quick(self):
         sel = self.textbox.selectedText()
@@ -499,7 +493,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             if not self.is_synopsis:
                 super().delete_current_card()
                 self.update_words_button()
-                fcc_queue.put_notification("Card deleted", lvl=LogLvl.important)
+                fcc_queue.put_notification("Card removed", lvl=LogLvl.important)
                 self.allow_hide_tips = True
                 self.display_text(self.get_current_card().iloc[self.side])
         else:
@@ -538,12 +532,15 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.switch_tab(self.id)
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
-
-    def update_interface_parameters(self):
+    
+    def get_title(self) -> str:
         suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
         title = f"{self.active_file.basename}{suffix}"
         self.tab_map[self.id]["title"] = title
-        self.setWindowTitle(title)
+        return title
+
+    def update_interface_parameters(self):
+        self.setWindowTitle(self.get_title())
         self.change_revmode(self.active_file.kind in db_conn.GRADED)
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
@@ -693,6 +690,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             config["kbsc"]["last_seen"], self.goto_last_seen_card, self.main_tab
         )
         self.add_ks(config["kbsc"]["next_efc"], self.efc.load_next_efc, self.main_tab)
+        self.add_ks(config["kbsc"]["mcr"], self.modify_card_result, self.main_tab)
 
     def add_ks(self, key: str, func, tab):
         shortcut = QShortcut(QKeySequence(key), tab)
@@ -1008,12 +1006,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         config["geo"] = self.geometry().getRect()[2:]
         try:
             self._set_textbox_chr_space()
-            self.sod.sod.cli.__class__.pix_lim.fget.cache_clear()
-            self.sod.sod.cli.__class__.lines_lim.fget.cache_clear()
             self.trk.trk.duo_layout.upd = -1
             self.trk.trk.tt_printout.upd = -1
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            log.error(
+                f"An exception occurred while resizing the window: {e}", stack_info=True
+            )
 
     def moveEvent(self, a0: QMoveEvent) -> None:
         if self.popup.is_visible:

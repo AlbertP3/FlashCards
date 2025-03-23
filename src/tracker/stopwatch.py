@@ -152,6 +152,5 @@ class StopwatchTab(QWidget):
         completer = QCompleter(model, self)
         completer.setCaseSensitivity(False)
         completer.setFilterMode(Qt.MatchContains)
-        completer.setCompletionMode(QCompleter.PopupCompletion)
-        completer.popup().setFont(config.qfont_button)
+        completer.setCompletionMode(QCompleter.InlineCompletion)
         return completer

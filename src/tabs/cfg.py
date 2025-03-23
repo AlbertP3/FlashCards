@@ -41,10 +41,10 @@ class CfgTab(BaseTab):
         self.mw.add_tab(self._tab, self.id, "Settings")
 
     def open(self):
-        self.mw.switch_tab(self.id)
         db_conn.update_fds()
         self.fill_config_list()
         self.update_submit_btn()
+        self.mw.switch_tab(self.id)
 
     def build(self):
         self._tab = QWidget()
@@ -60,10 +60,11 @@ class CfgTab(BaseTab):
         self._tab.setLayout(self.config_layout)
 
     def update_submit_btn(self):
+        self.submit_btn.clicked.disconnect()
         if self.funcs_to_restart:
             self.submit_btn.setText("Click to restart")
             self.submit_btn.clicked.connect(
-                lambda: self.__on_config_commit_restart(self.funcs_to_restart)
+                lambda: self.on_config_commit_restart(self.funcs_to_restart)
             )
         else:
             self.submit_btn.setText("Confirm changes")
@@ -561,17 +562,12 @@ class CfgTab(BaseTab):
             self.funcs_to_restart.clear()
             return
 
-        # Reload config window
         if not self.funcs_to_restart:
             fcc_queue.put_notification("Config saved", lvl=LogLvl.important)
         else:
-            self.submit_btn.setText("Click to restart")
-            self.submit_btn.clicked.disconnect()
-            self.submit_btn.clicked.connect(
-                lambda: self.__on_config_commit_restart(self.funcs_to_restart)
-            )
+            self.update_submit_btn()
 
-    def __on_config_commit_restart(self, funcs: list[Callable]):
+    def on_config_commit_restart(self, funcs: list[Callable]):
         for f in funcs:
             f()
         self.funcs_to_restart.clear()

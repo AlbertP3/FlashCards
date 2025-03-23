@@ -83,15 +83,13 @@ class CLI:
         return self.tab.caliper
 
     @property
-    @cache
     def pix_lim(self) -> int:
-        return self.tab.console.viewport().width()
+        return config["geo"][0]
 
     @property
-    @cache
     def lines_lim(self) -> int:
         # -1 excludes status bar
-        return int(self.tab.console.viewport().height() // self.caliper.sch) - 1
+        return int(config["geo"][1] // self.caliper.sch) - 1
 
     def init_file_handler(self):
         try:

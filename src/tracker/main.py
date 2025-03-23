@@ -82,6 +82,8 @@ class Tracker(QGridLayout):
             self.duo_layout.refresh()
         elif tid == TAB.StopWatch.value:
             self.stopwatch_layout.refresh()
+        elif tid == TAB.Notes.value:
+            self.notes_layout.qTextEdit.setFocus()
         dal.last_tab = tid
 
     def get_progress_tab(self) -> QWidget:
@@ -123,7 +125,7 @@ class Tracker(QGridLayout):
     def get_notes_tab(self) -> QWidget:
         tab = QWidget()
         layout = self._create_layout()
-        self.notes_layout = NotesLayout()
+        self.notes_layout = NotesLayout(trk=self)
         layout.addWidget(self.notes_layout.get(), 0, 0)
         tab.setLayout(layout)
         return tab

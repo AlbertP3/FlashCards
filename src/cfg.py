@@ -12,17 +12,6 @@ class Config(UserDict):
         self.DEF_CFG_PATH = "./src/res/config-default.json"
         self.THEMES_PATH = "./src/res/themes"
         self.CACHE_PATH = "./src/res/cache.json"
-        self.stylesheet = ""
-        self.mpl = {
-            "font_color": "#ebdbb2",
-            "stat_bar_color": "#3c3836",
-            "stat_background_color": "#282828",
-            "stat_chart_background_color": "#1d2021",
-            "stat_chart_text_color": "#fbf1c7",
-            "chart_secondary_color": " #979dac",
-            "chart_edge_color": "#000000",
-            "chart_line_color": "#a0a0a0",
-        }
 
     def load(self):
         self.load_data()
@@ -43,12 +32,14 @@ class Config(UserDict):
         try:
             self.data = json.load(open(self.CFG_PATH, "r"))
         except FileNotFoundError:
+            log.warning("Configuration not found. Creating new...")
             self.data = json.load(open(self.DEF_CFG_PATH, "r"))
 
     def load_cache(self):
         try:
             self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
         except FileNotFoundError:
+            log.warning("Cache not found. Creating new...")
             self.cache = {"snapshot": {"file": None, "session": None}, "notes": ""}
 
     def load_theme(self):
@@ -56,7 +47,8 @@ class Config(UserDict):
             with open(f"{self.THEMES_PATH}/{self.data['theme']['name']}.css", "r") as f:
                 self.stylesheet = f.read()
         except FileNotFoundError:
-            log.error(f"Theme {self.data['theme']['name']}.css not found!")
+            log.warning(f"Theme {self.data['theme']['name']}.css not found!")
+            self.stylesheet = ""
 
     def load_theme_mpl(self):
         try:
@@ -72,7 +64,17 @@ class Config(UserDict):
                 props[key] = value.strip().rstrip(";")
             self.mpl = props
         except Exception as e:
-            log.error(e, exc_info=True)
+            log.warning(e, stack_info=True)
+            self.mpl = {
+                "font_color": "#ebdbb2",
+                "stat_bar_color": "#3c3836",
+                "stat_background_color": "#282828",
+                "stat_chart_background_color": "#1d2021",
+                "stat_chart_text_color": "#fbf1c7",
+                "chart_secondary_color": "#979dac",
+                "chart_edge_color": "#000000",
+                "chart_line_color": "#a0a0a0",
+            }
 
     def load_qfonts(self):
         self.qfont_textbox = QFont(

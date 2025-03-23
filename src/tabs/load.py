@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QCursor
 from utils import fcc_queue, LogLvl
-from widgets import CFIDialog, get_button, get_scrollbar
+from widgets import CFIDialog, RenameDialog, get_button, get_scrollbar
 from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
@@ -90,18 +90,26 @@ class LoadTab(BaseTab):
 
     def show_files_qlist_ctx(self, position):
         self._files_qlist_ctx.clear()
+
         create_iln = QAction("Create…", self.files_qlist)
-        create_iln.triggered.connect(self.show_input_dialog_ILN)
+        create_iln.triggered.connect(self.ctx_ILN)
         self._files_qlist_ctx.addAction(create_iln)
+
         reveal = QAction("Reveal")
-        reveal.triggered.connect(self.reveal_file)
+        reveal.triggered.connect(self.ctx_reveal_file)
         self._files_qlist_ctx.addAction(reveal)
+
         folder = QAction("Folder")
-        folder.triggered.connect(self.open_folder)
+        folder.triggered.connect(self.ctx_open_folder)
         self._files_qlist_ctx.addAction(folder)
+
+        rename = QAction("Rename")
+        rename.triggered.connect(self.ctx_rename)
+        self._files_qlist_ctx.addAction(rename)
+
         self._files_qlist_ctx.exec_(QCursor.pos())
 
-    def reveal_file(self):
+    def ctx_reveal_file(self):
         """Opens selected file in external program"""
         try:
             fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
@@ -117,7 +125,7 @@ class LoadTab(BaseTab):
                 f"Error opening {fd.filepath}", LogLvl.err, func=self.mw.log.open
             )
 
-    def open_folder(self):
+    def ctx_open_folder(self):
         """Opens containing folder"""
         try:
             fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
@@ -134,7 +142,7 @@ class LoadTab(BaseTab):
                 f"Error opening directory {dir}", LogLvl.err, func=self.mw.log.open
             )
 
-    def show_input_dialog_ILN(self):
+    def ctx_ILN(self):
         fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
         start = config["ILN"].get(fd.filepath, 0)
         cnt = db_conn.get_lines_count(fd) - start
@@ -187,6 +195,51 @@ class LoadTab(BaseTab):
         self.mw.update_backend_parameters()
         self.mw.update_interface_parameters()
         self.mw.reset_timer()
+
+    def ctx_rename(self):
+        """Rename selected file"""
+        fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
+        dialog = RenameDialog(self.files_qlist, fd.basename)
+        if dialog.exec_():
+            new_filename = dialog.get_filename()
+            new_filepath = os.path.join(
+                os.path.dirname(fd.filepath), f"{new_filename}{fd.ext}"
+            )
+            is_active = fd.signature == self.mw.active_file.signature
+
+            self.mw.file_monitor_del_protected_path(fd.filepath)
+            os.rename(fd.filepath, new_filepath)
+
+            if fd.kind in db_conn.GRADED:
+                db_conn.rename_signature(fd.signature, new_filename)
+                msgp1 = " and Signature "
+            else:
+                msgp1 = " "
+
+            if iln := config["ILN"].get(fd.filepath):
+                config["ILN"][new_filepath] = iln
+                del config["ILN"][fd.filepath]
+
+            self.show_files()
+
+            if fd.filepath == config["SOD"]["last_file"]:
+                if fd.filepath in config["SOD"]["files_list"]:
+                    config["SOD"]["files_list"].remove(fd.filepath)
+                    config["SOD"]["files_list"].append(new_filepath)
+                self.mw.sod.sod.cli.update_file_handler(new_filepath)
+
+            if is_active:
+                db_conn.active_file.filepath = new_filepath
+                db_conn.active_file.signature = new_filename
+                db_conn.active_file.basename = new_filename
+                self.mw.file_monitor_add_path(new_filepath)
+                self.mw.get_title()
+                config["onload_filepath"] = new_filepath
+
+            log.info(f"Renamed '{fd.filepath}' to '{new_filepath}'")
+            fcc_queue.put_notification(
+                f"Filename{msgp1}changed successfully", lvl=LogLvl.important
+            )
 
     def lsw_qlist_onclick(self, item):
         self.cur_load_index = self.files_qlist.currentRow()

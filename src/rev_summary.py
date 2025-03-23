@@ -172,7 +172,7 @@ class SummaryGenerator:
                 if self.cpm_score >= self.CPM_ULTRA_FAST:
                     res = f"Testing on production again?"
                 elif self.cpm_score >= self.CPM_VERY_FAST:
-                    res = f"{self.cpm_score:.0f} CPM - Faster than Light!"
+                    res = f"{self.cpm_score:.0f} CPM - Faster than light!"
                 elif self.cpm_score >= self.CPM_FAST:
                     res = f"{self.cpm_score:.0f} CPM - Astounding feat!!"
                 elif self.cpm_score >= self.CPM_MEDIUM:
