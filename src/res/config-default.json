@@ -1,5 +1,5 @@
 {
-    "version": "1.5.1",
+    "version": "1.5.2",
     "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -86,7 +86,7 @@
     },
     "efc": {
         "threshold": 80,
-        "cache_expiry_hours": 1,
+        "cache_expiry_hours": 3,
         "opt": {
             "reversed": false,
             "random": true,
@@ -98,6 +98,10 @@
         "sort": {
             "key_1": "score",
             "key_2": "fp"
+        },
+        "timer": {
+            "active": true,
+            "interval_minutes": 15
         }
     },
     "lookup": {

@@ -1,6 +1,7 @@
 import json
 from collections import UserDict
 import logging
+from time import perf_counter
 from PyQt5.QtGui import QFont
 
 log = logging.getLogger("CFG")
@@ -8,10 +9,15 @@ log = logging.getLogger("CFG")
 
 class Config(UserDict):
     def __init__(self):
+        self.session_start = perf_counter()
         self.CFG_PATH = "./src/res/config.json"
         self.DEF_CFG_PATH = "./src/res/config-default.json"
         self.THEMES_PATH = "./src/res/themes"
         self.CACHE_PATH = "./src/res/cache.json"
+
+    def get_session_time_pp(self) -> str:
+        """Miliseconds elapsed from session start"""
+        return f"{1000*(perf_counter() - self.session_start):.0f}ms"
 
     def load(self):
         self.load_data()
@@ -124,7 +130,9 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "font_button_size": cfg["theme"]["font_button_size"],
         "prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],
     }
-    numeric_gt_0 = {}
+    numeric_gt_0 = {
+        "efc_timer_interval_minutes": cfg["efc"]["timer"]["interval_minutes"],
+    }
     int_gte_0 = {
         "init_revs_cnt": cfg["init_revs_cnt"],
         "min_eph_cards": cfg["min_eph_cards"],

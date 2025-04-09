@@ -51,8 +51,15 @@ class CheckableComboBox(QComboBox):
             size = super().sizeHint(option, index)
             return size
 
-    def __init__(self, layout, allow_multichoice: bool = True, width: float = 0):
+    def __init__(
+        self,
+        layout,
+        allow_multichoice: bool = True,
+        width: float = 0,
+        hide_on_checked: bool = False,
+    ):
         self.allow_multichoice = allow_multichoice
+        self.hide_on_checked = hide_on_checked
         self._width = width or self.lineEdit().width()
         super().__init__(layout)
 
@@ -108,6 +115,8 @@ class CheckableComboBox(QComboBox):
                     item.setCheckState(Qt.Unchecked)
                 else:
                     item.setCheckState(Qt.Checked)
+                    if self.hide_on_checked:
+                        self.hidePopup()
                 return True
         return False
 
@@ -154,6 +163,12 @@ class CheckableComboBox(QComboBox):
         item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
         item.setData([Qt.Unchecked, Qt.Checked][is_checked], Qt.CheckStateRole)
         self.model().appendRow(item)
+
+    def setChecked(self, index: int):
+        if not self.allow_multichoice:
+            for i in range(self.model().rowCount()):
+                self.model().item(i).setCheckState(Qt.Unchecked)
+        self.model().item(index).setCheckState(Qt.Checked)
 
     def addItems(self, texts, datalist=None):
         for i, text in enumerate(texts):
@@ -376,7 +391,7 @@ class RenameDialog(QDialog):
         self.old_filename = old_filename
         self.setFont(config.qfont_button)
         self.setWindowTitle(" ")
-        self.setMinimumWidth(250)
+        self.setMinimumWidth(400)
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(1, 1, 1, 1)
         self.layout.setSpacing(config["theme"]["spacing"])

@@ -63,6 +63,7 @@ class EFCTab(BaseTab):
         self.id = "efc"
         self.mw = mw
         self.efc_model = StandardModel()
+        self.is_view_outdated = True
         self.load_pickled_model()
         self._efc_last_calc_time = 0
         self._db_load_time_efc = 0
@@ -70,7 +71,6 @@ class EFCTab(BaseTab):
         self._recoms: list[dict] = list()  # {fp, disp, score, is_init}
         self.cur_efc_index = 0
         self.build()
-        self.show_recommendations()
         self.mw.add_tab(self._tab, self.id, "EFC")
 
     def init_cross_shortcuts(self):
@@ -96,17 +96,20 @@ class EFCTab(BaseTab):
     def open(self):
         self.mw.switch_tab(self.id)
         if not self.cache_valid:
-            self.recoms_qlist.clear()
+            self.calc_recommendations()
+        if self.is_view_outdated:
             self.show_recommendations()
         self.recoms_qlist.setFocus()
 
     def show_recommendations(self):
-        for r in self.get_recommendations():
+        self.recoms_qlist.clear()
+        for r in self._recoms:
             self.recoms_qlist.addItem(r["disp"])
         self.files_count = self.recoms_qlist.count()
         if self.files_count:
             self.cur_efc_index = min(self.files_count - 1, self.cur_efc_index)
             self.recoms_qlist.setCurrentRow(self.cur_efc_index)
+        self.is_view_outdated = False
 
     def build(self):
         self._tab = QWidget()
@@ -221,21 +224,29 @@ class EFCTab(BaseTab):
 
     @property
     def cache_valid(self):
+        log.debug("Checking EFC cache...", stacklevel=2)
+        eta = (
+            60 * config["efc"]["timer"]["interval_minutes"]
+            if config["efc"]["timer"]["active"]
+            else 0
+        )
         db_is_upd = (
-            self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"]
+            self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"] - eta
             >= time()
         )
         db_current = self._db_load_time_efc == db_conn.last_load
         return db_is_upd and db_current
 
     def get_recommendations(self) -> list[dict]:
+        """Returns EFC recommendations. Utilizes cache"""
         if self.cache_valid:
             log.debug("Used cached EFC recommendations")
-            return self._recoms
         else:
-            return self.__get_recommendations()
+            self.calc_recommendations()
+        return self._recoms
 
-    def __get_recommendations(self) -> list[dict]:
+    def calc_recommendations(self):
+        """Computes new EFC recommendations"""
         t0 = perf_counter()
         self._recoms = list()
         db_conn.refresh()
@@ -289,7 +300,7 @@ class EFCTab(BaseTab):
         log.debug(
             f"Calculated new EFC recommendations in {1000*(perf_counter()-t0):.0f}ms"
         )
-        return self._recoms
+        self.is_view_outdated = True
 
     def get_efc_data(
         self, preds: bool = False, signatures: Optional[set] = None

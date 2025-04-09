@@ -1,4 +1,5 @@
 from PyQt5.QtGui import QFont, QFontMetricsF
+from PyQt5.QtCore import QRunnable, pyqtSlot
 from collections import deque
 from functools import cache
 from datetime import timedelta, datetime
@@ -384,3 +385,16 @@ def translate(text: str, on_empty: bool = False) -> bool:
         return on_empty
     else:
         return text.lower() in {"true", "on", "1", "yes", "y"}
+
+
+class TaskRunner(QRunnable):
+    def __init__(self, fn, callback=None):
+        super().__init__()
+        self.fn = fn
+        self.callback = callback
+
+    @pyqtSlot()
+    def run(self):
+        result = self.fn()
+        if self.callback:
+            self.callback.emit(result)

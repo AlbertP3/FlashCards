@@ -201,8 +201,7 @@ class MainWindowLogic:
                 x[config["efc"]["sort"]["key_2"]],
             )
         )
-        self.efc.recoms_qlist.clear()
-        self.efc.show_recommendations()
+        self.efc.is_view_outdated = True
 
     def update_backend_parameters(self):
         config["onload_filepath"] = self.active_file.filepath

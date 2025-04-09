@@ -25,10 +25,10 @@ from PyQt5.QtGui import (
     QMoveEvent,
     QCursor,
 )
-from PyQt5.QtCore import Qt, QTimer, QFileSystemWatcher, QEvent
+from PyQt5.QtCore import Qt, QTimer, QFileSystemWatcher, QEvent, pyqtSlot, QThreadPool
 from logic import MainWindowLogic
 import tabs
-from utils import fcc_queue, format_seconds_to, Caliper, LogLvl
+from utils import fcc_queue, format_seconds_to, Caliper, LogLvl, TaskRunner
 from DBAC import FileDescriptor, db_conn
 from widgets import NotificationPopup, get_button
 from cfg import config
@@ -45,6 +45,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tab_map = {}
         self.q_app = QApplication(["FlashCards"])
         QWidget.__init__(self)
+        self.threadpool = QThreadPool()
         sys.excepthook = self.excepthook
 
     def configure_scaling(self):
@@ -65,11 +66,18 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.initiate_pace_timer()
         self.initiate_notification_timer()
         self.start_notification_timer()
+        self.initiate_efc_timer()
         self.q_app.installEventFilter(self)
         self.show()
+        QTimer.singleShot(0, self.post_init)
+        log.debug(f"TTI {config.get_session_time_pp()}")
+        self.q_app.exec()
+
+    @pyqtSlot()
+    def post_init(self):
         self.__onload_initiate_flashcards()
         self.__onload_notifications()
-        self.q_app.exec()
+        self.efc_cache_timer_func()
 
     def __onload_initiate_flashcards(self):
         if metadata := config.cache["snapshot"]["file"]:
@@ -532,7 +540,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.switch_tab(self.id)
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
-    
+
     def get_title(self) -> str:
         suffix = config["icons"]["init-rev-suffix"] if self.is_initial_rev else ""
         title = f"{self.active_file.basename}{suffix}"
@@ -974,6 +982,25 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def _set_interval_notification_timer(self, i: int):
         self.notification_timer.setInterval(i)
+
+    # endregion
+
+    # region EFC cache timer
+    def initiate_efc_timer(self):
+        if config["efc"]["timer"]["active"]:
+            self.efc_timer = QTimer()
+            self.efc_timer.setInterval(
+                int(60000 * config["efc"]["timer"]["interval_minutes"])
+            )
+            self.efc_timer.timeout.connect(self.efc_cache_timer_func)
+            self.efc_timer.start()
+        else:
+            self.efc_timer = None
+
+    @pyqtSlot()
+    def efc_cache_timer_func(self):
+        if not self.efc.cache_valid:
+            self.threadpool.start(TaskRunner(self.efc.calc_recommendations, None))
 
     # endregion
 

@@ -61,7 +61,19 @@ class LoadTab(BaseTab):
         self.files_qlist.clear()
         self.fill_flashcard_files_list()
         if self.files_count:
-            self.files_qlist.setCurrentRow(self.cur_load_index)
+            self.scroll_to_active()
+
+    def scroll_to_active(self):
+        for k, v in self.load_map.items():
+            if v == self.mw.active_file.filepath:
+                index = k
+                break
+        else:
+            index = 0
+        item = self.files_qlist.item(index)
+        self.files_qlist.scrollToItem(item, hint=QListWidget.PositionAtCenter)
+        self.cur_load_index = index
+        self.files_qlist.setCurrentRow(self.cur_load_index)
 
     def build(self):
         self._tab = QWidget()
@@ -250,7 +262,8 @@ class LoadTab(BaseTab):
 
     def fill_flashcard_files_list(self):
         db_conn.update_fds()
-        self.load_map, i = dict(), 0
+        self.load_map = dict()  # index: filepath
+        i = 0
         for fd in db_conn.get_sorted_languages():
             self.files_qlist.addItem(f"{config['icons']['language']} {fd.basename}")
             self.load_map[i] = fd.filepath

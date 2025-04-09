@@ -203,6 +203,16 @@ class CfgTab(BaseTab):
         self.init_revh_qle = self.cfg_qle(
             config["init_revs_inth"], text="Initial revision interval"
         )
+        self.efc_timer_active_cbx = self.cfg_cbx(
+            config["efc"]["timer"]["active"],
+            content=["False", "True"],
+            text="Timer active",
+            multi_choice=False
+        )
+        self.efc_timer_interval_qle = self.cfg_qle(
+            config["efc"]["timer"]["interval_minutes"],
+            "Timer interval (minutes)"
+        )
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("SOD")
@@ -435,6 +445,8 @@ class CfgTab(BaseTab):
         new_cfg["efc"]["sort"]["key_2"] = self.efc_secondary_sort_cbx.currentDataList()[
             0
         ]
+        new_cfg["efc"]["timer"]["active"] = self.efc_timer_active_cbx.currentDataList()[0] == "True"
+        new_cfg["efc"]["timer"]["interval_minutes"] = int(self.efc_timer_interval_qle.text())
         new_cfg["days_to_new_rev"] = int(self.days_to_new_rev_qle.text())
         new_cfg["opt"] = self.optional_featuers_cbx.currentDataDict()
         new_cfg["init_revs_cnt"] = int(self.init_rep_qle.text())
@@ -634,6 +646,7 @@ class CfgTab(BaseTab):
             self.mw.set_append_seconds_spent_function()
             self.mw.initiate_pace_timer()
             self.mw.initiate_notification_timer()
+            self.mw.initiate_efc_timer()
             self.mw.start_notification_timer()
             self.mw.tips_hide_re = re.compile(config["hide_tips"]["pattern"])
             self.mw.set_should_hide_tips()

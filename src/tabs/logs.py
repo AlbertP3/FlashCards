@@ -14,7 +14,7 @@ from PyQt5.QtGui import (
     QTextCursor,
 )
 from PyQt5.QtWidgets import QWidget, QGridLayout, QTextEdit, QLineEdit
-from PyQt5.QtCore import Qt, QTime
+from PyQt5.QtCore import Qt, QTime, QTimer
 from widgets import CheckableComboBox, get_scrollbar
 from utils import fcc_queue
 from cfg import config
@@ -63,7 +63,7 @@ class LogsTab(BaseTab):
         self.build()
         self.mw.add_tab(self._tab, self.id, "Logs")
 
-    def open(self, scroll_end = False):
+    def open(self, scroll_end=False):
         self.mw.switch_tab(self.id)
         scr_pos = self.console.verticalScrollBar().value()
         self.load_logs()
@@ -132,15 +132,18 @@ class LogsTab(BaseTab):
 
     def create_log_src_cbx(self):
         self.log_src_cbx = CheckableComboBox(
-            None,
+            self,
             allow_multichoice=False,
             width=120,
+            hide_on_checked=True,
         )
         self.log_src_cbx.setMinimumWidth(120)
         self.log_src_cbx.setFont(config.qfont_button)
         for src in self.sources.keys():
             self.log_src_cbx.addItem(src, is_checked=src == self.cur_src)
-        self.log_src_cbx.currentIndexChanged.connect(self.on_log_src_change)
+        self.log_src_cbx.model().dataChanged.connect(
+            lambda: QTimer.singleShot(0, self.on_log_src_change)
+        )
 
     def on_log_src_change(self):
         new_src = self.log_src_cbx.currentDataList()[0]
@@ -172,7 +175,7 @@ class LogsTab(BaseTab):
     def load_logs(self):
         try:
             if self.sources[self.cur_src]["type"] == "file":
-                with open(self.sources[self.cur_src]["path"], "r") as f:
+                with open(self.sources[self.cur_src]["fn"](), "r") as f:
                     self._content = f.read()
             elif self.sources[self.cur_src]["type"] == "json":
                 self._content = json.dumps(
@@ -193,7 +196,6 @@ class LogsTab(BaseTab):
             self.console.clear()
             for line in self._content.splitlines():
                 self.console.append(line)
-
             self.highlighter.rehighlight()
         except Exception as e:
             log.error(e, exc_info=True)
@@ -250,25 +252,25 @@ class LogsTab(BaseTab):
     def __get_sources(self):
         return {
             "logs": {
-                "path": "fcs.log",
+                "fn": lambda: "fcs.log",
                 "line_numbers": False,
                 "type": "file",
                 "re": re.compile(r"(?=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3})"),
             },
             "rev": {
-                "path": "src/res/db.csv",
+                "fn": lambda: "src/res/db.csv",
                 "line_numbers": True,
                 "type": "file",
                 "re": re.compile("\n"),
             },
             "duo": {
-                "path": "src/res/duo.csv",
+                "fn": lambda: "src/res/duo.csv",
                 "line_numbers": True,
                 "type": "file",
                 "re": re.compile("\n"),
             },
             "imm": {
-                "path": "src/res/imm.csv",
+                "fn": lambda: "src/res/imm.csv",
                 "line_numbers": True,
                 "type": "file",
                 "re": re.compile("\n"),
@@ -286,7 +288,7 @@ class LogsTab(BaseTab):
                 "re": re.compile("\n"),
             },
             "file": {
-                "path": self.mw.active_file.filepath,
+                "fn": lambda: self.mw.active_file.filepath,
                 "line_numbers": True,
                 "type": "file",
                 "re": re.compile("\n"),

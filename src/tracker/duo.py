@@ -141,9 +141,7 @@ class DuoLayout(QWidget):
 
     def get_cbx(self, value, content: list, multi_choice: bool = True):
         cb = CheckableComboBox(
-            self,
-            allow_multichoice=multi_choice,
-            width=50,
+            self, allow_multichoice=multi_choice, width=50, hide_on_checked=True
         )
         if isinstance(value, dict):
             value = [k for k, v in value.items() if v is True]
@@ -160,8 +158,9 @@ class DuoLayout(QWidget):
         ts = self.time_spent_qle.text() or self.time_spent_qle.placeholderText()
 
         if self.final_cbx.currentDataList()[0] == "True":
-            ts = int(ts)
+            ts = int(parse_to_seconds(ts) / 60)
             dal.add_duo_record_final(lng=lng, lessons=les, timespent=ts)
+            self.final_cbx.setChecked(0)
         else:
             ts = round(parse_to_seconds(ts) / 60, 2)
             offset = int(self.offset_qle.text() or self.offset_qle.placeholderText())
@@ -171,7 +170,6 @@ class DuoLayout(QWidget):
         self.lessons_qle.clear()
         self.time_spent_qle.clear()
         self.offset_qle.clear()
-        self.final_cbx.setCurrentIndex(0)
         self.upd = -1
         self.refresh()
 
