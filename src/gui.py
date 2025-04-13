@@ -220,6 +220,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.loading_dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.loading_dialog.setCancelButton(None)
         self.loading_dialog.setFont(config.qfont_button)
+        self.__loading_dialog_timer = QTimer(self)
+        self.__loading_dialog_timer.timeout.connect(self._animate_loading)
+        self.loading_dialog.setRange(0, 100)
 
     def _animate_loading(self):
         self.loading_prog_pos = (
@@ -227,13 +230,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         ) % 100
         self.loading_dialog.setValue(self.loading_prog_pos)
 
-    def show_loading(self, est: int = 1000):
+    def show_loading(self, est: int = 2500):
         self.loading_prog_pos = 0
         self.loading_dialog.setValue(0)
         self.loading_dialog.show()
-        self.loading_dialog.setRange(0, 100)
-        self.__loading_dialog_timer = QTimer(self)
-        self.__loading_dialog_timer.timeout.connect(self._animate_loading)
         self.__loading_dialog_timer.start(
             int(
                 config["popups"]["loading_timer_buffer"]
@@ -244,7 +244,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def hide_loading(self):
         self.__loading_dialog_timer.stop()
-        self.loading_dialog.hide()
+        # if shown and hidden too quick, will freeze GUI
+        QTimer.singleShot(10, self.loading_dialog.close)
 
     def build_layout(self):
         self.LAYOUT_MARGINS = (0, 0, 0, 0)
