@@ -1,5 +1,5 @@
 {
-    "version": "1.5.2",
+    "version": "1.5.3",
     "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -98,10 +98,6 @@
         "sort": {
             "key_1": "score",
             "key_2": "fp"
-        },
-        "timer": {
-            "active": true,
-            "interval_minutes": 15
         }
     },
     "lookup": {
@@ -215,7 +211,9 @@
         "allowed": {
             "unreviewed_mistakes": true,
             "initial_revs": true
-        }
+        },
+        "loading_timer_step": 1,
+        "loading_timer_buffer": 1.05
     },
     "EMO": {
         "discretizer": "decision-tree",

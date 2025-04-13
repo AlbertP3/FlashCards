@@ -1,5 +1,5 @@
 from PyQt5.QtGui import QFont, QFontMetricsF
-from PyQt5.QtCore import QRunnable, pyqtSlot
+from PyQt5.QtCore import QRunnable, pyqtSlot, pyqtSignal, QObject
 from collections import deque
 from functools import cache
 from datetime import timedelta, datetime
@@ -387,14 +387,53 @@ def translate(text: str, on_empty: bool = False) -> bool:
         return text.lower() in {"true", "on", "1", "yes", "y"}
 
 
+class WorkerSignals(QObject):
+    started = pyqtSignal()
+    progress = pyqtSignal()
+    finished = pyqtSignal()
+
+
 class TaskRunner(QRunnable):
-    def __init__(self, fn, callback=None):
+
+    def __init__(
+        self,
+        function: Callable,
+        started: Callable = None,
+        progress: Callable = None,
+        finished: Callable = None,
+    ):
         super().__init__()
-        self.fn = fn
-        self.callback = callback
+        self.signals = WorkerSignals()
+
+        if isinstance(function, list):
+            self.fn = lambda: [f() for f in function]
+            self.op_id = "&".join(f.__name__ for f in function)
+        else:
+            self.fn = function
+            self.op_id = function.__name__
+
+        if started:
+            self.signals.started.connect(
+                lambda: started(config.cache["load_est"].get(self.op_id, 2500))
+            )
+
+        if progress:
+            if isinstance(progress, list):
+                self.signals.progress.connect(lambda: [f() for f in progress])
+            else:
+                self.signals.progress.connect(progress)
+
+        if finished:
+            if isinstance(finished, list):
+                self.signals.finished.connect(lambda: [f() for f in finished])
+            else:
+                self.signals.finished.connect(finished)
 
     @pyqtSlot()
     def run(self):
-        result = self.fn()
-        if self.callback:
-            self.callback.emit(result)
+        self.signals.started.emit()
+        t0 = perf_counter()
+        self.signals.progress.emit()
+        self.fn()
+        self.signals.finished.emit()
+        config.cache["load_est"][self.op_id] = 1000 * (perf_counter() - t0)

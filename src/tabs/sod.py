@@ -21,7 +21,9 @@ class SodTab(BaseConsole):
         self.mw.switch_tab(self.id)
         if self.sod.is_state_clear():
             self.sod.cli.init_set_languages()
-            self.sod.cli.cls(keep_cmd=True, keep_content=True)
+            self.sod.cli.cls(
+                msg=self.sod.cli.status_message, keep_cmd=True, keep_content=True
+            )
         self.console.setFocus()
 
     def post(self, text=""):

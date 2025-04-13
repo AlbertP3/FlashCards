@@ -1,9 +1,9 @@
+from PyQt5.QtCore import pyqtSlot
 from collections import OrderedDict
 from itertools import islice
 import logging
 import re
 import os
-from functools import cache
 from SOD.dicts import Dict_Services
 from SOD.file_handler import get_filehandler
 from DBAC import db_conn
@@ -70,10 +70,15 @@ class CLI:
         self.phrase = str()
         self.queue_dict = OrderedDict()
         self.tab = tab
+        self.status_msg = ""
         self.init_cli_args()
         self.re_excl_dirs = re.compile(config["SOD"]["exclude_pattern"], re.IGNORECASE)
         self.dicts = Dict_Services()
-        self.init_file_handler()
+        self.__ifh_args: tuple = None
+        self.tab.mw.create_task(
+            fn=self.init_file_handler,
+            finished=self.__init_file_handler_finished,
+        )
         self.selection_queue = list()
         self.status_message = str()
         self.valid_cmd: re.Pattern = re.compile(r"^(\d+|a|m\d*|(d|r|e)\d+|)$")
@@ -91,12 +96,13 @@ class CLI:
         # -1 excludes status bar
         return int(config["geo"][1] // self.caliper.sch) - 1
 
+    @pyqtSlot()
     def init_file_handler(self):
         try:
             self.fh = get_filehandler(config["SOD"]["last_file"])
             self.tab.mw.file_monitor_add_protected_path(config["SOD"]["last_file"])
             self.init_set_languages()
-            self.cls()
+            self.__ifh_args = dict()
         except (FileNotFoundError, AttributeError) as e:
             self.fh = get_filehandler(".void")
             self.init_set_languages()
@@ -104,7 +110,11 @@ class CLI:
                 "FileNotFoundError": self.msg.FILE_MISSING,
                 "AttributeError": self.msg.FILE_INVALID,
             }
-            self.cls(err_msgs[type(e).__name__], keep_content=True)
+            self.__ifh_args = {"msg": err_msgs[type(e).__name__], "keep_content": True}
+
+    def __init_file_handler_finished(self):
+        self.cls(**self.__ifh_args)
+        self.send_output(self.tab.console_prompt)
 
     def init_cli_args(self):
         self.sep_manual = config["SOD"]["manual_mode_sep"]
@@ -737,12 +747,13 @@ class CLI:
         source_lng = self.dicts.source_lng
         target_lng = self.dicts.target_lng
         len_db = self.fh.total_rows
+        self.status_message = msg
         status = (
             f"{config['icons']['sod_dict']} {active_dict} | "
             f"{source_lng}{config['icons']['sod_lng_pointer']}{target_lng} | "
             f"{config['icons']['sod_db']} {self.fh.filename} | "
             f"{config['icons']['sod_card']} {len_db} | "
-            f"{msg}"
+            f"{self.status_message}"
         )
         self.send_output(
             self.caliper.make_cell(

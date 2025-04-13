@@ -46,7 +46,7 @@ class Config(UserDict):
             self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
         except FileNotFoundError:
             log.warning("Cache not found. Creating new...")
-            self.cache = {"snapshot": {"file": None, "session": None}, "notes": ""}
+            self.cache = {"snapshot": {"file": None, "session": None}, "notes": "", "load_est": dict()}
 
     def load_theme(self):
         try:
@@ -130,9 +130,7 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "font_button_size": cfg["theme"]["font_button_size"],
         "prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],
     }
-    numeric_gt_0 = {
-        "efc_timer_interval_minutes": cfg["efc"]["timer"]["interval_minutes"],
-    }
+    numeric_gt_0 = {}
     int_gte_0 = {
         "init_revs_cnt": cfg["init_revs_cnt"],
         "min_eph_cards": cfg["min_eph_cards"],

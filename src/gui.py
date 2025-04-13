@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QDesktopWidget,
     QShortcut,
+    QProgressDialog,
 )
 from PyQt5.QtGui import (
     QWindow,
@@ -25,7 +26,14 @@ from PyQt5.QtGui import (
     QMoveEvent,
     QCursor,
 )
-from PyQt5.QtCore import Qt, QTimer, QFileSystemWatcher, QEvent, pyqtSlot, QThreadPool
+from PyQt5.QtCore import (
+    Qt,
+    QTimer,
+    QFileSystemWatcher,
+    QEvent,
+    pyqtSlot,
+    QThreadPool,
+)
 from logic import MainWindowLogic
 import tabs
 from utils import fcc_queue, format_seconds_to, Caliper, LogLvl, TaskRunner
@@ -59,6 +67,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
         self.notify_on_error(err_traceback, exc_value)
 
+    def create_task(self, fn, started=None, progress=None, finished=None):
+        self.threadpool.start(
+            TaskRunner(
+                function=fn, started=started, progress=progress, finished=finished
+            )
+        )
+
     def launch_app(self):
         self.initiate_file_monitor()
         self.build_interface()
@@ -66,18 +81,20 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.initiate_pace_timer()
         self.initiate_notification_timer()
         self.start_notification_timer()
-        self.initiate_efc_timer()
         self.q_app.installEventFilter(self)
         self.show()
         QTimer.singleShot(0, self.post_init)
-        log.debug(f"TTI {config.get_session_time_pp()}")
+        log.debug(f"TTV {config.get_session_time_pp()}")
         self.q_app.exec()
 
     @pyqtSlot()
     def post_init(self):
+        self.create_task(
+            fn=[self.efc.load_pickled_model, self.efc.calc_recommendations],
+            started=self.show_loading,
+            finished=[self.hide_loading, self.__onload_notifications],
+        )
         self.__onload_initiate_flashcards()
-        self.__onload_notifications()
-        self.efc_cache_timer_func()
 
     def __onload_initiate_flashcards(self):
         if metadata := config.cache["snapshot"]["file"]:
@@ -142,6 +159,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.notify_on_mistakes()
 
     def build_interface(self):
+        self.create_progress_dialog()
         self.configure_window()
         self.build_layout()
         self.init_tabs()
@@ -195,6 +213,38 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         elif self.TIMER_RUNNING_FLAG:
             self.stop_timer()
             self.stop_pace_timer()
+
+    def create_progress_dialog(self):
+        self.loading_dialog = QProgressDialog("Loading data...", None, 0, 0, self)
+        self.loading_dialog.setWindowModality(Qt.ApplicationModal)
+        self.loading_dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        self.loading_dialog.setCancelButton(None)
+        self.loading_dialog.setFont(config.qfont_button)
+
+    def _animate_loading(self):
+        self.loading_prog_pos = (
+            self.loading_prog_pos + config["popups"]["loading_timer_step"]
+        ) % 100
+        self.loading_dialog.setValue(self.loading_prog_pos)
+
+    def show_loading(self, est: int = 1000):
+        self.loading_prog_pos = 0
+        self.loading_dialog.setValue(0)
+        self.loading_dialog.show()
+        self.loading_dialog.setRange(0, 100)
+        self.__loading_dialog_timer = QTimer(self)
+        self.__loading_dialog_timer.timeout.connect(self._animate_loading)
+        self.__loading_dialog_timer.start(
+            int(
+                config["popups"]["loading_timer_buffer"]
+                * est
+                / (100 / config["popups"]["loading_timer_step"])
+            )
+        )
+
+    def hide_loading(self):
+        self.__loading_dialog_timer.stop()
+        self.loading_dialog.hide()
 
     def build_layout(self):
         self.LAYOUT_MARGINS = (0, 0, 0, 0)
@@ -982,25 +1032,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def _set_interval_notification_timer(self, i: int):
         self.notification_timer.setInterval(i)
-
-    # endregion
-
-    # region EFC cache timer
-    def initiate_efc_timer(self):
-        if config["efc"]["timer"]["active"]:
-            self.efc_timer = QTimer()
-            self.efc_timer.setInterval(
-                int(60000 * config["efc"]["timer"]["interval_minutes"])
-            )
-            self.efc_timer.timeout.connect(self.efc_cache_timer_func)
-            self.efc_timer.start()
-        else:
-            self.efc_timer = None
-
-    @pyqtSlot()
-    def efc_cache_timer_func(self):
-        if not self.efc.cache_valid:
-            self.threadpool.start(TaskRunner(self.efc.calc_recommendations, None))
 
     # endregion
 

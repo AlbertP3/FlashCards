@@ -8,7 +8,6 @@ import pandas as pd
 from PyQt5.QtWidgets import QTextEdit
 from utils import flatten_dict, is_valid_filename, format_seconds_to, fcc_queue, LogLvl
 from DBAC import db_conn
-from EMO.init import EMOSpawn
 from CMG.init import CMGSpawn
 from cfg import config
 from typing import TYPE_CHECKING
@@ -368,6 +367,7 @@ class FCC:
 
     def emo(self, parsed_cmd: list):
         """EFC Model Optimizer"""
+        from EMO.init import EMOSpawn
         EMOSpawn(mw=self.mw)
 
     def err(self, parsed_cmd: list):

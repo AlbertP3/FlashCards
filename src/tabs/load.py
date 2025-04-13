@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QAction,
     QMenu,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QCursor
 from utils import fcc_queue, LogLvl
 from widgets import CFIDialog, RenameDialog, get_button, get_scrollbar
@@ -30,6 +30,7 @@ class LoadTab(BaseTab):
         self.id = "load"
         self.mw = mw
         self.cur_load_index = 0
+        self._files = dict()
         self.build()
         self.mw.add_tab(self._tab, self.id, "Load")
 
@@ -55,13 +56,48 @@ class LoadTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
-        self.show_files()
+        self.mw.create_task(
+            fn=self.load_files_data,
+            started=self.mw.show_loading,
+            finished=[self.show_files, self.mw.hide_loading],
+        )
 
     def show_files(self):
-        self.files_qlist.clear()
-        self.fill_flashcard_files_list()
+        self.fill_files_list()
         if self.files_count:
             self.scroll_to_active()
+
+    def fill_files_list(self):
+        self.load_map = dict()  # index: filepath
+        i = 0
+        self.files_qlist.clear()
+        for fd in self._files["lngs"]:
+            self.files_qlist.addItem(f"{config['icons']['language']} {fd.basename}")
+            self.load_map[i] = fd.filepath
+            i += 1
+        for fd in self._files["msts"]:
+            self.files_qlist.addItem(f"{config['icons']['mistakes']} {fd.basename}")
+            self.load_map[i] = fd.filepath
+            i += 1
+        for fd in self._files["revs"]:
+            if fd.filepath in self._files["new_revs"]:
+                prefix = config["icons"]["initial"]
+            else:
+                prefix = config["icons"]["revision"]
+            self.files_qlist.addItem(f"{prefix} {fd.basename}")
+            self.load_map[i] = fd.filepath
+            i += 1
+        self.files_count = self.files_qlist.count()
+
+    @pyqtSlot()
+    def load_files_data(self):
+        db_conn.update_fds()
+        self._files["lngs"] = db_conn.get_sorted_languages()
+        self._files["msts"] = db_conn.get_sorted_mistakes()
+        self._files["new_revs"] = {
+            r["fp"] for r in self.mw.efc.get_recommendations() if r["is_init"]
+        }
+        self._files["revs"] = db_conn.get_sorted_revisions()
 
     def scroll_to_active(self):
         for k, v in self.load_map.items():
@@ -259,29 +295,6 @@ class LoadTab(BaseTab):
     def lsw_qlist_onDoubleClick(self, item):
         self.cur_load_index = self.files_qlist.currentRow()
         self.load_selected_file()
-
-    def fill_flashcard_files_list(self):
-        db_conn.update_fds()
-        self.load_map = dict()  # index: filepath
-        i = 0
-        for fd in db_conn.get_sorted_languages():
-            self.files_qlist.addItem(f"{config['icons']['language']} {fd.basename}")
-            self.load_map[i] = fd.filepath
-            i += 1
-        for fd in db_conn.get_sorted_mistakes():
-            self.files_qlist.addItem(f"{config['icons']['mistakes']} {fd.basename}")
-            self.load_map[i] = fd.filepath
-            i += 1
-        _new_revs = {r["fp"] for r in self.mw.efc.get_recommendations() if r["is_init"]}
-        for fd in db_conn.get_sorted_revisions():
-            if fd.filepath in _new_revs:
-                prefix = config["icons"]["initial"]
-            else:
-                prefix = config["icons"]["revision"]
-            self.files_qlist.addItem(f"{prefix} {fd.basename}")
-            self.load_map[i] = fd.filepath
-            i += 1
-        self.files_count = self.files_qlist.count()
 
     def nagivate_load_list(self, move: int):
         new_index = self.cur_load_index + move

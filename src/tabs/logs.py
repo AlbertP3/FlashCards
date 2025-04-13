@@ -135,7 +135,7 @@ class LogsTab(BaseTab):
             self,
             allow_multichoice=False,
             width=120,
-            hide_on_checked=True,
+            hide_on_checked=False,
         )
         self.log_src_cbx.setMinimumWidth(120)
         self.log_src_cbx.setFont(config.qfont_button)

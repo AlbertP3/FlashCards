@@ -1,12 +1,11 @@
 import joblib  # type: ignore
 import os
 from time import time, perf_counter
-from random import choice
+from random import choice, shuffle
 from datetime import datetime
 import logging
 from PyQt5.QtWidgets import QGridLayout, QListWidget, QWidget
-from PyQt5.QtCore import Qt
-from random import shuffle
+from PyQt5.QtCore import Qt, pyqtSlot
 import statistics
 import numpy as np
 from math import exp
@@ -64,7 +63,6 @@ class EFCTab(BaseTab):
         self.mw = mw
         self.efc_model = StandardModel()
         self.is_view_outdated = True
-        self.load_pickled_model()
         self._efc_last_calc_time = 0
         self._db_load_time_efc = 0
         self.files_count = 0
@@ -96,8 +94,12 @@ class EFCTab(BaseTab):
     def open(self):
         self.mw.switch_tab(self.id)
         if not self.cache_valid:
-            self.calc_recommendations()
-        if self.is_view_outdated:
+            self.mw.create_task(
+                fn=self.calc_recommendations,
+                started=self.mw.show_loading,
+                finished=[self.show_recommendations, self.mw.hide_loading]
+            )
+        elif self.is_view_outdated:
             self.show_recommendations()
         self.recoms_qlist.setFocus()
 
@@ -224,14 +226,8 @@ class EFCTab(BaseTab):
 
     @property
     def cache_valid(self):
-        log.debug("Checking EFC cache...", stacklevel=2)
-        eta = (
-            60 * config["efc"]["timer"]["interval_minutes"]
-            if config["efc"]["timer"]["active"]
-            else 0
-        )
         db_is_upd = (
-            self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"] - eta
+            self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"]
             >= time()
         )
         db_current = self._db_load_time_efc == db_conn.last_load
@@ -245,6 +241,7 @@ class EFCTab(BaseTab):
             self.calc_recommendations()
         return self._recoms
 
+    @pyqtSlot()
     def calc_recommendations(self):
         """Computes new EFC recommendations"""
         t0 = perf_counter()
@@ -298,7 +295,7 @@ class EFCTab(BaseTab):
             )
         )
         log.debug(
-            f"Calculated new EFC recommendations in {1000*(perf_counter()-t0):.0f}ms"
+            f"Calculated new EFC [{self.efc_model.name}] in {1000*(perf_counter()-t0):.0f}ms"
         )
         self.is_view_outdated = True
 
