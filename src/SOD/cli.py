@@ -76,8 +76,9 @@ class CLI:
         self.dicts = Dict_Services()
         self.__ifh_args: tuple = None
         self.tab.mw.create_task(
-            fn=self.init_file_handler,
-            finished=self.__init_file_handler_finished,
+            fns=(self.init_file_handler,),
+            finished=[self.__init_file_handler_finished],
+            op_id="sod.cli.init_file_handler"
         )
         self.selection_queue = list()
         self.status_message = str()

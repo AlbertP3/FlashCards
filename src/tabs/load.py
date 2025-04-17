@@ -56,11 +56,15 @@ class LoadTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
-        self.mw.create_task(
-            fn=self.load_files_data,
-            started=self.mw.show_loading,
-            finished=[self.show_files, self.mw.hide_loading],
-        )
+        if self.mw.efc.cache_valid:
+            with self.mw.loading_ctx("load.load_files_data"):
+                self.load_files_data()
+                self.show_files()
+        else:   
+            with self.mw.loading_ctx("load.load_files_data_with_efc"):
+                self.mw.efc.calc_recommendations()
+                self.load_files_data()
+                self.show_files()
 
     def show_files(self):
         self.fill_files_list()

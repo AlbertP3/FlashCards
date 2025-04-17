@@ -52,6 +52,7 @@ class FCC:
             "cfg": "Config - manage the config file. Arguments: save, load, restart",
             "dbg": "Debug - display debug info",
             "dmp": "Dump Session Data - save config, update cache and create a tmpfcs file",
+            "rmw": "Refresh Main Window GUI - adjust to system scaling",
         }
 
     def execute_command(self, parsed_input: list, followup_prompt: bool = True):
@@ -593,3 +594,8 @@ class FCC:
         self.mw.create_session_snapshot()
         config.save()
         self.post_fcc("Dumped session data")
+    
+    def rmw(self, parsed_cmd: list):
+        """Refresh Main Window"""
+        self.mw.on_ldpi_change(96)
+        self.post_fcc("GUI adjusted to system scaling")

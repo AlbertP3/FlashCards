@@ -1,8 +1,8 @@
-# FlashCards 1.5.3
+# FlashCards 1.5.4
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-153)
+- [FlashCards](#flashcards-154)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -212,6 +212,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | cfg       | Config - manage the config file. Arguments: save, load, restart                                                                           |
 | dbg       | Debug - display debug info                                                                                                                |
 | dmp       | Dump Session Data - save config, update cache and create a tmpfcs file                                                                    |
+| rmw       | Refresh Main Window GUI - adjust to system scaling                                                                                        |
     
 
 ## Optional Features

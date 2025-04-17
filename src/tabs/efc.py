@@ -94,11 +94,9 @@ class EFCTab(BaseTab):
     def open(self):
         self.mw.switch_tab(self.id)
         if not self.cache_valid:
-            self.mw.create_task(
-                fn=self.calc_recommendations,
-                started=self.mw.show_loading,
-                finished=[self.show_recommendations, self.mw.hide_loading]
-            )
+            with self.mw.loading_ctx("efc.calc_recommendations"):
+                self.calc_recommendations()
+                self.show_recommendations()
         elif self.is_view_outdated:
             self.show_recommendations()
         self.recoms_qlist.setFocus()

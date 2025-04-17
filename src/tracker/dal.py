@@ -146,44 +146,29 @@ class DataAccessLayer:
         If timespent is missing then it will be estimated based on an average.
         """
         tgt_dstr = (date.today() - timedelta(days=offset)).strftime(r"%Y-%m-%d")
-        last_report_date = self.get_duo_last_report_date()
         rows = []
         found = False
-        avg_n = config["tracker"]["duo"]["prelim_avg"]
-        _ts, _ls = [], []
         with open(self.spc.duo_path, "r") as f:
             next(f)  # skip header
             reader = DictReader(f, fieldnames=self.spc.duo_cols, delimiter=self.spc.sep)
             for row in reader:
                 if row["lng"] == lng:
-                    row_date = datetime.strptime(row["date"], r"%Y-%m-%d").date()
                     if row["date"] == tgt_dstr:
-                        if isinstance(timespent, (float, int)) and timespent != 0:
-                            ts_new = timespent
-                        else:
-                            ts_new = lessons * (sum(_ts[-avg_n:]) / sum(_ls[-avg_n:]))
                         row.update(
                             {
                                 "date": tgt_dstr,
                                 "lessons": int(row["lessons"]) + lessons,
-                                "minutes": round(float(row["minutes"]) + ts_new, 2),
+                                "minutes": round(float(row["minutes"]) + timespent, 2),
                             }
                         )
                         found = True
-                    elif row_date <= last_report_date:
-                        _ls.append(int(row["lessons"]))
-                        _ts.append(float(row["minutes"]))
                 rows.append(row)
         if not found:
-            try:
-                ts_new = float(timespent)
-            except TypeError:
-                ts_new = lessons * (sum(_ts[-avg_n:]) / sum(_ls[-avg_n:]))
             rows.append(
                 {
                     "date": tgt_dstr,
                     "lessons": lessons,
-                    "minutes": round(ts_new, 2),
+                    "minutes": round(float(timespent), 2),
                     "lng": lng,
                 }
             )

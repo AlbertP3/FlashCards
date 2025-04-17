@@ -1,5 +1,5 @@
 from PyQt5.QtGui import QFont, QFontMetricsF
-from PyQt5.QtCore import QRunnable, pyqtSlot, pyqtSignal, QObject
+from PyQt5.QtCore import QRunnable, pyqtSlot, pyqtSignal, QObject, Qt
 from collections import deque
 from functools import cache
 from datetime import timedelta, datetime
@@ -389,7 +389,6 @@ def translate(text: str, on_empty: bool = False) -> bool:
 
 class WorkerSignals(QObject):
     started = pyqtSignal()
-    progress = pyqtSignal()
     finished = pyqtSignal()
 
 
@@ -397,43 +396,35 @@ class TaskRunner(QRunnable):
 
     def __init__(
         self,
-        function: Callable,
+        functions: list[Callable],
+        op_id: str,
         started: Callable = None,
-        progress: Callable = None,
-        finished: Callable = None,
+        finished: list[Callable] = None,
     ):
         super().__init__()
+        self.op_id = op_id
         self.signals = WorkerSignals()
 
-        if isinstance(function, list):
-            self.fn = lambda: [f() for f in function]
-            self.op_id = "&".join(f.__name__ for f in function)
-        else:
-            self.fn = function
-            self.op_id = function.__name__
+        self.fn = lambda: [f() for f in functions]
 
         if started:
             self.signals.started.connect(
-                lambda: started(config.cache["load_est"].get(self.op_id, 2500))
+                lambda: started(config.cache["load_est"].get(self.op_id, 2500)),
+                Qt.QueuedConnection
             )
 
-        if progress:
-            if isinstance(progress, list):
-                self.signals.progress.connect(lambda: [f() for f in progress])
-            else:
-                self.signals.progress.connect(progress)
-
         if finished:
-            if isinstance(finished, list):
-                self.signals.finished.connect(lambda: [f() for f in finished])
-            else:
-                self.signals.finished.connect(finished)
+            finished.append(self.__record_time)
+        else:
+            finished = (self.__record_time,)
+        self.signals.finished.connect(lambda: [f() for f in finished], Qt.QueuedConnection)
+
+    def __record_time(self):
+        config.cache["load_est"][self.op_id] = int(1000 * (perf_counter() - self.t0))
 
     @pyqtSlot()
     def run(self):
+        self.t0 = perf_counter()
         self.signals.started.emit()
-        t0 = perf_counter()
-        self.signals.progress.emit()
         self.fn()
         self.signals.finished.emit()
-        config.cache["load_est"][self.op_id] = 1000 * (perf_counter() - t0)

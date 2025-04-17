@@ -135,7 +135,7 @@ class LogsTab(BaseTab):
             self,
             allow_multichoice=False,
             width=120,
-            hide_on_checked=False,
+            hide_on_checked=True,
         )
         self.log_src_cbx.setMinimumWidth(120)
         self.log_src_cbx.setFont(config.qfont_button)
@@ -174,33 +174,38 @@ class LogsTab(BaseTab):
 
     def load_logs(self):
         try:
-            if self.sources[self.cur_src]["type"] == "file":
-                with open(self.sources[self.cur_src]["fn"](), "r") as f:
-                    self._content = f.read()
-            elif self.sources[self.cur_src]["type"] == "json":
-                self._content = json.dumps(
-                    self.sources[self.cur_src]["fn"](),
-                    indent=2,
-                    ensure_ascii=False,
-                )
-
-            if self.sources[self.cur_src]["line_numbers"]:
-                content = []
-                cnt = 1
-                for line in self._content.split("\n"):
-                    content.append(f"{cnt:<3} {line}")
-                    cnt += 1
-                self._content = "\n".join(content)
-
-            # Handle multi-line logs
-            self.console.clear()
-            for line in self._content.splitlines():
-                self.console.append(line)
-            self.highlighter.rehighlight()
+            with self.mw.loading_ctx("logs.load_logs"):
+                self.__load_data()
+                self.__display_logs()
         except Exception as e:
             log.error(e, exc_info=True)
             self._content = f"Error loading logs: {e}"
             self.console.setText(self._content)
+
+    def __load_data(self):
+        if self.sources[self.cur_src]["type"] == "file":
+            with open(self.sources[self.cur_src]["fn"](), "r") as f:
+                self._content = f.read()
+        elif self.sources[self.cur_src]["type"] == "json":
+            self._content = json.dumps(
+                self.sources[self.cur_src]["fn"](),
+                indent=2,
+                ensure_ascii=False,
+            )
+
+        if self.sources[self.cur_src]["line_numbers"]:
+            content = []
+            cnt = 1
+            for line in self._content.split("\n"):
+                content.append(f"{cnt:<3} {line}")
+                cnt += 1
+            self._content = "\n".join(content)
+
+    def __display_logs(self):
+        self.console.clear()
+        for line in self._content.splitlines():
+            self.console.append(line)
+        self.highlighter.rehighlight()
 
     def search(self):
         phrase = self.search_qle.text()

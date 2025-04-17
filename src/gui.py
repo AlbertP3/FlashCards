@@ -3,6 +3,9 @@ import subprocess
 import traceback
 import sys
 import logging
+from typing import Callable
+from time import monotonic, perf_counter
+from contextlib import contextmanager
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -49,6 +52,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def __init__(self):
         self.configure_scaling()
         self.id = "main"
+        self.__allow_resize = False
+        self.__last_ldpi_change = 0
         self.__last_focus_out_timer_state = False
         self.tab_map = {}
         self.q_app = QApplication(["FlashCards"])
@@ -60,18 +65,22 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         os.environ["QT_QPA_PLATFORM"] = "xcb"
         os.environ["QT_SCALE_FACTOR"] = "1"
         os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     def excepthook(self, exc_type, exc_value, exc_tb):
         err_traceback = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
         self.notify_on_error(err_traceback, exc_value)
 
-    def create_task(self, fn, started=None, progress=None, finished=None):
+    def create_task(
+        self,
+        fns: list[Callable],
+        op_id: str,
+        started: Callable = None,
+        finished: list[Callable] = None,
+    ):
         self.threadpool.start(
-            TaskRunner(
-                function=fn, started=started, progress=progress, finished=finished
-            )
+            TaskRunner(functions=fns, started=started, finished=finished, op_id=op_id)
         )
 
     def launch_app(self):
@@ -90,11 +99,28 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     @pyqtSlot()
     def post_init(self):
         self.create_task(
-            fn=[self.efc.load_pickled_model, self.efc.calc_recommendations],
+            fns=(self.efc.load_pickled_model, self.efc.calc_recommendations),
             started=self.show_loading,
-            finished=[self.hide_loading, self.__onload_notifications],
+            finished=[
+                self.hide_loading,
+                self.__onload_notifications,
+            ],
+            op_id="post_init"
         )
         self.__onload_initiate_flashcards()
+        self.windowHandle().screen().logicalDotsPerInchChanged.connect(
+            self.on_ldpi_change
+        )
+
+    def on_ldpi_change(self, dpi: float):
+        _now = monotonic()
+        if _now - self.__last_ldpi_change > 1:
+            self.hide()
+            self.show()
+            self.set_geometry(config["geo"])
+            self.repaint()
+            self.__last_ldpi_change = _now
+            log.debug(f"GUI adjusted to system scaling")
 
     def __onload_initiate_flashcards(self):
         if metadata := config.cache["snapshot"]["file"]:
@@ -215,14 +241,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.stop_pace_timer()
 
     def create_progress_dialog(self):
-        self.loading_dialog = QProgressDialog("Loading data...", None, 0, 0, self)
-        self.loading_dialog.setWindowModality(Qt.ApplicationModal)
+        self.loading_dialog = QProgressDialog("Loading data...", None, 0, 100, self)
+        self.loading_dialog.setWindowModality(Qt.NonModal)
         self.loading_dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.loading_dialog.setCancelButton(None)
         self.loading_dialog.setFont(config.qfont_button)
         self.__loading_dialog_timer = QTimer(self)
         self.__loading_dialog_timer.timeout.connect(self._animate_loading)
-        self.loading_dialog.setRange(0, 100)
 
     def _animate_loading(self):
         self.loading_prog_pos = (
@@ -243,9 +268,19 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         )
 
     def hide_loading(self):
+        self.loading_dialog.hide()
         self.__loading_dialog_timer.stop()
-        # if shown and hidden too quick, will freeze GUI
-        QTimer.singleShot(10, self.loading_dialog.close)
+
+    @contextmanager
+    def loading_ctx(self, op_id: str):
+        try:
+            t0 = perf_counter()
+            est = config.cache["load_est"].get(op_id, 2500)
+            self.show_loading(est)
+            yield
+        finally:
+            self.hide_loading()
+            config.cache["load_est"][op_id] = int(1000 * (perf_counter() - t0))
 
     def build_layout(self):
         self.LAYOUT_MARGINS = (0, 0, 0, 0)
@@ -1045,6 +1080,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 self.set_interval_notification_timer(
                     config["popups"]["idle_interval_ms"]
                 )
+                self.__allow_resize = False
             elif event.type() == QEvent.FocusIn:
                 if not self.is_synopsis and self.__last_focus_out_timer_state:
                     self.resume_timer()
@@ -1052,6 +1088,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 self.set_interval_notification_timer(
                     config["popups"]["active_interval_ms"]
                 )
+                self.__allow_resize = True
         return super(MainWindowGUI, self).eventFilter(source, event)
 
     def closeEvent(self, event):
@@ -1062,6 +1099,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         config.save()
 
     def resizeEvent(self, a0: QResizeEvent) -> None:
+        if not self.__allow_resize:
+            return
         config["geo"] = self.geometry().getRect()[2:]
         try:
             self._set_textbox_chr_space()

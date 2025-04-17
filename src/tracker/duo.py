@@ -35,7 +35,7 @@ class DuoLayout(QWidget):
 
     @property
     def lines_lim(self) -> int:
-        return int(self.chart_qte.viewport().height() // self.caliper.sch)
+        return int(0.9 * config["geo"][1] // self.caliper.sch)
 
     @property
     def pix_lim(self) -> int:
@@ -153,20 +153,32 @@ class DuoLayout(QWidget):
         return cb
 
     def on_submit(self):
+        if self.final_cbx.currentDataList()[0] == "True":
+            self.__submit_final()
+        else:
+            self.__submit_preliminary()
+        self.__submit_after()
+
+    def __submit_final(self):
+        lng = self.lng_cbx.currentDataList()[0]
+        les = int(self.lessons_qle.text())
+        ts = int(parse_to_seconds(self.time_spent_qle.text()) / 60)
+        dal.add_duo_record_final(lng=lng, lessons=les, timespent=ts)
+        self.final_cbx.setChecked(index=0)
+
+    def __submit_preliminary(self):
         lng = self.lng_cbx.currentDataList()[0]
         les = int(self.lessons_qle.text() or self.lessons_qle.placeholderText())
-        ts = self.time_spent_qle.text() or self.time_spent_qle.placeholderText()
-
-        if self.final_cbx.currentDataList()[0] == "True":
-            ts = int(parse_to_seconds(ts) / 60)
-            dal.add_duo_record_final(lng=lng, lessons=les, timespent=ts)
-            self.final_cbx.setChecked(0)
+        if raw_ts := self.time_spent_qle.text():
+            ts = round(parse_to_seconds(raw_ts) / 60, 2)
         else:
-            ts = round(parse_to_seconds(ts) / 60, 2)
-            offset = int(self.offset_qle.text() or self.offset_qle.placeholderText())
-            dal.add_duo_record_preliminary(
-                lng=lng, lessons=les, timespent=ts, offset=offset
-            )
+            ts = les * self.prelim_avg
+        offset = int(self.offset_qle.text() or self.offset_qle.placeholderText())
+        dal.add_duo_record_preliminary(
+            lng=lng, lessons=les, timespent=ts, offset=offset
+        )
+
+    def __submit_after(self):
         self.lessons_qle.clear()
         self.time_spent_qle.clear()
         self.offset_qle.clear()
