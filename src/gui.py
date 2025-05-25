@@ -19,6 +19,7 @@ from PyQt5.QtWidgets import (
     QDesktopWidget,
     QShortcut,
     QProgressDialog,
+    QGraphicsBlurEffect
 )
 from PyQt5.QtGui import (
     QWindow,
@@ -105,7 +106,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 self.hide_loading,
                 self.__onload_notifications,
             ],
-            op_id="post_init"
+            op_id="post_init",
         )
         self.__onload_initiate_flashcards()
         self.windowHandle().screen().logicalDotsPerInchChanged.connect(
@@ -173,6 +174,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if self.is_synopsis:
             self.display_text(self.synopsis or config["synopsis"])
         else:
+            self.apply_blur()
             self.display_text(self.get_current_card().iloc[self.side])
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
@@ -319,30 +321,57 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
         # Buttons
         self.next_button = get_button(
-            self, config["icons"]["next"], self.click_next_button
+            self,
+            config["icons"]["next"],
+            self.click_next_button,
+            tooltip=f"Next ({config['kbsc']['next']})",
         )
         self.prev_button = get_button(
-            self, config["icons"]["prev"], self.click_prev_button
+            self,
+            config["icons"]["prev"],
+            self.click_prev_button,
+            tooltip=f"Previous ({config['kbsc']['prev']})",
         )
         self.reverse_button = get_button(
-            self, config["icons"]["reverse"], self.reverse_side
+            self,
+            config["icons"]["reverse"],
+            self.reverse_side,
+            tooltip=f"Reverse ({config['kbsc']['reverse']})",
         )
         self.positive_button = get_button(
-            self, config["icons"]["positive"], self.click_positive
+            self,
+            config["icons"]["positive"],
+            self.click_positive,
+            tooltip=f"Mark as positive ({config['kbsc']['reverse']})",
         )
         self.negative_button = get_button(
-            self, config["icons"]["negative"], self.click_negative
+            self,
+            config["icons"]["negative"],
+            self.click_negative,
+            tooltip=f"Mark as negative ({config['kbsc']['negative']})",
         )
         self.save_button = get_button(
-            self, config["icons"]["save"], self.click_save_button
+            self,
+            config["icons"]["save"],
+            self.click_save_button,
+            tooltip=f"Save ({config['kbsc']['save']})",
         )
         self.del_button = get_button(
-            self, config["icons"]["del"], self.delete_current_card
+            self,
+            config["icons"]["del"],
+            self.delete_current_card,
+            tooltip=f"Delete card ({config['kbsc']['del_cur_card']})",
         )
         self.load_again_button = get_button(
-            self, config["icons"]["again"], self.load_again_click
+            self,
+            config["icons"]["again"],
+            self.load_again_click,
+            tooltip=f"Reload ({config['kbsc']['load_again']})",
         )
-        self.words_button = get_button(self, config["icons"]["words"])
+        self.words_button = get_button(
+            self,
+            config["icons"]["words"],
+        )
 
         # Widgets
         self.layout_second_row.addWidget(self.prev_button, 0, 0)
@@ -362,24 +391,60 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def build_layout_extra(self):
         """Creates elements inherited from tabs"""
-        self.config_button = get_button(self, config["icons"]["config"], self.cft.open)
+        self.config_button = get_button(
+            self,
+            config["icons"]["config"],
+            self.cft.open,
+            tooltip=f"Settings ({config['kbsc']['config']})",
+        )
         self.layout_third_row.addWidget(self.config_button, 2, 5)
         self.timer_button = get_button(
-            self, config["icons"]["timer_stop"], self.trk.open
+            self,
+            config["icons"]["timer_stop"],
+            self.trk.open,
+            tooltip=f"Tracker ({config['kbsc']['tracker']})",
         )
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
-        self.sod_button = get_button(self, config["icons"]["sod"], self.sod.open)
+        self.sod_button = get_button(
+            self,
+            config["icons"]["sod"],
+            self.sod.open,
+            tooltip=f"Dictionary ({config['kbsc']['sod']})",
+        )
         self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
-        self.efc_button = get_button(self, config["icons"]["efc"], self.efc.open)
+        self.efc_button = get_button(
+            self,
+            config["icons"]["efc"],
+            self.efc.open,
+            tooltip=f"EFC ({config['kbsc']['efc']})",
+        )
         self.layout_third_row.addWidget(self.efc_button, 2, 2)
-        self.load_button = get_button(self, config["icons"]["load"], self.ldt.open)
+        self.load_button = get_button(
+            self,
+            config["icons"]["load"],
+            self.ldt.open,
+            tooltip=f"Load ({config['kbsc']['load']})",
+        )
         self.layout_third_row.addWidget(self.load_button, 2, 0)
-        self.score_button = get_button(self, config["icons"]["score"], self.mst.open)
+        self.score_button = get_button(
+            self,
+            config["icons"]["score"],
+            self.mst.open,
+            tooltip=f"Score ({config['kbsc']['mistakes']})",
+        )
         self.layout_fourth_row.addWidget(self.score_button, 3, 0)
-        self.stats_button = get_button(self, config["icons"]["stats"], self.sta.open)
+        self.stats_button = get_button(
+            self,
+            config["icons"]["stats"],
+            self.sta.open,
+            tooltip=f"Statistics ({config['kbsc']['stats']})",
+        )
         self.layout_fourth_row.addWidget(self.stats_button, 3, 1)
         self.mcr_button = get_button(
-            self, config["icons"]["modcard"], self.modify_card_result
+            self,
+            config["icons"]["modcard"],
+            self.modify_card_result,
+            tooltip=f"Modify score ({config['kbsc']['mcr']})",
         )
         self.layout_fourth_row.addWidget(self.mcr_button, 3, 2)
 
@@ -404,6 +469,16 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def update_default_side(self):
         super().update_default_side()
+
+    def apply_blur(self):
+        blur = QGraphicsBlurEffect()
+        blur.setBlurRadius(35)
+        self.textbox.setGraphicsEffect(blur)
+        self.is_blurred = True
+
+    def remove_blur(self):
+        self.textbox.setGraphicsEffect(None)
+        self.is_blurred = False
 
     def create_textbox(self):
         self.textbox = QLabel(self)
@@ -598,8 +673,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def reverse_side(self):
         if not self.is_synopsis:
-            super().reverse_side()
-            self.display_text(self.get_current_card().iloc[self.side])
+            if self.is_blurred:
+                self.remove_blur()
+            else:
+                super().reverse_side()
+                self.display_text(self.get_current_card().iloc[self.side])
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
                 self.start_pace_timer()
@@ -640,6 +718,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.update_words_button()
         self.update_score_button()
         self.reset_timer(clear_indicator=True)
+        self.apply_blur()
         self.reset_pace_timer()
         self.stop_pace_timer()
 
@@ -648,10 +727,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.current_index += 1
             self.is_synopsis = False
         if self.current_index >= 1:
-            self.allow_hide_tips = True
-            self.goto_prev_card()
+            if self.is_blurred:
+                self.remove_blur()
+            else:
+                self.goto_prev_card()
             if self.revmode and self.words_back == 1:
                 self.change_revmode(False)
+            self.allow_hide_tips = True
             self.display_text(self.get_current_card().iloc[self.side])
             self.update_words_button()
         if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
@@ -672,10 +754,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def click_next_button(self):
         if self.total_words - self.current_index - 1 > 0:
-            self.allow_hide_tips = True
-            self.goto_next_card()
+            if self.is_blurred:
+                self.remove_blur()
+            else:
+                self.goto_next_card()
             if not self.revmode and self.words_back == 0 and not self.is_recorded:
                 self.change_revmode(True)
+            self.allow_hide_tips = True
             self.display_text(self.get_current_card().iloc[self.side])
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
@@ -745,11 +830,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             super().handle_creating_revision(seconds_spent=self.seconds_spent)
 
     def click_negative(self):
-        self.result_negative()
+        if not self.is_blurred:
+            self.result_negative()
         self.click_next_button()
 
     def click_positive(self):
-        self.result_positive()
+        if not self.is_blurred:
+            self.result_positive()
         self.click_next_button()
 
     def handle_graded_complete(self):

@@ -78,7 +78,7 @@ class CLI:
         self.tab.mw.create_task(
             fns=(self.init_file_handler,),
             finished=[self.__init_file_handler_finished],
-            op_id="sod.cli.init_file_handler"
+            op_id="sod.cli.init_file_handler",
         )
         self.selection_queue = list()
         self.status_message = str()
@@ -133,7 +133,7 @@ class CLI:
             ref = config["SOD"]["std_src_lng"]
         r = 1 if ref == "native" else -1
         native, foreign = self.fh.get_languages()[::r]
-        self.dicts.set_languages(native, foreign)
+        self.dicts.switch_languages(native, foreign)
         config["SOD"]["last_src_lng"] = ref
 
     @property
@@ -211,7 +211,7 @@ class CLI:
         elif parsed_phrase[0] == self.help_arg:
             self.show_help()
         else:
-            self.handle_single_entry(" ".join(parsed_phrase))
+            self.search_phrase(" ".join(parsed_phrase))
 
     def handle_prefix(self, parsed_cmd: list):
         src_lng, tgt_lng, capture = None, None, None
@@ -236,14 +236,10 @@ class CLI:
             else:
                 break
             parsed_cmd = parsed_cmd[1:]
-            if bool(src_lng) ^ bool(tgt_lng):
-                self.dicts.switch_languages(src_lng, tgt_lng)
-                self.update_last_source_lng()
-                self.cls()
-            elif src_lng and tgt_lng:
-                self.dicts.set_languages(src_lng, tgt_lng)
-                self.update_last_source_lng()
-                self.cls()
+        if src_lng or tgt_lng:
+            self.dicts.switch_languages(src_lng, tgt_lng)
+            self.update_last_source_lng()
+            self.cls()
         if capture:
             self.cls(self.msg.INVALID_INPUT)
             return ""
@@ -355,11 +351,20 @@ class CLI:
             self.cls(self.msg.SAVE_ABORTED)
         self.state.MANUAL_MODE = False
 
-    def handle_single_entry(self, phrase):
+    def search_phrase(self, phrase: str):
         self.phrase = phrase
         self.translations, self.originals, self.warnings = (
             self.dicts.get_info_about_phrase(self.phrase)
         )
+        if config["SOD"]["dual_search"] and not self.translations and not self.warnings:
+            self.dicts.switch_languages()
+            self.translations, self.originals, self.warnings = (
+                self.dicts.get_info_about_phrase(self.phrase)
+            )
+            if not self.translations and not self.warnings:
+                self.dicts.switch_languages()
+            else:
+                self.update_last_source_lng()
         self.cls()
         if self.translations:
             if self.fh.is_duplicate(self.phrase, self.is_from_native):
@@ -385,7 +390,7 @@ class CLI:
         out = default
         prev_src_lng = self.dicts.source_lng
         prev_tgt_lng = self.dicts.target_lng
-        self.dicts.set_languages(src_lng, None)
+        self.dicts.switch_languages(src_lng, None)
 
         translations, originals, warnings = self.dicts.get_info_about_phrase(phrase)
         found_cnt = 0
@@ -400,7 +405,7 @@ class CLI:
                     found_cnt += 1
         if found_cnt > 1:
             out += " (?)"
-        self.dicts.set_languages(prev_src_lng, prev_tgt_lng)
+        self.dicts.switch_languages(prev_src_lng, prev_tgt_lng)
         return out
 
     def setup_queue(self):
@@ -601,7 +606,8 @@ class CLI:
             elif config["SOD"]["table_ext_mode"] == "flex":
                 llim = min(
                     max(self.caliper.strwidth(c) for c in origs)
-                    + self.caliper.strwidth(f"{len(origs)+1}. "),
+                    + self.caliper.strwidth(f"{len(origs)+1}. ")
+                    + 1,
                     plim,
                 )
                 rlim = 2 * plim - llim

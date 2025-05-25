@@ -51,6 +51,8 @@ class ProgressChartCanvas:
             self.second_chart_values.loc[len(self.second_chart_values)] = 0
  
     def _generate(self):
+        self.figure.clear()
+
         # initiate plots
         total_words_plot = self.figure.add_subplot()
         total_words_plot.bar(
@@ -151,5 +153,12 @@ class ProgressChartCanvas:
         positives_plot.set_ylim([0, max_ * 1.2])
         total_words_plot.set_ylim([0, max_ * 1.2])
         revision_count_plot.set_ylim([0, max_ * 99])
+
+        # Remove horizontal padding
+        hpad_args = (-0.5, len(self.formatted_dates) - 0.5)
+        total_words_plot.set_xlim(*hpad_args)
+        positives_plot.set_xlim(*hpad_args)
+        revision_count_plot.set_xlim(*hpad_args)
+        total_words_plot.margins(x=0)
 
         self.canvas.draw()

@@ -33,6 +33,7 @@ class MainWindowLogic:
         self.tips_hide_re = re.compile(config["hide_tips"]["pattern"])
         self.allow_hide_tips = True
         self.mistakes_saved = False
+        self.is_blurred = False
 
     @property
     def is_revision(self):

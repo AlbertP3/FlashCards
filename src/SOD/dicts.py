@@ -428,7 +428,7 @@ class DictLocal(TemplateDict):
             else:
                 raise KeyError
         except KeyError:
-            transl, orig, err = [], [], ["Nothing Found!"]
+            transl, orig, err = [], [], []
         except re.error as e:
             transl, orig, err = [], [], [f"⚠ Regex Error: {str(e)}"]
         return transl, orig, err
@@ -460,17 +460,21 @@ class Dict_Services:
             self.dict_service = dict_service
             config["SOD"].update({"dict_service": dict_service})
 
-    def set_languages(self, src, tgt):
-        self.set_source_language(src)
-        self.set_target_language(tgt)
-
     def switch_languages(self, src_lng: str = None, tgt_lng: str = None):
-        if src_lng == self.target_lng:
-            self.set_target_language(self.source_lng)
-            self.set_source_language(src_lng)
-        elif src_lng != self.source_lng:
-            self.set_source_language(src_lng)
-            self.set_target_language(tgt_lng)
+            if src_lng and tgt_lng:
+                if src_lng != tgt_lng:
+                    self.source_lng = src_lng
+                    self.target_lng = tgt_lng
+            elif not src_lng and not tgt_lng:
+                src, tgt = self.source_lng, self.target_lng
+                self.source_lng = tgt
+                self.target_lng = src
+            elif src_lng == self.target_lng:
+                self.set_target_language(self.source_lng)
+                self.set_source_language(src_lng)
+            elif src_lng != self.source_lng:
+                self.set_source_language(src_lng)
+                self.set_target_language(tgt_lng)
 
     def set_source_language(self, src_lng=None):
         if src_lng:

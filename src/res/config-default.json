@@ -1,5 +1,5 @@
 {
-    "version": "1.5.4",
+    "version": "1.5.5",
     "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
@@ -123,6 +123,7 @@
         "table_ext_mode": "flex",
         "cell_alignment": "left",
         "use_regex": false,
+        "dual_search": true,
         "files_list": []
     },
     "kbsc": {

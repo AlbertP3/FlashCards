@@ -26,11 +26,12 @@ from DBAC import db_conn
 from cfg import config
 
 
-def get_button(parent=None, text="", function=None) -> QPushButton:
+def get_button(parent=None, text="", function=None, tooltip: str = None) -> QPushButton:
     button = QPushButton(parent)
     button.setFont(config.qfont_button)
     button.setText(text)
     button.setFocusPolicy(Qt.NoFocus)
+    button.setToolTip(tooltip)
     if function is not None:
         button.clicked.connect(function)
         button.setCursor(Qt.PointingHandCursor)
@@ -67,11 +68,11 @@ class CheckableComboBox(QComboBox):
         self.setFont(config.qfont_button)
         self.setMinimumWidth(1)
         self.setEditable(True)
-        self.lineEdit().setReadOnly(True)
-        # Make the lineedit the same color as QPushButton
         palette = qApp.palette()
         palette.setBrush(QPalette.Base, palette.button())
         self.lineEdit().setPalette(palette)
+        self.lineEdit().setReadOnly(True)
+        self.lineEdit().setAlignment(Qt.AlignCenter)
 
         # Use custom delegate
         self.setItemDelegate(CheckableComboBox.Delegate())

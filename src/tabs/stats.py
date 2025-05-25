@@ -142,6 +142,7 @@ class StatsTab(BaseTab):
         ax.set_facecolor(config.mpl["stat_chart_background_color"])
         ax.yaxis.set_major_formatter(FormatStrFormatter("%.0f"))
         ax.set_ylim([0, self.total_cards + 2])
+        ax.set_xlim(-0.5, len(self.formatted_dates) - 0.5)
         ax.tick_params(
             colors=config.mpl["stat_chart_text_color"],
             labelrotation=0,
