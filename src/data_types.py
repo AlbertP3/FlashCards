@@ -38,3 +38,11 @@ non_space_lng_re = re.compile(
     ),
     flags=re.IGNORECASE,
 )
+
+
+@dataclass
+class CreateFileDialogData:
+    filename: str
+    lng: str
+    tgt_lng_id: str
+    src_lng_id: str

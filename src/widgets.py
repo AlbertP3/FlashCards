@@ -19,9 +19,10 @@ from PyQt5.QtCore import (
     pyqtSignal,
     QEvent,
 )
-from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem
+from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem, QKeyEvent
 from typing import Callable
 from utils import fcc_queue, LogLvl, is_valid_filename
+from data_types import CreateFileDialogData
 from DBAC import db_conn
 from cfg import config
 
@@ -171,7 +172,7 @@ class CheckableComboBox(QComboBox):
                 self.model().item(i).setCheckState(Qt.Unchecked)
         self.model().item(index).setCheckState(Qt.Checked)
 
-    def addItems(self, texts, datalist=None):
+    def addItems(self, texts: list[str], datalist=None):
         for i, text in enumerate(texts):
             try:
                 data = datalist[i]
@@ -420,6 +421,91 @@ class RenameDialog(QDialog):
 
     def create_qle(self, text: str = "") -> QLineEdit:
         qle = QLineEdit()
+        qle.setFont(config.qfont_button)
+        qle.setText(text)
+        qle.setObjectName("qdialog")
+        return qle
+
+
+class CreateFileDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.setFont(config.qfont_button)
+        self.setWindowTitle(" ")
+        self.setMinimumWidth(350)
+        self._create_form()
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(1, 1, 1, 1)
+        self.layout.setSpacing(config["theme"]["spacing"])
+        self.layout.addLayout(self.form_layout)
+        self.layout.addWidget(self.submit_btn)
+        self.setLayout(self.layout)
+
+    def _create_form(self):
+        self.form_layout = QFormLayout()
+        self.filename_qle = self.create_qle(parent=self.parent)
+        self.lng_qle = self.create_qle(parent=self.parent)
+        self.lng_qle.keyPressEvent = self._on_lng_change
+        self.lng_qle.setPlaceholderText(
+            f"{', '.join(db_conn.get_available_languages())}, ..."
+        )
+        self.tgt_lng_qle = self.create_qle(parent=self.parent)
+        self.src_lng_qle = self.create_qle(parent=self.parent, text=config["native"])
+        self.form_layout.addRow("CSV Filename  ", self.filename_qle)
+        self.form_layout.addRow("Language      ", self.lng_qle)
+        self.form_layout.addRow("Target Lng ID ", self.tgt_lng_qle)
+        self.form_layout.addRow("Source Lng ID ", self.src_lng_qle)
+        self.submit_btn = get_button(self, "Create", self.accept)
+
+    def accept(self):
+        if self.validate():
+            super().accept()
+
+    def validate(self) -> bool:
+        if not is_valid_filename(self.filename_qle.text()):
+            fcc_queue.put_notification("Invalid Filename!", lvl=LogLvl.err)
+            return False
+        if "." in self.filename_qle.text():
+            fcc_queue.put_notification("Filename cannot contain an extension!", lvl=LogLvl.err)
+            return False
+        elif not is_valid_filename(self.lng_qle.text()):
+            fcc_queue.put_notification("Invalid Language!", lvl=LogLvl.err)
+            return False
+        elif not is_valid_filename(self.tgt_lng_qle.text()):
+            fcc_queue.put_notification("Invalid Target Language ID!", lvl=LogLvl.err)
+            return False
+        elif not is_valid_filename(self.src_lng_qle.text()):
+            fcc_queue.put_notification("Invalid Source Language ID!", lvl=LogLvl.err)
+            return False
+        elif self.tgt_lng_qle.text().lower() == self.src_lng_qle.text().lower():
+            fcc_queue.put_notification(
+                "Source and Target Languages must differ!", lvl=LogLvl.err
+            )
+            return False
+        elif self.filename_qle.text().lower() in {
+            f.lower() for f in db_conn.get_all_files(use_basenames=True, excl_ext=True)
+        }:
+            fcc_queue.put_notification(
+                "Provided filename already exists!", lvl=LogLvl.err
+            )
+            return False
+        return True
+
+    def get_data(self) -> CreateFileDialogData:
+        return CreateFileDialogData(
+            filename=self.filename_qle.text(),
+            src_lng_id=self.src_lng_qle.text(),
+            tgt_lng_id=self.tgt_lng_qle.text(),
+        )
+
+    def _on_lng_change(self, event: QKeyEvent):
+        QLineEdit.keyPressEvent(self.lng_qle, event)
+        lng = self.lng_qle.text()[:2].lower()
+        self.tgt_lng_qle.setText(lng)
+
+    def create_qle(self, parent=None, text: str = "") -> QLineEdit:
+        qle = QLineEdit(parent)
         qle.setFont(config.qfont_button)
         qle.setText(text)
         qle.setObjectName("qdialog")

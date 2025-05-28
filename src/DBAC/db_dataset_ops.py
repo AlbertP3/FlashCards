@@ -260,8 +260,11 @@ class DbDatasetOps:
 
         if activate:
             self.active_file = fd
-            if self.active_file.valid and do_shuffle:
-                self.shuffle_dataset(seed)
+            if self.active_file.valid:
+                if len(fd.data) == 0:
+                    fd.data.loc[0] = ("-", "-")
+                if do_shuffle:
+                    self.shuffle_dataset(seed)
 
         fcc_queue.put_notification(operation_status, lvl=LogLvl.err)
         return fd.data
@@ -467,7 +470,7 @@ class DbDatasetOps:
 
     def get_all_files(
         self, dirs: set = None, use_basenames=False, excl_ext=False
-    ) -> set:
+    ) -> set[str]:
         """Returns files for all languages"""
         out = set()
         dirs = dirs or {self.REV_DIR, self.LNG_DIR, self.MST_DIR}

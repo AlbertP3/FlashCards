@@ -1,25 +1,27 @@
-# FlashCards 1.5.5
+# FlashCards 1.5.6
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards](#flashcards-155)
+- [FlashCards 1.5.6](#flashcards-156)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
-  - [Progress Window](#progress-window)
+  - [Tracker Window](#tracker-window)
   - [Statistics](#statistics)
   - [Dictionary](#dictionary)
   - [EFC Model Optimizer](#efc-model-optimizer)
-  - [Time Spent](#time-spent)
   - [Monitoring](#monitoring)
   - [Settings](#settings)
+  - [Hiding Tips](#hiding-tips)
   - [Final Actions and Next EFC](#final-actions-and-next-efc)
   - [Mistakes](#mistakes)
-  - [Hiding Tips](#hiding-tips)
+  - [Comprehensive Revision Mode](#comprehensive-revision-mode)
   - [Requirements](#requirements)
   - [How to install](#how-to-install)
   - [Console Commands](#console-commands)
   - [Optional Features](#optional-features)
+  - [Keyboard Shortcuts](#keyboard-shortcuts)
+  - [ToDo](#todo)
   - [Known Bugs](#known-bugs)
 
 
@@ -31,7 +33,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 1. Important files (src/res/*):
    - config.json - all user settings. Loaded once on the launch
    - db.csv - stores revisions history
-   - themes - available styles. User is free to add new styles based on the provided examples
+   - themes - available styles. User is free to add new styles based on the provided example (src/res/themes/*.css)
    - model.pkl - custom EFC model, trained to fit forgetting curve of the user [See: EMO](#efc-model-optimizer)
 2. There are 5 *kinds* of flashcards files: 
     - *Language* - root source of all cards, created by the user
@@ -45,11 +47,11 @@ Provide a powerful tool to make learning languages effective, automated and smoo
     | 寿司                 | sushi                |
     | ...                  | ...                  |
 4. Supported extensions for all *kinds* are '.csv' and '.xlsx' albeit both *Revisions* and *Mistakes* are by default created as '.csv'
-5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. If the configuration is referencing a missing directory tree, it will be created on the launch, however source file must be put by user. Alternatively, a 'clt' command can be used to generate both language tree and an example file
+5. Files are organized in the 'data' directory following the pattern data/*lng*/{rev,lng,mst}/*file*. Both *lng* and *file* actual names are chosen by the user and are later used together with their location (*kind*, *language*) for identification. The "+" button on the Load tab can be used to generate a *Language* file - language tree will be auto-created if needed.
 6. Once the *Language* file is there, it can be loaded in the app. Then the user will review multiple cards and press 'Save' which will create a new *Revision* file containing only cards seen. Pressing 'Save' during *Revision* will create an *Ephemeral* and if active file was reviewed more then *init_revs_cnt* times - save all failed cards to the *Mistakes* file
 7. Spaced repetitons are reinforced by employing the EFC [See: Ebbinghaus Forgetting Curve](#efc-model-optimizer) that tells user which *Revision* they should repeat now, that is: Predicted % of words in-memory fell below the [efc_threshold](#optional-features)
 8. *Revisions*, *Mistakes* and *Ephemerals* can be appraised - score, time spent, etc. are then recorded to the Database (src/res/db.csv) and can be viewed on Statistics, Progress and TimeSpent windows
-9.  Once the *Revision* is complete, the user is presented with the Revision Summary - a couple of sentences evaluating the score
+9.  Once the *Revision* is completed, the user is presented with the Revision Summary - a couple of sentences evaluating the score
 10. With [Flashcards Console Commands](#console-commands) user is able to access a multitude of extra functionalities listed via the 'help' command
 
 
@@ -60,19 +62,31 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 - Allows picking all *kinds* of flashcard files that were matched by the 'languages' setting i.e. are on proper path. New *Revisions* can be created only from *Languages*. Revision Mode (Positive/Negative) is available only for the *Revisions*, *Mistakes* and *Ephemerals*. 
 - If optional feature "recommend_new" is given a value greater than 0 (days), reminders to create a new revision will also appear there - specific texts can be customized in the 'recoms' section of the config
 - Items are prefixed with a symbol hinting to their type. Initial *Revisions* are distinguished from Regular *Revisions*.
-- Right clicking on a file opens a dialog that allows creating an *Ephemeral*. Index cache is applied if available. Custom ranges can be used.
+- Right clicking on a file opens a dialog that allows to:
+  - create an *Ephemeral*. Index cache is applied if available. Custom ranges can be used
+  - rename the file
+  - reveal the file in an external application (config: 'reveal_file_cmd')
+  - open the containing folder in File Explorer (config: 'open_containing_dir_cmd')
+- Create a new *Language* file by using the "+" button. *Language* directory tree will be auto-generated if needed
 
-## Progress Window
+## Tracker Window
 
-![Progress Window](src/res/imgs/ss_progress.png)
+![Tracker Window](src/res/imgs/ss_tracker.png)
 
-Progress can be assessed with a 'Progress' chart displaying, in specified intervals, starting from top: total number of new words user failed to learn (light grey); sum of 'last positives' for *Revisions* created at this interval (dark grey); total number of revisions regardless of the *creation time*. Only data for the languages selected in the settings will be diplayed
+1. Tracker facilitates the monitoring and evaluation of learning progress, providing insights into user performance and study patterns
+2. Features:
+   - TimeTable - a table showing time spent each month for each category. Column "%New" contains estimated time spent on learning new words
+   - TimeChart - a chart that shows total time spent learning per month
+   - Progress  - a chart displaying, in specified intervals, starting from top: total number of new words user failed to learn (brown); sum of 'last positives' for *Revisions* created at this interval (dark grey); total number of revisions regardless of the *creation time*. Only data for the languages selected in the settings will be diplayed
+   - Duo - allows adding records for Duolingo (Weekly Report). Also contains charts for weekly time allocation and time spent in the last 7 days
+   - StopWatch - measure and record time spent on learning outside of the FlashCards.
+   - Notes
 
 ## Statistics
 
 ![Statistics Window](src/res/imgs/ss_stats.png)
 
-Statistics shows scores for each time currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects EFC threshold specified in the config and can be toggled via 'show_efc_line'
+Statistics shows scores for each time the currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects EFC threshold specified in the config and can be toggled via 'show_efc_line'
 
 ## Dictionary
 
@@ -83,7 +97,8 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 - Lookup is available by selecting a part of the displayed card's text and clicking RMB. In the 'quick' mode a predicted hint will be displayed as a notification and on left click a complete query results will be displayed
 - Using monospaced fonts with proper support for the used languages is advised
 - It is normal for the separating line to not align perfectly, as shown above. It is due to different pixel widths of certain characters such as 車 compared to an 'a' (of which both have len()=1) or using non-monospaced fonts. To alleviate this issue, a Caliper is used to measure actual pixel widths of characters and pad the cell accordingly.
-- Search is done one-way only, from the source to the target language, which is visible on the status bar and can be reversed with a prefix, and unless the default source language is set to "auto" it will be reverted after the operation is finished.
+- Search is done from the source to the target language, which is visible on the status bar and can be reversed with a prefix, and unless the default source language is set to "auto" it will be reverted after the operation is finished.
+- Set config parameter 'dual_search' to allow bi-directional lookup
 
 ## EFC Model Optimizer
 
@@ -102,16 +117,8 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
     - SVM - Support Vector Machine
     - RFR - Random Forest Regression
     - CST - custom model adjusted to fit the original EFC
+    - XGB - gradient boosting algorithm that builds an ensemble of decision trees
 4. Custom models are not shipped with the source code and unless created locally, a Standard CST Model will be used
-
-
-## Time Spent
-
-![TimeSpent Window](src/res/imgs/ss_time.png)
-
-1. RevisionTimer for recording time spent during a *Revision*
-2. Pace Timer for switching cards after a specified time has passed (turn off by setting to 0)
-3. Timers will stop whenever the Application window is not selected or a tab is opened
 
 
 ## Monitoring
@@ -126,7 +133,7 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 
 ![Settings Window](src/res/imgs/ss_settings.png)
 
-- Most important settings are available through this window, however some other options such as keyboard shortcuts can be modified via:
+- Most important settings are available through this window, however some other options can be modified via:
    - 'mcp' command [See: mcp](#console-commands)
    - manually editing the config.json before the application launch
 

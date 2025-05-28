@@ -1,6 +1,7 @@
 import os
 import subprocess
 import logging
+import pandas as pd
 from PyQt5.QtWidgets import (
     QWidget,
     QGridLayout,
@@ -10,8 +11,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QCursor
-from utils import fcc_queue, LogLvl
-from widgets import CFIDialog, RenameDialog, get_button, get_scrollbar
+from utils import fcc_queue, LogLvl, find_case_insensitive
+from widgets import CFIDialog, RenameDialog, CreateFileDialog, get_button, get_scrollbar
 from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
@@ -60,7 +61,7 @@ class LoadTab(BaseTab):
             with self.mw.loading_ctx("load.load_files_data"):
                 self.load_files_data()
                 self.show_files()
-        else:   
+        else:
             with self.mw.loading_ctx("load.load_files_data_with_efc"):
                 self.mw.efc.calc_recommendations()
                 self.load_files_data()
@@ -119,9 +120,12 @@ class LoadTab(BaseTab):
         self._tab = QWidget()
         self.load_layout = QGridLayout()
         self.set_box(self.load_layout)
-        self.load_layout.addWidget(self.get_flashcard_files_list(), 0, 0)
+        self.load_layout.addWidget(self.get_flashcard_files_list(), 0, 0, 1, 10)
         self.load_layout.addWidget(
-            get_button(None, "Load", self.load_selected_file), 1, 0, 1, 1
+            get_button(None, "Load", self.load_selected_file), 1, 0, 1, 9
+        )
+        self.load_layout.addWidget(
+            get_button(None, "+", self.show_create_file), 1, 9, 1, 1
         )
         self._tab.setLayout(self.load_layout)
 
@@ -318,3 +322,39 @@ class LoadTab(BaseTab):
         self.mw.initiate_flashcards(
             db_conn.files[self.load_map[self.files_qlist.currentRow()]]
         )
+
+    def show_create_file(self):
+        dialog = CreateFileDialog(parent=self.files_qlist)
+
+        if dialog.exec_():
+            spc = dialog.get_data()
+            lngs = db_conn.get_available_languages(ignore=set())
+
+            try:
+                spc.tgt_lng_id = find_case_insensitive(spc.tgt_lng_id, lngs)
+            except KeyError:
+                db_conn.create_language_dir_tree(spc.tgt_lng_id)
+                config["languages"].append(spc.tgt_lng_id)
+
+            df = pd.DataFrame(
+                columns=[spc.tgt_lng_id.lower(), spc.src_lng_id.lower()], data=[]
+            )
+            filepath = (
+                db_conn.make_filepath(spc.tgt_lng_id, db_conn.LNG_DIR, spc.filename)
+                + ".csv"
+            )
+            df.to_csv(
+                filepath,
+                index=False,
+                encoding="utf-8",
+                header=True,
+                mode="w",
+            )
+            log.info(f"Created new Language file: {filepath}")
+            fcc_queue.put_notification(
+                f"Created new Language file: {filepath}", lvl=LogLvl.important
+            )
+
+            self.load_files_data()
+            self.show_files()
+            self.set_load_list_index(0)

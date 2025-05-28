@@ -81,6 +81,9 @@ class CfgTab(BaseTab):
             multi_choice=False,
             text="Card default side",
         )
+        self.natlng_qle = self.cfg_qle(
+            config["native"], text="Native language"
+        )
         self.languages_cbx = self.cfg_cbx(
             config["languages"],
             db_conn.get_available_languages(),
@@ -427,6 +430,7 @@ class CfgTab(BaseTab):
     def collect_settings(self) -> dict:
         new_cfg = deepcopy(config.data)
         new_cfg["card_default_side"] = self.card_default_cbx.currentDataList()[0]
+        new_cfg["native"] = self.natlng_qle.text()
         new_cfg["languages"] = self.languages_cbx.currentDataList()
         new_cfg["efc"]["threshold"] = int(self.efc_threshold_qle.text())
         new_cfg["efc"]["cache_expiry_hours"] = int(self.efc_cache_exp_qle.text())

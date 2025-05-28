@@ -154,6 +154,18 @@ def get_sign(num, plus_sign="+", neg_sign="-"):
         return ""
 
 
+def find_case_insensitive(text: str, collection: list[str]) -> str:
+    """
+    Returns a matching string from a collection. Ignores case. 
+    Raises KeyError if not found
+    """
+    t = text.lower()
+    for i in collection:
+        if t == i.lower():
+            return i
+    raise KeyError
+
+
 def format_timedelta(tmd: timedelta):
     if tmd.days >= 365:
         interval, time_value = "year", round(tmd.days / 365.25, 1)
@@ -410,14 +422,16 @@ class TaskRunner(QRunnable):
         if started:
             self.signals.started.connect(
                 lambda: started(config.cache["load_est"].get(self.op_id, 2500)),
-                Qt.QueuedConnection
+                Qt.QueuedConnection,
             )
 
         if finished:
             finished.append(self.__record_time)
         else:
             finished = (self.__record_time,)
-        self.signals.finished.connect(lambda: [f() for f in finished], Qt.QueuedConnection)
+        self.signals.finished.connect(
+            lambda: [f() for f in finished], Qt.QueuedConnection
+        )
 
     def __record_time(self):
         config.cache["load_est"][self.op_id] = int(1000 * (perf_counter() - self.t0))

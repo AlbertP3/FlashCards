@@ -1,8 +1,9 @@
 {
-    "version": "1.5.5",
+    "version": "1.5.6",
     "log_level": "DEBUG",
     "card_default_side": "Random",
     "onload_filepath": null,
+    "native": "en",
     "languages": [
         "EN"
     ],
