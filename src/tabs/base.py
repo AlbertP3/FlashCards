@@ -1,4 +1,5 @@
 import re
+from typing import Callable
 from PyQt5.QtWidgets import (
     QTextEdit,
     QApplication,
@@ -7,16 +8,44 @@ from PyQt5.QtWidgets import (
     QLabel,
 )
 from PyQt5.QtGui import QTextCursor, QKeyEvent
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from data_types import non_space_lng_re
 from utils import Caliper
 from cfg import config
+
+
+class TabWidget(QWidget):
+
+    def __init__(self):
+        super().__init__()
+        self.__can_focus_in = False
+        self.__focus_in = lambda: None
+
+    def set_exit(self, fn: Callable):
+        self.exit = fn
+
+    def exit(self) -> bool:
+        return False
+
+    def set_focus_in(self, fn: Callable):
+        self.__focus_in = fn
+        self.__can_focus_in = True
+
+    def __allow_focus_in(self):
+        self.__can_focus_in = True
+
+    def focus_in(self):
+        if self.__can_focus_in:
+            self.__can_focus_in = False
+            self.__focus_in()
+            QTimer.singleShot(500, self.__allow_focus_in)
 
 
 class BaseConsole(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.tab = TabWidget()
         self.cursor_moved_by_mouse = False
         self.newline = "\n"
         self.console_prompt = "> "
@@ -54,7 +83,9 @@ class BaseConsole(QWidget):
         k = config["kbsc"]
         self.mw.add_ks(k[self.id], self.open, self.mw)
         self.mw.add_ks(f"{k['mod']}+{k['efc']}", self.mw.efc.open, self.console)
-        self.mw.add_ks(f"{k['mod']}+{k['next_efc']}", self.mw.efc.load_next_efc, self.console)
+        self.mw.add_ks(
+            f"{k['mod']}+{k['next_efc']}", self.mw.efc.load_next_efc, self.console
+        )
         self.mw.add_ks(f"{k['mod']}+{k['tracker']}", self.mw.trk.open, self.console)
         self.mw.add_ks(f"{k['mod']}+{k['config']}", self.mw.cft.open, self.console)
         self.mw.add_ks(f"{k['mod']}+{k['stats']}", self.mw.sta.open, self.console)
@@ -65,12 +96,11 @@ class BaseConsole(QWidget):
         self.mw.add_ks(f"{k['mod']}+{k['logs']}", self.mw.log.open, self.console)
 
     def build(self):
-        self._tab = QWidget()
         self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.console = self.create_console()
         self.layout.addWidget(self.console, stretch=1)
-        self._tab.setLayout(self.layout)
+        self.tab.setLayout(self.layout)
 
     def create_console(self) -> QTextEdit:
         console = QTextEdit()
@@ -111,8 +141,10 @@ class BaseConsole(QWidget):
                 if self.console.textCursor().selectionStart() >= self.promptend:
                     QTextEdit.keyPressEvent(self.console, event)
             elif event_key == Qt.Key_A:
-                self.cursor_moved_by_mouse = True
-                QTextEdit.keyPressEvent(self.console, event)
+                cursor = self.console.textCursor()
+                cursor.setPosition(self.promptend)
+                cursor.movePosition(QTextCursor.End, QTextCursor.KeepAnchor)
+                self.console.setTextCursor(cursor)
             elif event_key in {Qt.Key_Backspace, Qt.Key_Left}:
                 if self.curpos > self.promptend:
                     QTextEdit.keyPressEvent(self.console, event)
@@ -204,6 +236,10 @@ class BaseTab(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.tab = TabWidget()
+
+    def open(self):
+        raise NotImplementedError
 
     def init_cross_shortcuts(self):
         self.mw.add_ks(config["kbsc"][self.id], self.open, self.mw)
@@ -217,6 +253,7 @@ class BaseTab(QWidget):
         self.mw.add_ks(config["kbsc"]["sod"], self.mw.sod.open, self)
         self.mw.add_ks(config["kbsc"]["load"], self.mw.ldt.open, self)
         self.mw.add_ks(config["kbsc"]["logs"], self.mw.log.open, self)
+        self.mw.add_ks(config["kbsc"]["sfe"], self.mw.sfe.open, self)
 
     def set_box(self, layout):
         layout.setContentsMargins(0, 0, 0, 0)

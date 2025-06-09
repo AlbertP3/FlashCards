@@ -50,6 +50,11 @@ QPushButton {
     min-width: 32px;
 }
 
+QPushButton:disabled {
+    background-color: #3c3836;
+    color: #928374;
+}
+
 QLabel#notification {
     background-color: #3c3836;
     color: #ebdbb2;
@@ -164,11 +169,9 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background: qlineargradient(
-        x1: 0, y1: 0, x2: 1, y2: 1,
-        stop: 0 #fabd2f,
-        stop: 1 #fe8019
-    );
+    background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+            stop: 0 #fabd2f,
+            stop: 1 #fe8019);
     border-radius: 6px;
     margin: 1px;
 }
@@ -185,6 +188,30 @@ QProgressBar::chunk {
     100% {
         background-color: #D79921;
     }
+}
+
+QTableView {
+    background-color: #2a2827;
+    color: #ebdbb2;
+    gridline-color: #3c3836;
+    selection-background-color: #151412;
+    selection-color: #fbf1c7;
+    outline: 0;
+}
+
+QHeaderView::section {
+    background-color: #3c3836;
+    color: #ebdbb2;
+    border-bottom: 1px solid #504945;
+}
+
+QTableView::item:selected {
+    background-color: #D79921;
+    color: #1D2021;
+}
+
+#tableview {
+    -new_row_color: #32302f
 }
 
 #mpl {

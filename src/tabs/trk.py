@@ -16,7 +16,7 @@ class TrackerTab(BaseTab):
         self.mw = mw
         self.id = "tracker"
         self.build()
-        self.mw.add_tab(self._tab, self.id, "Tracker")
+        self.mw.add_tab(self.tab, self.id, "Tracker")
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
@@ -37,6 +37,5 @@ class TrackerTab(BaseTab):
         self.trk.refresh_current_tab()
 
     def build(self):
-        self._tab = QWidget()
         self.trk = Tracker()
-        self._tab.setLayout(self.trk)
+        self.tab.setLayout(self.trk)

@@ -11,7 +11,7 @@ class FccTab(BaseConsole):
         self.mw = mw
         self.build()
         self.fcc = FCC(self.mw, sout=self.console)
-        self.mw.add_tab(self._tab, self.id, "Console")
+        self.mw.add_tab(self.tab, self.id, "Console")
 
     def open(self):
         self.mw.switch_tab(self.id)

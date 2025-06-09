@@ -7,3 +7,5 @@ from tabs.cfg import CfgTab
 from tabs.trk import TrackerTab
 from tabs.logs import LogsTab
 from tabs.sod import SodTab
+from tabs.sfe import SfeTab
+from tabs.base import TabWidget

@@ -34,7 +34,6 @@ class FCC:
             "efc": "Ebbinghaus Forgetting Curve - Optional *[SIGNATURES] else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision",
             "mcp": "Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>",
             "sck": "Show Config Key: Syntax: sck *<sub_dict> <key>",
-            "cfn": "Change File Name - changes currently loaded file_path, filename and all records in DB for this signature",
             "scs": "Show Current Signature",
             "lor": "List Obsolete Revisions - returns a list of revisions that are in DB but not in revisions folder.",
             "gwd": "Get Window Dimensions",
@@ -303,41 +302,6 @@ class FCC:
         else:
             msg = "Invalid syntax. Expected: sck *<dict> <key>"
         self.post_fcc(msg)
-
-    @require_regular_file
-    def cfn(self, parsed_cmd):
-        """Change File Name"""
-        if len(parsed_cmd) < 2:
-            self.post_fcc("cfn requires a filename arg")
-            return
-        new_filename = " ".join(parsed_cmd[1:])
-        if not is_valid_filename(new_filename):
-            self.post_fcc(f"Invalid filename: {new_filename}")
-            return
-        if new_filename in db_conn.get_all_files(use_basenames=True, excl_ext=True):
-            self.post_fcc(f"File {new_filename} already exists!")
-            return
-        old_filepath = self.mw.active_file.filepath
-        new_filepath = os.path.join(
-            os.path.dirname(old_filepath), f"{new_filename}{self.mw.active_file.ext}"
-        )
-        self.mw.file_monitor_del_protected_path(old_filepath)
-        os.rename(old_filepath, new_filepath)
-        if self.mw.active_file.kind in db_conn.GRADED:
-            db_conn.rename_signature(self.mw.active_file.signature, new_filename)
-        if iln := config["ILN"].get(old_filepath):
-            config["ILN"][new_filepath] = iln
-            del config["ILN"][old_filepath]
-        db_conn.update_fds()
-        if old_filepath == config["SOD"]["last_file"]:
-            if old_filepath in config["SOD"]["files_list"]:
-                config["SOD"]["files_list"].remove(old_filepath)
-                config["SOD"]["files_list"].append(new_filepath)
-            self.mw.sod.sod.cli.update_file_handler(new_filepath)
-        self.mw.initiate_flashcards(db_conn.files[new_filepath])
-        fcc_queue.put_notification(
-            "Filename and Signature changed successfully", lvl=LogLvl.important
-        )
 
     def scs(self, parsed_cmd):
         """Show Current Signature"""

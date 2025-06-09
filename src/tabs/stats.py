@@ -26,7 +26,7 @@ class StatsTab(BaseTab):
         self.upd = 0
         self.sig = ""
         self.build()
-        self.mw.add_tab(self._tab, self.id, "Statistics")
+        self.mw.add_tab(self.tab, self.id, "Statistics")
 
     @property
     def cache_valid(self):
@@ -55,7 +55,6 @@ class StatsTab(BaseTab):
             self.get_stats_table()
 
     def build(self):
-        self._tab = QWidget()
         self.stats_layout = QGridLayout()
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
@@ -63,7 +62,7 @@ class StatsTab(BaseTab):
         self.stat_table = QGridLayout()
         self.stats_layout.addLayout(self.stat_table, 1, 0)
         self.set_box(self.stats_layout)
-        self._tab.setLayout(self.stats_layout)
+        self.tab.setLayout(self.stats_layout)
 
     def get_stats_chart(self):
         rect = None

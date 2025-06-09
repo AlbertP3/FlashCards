@@ -33,7 +33,7 @@ class LoadTab(BaseTab):
         self.cur_load_index = 0
         self._files = dict()
         self.build()
-        self.mw.add_tab(self._tab, self.id, "Load")
+        self.mw.add_tab(self.tab, self.id, "Load")
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
@@ -117,7 +117,6 @@ class LoadTab(BaseTab):
         self.files_qlist.setCurrentRow(self.cur_load_index)
 
     def build(self):
-        self._tab = QWidget()
         self.load_layout = QGridLayout()
         self.set_box(self.load_layout)
         self.load_layout.addWidget(self.get_flashcard_files_list(), 0, 0, 1, 10)
@@ -127,7 +126,7 @@ class LoadTab(BaseTab):
         self.load_layout.addWidget(
             get_button(None, "+", self.show_create_file), 1, 9, 1, 1
         )
-        self._tab.setLayout(self.load_layout)
+        self.tab.setLayout(self.load_layout)
 
     def get_flashcard_files_list(self):
         self.files_qlist = QListWidget()
@@ -166,17 +165,13 @@ class LoadTab(BaseTab):
         self._files_qlist_ctx.exec_(QCursor.pos())
 
     def ctx_reveal_file(self):
-        """Opens selected file in external program"""
+        """Opens selected file in SFE"""
         try:
             fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
-            cmd = config["reveal_file_cmd"]
-            if not cmd:
-                raise KeyError
-            subprocess.Popen([cmd, fd.filepath], shell=False)
-        except KeyError:
-            fcc_queue.put_notification("Reveal file command is missing", LogLvl.err)
+            self.mw.sfe.open_extra_file(fd)
+            self.mw.switch_tab(self.mw.sfe.id)
         except Exception as e:
-            log.error(f"Error opening {fd.filepath} with {cmd}: {e}", exc_info=True)
+            log.error(f"Error opening {fd.filepath}: {e}", exc_info=True)
             fcc_queue.put_notification(
                 f"Error opening {fd.filepath}", LogLvl.err, func=self.mw.log.open
             )
@@ -265,6 +260,7 @@ class LoadTab(BaseTab):
 
             self.mw.file_monitor_del_protected_path(fd.filepath)
             os.rename(fd.filepath, new_filepath)
+            db_conn.update_fds()
 
             if fd.kind in db_conn.GRADED:
                 db_conn.rename_signature(fd.signature, new_filename)
@@ -278,11 +274,10 @@ class LoadTab(BaseTab):
 
             self.show_files()
 
-            if fd.filepath == config["SOD"]["last_file"]:
-                if fd.filepath in config["SOD"]["files_list"]:
-                    config["SOD"]["files_list"].remove(fd.filepath)
-                    config["SOD"]["files_list"].append(new_filepath)
-                self.mw.sod.sod.cli.update_file_handler(new_filepath)
+            if fd.filepath == config["sfe"]["last_file"]:
+                config["sfe"]["last_file"] = new_filepath
+                self.mw.sfe.model.fh.filepath = new_filepath
+                self.mw.sfe._update_sources()
 
             if is_active:
                 db_conn.active_file.filepath = new_filepath
@@ -324,7 +319,7 @@ class LoadTab(BaseTab):
         )
 
     def show_create_file(self):
-        dialog = CreateFileDialog(parent=self.files_qlist)
+        dialog = CreateFileDialog(parent=self.mw)
 
         if dialog.exec_():
             spc = dialog.get_data()

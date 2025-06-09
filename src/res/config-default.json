@@ -1,7 +1,7 @@
 {
-    "version": "1.5.6",
+    "version": "1.6.0",
     "log_level": "DEBUG",
-    "card_default_side": "Random",
+    "card_default_side": "0",
     "onload_filepath": null,
     "native": "en",
     "languages": [
@@ -17,15 +17,14 @@
     },
     "days_to_new_rev": 0,
     "pd_random_seed": 9022,
-    "allow_file_monitor": true,
+    "allow_file_monitor": false,
     "pace_card_interval": 0,
     "init_revs_cnt": 4,
     "init_revs_inth": 6,
-    "cache_history_size": 128,
+    "cache_history_size": 64,
     "min_eph_cards": 3,
     "csv_sniffer": "off",
     "synopsis": "You have reached the world's edge, none but devils play past here",
-    "reveal_file_cmd": "",
     "open_containing_dir_cmd": "",
     "ILN": {},
     "CRE": {
@@ -101,10 +100,6 @@
             "key_2": "fp"
         }
     },
-    "lookup": {
-        "mode": "quick",
-        "pattern": "(?<=\\()[^),]+(?=[),])"
-    },
     "SOD": {
         "last_file": null,
         "debounce": 1,
@@ -125,7 +120,18 @@
         "cell_alignment": "left",
         "use_regex": false,
         "dual_search": true,
-        "files_list": []
+        "files_list": [],
+        "lookup_re": "(?<=\\()[^),]+(?=[),])"
+    },
+    "sfe": {
+        "last_file": "",
+        "debounce": 1,
+        "autosave": true,
+        "re": true,
+        "sep": " | ",
+        "hint": " ()",
+        "hint_autoadd": true,
+        "lookup_re": "(?<=\\()[^),]+(?=[),])"
     },
     "kbsc": {
         "mod": "Alt",
@@ -144,11 +150,15 @@
         "load": "l",
         "mistakes": "m",
         "stats": "s",
-        "save": "w",
-        "sod": "f",
+        "save": "",
+        "sod": "2",
         "hint": "h",
         "last_seen": "g",
-        "logs": "1"
+        "logs": "1",
+        "sfe": "f",
+        "sfe_search": "/",
+        "sfe_add": "v",
+        "sfe_save": "w"
     },
     "theme": {
         "name": "gvbx",
@@ -186,8 +196,8 @@
         "stats": "🎢",
         "modcard": "⥯",
         "config": "⚙️",
-        "sod": "📖",
-        "null-score": "<>",
+        "sfe": "📖",
+        "null-score": "―",
         "init-rev-suffix": "  🌱",
         "language": "🅻",
         "revision": "🅁",

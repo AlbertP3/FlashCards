@@ -17,7 +17,6 @@ class SODspawn:
         self.tab = tab
         self.cli = CLI(tab=self.tab)
         self.tab.console_prompt = self.cli.prompt.PHRASE
-        self.cli.send_output(self.tab.console_prompt)
 
     def post(self, msg):
         if msg != self.tab.console_prompt:
@@ -59,7 +58,7 @@ class SODspawn:
         else:
             self.manage_modes(cmd)
 
-    def refresh_db(self):
+    def on_file_monitor_update(self):
         if (
             os.path.getmtime(self.cli.fh.path) - config["SOD"]["debounce"]
             > self.cli.fh.last_write_time

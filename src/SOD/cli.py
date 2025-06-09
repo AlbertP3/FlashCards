@@ -5,7 +5,7 @@ import logging
 import re
 import os
 from SOD.dicts import Dict_Services
-from SOD.file_handler import get_filehandler
+from SOD.file_handler import get_filehandler, FileHandler
 from DBAC import db_conn
 from utils import Caliper
 from cfg import config
@@ -75,14 +75,17 @@ class CLI:
         self.re_excl_dirs = re.compile(config["SOD"]["exclude_pattern"], re.IGNORECASE)
         self.dicts = Dict_Services()
         self.__ifh_args: tuple = None
-        self.tab.mw.create_task(
-            fns=(self.init_file_handler,),
-            finished=[self.__init_file_handler_finished],
-            op_id="sod.cli.init_file_handler",
-        )
+        self.set_output_prompt(self.prompt.PHRASE)
         self.selection_queue = list()
         self.status_message = str()
         self.valid_cmd: re.Pattern = re.compile(r"^(\d+|a|m\d*|(d|r|e)\d+|)$")
+        self.fh: FileHandler = None
+        self.ready = False
+
+    def post_init(self):
+        self.init_file_handler()
+        self.__init_file_handler_finished()
+        self.ready = True
 
     @property
     def caliper(self) -> Caliper:
@@ -395,7 +398,7 @@ class CLI:
         translations, originals, warnings = self.dicts.get_info_about_phrase(phrase)
         found_cnt = 0
         if translations:
-            pattern = re.compile(config["lookup"]["pattern"])
+            pattern = re.compile(config["SOD"]["lookup_re"])
             found = False
             for r in originals:
                 if p := pattern.findall(r):
@@ -754,12 +757,17 @@ class CLI:
         source_lng = self.dicts.source_lng
         target_lng = self.dicts.target_lng
         len_db = self.fh.total_rows
+        try:
+            new_cards = f"{config['icons']['initial']} {len_db - config['ILN'][self.fh.path]} | "
+        except KeyError:
+            new_cards = ""
         self.status_message = msg
         status = (
             f"{config['icons']['sod_dict']} {active_dict} | "
             f"{source_lng}{config['icons']['sod_lng_pointer']}{target_lng} | "
             f"{config['icons']['sod_db']} {self.fh.filename} | "
             f"{config['icons']['sod_card']} {len_db} | "
+            f"{new_cards}"
             f"{self.status_message}"
         )
         self.send_output(

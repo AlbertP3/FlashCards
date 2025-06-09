@@ -38,7 +38,7 @@ class CfgTab(BaseTab):
         self.mw = mw
         self.funcs_to_restart = list()
         self.build()
-        self.mw.add_tab(self._tab, self.id, "Settings")
+        self.mw.add_tab(self.tab, self.id, "Settings")
 
     def open(self):
         db_conn.update_fds()
@@ -47,7 +47,6 @@ class CfgTab(BaseTab):
         self.mw.switch_tab(self.id)
 
     def build(self):
-        self._tab = QWidget()
         self.config_layout = QGridLayout()
         self.opt_scroll_area = QScrollArea()
         self.opt_scroll_area.setWidgetResizable(True)
@@ -57,7 +56,7 @@ class CfgTab(BaseTab):
         self.config_layout.addWidget(self.opt_scroll_area)
         self.set_box(self.config_layout)
         self.submit_btn = get_button(function=lambda: None)
-        self._tab.setLayout(self.config_layout)
+        self.tab.setLayout(self.config_layout)
 
     def update_submit_btn(self):
         self.submit_btn.clicked.disconnect()
@@ -208,7 +207,7 @@ class CfgTab(BaseTab):
         )
 
         self.opts_layout.add_spacer()
-        self.opts_layout.add_label("SOD")
+        self.opts_layout.add_label("CLI Dictionary (Legacy)")
         self.sod_init_lng_cbx = self.cfg_cbx(
             config["SOD"]["std_src_lng"],
             ["auto", "native", "foreign"],
@@ -227,14 +226,8 @@ class CfgTab(BaseTab):
             content=["left", "right", "center"],
             text="Cell alingment",
         )
-        self.lookup_mode_cbx = self.cfg_cbx(
-            config["lookup"]["mode"],
-            multi_choice=False,
-            content=["quick", "full", "auto"],
-            text="Lookup mode",
-        )
         self.lookup_pattern_qle = self.cfg_qle(
-            config["lookup"]["pattern"], text="Lookup pattern"
+            config["SOD"]["lookup_re"], text="Lookup pattern"
         )
 
         self.opts_layout.add_spacer()
@@ -421,9 +414,6 @@ class CfgTab(BaseTab):
         self.open_folder_cmd_qle = self.cfg_qle(
             config["open_containing_dir_cmd"], "Open folder command"
         )
-        self.reveal_file_cmd_qle = self.cfg_qle(
-            config["reveal_file_cmd"], "Reveal file command"
-        )
         self.opts_layout.add_spacer()
         self.config_layout.addWidget(self.submit_btn)
 
@@ -459,8 +449,7 @@ class CfgTab(BaseTab):
         new_cfg["SOD"][
             "cell_alignment"
         ] = self.sod_cell_alignment_cbx.currentDataList()[0]
-        new_cfg["lookup"]["mode"] = self.lookup_mode_cbx.currentDataList()[0]
-        new_cfg["lookup"]["pattern"] = self.lookup_pattern_qle.text()
+        new_cfg["SOD"]["lookup_re"] = self.lookup_pattern_qle.text()
         new_cfg["CRE"]["opt"].update(self.cre_settings_cbx.currentDataDict())
         new_cfg["hide_tips"]["policy"][
             db_conn.KINDS.rev
@@ -528,7 +517,6 @@ class CfgTab(BaseTab):
             self.tracker_duo_active.currentDataList()[0] == "True"
         )
         new_cfg["tracker"]["duo"]["prelim_avg"] = int(self.tracker_avg_n.text())
-        new_cfg["reveal_file_cmd"] = self.reveal_file_cmd_qle.text()
         new_cfg["open_containing_dir_cmd"] = self.open_folder_cmd_qle.text()
 
         if new_cfg["theme"]["name"] != config["theme"]["name"]:

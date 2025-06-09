@@ -1,8 +1,5 @@
-from PyQt5.QtWidgets import QTextEdit, QVBoxLayout
-from PyQt5.QtCore import Qt
-from utils import fcc_queue, LogLvl, Caliper
-from widgets import get_scrollbar
-from cfg import config
+from PyQt5.QtWidgets import QFormLayout, QTableWidget, QHeaderView, QTableWidgetItem
+from utils import fcc_queue, LogLvl
 from tabs.base import BaseTab
 from DBAC import db_conn
 from typing import TYPE_CHECKING
@@ -17,9 +14,8 @@ class MistakesTab(BaseTab):
         super().__init__()
         self.mw = mw
         self.id = "mistakes"
-        self.caliper = Caliper(config.qfont_console, mg=0.96)
         self.build()
-        self.mw.add_tab(self.mistakes_qtext, self.id, "Mistakes")
+        self.mw.add_tab(self.tab, self.id, "Mistakes")
 
     def open(self):
         if self.mw.active_file.kind in db_conn.GRADED:
@@ -31,27 +27,20 @@ class MistakesTab(BaseTab):
             )
 
     def build(self):
-        self.mistakes_layout = QVBoxLayout()
-        self.mistakes_layout.addWidget(self.create_mistakes_list(), stretch=1)
+        self.mistakes_layout = QFormLayout()
+        self.mst_table = self.create_mistakes_table()
+        self.mistakes_layout.addRow(self.mst_table)
+        self.tab.setLayout(self.mistakes_layout)
 
     def show_mistakes(self):
-        out = list()
-        sep = " | "
-        px = (self.mistakes_qtext.viewport().width() - self.caliper.strwidth(sep)) / 2
-        for m in self.mw.mistakes_list:
-            m1 = self.caliper.make_cell(
-                m[self.mw.default_side], pixlim=px, align="left"
-            )
-            m2 = self.caliper.make_cell(
-                m[1 - self.mw.default_side], pixlim=px, align="left"
-            )
-            out.append(f"{m1}{sep}{m2}")
-        self.mistakes_qtext.setPlainText("\n".join(out))
+        self.mst_table.setRowCount(len(self.mw.mistakes_list))
+        self.mst_table.setHorizontalHeaderLabels(self.mw.active_file.data.columns)
+        for i, row in enumerate(self.mw.mistakes_list):
+            for c, v in enumerate(row):
+                self.mst_table.setItem(i, c, QTableWidgetItem(str(v)))
 
-    def create_mistakes_list(self):
-        self.mistakes_qtext = QTextEdit()
-        self.mistakes_qtext.setFont(config.qfont_console)
-        self.mistakes_qtext.setVerticalScrollBar(get_scrollbar())
-        self.mistakes_qtext.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.mistakes_qtext.setReadOnly(True)
-        return self.mistakes_qtext
+    def create_mistakes_table(self):
+        table = QTableWidget()
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setColumnCount(2)
+        return table

@@ -147,10 +147,10 @@ class MainWindowLogic:
         config["CRE"]["time_spent"] = 0
         config["CRE"]["positives"] = 0
 
-    def reverse_side(self):
+    def _reverse_side(self):
         self.side = 1 - self.side
 
-    def delete_current_card(self):
+    def _delete_current_card(self):
         db_conn.delete_card(self.current_index)
         self.total_words = self.active_file.data.shape[0]
         self.side = self.get_default_side()
@@ -332,7 +332,7 @@ class MainWindowLogic:
             self.positives, self.total_words, self.seconds_spent
         )
 
-    def update_default_side(self):
+    def _update_default_side(self):
         """substitute add_default_side() via a first-class function"""
         default_side = config["card_default_side"]
         if default_side.isnumeric():
@@ -376,7 +376,6 @@ class MainWindowLogic:
                     res = True
         return res
 
-    # TODO add snapshot params for SOD
     def create_session_snapshot(self):
         _fcc_log = self.fcc.console_log
         if len(_fcc_log) > 0 and _fcc_log[-1] == self.fcc.console_prompt:
@@ -406,6 +405,7 @@ class MainWindowLogic:
             "fcc_console_log": _fcc_log,
             "fcc_cmd_log": self.fcc.cmd_log,
             "is_initial_rev": self.is_initial_rev,
+            "is_blurred": self.is_blurred,
         }
         config.cache["snapshot"]["session"] = snapshot
         log.debug(f"Created a session snapshot")
@@ -426,6 +426,7 @@ class MainWindowLogic:
         self.negatives = metadata["negatives"]
         self.total_words = metadata["total_words"]
         self.is_initial_rev = metadata["is_initial_rev"]
+        self.is_blurred = metadata["is_blurred"]
         self.mistakes_list = metadata["mistakes_list"]
         self.mistakes_saved = metadata["mistakes_saved"]
         self.cards_seen_sides = metadata["cards_seen_sides"]

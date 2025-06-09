@@ -1,8 +1,8 @@
-# FlashCards 1.5.6
+# FlashCards 1.6.0
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.5.6](#flashcards-156)
+- [FlashCards 1.6.0](#flashcards-160)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -65,7 +65,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 - Right clicking on a file opens a dialog that allows to:
   - create an *Ephemeral*. Index cache is applied if available. Custom ranges can be used
   - rename the file
-  - reveal the file in an external application (config: 'reveal_file_cmd')
+  - reveal the file in Source File Editor
   - open the containing folder in File Explorer (config: 'open_containing_dir_cmd')
 - Create a new *Language* file by using the "+" button. *Language* directory tree will be auto-generated if needed
 
@@ -88,7 +88,7 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 
 Statistics shows scores for each time the currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects EFC threshold specified in the config and can be toggled via 'show_efc_line'
 
-## Dictionary
+## CLI Dictionary (Legacy)
 
 ![SOD Window](src/res/imgs/ss_sod.png)
 
@@ -200,7 +200,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | mcp       | Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}                                  |
 | sck       | Show Config Key: Syntax: sck *{sub_dict} {key}                                                                                            |
 | cls       | Clear Screen                                                                                                                              |
-| cfn       | Change File Name - changes currently loaded file_path, filename and all records in DB for this signature                                  |
 | scs       | Show Current Signature                                                                                                                    |
 | lor       | List Obsolete Revisions - returns a list of *Revisions* that are in DB but not in *Revisions* folder.                                     |
 | gwd       | Get Window Dimensions                                                                                                                     |

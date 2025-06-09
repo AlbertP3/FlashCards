@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import (
     QDesktopWidget,
     QShortcut,
     QProgressDialog,
-    QGraphicsBlurEffect
+    QGraphicsBlurEffect,
 )
 from PyQt5.QtGui import (
     QWindow,
@@ -174,7 +174,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if self.is_synopsis:
             self.display_text(self.synopsis or config["synopsis"])
         else:
-            self.apply_blur()
+            if self.is_blurred:
+                self.apply_blur()
             self.display_text(self.get_current_card().iloc[self.side])
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
@@ -212,6 +213,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.cft = tabs.CfgTab(self)
         self.trk = tabs.TrackerTab(self)
         self.log = tabs.LogsTab(self)
+        self.sfe = tabs.SfeTab(self)
 
         self.fcc.init_cross_shortcuts()
         self.sod.init_cross_shortcuts()
@@ -222,18 +224,24 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.cft.init_cross_shortcuts()
         self.trk.init_cross_shortcuts()
         self.log.init_cross_shortcuts()
+        self.sfe.init_cross_shortcuts()
 
     def add_tab(self, widget, id, title):
         self.tab_map[id] = {"index": len(self.tab_map), "title": title}
         self.tabs.addTab(widget, title)
 
+    def get_tab(self, id: str) -> tabs.TabWidget:
+        return self.tabs.widget(self.tab_map[self.active_tab_id]["index"])
+
     def switch_tab(self, id: str):
         if id == self.active_tab_id:
             return
 
-        self.active_tab_id = id
+        if self.get_tab(self.active_tab_id).exit():
+            return
         self.setWindowTitle(self.tab_map[id]["title"])
         self.tabs.setCurrentIndex(self.tab_map[id]["index"])
+        self.active_tab_id = id
 
         if id == self.id:
             self.resume_timer()
@@ -287,7 +295,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def build_layout(self):
         self.LAYOUT_MARGINS = (0, 0, 0, 0)
 
-        self.main_tab = QWidget()
+        self.main_tab = tabs.TabWidget()
         self.main_tab_layout = QVBoxLayout(self.main_tab)
         self.main_tab_layout.setContentsMargins(*self.LAYOUT_MARGINS)
         self.main_tab.setLayout(self.main_tab_layout)
@@ -405,13 +413,13 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             tooltip=f"Tracker ({config['kbsc']['tracker']})",
         )
         self.layout_fourth_row.addWidget(self.timer_button, 3, 5)
-        self.sod_button = get_button(
+        self.sfe_button = get_button(
             self,
-            config["icons"]["sod"],
-            self.sod.open,
-            tooltip=f"Dictionary ({config['kbsc']['sod']})",
+            config["icons"]["sfe"],
+            self.sfe.open,
+            tooltip=f"Dictionary ({config['kbsc']['sfe']})",
         )
-        self.layout_fourth_row.addWidget(self.sod_button, 3, 4)
+        self.layout_fourth_row.addWidget(self.sfe_button, 3, 4)
         self.efc_button = get_button(
             self,
             config["icons"]["efc"],
@@ -468,7 +476,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         sys.exit()
 
     def update_default_side(self):
-        super().update_default_side()
+        self._update_default_side()
 
     def apply_blur(self):
         blur = QGraphicsBlurEffect()
@@ -535,17 +543,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         copy_action = QAction("Copy", self.textbox)
         copy_action.triggered.connect(self.__text_box_copy_to_clipboard)
         self.textbox_ctx.addAction(copy_action)
-
-        if config["lookup"]["mode"] == "auto":
-            self.textbox.mouseReleaseEvent = self.__lookup_sod_auto
-        else:
-            sod_lookup = QAction("Lookup", self.textbox)
-            if config["lookup"]["mode"] == "full":
-                sod_lookup.triggered.connect(self.__lookup_sod_full)
-            elif config["lookup"]["mode"] == "quick":
-                sod_lookup.triggered.connect(self.__lookup_sod_quick)
-            self.textbox_ctx.addAction(sod_lookup)
-
+        self.textbox.mouseReleaseEvent = self.__lookup
         self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
 
     def __text_box_copy_to_clipboard(self):
@@ -555,52 +553,17 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def textbox_ctx_menu_open(self, position):
         self.textbox_ctx.exec_(QCursor.pos())
 
-    def __lookup_sod_auto(self, event):
+    def __lookup(self, event):
         QLabel.mouseReleaseEvent(self.textbox, event)
         sel = self.textbox.selectedText()
         if sel:
-            if self.side == 0:
-                lng = self.sod.sod.cli.fh.foreign_lng
-            else:
-                lng = self.sod.sod.cli.fh.native_lng
-            msg = self.sod.sod.cli.lookup(sel, lng)
+            msg = self.sfe.lookup(query=sel, col=self.side)
             fcc_queue.put_notification(
-                msg, lvl=LogLvl.important, func=lambda: self.__lookup_sod_full()
+                msg, lvl=LogLvl.important, func=lambda: self.switch_tab(self.sfe.id)
             )
             if self.notification_timer:
                 # Immediately show the notification
                 self.notification_timer_func()
-
-    def __lookup_sod_quick(self):
-        sel = self.textbox.selectedText()
-        if self.side == 0:
-            lng = self.sod.sod.cli.fh.foreign_lng
-        else:
-            lng = self.sod.sod.cli.fh.native_lng
-        msg = self.sod.sod.cli.lookup(sel, lng)
-        fcc_queue.put_notification(
-            msg, lvl=LogLvl.important, func=lambda: self.__lookup_sod_full()
-        )
-        if self.notification_timer:
-            # Immediately show the notification
-            self.notification_timer_func()
-
-    def __lookup_sod_full(self):
-        sel = self.textbox.selectedText()
-        if self.sod.sod.can_do_lookup():
-            self.sod.sod.cli.cls()
-            self.sod.sod.cli.reset_state()
-            self.sod.open()
-            if self.side == 0:
-                lng = self.sod.sod.cli.fh.foreign_lng
-            else:
-                lng = self.sod.sod.cli.fh.native_lng
-            self.sod.sod.execute_command([lng, sel])
-            self.sod.move_cursor_to_end()
-        else:
-            fcc_queue.put_notification(
-                "Lookup is unavailable in the current state", lvl=LogLvl.warn
-            )
 
     def create_label(self, text) -> QLabel:
         label = QLabel(self)
@@ -635,7 +598,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         elif self.active_file.kind == db_conn.KINDS.lng:
 
             if self.cards_seen != 0:
-                super().handle_creating_revision(seconds_spent=self.seconds_spent)
+                self.handle_creating_revision(seconds_spent=self.seconds_spent)
             else:
                 fcc_queue.put_notification(
                     "Unable to save an empty file", lvl=LogLvl.warn
@@ -660,7 +623,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def delete_current_card(self):
         if self.active_file.kind not in db_conn.GRADED:
             if not self.is_synopsis:
-                super().delete_current_card()
+                self._delete_current_card()
                 self.update_words_button()
                 fcc_queue.put_notification("Card removed", lvl=LogLvl.important)
                 self.allow_hide_tips = True
@@ -676,7 +639,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             if self.is_blurred:
                 self.remove_blur()
             else:
-                super().reverse_side()
+                self._reverse_side()
                 self.display_text(self.get_current_card().iloc[self.side])
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
@@ -790,8 +753,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self._handle_final_actions_lng()
 
     def _handle_final_actions_rev(self):
-        if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
-            self.save_current_mistakes()
         if (
             config["final_actions"]["init_ephemeral"]
             and len(self.mistakes_list) >= config["min_eph_cards"]
@@ -802,8 +763,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.efc.load_next_efc()
 
     def _handle_final_actions_mst(self):
-        if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
-            self.save_current_mistakes()
         if (
             config["final_actions"]["init_ephemeral"]
             and len(self.mistakes_list) >= config["min_eph_cards"]
@@ -814,8 +773,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.efc.load_next_efc()
 
     def _handle_final_actions_eph(self):
-        if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
-            self.save_current_mistakes()
         if (
             config["final_actions"]["init_ephemeral"]
             and len(self.mistakes_list) >= config["min_eph_cards"]
@@ -827,7 +784,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def _handle_final_actions_lng(self):
         if config["final_actions"]["create_revision"]:
-            super().handle_creating_revision(seconds_spent=self.seconds_spent)
+            self.handle_creating_revision(seconds_spent=self.seconds_spent)
 
     def click_negative(self):
         if not self.is_blurred:
@@ -848,6 +805,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.is_synopsis = True
         self.display_text(self.synopsis)
         self.record_revision_to_db(seconds_spent=self.seconds_spent)
+        if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
+            self.save_current_mistakes()
         self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
         self.stop_timer()
@@ -874,6 +833,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.add_ks(config["kbsc"]["mcr"], self.modify_card_result, self.main_tab)
 
     def add_ks(self, key: str, func, tab):
+        # TODO warn if attempting to create a duplicate bind
         shortcut = QShortcut(QKeySequence(key), tab)
         shortcut.activated.connect(func)
 
@@ -941,8 +901,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             if not self.is_synopsis:
                 self.display_text(self.get_current_card().iloc[self.side])
             fcc_queue.put_notification("Active dataset refreshed", lvl=LogLvl.info)
-        if path == config["SOD"]["last_file"]:
-            self.sod.sod.refresh_db()
+        if path == config["sfe"]["last_file"]:
+            self.sfe.on_file_monitor_update()
         # if path == "./src/res/config.json":
         #     log.debug("Config updated")  # TODO
 
@@ -1176,6 +1136,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                     config["popups"]["active_interval_ms"]
                 )
                 self.__allow_resize = True
+                self.get_tab(self.active_tab_id).focus_in()
         return super(MainWindowGUI, self).eventFilter(source, event)
 
     def closeEvent(self, event):

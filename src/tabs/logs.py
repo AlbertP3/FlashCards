@@ -61,7 +61,7 @@ class LogsTab(BaseTab):
         self.cur_src = "logs"
         self.sources = self.__get_sources()
         self.build()
-        self.mw.add_tab(self._tab, self.id, "Logs")
+        self.mw.add_tab(self.tab, self.id, "Logs")
 
     def open(self, scroll_end=False):
         self.mw.switch_tab(self.id)
@@ -76,7 +76,6 @@ class LogsTab(BaseTab):
             self.console.verticalScrollBar().setValue(scr_pos)
 
     def build(self):
-        self._tab = QWidget()
         self.logs_layout = QGridLayout()
         self.logs_layout.setContentsMargins(0, 0, 0, 0)
         self.create_log_console()
@@ -87,7 +86,7 @@ class LogsTab(BaseTab):
         self.logs_layout.addWidget(self.log_src_cbx, 1, 0)
         self.logs_layout.addWidget(self.console, 0, 0, 1, 2)
         self.set_box(self.logs_layout)
-        self._tab.setLayout(self.logs_layout)
+        self.tab.setLayout(self.logs_layout)
 
     def create_log_console(self):
         self.console = QTextEdit()

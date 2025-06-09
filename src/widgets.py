@@ -11,6 +11,11 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QScrollBar,
+    QApplication,
+    QDialogButtonBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
 )
 from PyQt5.QtCore import (
     Qt,
@@ -19,7 +24,14 @@ from PyQt5.QtCore import (
     pyqtSignal,
     QEvent,
 )
-from PyQt5.QtGui import QPalette, QFontMetrics, QStandardItem, QKeyEvent
+from PyQt5.QtGui import (
+    QPalette,
+    QFontMetrics,
+    QStandardItem,
+    QKeyEvent,
+    QKeySequence,
+)
+from collections import OrderedDict
 from typing import Callable
 from utils import fcc_queue, LogLvl, is_valid_filename
 from data_types import CreateFileDialogData
@@ -59,10 +71,12 @@ class CheckableComboBox(QComboBox):
         allow_multichoice: bool = True,
         width: float = 0,
         hide_on_checked: bool = False,
+        on_popup_show: Callable = lambda: None,
     ):
         self.allow_multichoice = allow_multichoice
         self.hide_on_checked = hide_on_checked
         self._width = width or self.lineEdit().width()
+        self.on_popup_show = on_popup_show
         super().__init__(layout)
 
         # Make the combo editable to set a custom text, but readonly
@@ -123,6 +137,7 @@ class CheckableComboBox(QComboBox):
         return False
 
     def showPopup(self):
+        self.on_popup_show()
         super().showPopup()
         # When the popup is displayed, a click on the lineedit should close it
         self.closeOnLineEditClick = True
@@ -195,6 +210,12 @@ class CheckableComboBox(QComboBox):
             res[self.model().item(i).data()] = (
                 self.model().item(i).checkState() == Qt.Checked
             )
+        return res
+
+    def getData(self) -> list:
+        res = list()
+        for i in range(self.model().rowCount()):
+            res.append(self.model().item(i).data())
         return res
 
     def wheelEvent(self, *args, **kwargs):
@@ -310,7 +331,7 @@ class NotificationPopup(QWidget):
         Run animation before closing the popup.
         Keep notification when window is not active
         """
-        if self.parent().isActiveWindow():
+        if QApplication.activeWindow():
             self.exit_animation.start()
             self.exit_animation.finished.connect(self.close_notification)
         else:
@@ -467,7 +488,9 @@ class CreateFileDialog(QDialog):
             fcc_queue.put_notification("Invalid Filename!", lvl=LogLvl.err)
             return False
         if "." in self.filename_qle.text():
-            fcc_queue.put_notification("Filename cannot contain an extension!", lvl=LogLvl.err)
+            fcc_queue.put_notification(
+                "Filename cannot contain an extension!", lvl=LogLvl.err
+            )
             return False
         elif not is_valid_filename(self.lng_qle.text()):
             fcc_queue.put_notification("Invalid Language!", lvl=LogLvl.err)
@@ -494,9 +517,9 @@ class CreateFileDialog(QDialog):
 
     def get_data(self) -> CreateFileDialogData:
         return CreateFileDialogData(
-            filename=self.filename_qle.text(),
-            src_lng_id=self.src_lng_qle.text(),
-            tgt_lng_id=self.tgt_lng_qle.text(),
+            filename=self.filename_qle.text().strip(),
+            src_lng_id=self.src_lng_qle.text().strip(),
+            tgt_lng_id=self.tgt_lng_qle.text().strip(),
         )
 
     def _on_lng_change(self, event: QKeyEvent):
@@ -510,3 +533,144 @@ class CreateFileDialog(QDialog):
         qle.setText(text)
         qle.setObjectName("qdialog")
         return qle
+
+
+class FieldQLE(QLineEdit):
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        if self.hasSelectedText():
+            self.setCursorPosition(len(self.text()))
+
+
+class AddCardDialog(QDialog):
+    def __init__(self, fh, parent: QWidget = None):
+        super().__init__(parent)
+        self.fh = fh
+        self.fli = 0
+        self.flc = self.fh.headers[self.fli]
+        self.setWindowTitle("New Card")
+        self.setFont(config.qfont_button)
+        self.setMinimumWidth(int(0.95 * parent.width()))
+
+        self.form = QFormLayout(self)
+        self.form.setContentsMargins(1, 1, 1, 1)
+        self.form.setSpacing(2)
+
+        self.fields: OrderedDict[str, QLineEdit] = OrderedDict()
+        for h in self.fh.headers:
+            self.create_field(h)
+
+        self.submit_btn = get_button(self, "Create", self.accept)
+        self.submit_btn.setDisabled(True)
+        self.form.addWidget(self.submit_btn)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.update_pos()
+        self.on_paste()
+
+    def update_pos(self):
+        if self.parent():
+            pargeo = self.parent().geometry()
+            x = int(pargeo.x() + 0.5 * self.parent().width() - 0.5 * self.width())
+            self.move(x, self.geometry().y())
+
+    def create_field(self, header: str):
+        field = FieldQLE(self)
+        field.textChanged.connect(self.validate)
+        field.setFont(config.qfont_console)
+        field.installEventFilter(self)
+        label = QLabel(self)
+        label.setFont(config.qfont_console)
+        label.setText(header)
+        label.setContentsMargins(5, 0, 5, 0)
+        self.form.addRow(label, field)
+        self.fields[header] = field
+
+    def accept(self):
+        self.values = list(self.get_card(remove_suffix=True).values())
+        super().accept()
+
+    def validate(self):
+        invalid = True
+        card = self.get_card(remove_suffix=True)
+        if any(len(t) == 0 for t in card.values()):
+            msg = "Empty"
+        elif self.fh.is_duplicate(card):
+            msg = "Duplicate"
+        else:
+            invalid = False
+            msg = "Create"
+        self.submit_btn.setDisabled(invalid)
+        self.submit_btn.setText(msg)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.type() == QEvent.KeyPress:
+            if event.matches(QKeySequence.Paste):
+                return self.on_paste()
+            elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
+                if self.submit_btn.isEnabled():
+                    return self.accept()
+        return super().keyPressEvent(event)
+
+    def on_paste(self) -> bool:
+        texts = self.get_card(remove_suffix=False)
+        pasted = QApplication.clipboard().text().split(config["sfe"]["sep"])
+        if not all(len(t) for t in texts.values()) and len(pasted) == len(self.fields):
+            for i, v in enumerate(self.fields.values()):
+                v.setText(pasted[i])
+            if config["sfe"]["hint_autoadd"]:
+
+                def auto_hint():
+                    field = self.fields[self.flc]
+                    if not field.text().endswith(config["sfe"]["hint"]):
+                        field.setText(f"{field.text()}{config['sfe']['hint']}")
+                    field.cursorBackward(False, int(len(config["sfe"]["hint"]) / 2))
+
+                QTimer.singleShot(1, auto_hint)
+            return True
+        return False
+
+    def get_card(self, remove_suffix=False) -> dict[str]:
+        card = {k: v.text().strip() for k, v in self.fields.items()}
+        if remove_suffix:
+            card[self.flc] = card[self.flc].removesuffix(config["sfe"]["hint"])
+        return card
+
+
+class ConfirmDeleteDialog(QDialog):
+    def __init__(self, data: list[dict], headers: tuple, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Confirm Card Deletion")
+        self.setFont(config.qfont_button)
+        self.setMinimumWidth(int(0.95 * parent.width()))
+        layout = QFormLayout(self)
+        table = QTableWidget()
+        table.setRowCount(len(data))
+        table.setColumnCount(len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        for i, row in enumerate(data):
+            for c, (k, v) in enumerate(row.items()):
+                if k in headers:
+                    table.setItem(i, c, QTableWidgetItem(str(v)))
+        layout.addRow(table)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal, self
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.update_pos()
+
+    def update_pos(self):
+        if self.parent():
+            pargeo = self.parent().geometry()
+            x = int(pargeo.x() + 0.5 * self.parent().width() - 0.5 * self.width())
+            self.move(x, self.geometry().y())
+
+    def accept(self):
+        super().accept()

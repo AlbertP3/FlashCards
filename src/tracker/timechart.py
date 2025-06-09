@@ -71,5 +71,6 @@ class TimeChartCanvas:
         self.figure.tight_layout()
         ax.get_yaxis().set_visible(False)
         self.figure.subplots_adjust(left=0, bottom=0.1, right=1, top=1)
+        ax.set_xlim(-0.5, len(self.formatted_dates) - 0.5)
 
         self.canvas.draw()

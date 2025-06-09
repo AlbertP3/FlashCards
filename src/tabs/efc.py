@@ -69,7 +69,7 @@ class EFCTab(BaseTab):
         self._recoms: list[dict] = list()  # {fp, disp, score, is_init}
         self.cur_efc_index = 0
         self.build()
-        self.mw.add_tab(self._tab, self.id, "EFC")
+        self.mw.add_tab(self.tab, self.id, "EFC")
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
@@ -112,14 +112,13 @@ class EFCTab(BaseTab):
         self.is_view_outdated = False
 
     def build(self):
-        self._tab = QWidget()
         self.efc_layout = QGridLayout()
         self.efc_layout.addWidget(self.create_recommendations_list(), 0, 0)
         self.efc_layout.addWidget(
             get_button(None, "Load", self.load_selected_efc), 1, 0, 1, 1
         )
         self.set_box(self.efc_layout)
-        self._tab.setLayout(self.efc_layout)
+        self.tab.setLayout(self.efc_layout)
 
     def create_recommendations_list(self):
         self.recoms_qlist = QListWidget()
