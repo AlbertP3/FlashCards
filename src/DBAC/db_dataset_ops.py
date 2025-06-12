@@ -63,7 +63,7 @@ class DbDatasetOps:
             len(d := {f.basename for f in self.files.values() if f.data is not None})
             > 1
         ):
-            log.warning(f"There are {len(d)} FileDescriptors with data!: {d}")
+            log.warning(f"There are {len(d)} FileDescriptors with data: {d}")
 
     def make_filepath(self, lng: str, kind: str, filename: str = "") -> os.PathLike:
         """Template for creating Paths"""
@@ -137,7 +137,7 @@ class DbDatasetOps:
             ext=".csv",
         )
         if mfd.filepath in self.files.keys():
-            mst_1 = self.load_dataset(mfd, do_shuffle=False, activate=False)
+            mst_1 = self.get_data(mfd)
             mst_new = pd.DataFrame(data=mistakes_list, columns=mst_1.columns)
             buffer = pd.concat([mst_1, mst_new], ignore_index=True)
         else:  # create a new mistakes file
@@ -238,36 +238,41 @@ class DbDatasetOps:
                 )
         return fd.valid
 
-    def load_dataset(
-        self, fd: FileDescriptor, do_shuffle=True, seed=None, activate=True
-    ) -> pd.DataFrame:
-        operation_status = ""
+    def afops(
+        self,
+        fd: FileDescriptor,
+        shuffle: bool = False,
+        seed: int = None,
+    ):
+        fd.data = self.get_data(fd)
+
+        if fd != self.active_file:
+            self.active_file = fd
+
+        if shuffle or seed:
+            self.shuffle_dataset(fd, seed)
+
+    def get_data(self, fd: FileDescriptor) -> pd.DataFrame:
+        err_msg = ""
+        _data = self.empty_df
         try:
             if fd.ext in {".csv", ".txt"}:
-                fd.data = self.read_csv(fd.filepath)
+                _data = self.read_csv(fd.filepath)
             elif fd.ext in {".xlsx", ".xlsm"}:
-                fd.data = self.read_excel(fd.filepath)
+                _data = self.read_excel(fd.filepath)
             elif fd.tmp:
                 raise FileNotFoundError
             else:
-                operation_status = f"Chosen extension is not (yet) supported: {fd.ext}"
+                err_msg = f"Chosen extension is not (yet) supported: {fd.ext}"
         except FileNotFoundError as e:
-            operation_status = f"File Not Found: {fd.filepath}"
-            log.error(operation_status, exc_info=True)
+            err_msg = f"File Not Found: {fd.filepath}"
+            log.error(err_msg, exc_info=True)
         except Exception as e:
-            operation_status = f"Exception occurred: {e}"
+            err_msg = f"Exception occurred: {e}"
             log.error(e, exc_info=True)
 
-        if activate:
-            self.active_file = fd
-            if self.active_file.valid:
-                if len(fd.data) == 0:
-                    fd.data.loc[0] = ("-", "-")
-                if do_shuffle:
-                    self.shuffle_dataset(seed)
-
-        fcc_queue.put_notification(operation_status, lvl=LogLvl.err)
-        return fd.data
+        fcc_queue.put_notification(err_msg, lvl=LogLvl.err)
+        return _data
 
     def get_lines_count(self, fd: FileDescriptor) -> int:
         if fd.ext in {".csv", ".txt"}:
@@ -314,15 +319,15 @@ class DbDatasetOps:
         log.debug(f"Mocked a temporary file: {fd.basename}")
         self.active_file = fd
 
-    def shuffle_dataset(self, seed=None):
+    def shuffle_dataset(self, fd: FileDescriptor, seed=None):
         if seed:
             pd_random_seed = config["pd_random_seed"]
         else:
             pd_random_seed = random.randrange(10000)
         config.update({"pd_random_seed": pd_random_seed})
-        self.__AF.data = self.__AF.data.sample(
-            frac=1, random_state=pd_random_seed
-        ).reset_index(drop=True)
+        fd.data = fd.data.sample(frac=1, random_state=pd_random_seed).reset_index(
+            drop=True
+        )
 
     def read_csv(self, file_path) -> pd.DataFrame:
         dataset = pd.read_csv(

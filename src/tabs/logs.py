@@ -333,6 +333,7 @@ class LogsTab(BaseTab):
                                     "timer",
                                     "pace_timer",
                                     "notification_timer",
+                                    "is_blurred",
                                 ),
                             ),
                             "efc_recoms": self.mw.efc._recoms,

@@ -1,8 +1,8 @@
-# FlashCards 1.6.0
+# FlashCards 1.6.1
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.0](#flashcards-160)
+- [FlashCards 1.6.1](#flashcards-161)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -194,7 +194,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | mct       | Modify Cards Text - edits current side of the card both in current set and in the original file                                           |
 | rcc       | Reverse Current Card - changes sides of currently displayed card and updates the source file                                              |
 | mcr       | Modify Card Result - allows changing pos/neg for the current card                                                                         |
-| dcc       | Delete Current Card - deletes card both in current set and in the file                                                                    |
 | sis       | Show ILN Statistics - display number of new cards for each cached set                                                                     |
 | efc       | Ebbinghaus Forgetting Curve - Optional *SIGNATURES else select active - shows table with EFC data                                         |
 | mcp       | Modify Config Parameter - allows modifications of config file. Syntax: mcp *{sub_dict} {key} {new_value}                                  |

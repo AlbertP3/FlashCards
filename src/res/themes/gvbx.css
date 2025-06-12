@@ -210,10 +210,6 @@ QTableView::item:selected {
     color: #1D2021;
 }
 
-#tableview {
-    -new_row_color: #32302f
-}
-
 #mpl {
     -font_color: #ebdbb2;
     -stat_bar_color: #3c3836;

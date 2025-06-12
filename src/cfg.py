@@ -25,7 +25,6 @@ class Config(UserDict):
         self.load_theme()
         self.load_qfonts()
         self.load_tag_mpl()
-        self.load_tag_tv()
 
     def reload(self):
         self.data.update(json.load(open(self.CFG_PATH, "r")))
@@ -74,11 +73,6 @@ class Config(UserDict):
                 "chart_edge_color": "#000000",
                 "chart_line_color": "#a0a0a0",
             },
-        )
-
-    def load_tag_tv(self):
-        self.table_view = self._load_theme_tag(
-            tag="tableview", default={"new_row_color": "#473c29"}
         )
 
     def _load_theme_tag(self, tag: str, default: dict) -> dict:

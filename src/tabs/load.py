@@ -195,16 +195,19 @@ class LoadTab(BaseTab):
 
     def ctx_ILN(self):
         fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
+        self.create_from_iln(fd)
+
+    def create_from_iln(self, fd: FileDescriptor):
         start = config["ILN"].get(fd.filepath, 0)
         cnt = db_conn.get_lines_count(fd) - start
         dialog = CFIDialog(self.files_qlist, start, cnt)
         if dialog.exec_():
             start, cnt = dialog.get_values()
-            self.cfi(fd, start, cnt)
+            self._cfi(fd, start, cnt)
 
-    def cfi(self, fd: FileDescriptor, start: int, cnt: int):
+    def _cfi(self, fd: FileDescriptor, start: int, cnt: int):
         """Loads a temporary language set"""
-        data = db_conn.load_dataset(fd, do_shuffle=False, activate=False)
+        data = db_conn.get_data(fd)
         if cnt == 0:
             len_parent = data.shape[0]
             data = data.iloc[start:, :]
@@ -241,7 +244,7 @@ class LoadTab(BaseTab):
                 "len_": len_parent,
             },
         )
-        db_conn.shuffle_dataset()
+        db_conn.shuffle_dataset(self.mw.active_file)
         self.mw.switch_tab("main")
         self.mw.update_backend_parameters()
         self.mw.update_interface_parameters()

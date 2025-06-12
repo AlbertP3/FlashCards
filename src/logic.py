@@ -157,7 +157,7 @@ class MainWindowLogic:
 
     def load_flashcards(self, fd: FileDescriptor, seed=None):
         try:
-            db_conn.load_dataset(fd, do_shuffle=True, seed=seed)
+            db_conn.afops(fd, seed=seed)
         except FileNotFoundError:
             fcc_queue.put_notification(f"File not found: {fd.filepath}", lvl=LogLvl.exc)
 

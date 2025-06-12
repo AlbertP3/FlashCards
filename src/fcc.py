@@ -29,7 +29,6 @@ class FCC:
             "mct": "Modify Cards Text - edits current side of the card both in current set and in the original file",
             "rcc": "Reverse Current Card - changes sides of currently displayed card and updates the source file",
             "mcr": "Modify Card Result - allows changing pos/neg for the current card",
-            "dcc": "Delete Current Card - deletes card both in current set and in the file",
             "sis": "Show ILN Statistics",
             "efc": "Ebbinghaus Forgetting Curve - Optional *[SIGNATURES] else select active - shows table with revs, days from last rev and efc score and predicted time until the next revision",
             "mcp": "Modify Config Parameter - allows modifications of config file. Syntax: mcp *<sub_dict> <key> <new_value>",
@@ -169,33 +168,6 @@ class FCC:
 
             self.mw.update_score_button()
 
-    def dcc(self, parsed_cmd):
-        """Delete current card - from set and from the file"""
-
-        # check preconditions
-        if self.mw.active_file.tmp or not self.mw.active_file.valid:
-            self.post_fcc("Command available only for Valid Regular files")
-            return
-
-        # Get parameters before deletion
-        current_word = self.mw.get_current_card().iloc[self.mw.side]
-        self.mw.delete_current_card()
-        dataset_ordered = db_conn.load_dataset(self.mw.active_file, do_shuffle=False)
-
-        # modify source file
-        dataset_ordered.drop(
-            dataset_ordered.loc[
-                dataset_ordered[dataset_ordered.columns[self.mw.side]] == current_word
-            ].index,
-            inplace=True,
-        )
-        if self.mw.active_file.kind == db_conn.KINDS.rev:
-            db_conn.save_revision(dataset_ordered)
-            self.post_fcc("Card removed from the set and from the file as well")
-        elif self.mw.active_file.kind in {db_conn.KINDS.lng, db_conn.KINDS.mst}:
-            msg = db_conn.save_language(dataset_ordered, self.mw.active_file)
-            self.post_fcc("Card removed\n" + msg)
-
     def sis(self, parsed_cmd):
         """Show ILN Statistics"""
         self.post_fcc(f"{'File':^34} | New Cards")
@@ -322,17 +294,16 @@ class FCC:
 
     def pcc(self, parsed_cmd):
         """Pull Current Card"""
-        new_data = db_conn.load_dataset(
-            self.mw.active_file, seed=config["pd_random_seed"]
+        db_conn.afops(
+            self.mw.active_file,
+            seed=config["pd_random_seed"],
         )
-        self.mw.active_file.data.iloc[self.mw.current_index, :2] = new_data.iloc[
-            self.mw.current_index, :2
-        ]
         self.mw.display_text(self.mw.get_current_card()[self.mw.side])
 
     def emo(self, parsed_cmd: list):
         """EFC Model Optimizer"""
         from EMO.init import EMOSpawn
+
         EMOSpawn(mw=self.mw)
 
     def err(self, parsed_cmd: list):
@@ -558,7 +529,7 @@ class FCC:
         self.mw.create_session_snapshot()
         config.save()
         self.post_fcc("Dumped session data")
-    
+
     def rmw(self, parsed_cmd: list):
         """Refresh Main Window"""
         self.mw.on_ldpi_change(96)

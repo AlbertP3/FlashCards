@@ -34,6 +34,7 @@ class SfeTab(BaseTab):
         self.mw.add_tab(self.tab, self.id, "Source File Editor")
 
     def init_cross_shortcuts(self):
+        super().init_cross_shortcuts()
         self.mw.add_ks(config["kbsc"]["sfe_search"], self.search_qle.setFocus, self.tab)
         self.mw.add_ks(config["kbsc"]["sfe_add"], self.on_add, self.tab)
         self.mw.add_ks(config["kbsc"]["sfe_save"], self.on_save, self.tab)
@@ -41,7 +42,6 @@ class SfeTab(BaseTab):
         self.mw.add_ks("End", lambda: self.scroll(self.model.rowCount() - 1), self.tab)
         self.mw.add_ks("Delete", self.on_delete, self.tab)
         self.mw.add_ks("F2", self.edit_row, self.tab)
-        self.mw.add_ks(config["kbsc"]["sfe"], self.mw.sfe.open, self.mw)
 
     def open(self):
         self.mw.switch_tab(self.id)
@@ -61,7 +61,7 @@ class SfeTab(BaseTab):
         self.sfe_layout.addLayout(self.search_layout)
         self.sfe_layout.addWidget(self.view)
         self.tab.setLayout(self.sfe_layout)
-        self.scroll(0)
+        self.scroll(self.model.rowCount() - 1)
 
     def exit(self) -> bool:
         if self.search_qle.hasFocus():
@@ -80,7 +80,13 @@ class SfeTab(BaseTab):
         if config["sfe"]["autosave"]:
             self.save_btn.setVisible(False)
             self.reload_btn.setVisible(False)
-
+        self.iln_btn = get_button(
+            self.tab,
+            function=lambda: self.mw.ldt.create_from_iln(
+                db_conn.files[self.model.fh.filepath]
+            ),
+        )
+        self.set_iln_button()
         self.src_cbx = CheckableComboBox(
             self,
             allow_multichoice=False,
@@ -112,6 +118,7 @@ class SfeTab(BaseTab):
         self.search_layout.addWidget(self.del_btn, 10)
         self.search_layout.addWidget(self.save_btn, 10)
         self.search_layout.addWidget(self.reload_btn, 5)
+        self.search_layout.addWidget(self.iln_btn, 10)
 
     def _create_table_view(self):
         self.view = QTableView(self)
@@ -149,39 +156,59 @@ class SfeTab(BaseTab):
         self.model.filter(query=query)
 
     def on_delete(self):
-        cards = [
-            self.model.fh.data_view.iloc[idx.row()].to_dict()
+        idxs = [
+            self.model.fh.data_view.index[idx.row()]
             for idx in self.view.selectionModel().selectedRows()
         ]
-        if cards:
+        if idxs:
             dlg = ConfirmDeleteDialog(
-                data=cards, headers=self.model.fh.headers, parent=self.tab
+                data=[self.model.fh.src_data.iloc[i].to_dict() for i in idxs],
+                headers=self.model.fh.headers,
+                parent=self.mw,
             )
             if dlg.exec_() == QDialog.Accepted:
-                rows = [r["id_card"] for r in cards]
-                self.model.del_rows(rows)
-                self.scroll(min(rows) - 1)
+                self.model.del_rows(idxs)
+                self.scroll(min(idxs) - 1)
+                self.update_iln_button()
 
     def on_add(self):
         dlg = AddCardDialog(fh=self.model.fh, parent=self.mw)
         if dlg.exec_() == QDialog.Accepted:
             self.model.add_row(dlg.values)
             self.scroll(self.model.fh.total_rows - 1)
+            self.update_iln_button()
+
+    def edit_row(self):
+        index = self.view.selectionModel().currentIndex()
+        if index.isValid():
+            self.view.edit(index)
 
     def on_save(self):
         if self.model.fh.is_saved:
             fcc_queue.put_notification("No changes to commit", lvl=LogLvl.warn)
         else:
             self.model.fh.save()
+            log.info(f"Saved {self.model.fh.filepath}")
 
     def on_src_change(self):
         new_src = self.src_cbx.currentDataList()[0]
         if new_src == self.model.fh.filepath:
             return
         self.model.load(new_src)
+        self.set_iln_button()
+
+    def set_iln_button(self):
+        self.iln_btn.setEnabled(self.model.fh.is_iln)
+        self.iln_btn.setVisible(self.model.fh.is_iln)
+        self.update_iln_button()
+
+    def update_iln_button(self):
+        if self.model.fh.is_iln:
+            self.iln_btn.setText(f"+{self.model.fh.iln}")
 
     def on_reload(self):
         self.model.reload()
+        self.update_iln_button()
 
     def scroll(self, index: int):
         self.view.setFocus()
@@ -190,8 +217,7 @@ class SfeTab(BaseTab):
         self.view.selectRow(index.row())
 
     def lookup(self, query: str, col: int) -> str:
-        self.search_qle.setText(query)
-        phrase = self.model.lookup(query, col)
+        phrase = self.model.fh.lookup(query, col)
         return phrase
 
     def open_extra_file(self, fd: FileDescriptor):
@@ -202,12 +228,6 @@ class SfeTab(BaseTab):
 
     def on_file_monitor_update(self):
         return
-
-    def edit_row(self):
-        index = self.view.selectionModel().currentIndex()
-        if index.isValid():
-            idx = self.model.index(index.row(), 0)
-            self.view.edit(idx)
 
     def on_focus_in(self):
         pasted = QApplication.clipboard().text()

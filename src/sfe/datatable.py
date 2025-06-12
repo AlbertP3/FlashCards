@@ -10,7 +10,6 @@ log = logging.getLogger("SFE")
 class DataTableModel(QAbstractTableModel):
     def __init__(self, filepath: str):
         super().__init__()
-        self.highlighted_rows = set()
         self.load(filepath)
 
     def with_reset_model(fn):
@@ -23,7 +22,7 @@ class DataTableModel(QAbstractTableModel):
         return func
 
     def rowCount(self, parent=None):
-        return self.fh.total_rows
+        return self.fh.total_visible_rows
 
     def columnCount(self, parent=None):
         return self.fh.total_columns
@@ -31,8 +30,6 @@ class DataTableModel(QAbstractTableModel):
     def data(self, index: QModelIndex, role=Qt.DisplayRole):
         if role == Qt.CheckStateRole:
             return None
-        elif role == Qt.BackgroundRole and index.row() in self.highlighted_rows:
-            return QColor(config.table_view["new_row_color"])
         try:
             return str(self.fh.data_view.iat[index.row(), index.column()])
         except IndexError:
@@ -52,53 +49,42 @@ class DataTableModel(QAbstractTableModel):
 
     def setData(self, index, value: str, role=Qt.EditRole):
         if role == Qt.EditRole:
-            idx = self.fh.data_view.iat[index.row(), -1]
             col = index.column()
+            row = index.row()
+            idx = self.fh.data_view.index[row]
             if value != self.fh.src_data.iat[idx, col]:
                 self.fh.update_cell(idx, col, value)
-                self.fh.data_view.iat[index.row(), index.column()] = value
+                self.fh.data_view.iat[row, col] = value
                 self.dataChanged.emit(index, index)
                 return True
         return False
 
     @with_reset_model
-    def add_row(self, row: list[str]):
-        self.fh.add_cell(row)
+    def add_row(self, data: list[str]):
+        self.fh.create_row(data)
         if self.fh.query:
             self.fh.filter(self.fh.query)
-        self.set_highlighted_rows()
 
     @with_reset_model
     def del_rows(self, rows: list[int]):
         self.fh.delete_rows(rows)
         if self.fh.query:
             self.fh.filter(self.fh.query)
-        self.set_highlighted_rows()
 
     @with_reset_model
     def filter(self, query: str):
-        self.fh.filter(query)
+        if query:
+            self.fh.filter(query)
+        else:
+            self.fh.remove_filter()
 
     @with_reset_model
     def load(self, filepath: str):
         self.fh = get_filehandler(filepath)
         self.fh.load_data()
-        self.set_highlighted_rows()
-
-    @with_reset_model
-    def lookup(self, query: str, col: int) -> str:
-        self.fh.remove_filter()
-        self.fh.filter(query)
-        return self.fh.lookup(col)
 
     @with_reset_model
     def reload(self):
         self.fh.load_data()
-        self.set_highlighted_rows()
-
-    def set_highlighted_rows(self):
-        try:
-            cached_rows = config["ILN"][self.fh.filepath]
-            self.highlighted_rows = set(range(cached_rows, self.fh.total_rows))
-        except KeyError:
-            pass
+        if self.fh.query:
+            self.fh.filter(self.fh.query)

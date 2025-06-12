@@ -137,7 +137,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 if config.cache["snapshot"]["session"]:
                     self.apply_session_snapshot()
                 else:
-                    db_conn.shuffle_dataset()
+                    db_conn.shuffle_dataset(self.active_file)
                     self.update_backend_parameters()
                     self.update_interface_parameters()
                     log.debug("Started a new session")
@@ -559,11 +559,15 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if sel:
             msg = self.sfe.lookup(query=sel, col=self.side)
             fcc_queue.put_notification(
-                msg, lvl=LogLvl.important, func=lambda: self.switch_tab(self.sfe.id)
+                msg, lvl=LogLvl.important, func=lambda: self.__lookup_open(sel)
             )
             if self.notification_timer:
                 # Immediately show the notification
                 self.notification_timer_func()
+
+    def __lookup_open(self, query: str):
+        self.switch_tab(self.sfe.id)
+        self.sfe.search_qle.setText(query) # triggers on_search
 
     def create_label(self, text) -> QLabel:
         label = QLabel(self)
@@ -650,9 +654,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             fcc_queue.put_notification("Cannot reload an empty file", lvl=LogLvl.warn)
             return
         elif self.active_file.tmp:
-            db_conn.shuffle_dataset()
+            db_conn.shuffle_dataset(self.active_file)
         else:
-            db_conn.load_dataset(self.active_file)
+            db_conn.afops(self.active_file, shuffle=True)
         self.switch_tab(self.id)
         self.update_backend_parameters()
         self.update_interface_parameters()
@@ -734,6 +738,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         elif self.should_create_db_record():
             self.handle_graded_complete()
         else:
+            if self.is_blurred:
+                self.remove_blur()
             if self.is_synopsis:
                 self.handle_final_actions()
             else:
@@ -897,7 +903,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     # region File Update Monitor
     def file_monitor_handler(self, path):
         if path == self.active_file.filepath and not self.active_file.tmp:
-            db_conn.load_dataset(self.active_file, seed=config["pd_random_seed"])
+            db_conn.afops(self.active_file, seed=config["pd_random_seed"])
             if not self.is_synopsis:
                 self.display_text(self.get_current_card().iloc[self.side])
             fcc_queue.put_notification("Active dataset refreshed", lvl=LogLvl.info)

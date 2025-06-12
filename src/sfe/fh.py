@@ -3,9 +3,8 @@ from abc import abstractmethod
 import pandas as pd
 import logging
 from PyQt5.QtCore import pyqtSignal, QObject
-from DBAC import FileDescriptor
+from DBAC import db_conn, FileDescriptor
 from cfg import config
-from DBAC import db_conn
 from utils import fcc_queue, LogLvl
 
 log = logging.getLogger("SFE")
@@ -13,7 +12,6 @@ log = logging.getLogger("SFE")
 
 class FileHandler(QObject):
     mod_signal = pyqtSignal(bool)
-    idx_col = "id_card"
 
     def __init__(self, fd: FileDescriptor):
         super().__init__()
@@ -24,6 +22,11 @@ class FileHandler(QObject):
         self.filepath: str = fd.filepath
         self.__is_saved = True
         self.query: str = ""
+        self.is_iln = bool(config["ILN"].get(self.filepath, False))
+
+    def audit_log(self, op, data, row, col):
+        status = "SAVED" if config["sfe"]["autosave"] else "STAGED"
+        log.info(f"{op} {data} {status} TO {self.filepath} AT [{row},{col}]")
 
     @property
     def is_saved(self) -> bool:
@@ -35,8 +38,19 @@ class FileHandler(QObject):
         self.mod_signal.emit(x)
 
     @property
-    def total_rows(self) -> int:
+    def total_visible_rows(self) -> int:
         return len(self.data_view)
+
+    @property
+    def total_src_rows(self) -> int:
+        return len(self.src_data)
+
+    @property
+    def iln(self) -> int:
+        if self.is_iln:
+            return self.total_src_rows - config["ILN"][self.filepath]
+        else:
+            return 0
 
     @property
     def total_columns(self) -> int:
@@ -62,17 +76,18 @@ class FileHandler(QObject):
     @mod_tracker
     def update_cell(self, row: int, col: int, value: str) -> None:
         self.src_data.iat[row, col] = value
-        log.info(f"Updated cell [{row},{col}] = {value}")
+        self.audit_log("UPDATE", [value], row, col)
 
     @mod_tracker
-    def add_cell(self, value: list[str]) -> None:
-        value.append(len(self.src_data))
+    def create_row(self, value: list[str]) -> None:
         self.src_data.loc[len(self.src_data)] = value
-        log.info(f"Added row: {value}")
+        self.audit_log("ADD", value, len(self.src_data) - 1, ":")
 
     @mod_tracker
     def delete_rows(self, rows: list[int]) -> None:
+        sel_rows = self.src_data.loc[rows]
         self.src_data.drop(rows, inplace=True)
+        self.src_data.reset_index(drop=True, inplace=True)
         try:
             iln = config["ILN"][self.filepath]
             for i in rows:
@@ -80,17 +95,20 @@ class FileHandler(QObject):
                     config["ILN"][self.filepath] -= 1
         except KeyError:
             pass
-        log.info(f"Deleted rows: {rows}")
+        for idx, row in sel_rows.iterrows():
+            self.audit_log("DELETE", row.to_list(), idx, ":")
 
     def is_duplicate(self, card: dict) -> bool:
         return (self.src_data[list(card)] == pd.Series(card)).all(1).any()
 
-    def lookup(self, col: int) -> str:
-        df = self.data_view[
-            self.data_view[self.headers[col]].str.contains(
-                config["sfe"]["lookup_re"], regex=True
-            )
-        ]
+    def lookup(self, query: str, col: int) -> str:
+        mask1 = self.src_data[self.headers[col]].str.contains(
+            query, regex=False, na=False
+        )
+        mask2 = self.src_data.loc[mask1, self.headers[col]].str.contains(
+            config["sfe"]["lookup_re"], regex=True, na=False
+        )
+        df = self.src_data.loc[mask1].loc[mask2]
         if df.empty:
             return ""
         phrase = ", ".join(self.lookup_re.findall(df.iat[0, col]))
@@ -98,7 +116,7 @@ class FileHandler(QObject):
             phrase += " (?)"
         return phrase
 
-    def filter(self, query: str = None) -> None:
+    def filter(self, query: str = "") -> None:
         if config["sfe"]["re"]:
             try:
                 re.compile(query)
@@ -143,10 +161,9 @@ class CSVFileHandler(FileHandler):
                 index_col=False,
             )
             self.headers = list(self.src_data.columns)
-            self.src_data[self.idx_col] = range(len(self.src_data))
             self.data_view = self.src_data
             self.is_saved = True
-            log.debug(f"Loaded {type(self).__name__} for: {self.filepath}")
+            log.info(f"Loaded {type(self).__name__} for: {self.filepath}")
         except Exception as e:
             log.error(e, stack_info=True)
 
@@ -158,7 +175,6 @@ class CSVFileHandler(FileHandler):
             index=False,
         )
         self.is_saved = True
-        log.info(f"Saved {self.filepath}")
 
 
 class VoidFileHandler(FileHandler):
@@ -183,5 +199,7 @@ def get_filehandler(filepath: str) -> FileHandler:
     except Exception as e:
         fh = VoidFileHandler(FileDescriptor(filepath=filepath, ext=".void"))
         log.warning(e, stack_info=True)
-        fcc_queue.put_notification(str(e), lvl=LogLvl.err)
+        fcc_queue.put_notification(
+            f"{type(e).__name__} occurred while loading SFE", lvl=LogLvl.err
+        )
     return fh
