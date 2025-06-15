@@ -57,15 +57,11 @@ class LoadTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
-        if self.mw.efc.cache_valid:
-            with self.mw.loading_ctx("load.load_files_data"):
-                self.load_files_data()
-                self.show_files()
-        else:
+        if not self.mw.efc.cache_valid:
             with self.mw.loading_ctx("load.load_files_data_with_efc"):
                 self.mw.efc.calc_recommendations()
-                self.load_files_data()
-                self.show_files()
+        self.load_files_data()
+        self.show_files()
 
     def show_files(self):
         self.fill_files_list()
@@ -96,7 +92,6 @@ class LoadTab(BaseTab):
 
     @pyqtSlot()
     def load_files_data(self):
-        db_conn.update_fds()
         self._files["lngs"] = db_conn.get_sorted_languages()
         self._files["msts"] = db_conn.get_sorted_mistakes()
         self._files["new_revs"] = {

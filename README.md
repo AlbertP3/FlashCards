@@ -1,8 +1,8 @@
-# FlashCards 1.6.1
+# FlashCards 1.6.2
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.1](#flashcards-161)
+- [FlashCards 1.6.2](#flashcards-162)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -272,7 +272,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | stats        | s     | open Statistics tab                                            |
 | next_efc     | n     | load next recommendation                                       |
 | save         | w     | save current file or create a revision                         |
-| sod          | f     | open SOD tab                                                   |
+| sod          | f     | open SFE tab                                                   |
 | hint         | h     | show a hint for current card                                   |
 | last_seen    | g     | go to the last seen card                                       |
 

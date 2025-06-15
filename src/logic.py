@@ -173,9 +173,10 @@ class MainWindowLogic:
             config["ILN"][self.active_file.parent["filepath"]] = (
                 self.active_file.parent["len_"]
             )
+            self.sfe.check_update_iln()
         self.active_file.signature = db_conn.gen_signature(self.active_file.lng)
         self.active_file.kind = db_conn.KINDS.rev
-        newfp = db_conn.save_revision(
+        newfp = db_conn.create_revision_file(
             self.active_file.data.iloc[: self.cards_seen + 1, :]
         )
         db_conn.create_record(
@@ -265,7 +266,7 @@ class MainWindowLogic:
                 self.should_hide_tips = lambda: False
 
     def save_current_mistakes(self):
-        db_conn.save_mistakes(mistakes_list=self.mistakes_list)
+        db_conn.create_mistakes_file(mistakes_list=self.mistakes_list)
         self.mistakes_saved = True
         self.notify_on_mistakes()
 
@@ -462,4 +463,3 @@ class MainWindowLogic:
                     "Score modified to negative", lvl=LogLvl.important
                 )
             self.update_score_button()
-            self.notification_timer_func()

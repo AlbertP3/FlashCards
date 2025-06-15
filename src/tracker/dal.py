@@ -133,7 +133,7 @@ class DataAccessLayer:
             log.debug(f"Predicted {pred_timespent:.0f} minutes but got {timespent}")
         if pred_lessons != lessons and pred_lessons > 0:
             log.debug(f"Predicted {pred_lessons} lessons but got {lessons}")
-        fcc_queue.put_notification("Added Duo final record", LogLvl.important)
+        # fcc_queue.put_notification("Added Duo final record", LogLvl.important)
         log.info(f"{'Updated' if found else 'Added'} Duo Final: {record}")
         self.upd = time()
 
@@ -176,10 +176,10 @@ class DataAccessLayer:
             writer = DictWriter(f, fieldnames=self.spc.duo_cols, delimiter=self.spc.sep)
             writer.writeheader()
             writer.writerows(rows)
-        fcc_queue.put_notification(
-            f"Added Duo preliminary record #{rows[-1]['lessons']}",
-            LogLvl.important,
-        )
+        # fcc_queue.put_notification(
+        #     f"Added Duo preliminary record #{rows[-1]['lessons']}",
+        #     LogLvl.important,
+        # )
         log.info(f"{'Updated' if found else 'Added'} Duo Preliminary: {rows[-1]}")
         self.upd = time()
 
@@ -193,7 +193,7 @@ class DataAccessLayer:
         }
         with open(self.spc.imm_path, "a") as f:
             DictWriter(f, self.spc.imm_cols, delimiter=self.spc.sep).writerow(record)
-        fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
+        # fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
         log.info(f"Added Immersion: {record}")
         self.upd = time()
 

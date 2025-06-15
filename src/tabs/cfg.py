@@ -4,7 +4,6 @@ import re
 from copy import deepcopy
 from typing import Callable
 from PyQt5.QtWidgets import (
-    QWidget,
     QGridLayout,
     QScrollArea,
     QLineEdit,
@@ -22,7 +21,8 @@ from utils import fcc_queue, LogLvl
 from cfg import config, validate
 from DBAC import db_conn
 from tabs.base import BaseTab
-from typing import TYPE_CHECKING
+from data_types import translate, sfe_hint_formats
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from gui import MainWindowGUI
@@ -41,7 +41,6 @@ class CfgTab(BaseTab):
         self.mw.add_tab(self.tab, self.id, "Settings")
 
     def open(self):
-        db_conn.update_fds()
         self.fill_config_list()
         self.update_submit_btn()
         self.mw.switch_tab(self.id)
@@ -80,9 +79,7 @@ class CfgTab(BaseTab):
             multi_choice=False,
             text="Card default side",
         )
-        self.natlng_qle = self.cfg_qle(
-            config["native"], text="Native language"
-        )
+        self.natlng_qle = self.cfg_qle(config["native"], text="Native language")
         self.languages_cbx = self.cfg_cbx(
             config["languages"],
             db_conn.get_available_languages(),
@@ -102,6 +99,13 @@ class CfgTab(BaseTab):
         self.pace_card_qle = self.cfg_qle(
             config["pace_card_interval"], text="Card pacing"
         )
+        self.sigenpat_qle_group = {
+            lng: self.cfg_qle(
+                config["sigenpat"].get(lng, ""),
+                text=f"Signature gen pattern: {lng}",
+            )
+            for lng in config["languages"]
+        }
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Mistakes")
@@ -204,6 +208,34 @@ class CfgTab(BaseTab):
         )
         self.init_revh_qle = self.cfg_qle(
             config["init_revs_inth"], text="Initial revision interval"
+        )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Source File Editor")
+        self.sfe_autosave = self.cfg_cbx(
+            config["sfe"]["autosave"],
+            content=["True", "False"],
+            text="Auto save",
+            multi_choice=False,
+        )
+        self.sfe_re = self.cfg_cbx(
+            config["sfe"]["re"],
+            content=["True", "False"],
+            text="Use regex",
+            multi_choice=False,
+        )
+        self.sfe_sep = self.cfg_qle(config["sfe"]["sep"], text="Auto copy separator")
+        self.sfe_hint_autoadd = self.cfg_cbx(
+            config["sfe"]["hint_autoadd"],
+            content=["True", "False"],
+            text="Use hint auto add",
+            multi_choice=False,
+        )
+        self.sfe_hint = self.cfg_cbx(
+            config["sfe"]["hint"],
+            content=list(sfe_hint_formats.keys()),
+            text="Hint",
+            multi_choice=False,
         )
 
         self.opts_layout.add_spacer()
@@ -333,24 +365,6 @@ class CfgTab(BaseTab):
         self.popup_hideani_qle = self.cfg_qle(
             config["popups"]["hide_animation_ms"], text="Popup hide (msec)"
         )
-        self.popup_actint_qle = self.cfg_qle(
-            config["popups"]["active_interval_ms"],
-            text="Popup active interval (msec)",
-        )
-        self.popup_idleint_qle = self.cfg_qle(
-            config["popups"]["idle_interval_ms"],
-            text="Popup idle interval (msec)",
-        )
-
-        self.opts_layout.add_spacer()
-        self.opts_layout.add_label("Signature Generation Patterns")
-        self.sigenpat_qle_group = {
-            lng: self.cfg_qle(
-                config["sigenpat"].get(lng, ""),
-                text=f"Signature gen pattern: {lng}",
-            )
-            for lng in config["languages"]
-        }
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Tracker")
@@ -392,6 +406,16 @@ class CfgTab(BaseTab):
         self.tracker_avg_n = self.cfg_qle(
             config["tracker"]["duo"]["prelim_avg"], text="Duo avg window size"
         )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Keyboard Shortcuts")
+        self.kbsc_qle_group = {
+            k: self.cfg_qle(
+                v,
+                text=translate(group="kbsc", key=k),
+            )
+            for k, v in config["kbsc"].items()
+        }
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Miscellaneous")
@@ -444,6 +468,13 @@ class CfgTab(BaseTab):
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.currentDataList()[0]
+        new_cfg["sfe"]["autosave"] = self.sfe_autosave.currentDataList()[0]
+        new_cfg["sfe"]["re"] = self.sfe_re.currentDataList()[0]
+        new_cfg["sfe"]["sep"] = self.sfe_sep.text()
+        new_cfg["sfe"]["hint_autoadd"] = (
+            self.sfe_hint_autoadd.currentDataList()[0] == "True"
+        )
+        new_cfg["sfe"]["hint"] = self.sfe_hint.currentDataList()[0]
         new_cfg["SOD"]["std_src_lng"] = self.sod_init_lng_cbx.currentDataList()[0]
         new_cfg["SOD"]["files_list"] = self.sod_files_cbx.currentDataList()
         new_cfg["SOD"][
@@ -479,8 +510,6 @@ class CfgTab(BaseTab):
         new_cfg["popups"]["timeout_ms"] = int(self.popup_timeout_qle.text())
         new_cfg["popups"]["show_animation_ms"] = int(self.popup_showani_qle.text())
         new_cfg["popups"]["hide_animation_ms"] = int(self.popup_hideani_qle.text())
-        new_cfg["popups"]["active_interval_ms"] = int(self.popup_actint_qle.text())
-        new_cfg["popups"]["idle_interval_ms"] = int(self.popup_idleint_qle.text())
         new_cfg["popups"]["lvl"] = getattr(
             LogLvl, self.popup_lvl_cbx.currentDataList()[0]
         )
@@ -518,6 +547,8 @@ class CfgTab(BaseTab):
         )
         new_cfg["tracker"]["duo"]["prelim_avg"] = int(self.tracker_avg_n.text())
         new_cfg["open_containing_dir_cmd"] = self.open_folder_cmd_qle.text()
+        for k, v in self.kbsc_qle_group.items():
+            new_cfg["kbsc"][k] = v.text()
 
         if new_cfg["theme"]["name"] != config["theme"]["name"]:
             config["theme"]["name"] = new_cfg["theme"]["name"]
@@ -526,9 +557,17 @@ class CfgTab(BaseTab):
             self.funcs_to_restart.append(self.mw.restart_app)
         elif new_cfg["theme"] != config["theme"]:
             self.funcs_to_restart.append(self.mw.restart_app)
+        elif new_cfg["kbsc"] != config["kbsc"]:
+            self.funcs_to_restart.append(self.mw.restart_app)
 
         if new_cfg["allow_file_monitor"] != config["allow_file_monitor"]:
             self.funcs_to_restart.append(self._modify_file_monitor)
+
+        if new_cfg["popups"]["enabled"] != config["popups"]["enabled"]:
+            self.mw.init_notifications()
+
+        if new_cfg["sfe"]["hint"] != config["sfe"]["hint"]:
+            new_cfg["sfe"]["lookup_re"] = sfe_hint_formats[new_cfg["sfe"]["hint"]]
 
         return new_cfg
 
@@ -594,6 +633,7 @@ class CfgTab(BaseTab):
         qle = QLineEdit()
         qle.setText(str(value))
         qle.setFont(config.qfont_button)
+        qle.setAlignment(Qt.AlignCenter)
         self.opts_layout.add_widget(qle, self.create_label(text))
         return qle
 
@@ -608,7 +648,9 @@ class CfgTab(BaseTab):
             if f.endswith(".css")
         ]
 
-    def config_manual_update(self, key: str = None, subdict: str = None):
+    def config_manual_update(
+        self, key: Optional[str] = None, subdict: Optional[str] = None
+    ):
         if subdict == "theme":
             config.load_theme()
             if key in {"console_font_size", "default_suffix"}:
@@ -625,7 +667,5 @@ class CfgTab(BaseTab):
             self.mw.revtimer_show_cpm_timer = config["opt"]["show_cpm_timer"]
             self.mw.set_append_seconds_spent_function()
             self.mw.initiate_pace_timer()
-            self.mw.initiate_notification_timer()
-            self.mw.start_notification_timer()
             self.mw.tips_hide_re = re.compile(config["hide_tips"]["pattern"])
             self.mw.set_should_hide_tips()

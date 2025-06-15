@@ -46,3 +46,47 @@ class CreateFileDialogData:
     lng: str
     tgt_lng_id: str
     src_lng_id: str
+
+sfe_hint_formats = {
+    " ()": r"(?<=\\()[^),]+(?=[),])",
+    " <>": r"(?<=\\<)[^),]+(?=[>,])",
+    " []": r"(?<=\\[)[^),]+(?=[],])",
+    " {}": r"(?<=\\{)[^),]+(?=[},])",
+}
+
+_T = {
+    "kbsc": {
+        "mod": "Mod Key",
+        "next": "Next",
+        "prev": "Prev",
+        "negative": "Negative",
+        "reverse": "Reverse",
+        "del_cur_card": "Delete card",
+        "load_again": "Load Again",
+        "tracker": "Tracker",
+        "mcr": "Modify card result",
+        "config": "Settings",
+        "fcc": "Console",
+        "efc": "EFC",
+        "next_efc": "Next EFC",
+        "load": "Load",
+        "mistakes": "Mistakes",
+        "stats": "Statistics",
+        "save": "Save",
+        "sod": "Dictionary (CLI)",
+        "hint": "Show hint",
+        "last_seen": "Go to last seen",
+        "logs": "Logs",
+        "sfe": "Source File Editor",
+        "sfe_search": "Source File Editor: search",
+        "sfe_add": "Source File Editor: add card",
+        "sfe_save": "Source File Editor: save",
+    },
+}
+
+
+def translate(group: str, key: str) -> str:
+    try:
+        return _T[group][key]
+    except KeyError:
+        return key

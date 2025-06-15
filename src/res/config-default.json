@@ -1,5 +1,5 @@
 {
-    "version": "1.6.1",
+    "version": "1.6.2",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -125,7 +125,6 @@
     },
     "sfe": {
         "last_file": "",
-        "debounce": 1,
         "autosave": true,
         "re": true,
         "sep": " | ",
@@ -214,8 +213,6 @@
         "timeout_ms": 3000,
         "show_animation_ms": 100,
         "hide_animation_ms": 100,
-        "active_interval_ms": 1000,
-        "idle_interval_ms": 5000,
         "lvl": 1,
         "triggers": {
             "unreviewed_mistakes_percent": 0.4

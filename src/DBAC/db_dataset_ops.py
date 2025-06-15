@@ -65,7 +65,7 @@ class DbDatasetOps:
         ):
             log.warning(f"There are {len(d)} FileDescriptors with data: {d}")
 
-    def make_filepath(self, lng: str, kind: str, filename: str = "") -> os.PathLike:
+    def make_filepath(self, lng: str, kind: str, filename: str = "") -> str:
         """Template for creating Paths"""
         return os.path.join(self.DATA_PATH, lng, kind, filename)
 
@@ -86,7 +86,7 @@ class DbDatasetOps:
         signature = f"REV_{language}{saving_date}"
         return signature
 
-    def save_revision(self, dataset: pd.DataFrame) -> str:
+    def create_revision_file(self, dataset: pd.DataFrame) -> str:
         """Creates a new file for the Revision. Returns a new filepath"""
         try:
             fp = self.make_filepath(
@@ -106,25 +106,7 @@ class DbDatasetOps:
             )
             log.error(e, exc_info=True)
 
-    def save_language(self, dataset: pd.DataFrame, fd: FileDescriptor) -> str:
-        """Dump dataset to the Language/Mistakes file. Returns operation status"""
-        try:
-            if fd.ext in [".csv", ".txt"]:
-                dataset.to_csv(fd.filepath, index=False, mode="w", header=True, sep=";")
-                opstatus = f"Saved content to {fd.filepath}"
-            elif fd.ext in [".xlsx", ".xlsm"]:
-                dataset.to_excel(fd.filepath, sheet_name=fd.lng, index=False)
-                opstatus = f"Saved content to {fd.filepath}"
-            else:
-                opstatus = f"Unsupported Extension: {fd.ext}"
-        except FileNotFoundError as e:
-            opstatus = f"File {fd.filepath} Not Found"
-        except Exception as e:
-            opstatus = f"Exception while creating File: {e}"
-            log.error(e, exc_info=True)
-        return opstatus
-
-    def save_mistakes(self, mistakes_list: list):
+    def create_mistakes_file(self, mistakes_list: list):
         """Dump, partition and rotate dataset to the Mistakes files"""
         name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
         mfd = FileDescriptor(
@@ -373,7 +355,7 @@ class DbDatasetOps:
 
     def update_fds(self) -> None:
         """Finds files matching active Languages"""
-        self.files: dict[os.PathLike, FileDescriptor] = dict()
+        self.files: dict[str, FileDescriptor] = dict()
         for lng in config["languages"]:
             self.__update_files(lng, self.REV_DIR, kind=self.KINDS.rev)
             self.__update_files(lng, self.LNG_DIR, kind=self.KINDS.lng)
@@ -494,5 +476,5 @@ class DbDatasetOps:
             out = {os.path.splitext(f)[0] for f in out}
         return out
 
-    def get_available_languages(self, ignore: set = {"arch"}) -> set:
+    def get_available_languages(self, ignore: set = {"arch"}) -> set[str]:
         return {lng for lng in os.listdir(self.DATA_PATH) if lng not in ignore}

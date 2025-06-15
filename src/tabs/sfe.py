@@ -175,7 +175,7 @@ class SfeTab(BaseTab):
         dlg = AddCardDialog(fh=self.model.fh, parent=self.mw)
         if dlg.exec_() == QDialog.Accepted:
             self.model.add_row(dlg.values)
-            self.scroll(self.model.fh.total_rows - 1)
+            self.scroll(self.model.fh.total_visible_rows - 1)
             self.update_iln_button()
 
     def edit_row(self):
@@ -205,6 +205,10 @@ class SfeTab(BaseTab):
     def update_iln_button(self):
         if self.model.fh.is_iln:
             self.iln_btn.setText(f"+{self.model.fh.iln}")
+
+    def check_update_iln(self):
+        self.model.fh.is_iln = self.model.fh.filepath in config["ILN"].keys()
+        self.set_iln_button()
 
     def on_reload(self):
         self.model.reload()

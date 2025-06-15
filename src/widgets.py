@@ -21,7 +21,6 @@ from PyQt5.QtCore import (
     Qt,
     QPropertyAnimation,
     QTimer,
-    pyqtSignal,
     QEvent,
 )
 from PyQt5.QtGui import (
@@ -32,14 +31,14 @@ from PyQt5.QtGui import (
     QKeySequence,
 )
 from collections import OrderedDict
-from typing import Callable
+from typing import Callable, Optional
 from utils import fcc_queue, LogLvl, is_valid_filename
 from data_types import CreateFileDialogData
 from DBAC import db_conn
 from cfg import config
 
 
-def get_button(parent=None, text="", function=None, tooltip: str = None) -> QPushButton:
+def get_button(parent=None, text="", function=None, tooltip: str = "") -> QPushButton:
     button = QPushButton(parent)
     button.setFont(config.qfont_button)
     button.setText(text)
@@ -265,7 +264,6 @@ class ScrollableOptionsWidget(QWidget):
 
 
 class NotificationPopup(QWidget):
-    clicked = pyqtSignal()
 
     def __init__(self, parent: QWidget = None):
         super(NotificationPopup, self).__init__(parent)
@@ -285,6 +283,9 @@ class NotificationPopup(QWidget):
         self.__configure_animations()
         self.__func = lambda: None
         self.is_visible = False
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.hide_notification)
 
     def __configure_animations(self):
         self.enter_animation = QPropertyAnimation(self, b"windowOpacity")
@@ -295,12 +296,12 @@ class NotificationPopup(QWidget):
         self.exit_animation.setDuration(config["popups"]["hide_animation_ms"])
         self.exit_animation.setStartValue(1)
         self.exit_animation.setEndValue(0.8)
+        self.exit_animation.finished.connect(self.close_notification)
 
     def show_notification(
         self,
         message: str,
-        func: Callable = None,
-        persist: bool = False,
+        func: Optional[Callable] = None,
         *args,
         **kwargs,
     ):
@@ -314,10 +315,7 @@ class NotificationPopup(QWidget):
         self.show()
         self.update_position()
         self.enter_animation.start()
-        self.timer = QTimer()
-        self.timer.setSingleShot(True)
-        if not persist:
-            self.timer.timeout.connect(self.hide_notification)
+        if QApplication.activeWindow():
             self.timer.start(config["popups"]["timeout_ms"])
         self.is_visible = True
 
@@ -327,25 +325,16 @@ class NotificationPopup(QWidget):
         self.move(x, pargeo.y())
 
     def hide_notification(self):
-        """
-        Run animation before closing the popup.
-        Keep notification when window is not active
-        """
-        if QApplication.activeWindow():
-            self.exit_animation.start()
-            self.exit_animation.finished.connect(self.close_notification)
-        else:
-            if self.timer.isActive():
-                self.timer.stop()
-            self.timer.start(config["popups"]["timeout_ms"])
+        self.exit_animation.start()
 
     def close_notification(self):
-        """Immediately hide the popup"""
         self.exit_animation.stop()
         self.enter_animation.stop()
         self.close()
         self.timer.stop()
         self.is_visible = False
+        if fcc_queue.unacked_notifications:
+            fcc_queue.msg_signal.emit()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -519,6 +508,7 @@ class CreateFileDialog(QDialog):
     def get_data(self) -> CreateFileDialogData:
         return CreateFileDialogData(
             filename=self.filename_qle.text().strip(),
+            lng=self.lng_qle.text().strip(),
             src_lng_id=self.src_lng_qle.text().strip(),
             tgt_lng_id=self.tgt_lng_qle.text().strip(),
         )
@@ -544,7 +534,7 @@ class FieldQLE(QLineEdit):
 
 
 class AddCardDialog(QDialog):
-    def __init__(self, fh, parent: QWidget = None):
+    def __init__(self, fh, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.fh = fh
         self.fli = 0
@@ -640,7 +630,7 @@ class AddCardDialog(QDialog):
 
 
 class ConfirmDeleteDialog(QDialog):
-    def __init__(self, data: list[dict], headers: tuple, parent=None):
+    def __init__(self, data: list[dict], headers: list, parent: QWidget = None):
         super().__init__(parent)
         self.setWindowTitle("Confirm Card Deletion")
         self.setFont(config.qfont_button)

@@ -89,8 +89,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.build_interface()
         self.initiate_timer()
         self.initiate_pace_timer()
-        self.initiate_notification_timer()
-        self.start_notification_timer()
+        self.init_notifications()
         self.q_app.installEventFilter(self)
         self.show()
         QTimer.singleShot(0, self.post_init)
@@ -561,9 +560,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             fcc_queue.put_notification(
                 msg, lvl=LogLvl.important, func=lambda: self.__lookup_open(sel)
             )
-            if self.notification_timer:
-                # Immediately show the notification
-                self.notification_timer_func()
 
     def __lookup_open(self, query: str):
         self.switch_tab(self.sfe.id)
@@ -1078,50 +1074,26 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     # endregion
 
-    # region Notification Timer
-    def initiate_notification_timer(self):
+    # region Notifications
+    def init_notifications(self):
         if config["popups"]["enabled"]:
-            self.notification_timer = QTimer()
-            self.start_notification_timer = self._start_notification_timer
-            self.resume_notification_timer = self._resume_notification_timer
-            self.stop_notification_timer = self._stop_notification_timer
-            self.set_interval_notification_timer = self._set_interval_notification_timer
+            fcc_queue.msg_signal.connect(self.show_notification)
         else:
-            self.notification_timer = None
-            self.start_notification_timer = lambda: None
-            self.resume_notification_timer = lambda: None
-            self.stop_notification_timer = lambda: None
-            self.set_interval_notification_timer = lambda i: None
+            try:
+                fcc_queue.msg_signal.disconnect(self.show_notification)
+            except TypeError:
+                pass
 
-    def _start_notification_timer(self):
-        self.notification_timer = QTimer()
-        self.notification_timer.timeout.connect(self.notification_timer_func)
-        self.notification_timer.start(config["popups"]["active_interval_ms"])
-
-    def notification_timer_func(self):
+    def show_notification(self):
         try:
-            if fcc_queue.unacked_notifications and not self.popup.is_visible:
+            if not self.popup.is_visible:
                 record = fcc_queue.pull_notification()
-                self.popup.show_notification(
-                    message=record.message, func=record.func, persist=record.persist
-                )
                 fcc_queue.unacked_notifications -= 1
+                self.popup.show_notification(
+                    message=record.message, func=record.func
+                )
         except Exception as e:
             log.error(e, exc_info=True)
-            fcc_queue.put_notification(
-                "Exception raised while pulling a notification. See log file for more details.",
-                lvl=LogLvl.exc,
-            )
-
-    def _resume_notification_timer(self):
-        self.notification_timer.start()
-
-    def _stop_notification_timer(self):
-        self.notification_timer.stop()
-
-    def _set_interval_notification_timer(self, i: int):
-        self.notification_timer.setInterval(i)
-
     # endregion
 
     def eventFilter(self, source, event):
@@ -1130,17 +1102,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 self.__last_focus_out_timer_state = self.TIMER_RUNNING_FLAG
                 self.stop_timer()
                 self.stop_pace_timer()
-                self.set_interval_notification_timer(
-                    config["popups"]["idle_interval_ms"]
-                )
                 self.__allow_resize = False
             elif event.type() == QEvent.FocusIn:
                 if not self.is_synopsis and self.__last_focus_out_timer_state:
                     self.resume_timer()
                     self.resume_pace_timer()
-                self.set_interval_notification_timer(
-                    config["popups"]["active_interval_ms"]
-                )
                 self.__allow_resize = True
                 self.get_tab(self.active_tab_id).focus_in()
         return super(MainWindowGUI, self).eventFilter(source, event)

@@ -130,10 +130,6 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "efc.cache_expiry_hours": cfg["efc"]["cache_expiry_hours"],
         "cache_history_size": cfg["cache_history_size"],
         "timeout_ms": cfg["popups"]["timeout_ms"],
-        "show_animation_ms": cfg["popups"]["show_animation_ms"],
-        "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
-        "active_interval_ms": cfg["popups"]["active_interval_ms"],
-        "idle_interval_ms": cfg["popups"]["idle_interval_ms"],
         "font_textbox_size": cfg["theme"]["font_textbox_size"],
         "font_textbox_min_size": cfg["theme"]["font_textbox_min_size"],
         "console_font_size": cfg["theme"]["console_font_size"],
@@ -145,6 +141,8 @@ def __validate(cfg: dict) -> tuple[bool, set]:
         "init_revs_cnt": cfg["init_revs_cnt"],
         "min_eph_cards": cfg["min_eph_cards"],
         "spacing": cfg["theme"]["spacing"],
+        "show_animation_ms": cfg["popups"]["show_animation_ms"],
+        "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
     }
     numeric_gte_0 = {
         "init_revs_inth": cfg["init_revs_inth"],

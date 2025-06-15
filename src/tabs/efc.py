@@ -96,8 +96,7 @@ class EFCTab(BaseTab):
         if not self.cache_valid:
             with self.mw.loading_ctx("efc.calc_recommendations"):
                 self.calc_recommendations()
-                self.show_recommendations()
-        elif self.is_view_outdated:
+        if self.is_view_outdated:
             self.show_recommendations()
         self.recoms_qlist.setFocus()
 
@@ -232,9 +231,7 @@ class EFCTab(BaseTab):
 
     def get_recommendations(self) -> list[dict]:
         """Returns EFC recommendations. Utilizes cache"""
-        if self.cache_valid:
-            log.debug("Used cached EFC recommendations")
-        else:
+        if not self.cache_valid:
             self.calc_recommendations()
         return self._recoms
 

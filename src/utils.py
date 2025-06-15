@@ -9,7 +9,7 @@ import re
 import inspect
 from time import perf_counter
 import logging
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 from dataclasses import dataclass, fields
 from cfg import config
 
@@ -69,7 +69,7 @@ class LogLvl:
         return [field.name for field in fields(LogLvl)]
 
     @staticmethod
-    def get_field_name_by_value(value: int) -> str:
+    def get_field_name_by_value(value: int) -> Optional[str]:
         for field in fields(LogLvl):
             if getattr(LogLvl, field.name) == value:
                 return field.name
@@ -80,19 +80,20 @@ class QueueRecord:
     message: str
     timestamp: datetime
     lvl: int = LogLvl.debug
-    func: Callable = None
-    persist: bool = False
+    func: Optional[Callable] = None
 
 
-class FccQueue:
+class FccQueue(QObject):
     """Collects messages to be displayed in the console"""
+    msg_signal = pyqtSignal()
 
     def __init__(self):
+        super().__init__()
         self.__fcc_queue: deque[QueueRecord] = deque()
         self.__notification_queue: deque[QueueRecord] = deque()
         self.unacked_notifications = 0
 
-    def put_log(self, msg: str, log_func: Callable = None):
+    def put_log(self, msg: str, log_func: Optional[Callable] = None):
         if msg:
             record = QueueRecord(
                 message=msg,
@@ -106,8 +107,7 @@ class FccQueue:
         self,
         msg: str,
         lvl: int = LogLvl.debug,
-        func: Callable = None,
-        persist: bool = False,
+        func: Optional[Callable] = None,
     ):
         if msg and lvl >= config["popups"]["lvl"]:
             record = QueueRecord(
@@ -115,10 +115,10 @@ class FccQueue:
                 timestamp=datetime.now(),
                 lvl=lvl,
                 func=func,
-                persist=persist,
             )
             self.__notification_queue.append(record)
             self.unacked_notifications += 1
+            self.msg_signal.emit()
 
     def pull_log(self) -> QueueRecord:
         return self.__fcc_queue.popleft()
@@ -199,8 +199,8 @@ def format_seconds_to(
     total_seconds: int,
     interval: str,
     rem: int = 2,
-    int_name: str = None,
-    null_format: str = None,
+    int_name: Optional[str] = None,
+    null_format: Optional[str] = None,
     pref_len=0,
     sep=".",
 ) -> str:
@@ -231,7 +231,7 @@ class Placeholder:
     pass
 
 
-def flatten_dict(d: dict, root: str = "BASE", lim_chars: int = None) -> list:
+def flatten_dict(d: dict, root: str = "BASE", lim_chars: Optional[int] = None) -> list:
     res = list([root, k, str(v)] for k, v in d.items() if not isinstance(v, dict))
     for k, v in d.items():
         if isinstance(v, dict):
@@ -309,7 +309,7 @@ class Caliper:
         self,
         data: list[list[str]],
         pixlim: Union[float, list],
-        headers: list = None,
+        headers: Optional[list] = None,
         align: Union[str, list] = "left",
         sep: str = " | ",
         keep_last_border: bool = True,
@@ -410,8 +410,8 @@ class TaskRunner(QRunnable):
         self,
         functions: list[Callable],
         op_id: str,
-        started: Callable = None,
-        finished: list[Callable] = None,
+        started: Optional[Callable] = None,
+        finished: Optional[list[Callable]] = None,
     ):
         super().__init__()
         self.op_id = op_id
@@ -428,7 +428,7 @@ class TaskRunner(QRunnable):
         if finished:
             finished.append(self.__record_time)
         else:
-            finished = (self.__record_time,)
+            finished = [self.__record_time]
         self.signals.finished.connect(
             lambda: [f() for f in finished], Qt.QueuedConnection
         )
