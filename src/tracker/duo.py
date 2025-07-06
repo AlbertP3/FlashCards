@@ -1,5 +1,6 @@
 import logging
 from datetime import date
+from time import time
 from PyQt5.QtWidgets import (
     QGridLayout,
     QVBoxLayout,
@@ -68,7 +69,6 @@ class DuoLayout(QWidget):
                 self.lessons_today = data[date.today()].duo.lessons
             except KeyError:
                 self.lessons_today = 0
-            self.submit_btn.setToolTip(f"Lessons today: {self.lessons_today}")
 
             self.cells = [
                 [
@@ -87,7 +87,6 @@ class DuoLayout(QWidget):
             self.fill_charts()
             self.upd = dal.upd
             self.upd_date = date.today()
-            log.debug("Refreshed Duo Tab")
 
     def create_form(self):
         self.form_layout = QFormLayout()
@@ -113,7 +112,7 @@ class DuoLayout(QWidget):
         self.final_cbx = self.get_cbx("False", ["False", "True"], multi_choice=False)
         self.form_layout.addRow("Final", self.final_cbx)
 
-        self.submit_btn = get_button(self, "Add", self.on_submit)
+        self.submit_btn = get_button(self, "Add", self.on_submit, dtip=self.get_tooltip)
         self.form_layout.addRow(self.submit_btn)
 
         for i in range(self.form_layout.rowCount()):
@@ -184,6 +183,27 @@ class DuoLayout(QWidget):
         self.offset_qle.clear()
         self.upd = -1
         self.refresh()
+
+    def get_tooltip(self) -> str:
+        elapsed_sec = int(time() - dal.monitor[dal.spc.duo_path])
+        if elapsed_sec < 3600:
+            fmt, rem, sep = "minute", 0, ":"
+        elif elapsed_sec < 86400:
+            fmt, rem, sep = "hour", 2, ":"
+        else:
+            fmt, rem, sep = "day", 0, "."
+        last = format_seconds_to(
+            elapsed_sec,
+            interval=fmt,
+            rem=rem,
+            sep=sep,
+            interval_name=fmt,
+        )
+        if self.upd_date < date.today():
+            lessons_today = 0
+        else:
+            lessons_today = self.lessons_today
+        return "Lessons today: {}\nLast: {} ago".format(str(lessons_today), last)
 
     def create_charts(self):
         self.chart_layout = QVBoxLayout()

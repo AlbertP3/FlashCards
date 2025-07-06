@@ -18,7 +18,7 @@ class DbEFCQueries:
     def add_efc_metrics(self, fill_timespent=False):
         """expands db with efc metrics"""
         self.db["TIMESTAMP"] = pd.to_datetime(
-            self.db["TIMESTAMP"], format="%m/%d/%Y, %H:%M:%S"
+            self.db["TIMESTAMP"], format=self.TSFORMAT
         )
 
         sig = {k: list() for k in self.db["SIGNATURE"].unique()}
@@ -101,7 +101,7 @@ class DbEFCQueries:
     def gather_efc_record_data(self) -> dict:
         # Create a dictionary, mapping signatures to tuples of all matching revs
         self.db["TIMESTAMP"] = pd.to_datetime(
-            self.db["TIMESTAMP"], format="%m/%d/%Y, %H:%M:%S"
+            self.db["TIMESTAMP"], format=self.TSFORMAT
         )
         sig = {k: list() for k in self.db["SIGNATURE"].unique()}
         for i, r in self.db.iterrows():

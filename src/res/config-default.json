@@ -1,5 +1,5 @@
 {
-    "version": "1.6.2",
+    "version": "1.6.3",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,

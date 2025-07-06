@@ -112,8 +112,8 @@ class FileHandler(QObject):
         if df.empty:
             return ""
         phrase = ", ".join(self.lookup_re.findall(df.iat[0, col]))
-        if len(df) > 1:
-            phrase += " (?)"
+        # if len(df) > 1:
+        #     phrase += " (?)"
         return phrase
 
     def filter(self, query: str = "") -> None:

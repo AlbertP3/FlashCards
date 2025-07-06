@@ -3,16 +3,23 @@ import subprocess
 import logging
 import pandas as pd
 from PyQt5.QtWidgets import (
-    QWidget,
     QGridLayout,
     QListWidget,
     QAction,
     QMenu,
+    QDialog,
 )
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QCursor
 from utils import fcc_queue, LogLvl, find_case_insensitive
-from widgets import CFIDialog, RenameDialog, CreateFileDialog, get_button, get_scrollbar
+from widgets import (
+    CFIDialog,
+    RenameDialog,
+    CreateFileDialog,
+    ConfirmDeleteFileDialog,
+    get_button,
+    get_scrollbar,
+)
 from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
@@ -32,6 +39,7 @@ class LoadTab(BaseTab):
         self.mw = mw
         self.cur_load_index = 0
         self._files = dict()
+        self.is_view_outdated = True
         self.build()
         self.mw.add_tab(self.tab, self.id, "Load")
 
@@ -60,13 +68,15 @@ class LoadTab(BaseTab):
         if not self.mw.efc.cache_valid:
             with self.mw.loading_ctx("load.load_files_data_with_efc"):
                 self.mw.efc.calc_recommendations()
-        self.load_files_data()
-        self.show_files()
+                self.is_view_outdated = True
+        if self.is_view_outdated:
+            self.load_files_data()
+            self.show_files()
+        self.scroll_to_active()
 
     def show_files(self):
         self.fill_files_list()
-        if self.files_count:
-            self.scroll_to_active()
+        self.is_view_outdated = False
 
     def fill_files_list(self):
         self.load_map = dict()  # index: filepath
@@ -145,7 +155,7 @@ class LoadTab(BaseTab):
         create_iln.triggered.connect(self.ctx_ILN)
         self._files_qlist_ctx.addAction(create_iln)
 
-        reveal = QAction("Reveal")
+        reveal = QAction("Edit")
         reveal.triggered.connect(self.ctx_reveal_file)
         self._files_qlist_ctx.addAction(reveal)
 
@@ -156,6 +166,10 @@ class LoadTab(BaseTab):
         rename = QAction("Rename")
         rename.triggered.connect(self.ctx_rename)
         self._files_qlist_ctx.addAction(rename)
+
+        delete = QAction("Delete")
+        delete.triggered.connect(self.ctx_delete_file)
+        self._files_qlist_ctx.addAction(delete)
 
         self._files_qlist_ctx.exec_(QCursor.pos())
 
@@ -188,6 +202,15 @@ class LoadTab(BaseTab):
                 f"Error opening directory {dir}", LogLvl.err, func=self.mw.log.open
             )
 
+    def ctx_delete_file(self):
+        fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
+        dialog = ConfirmDeleteFileDialog(fd, self.mw)
+        if dialog.exec_() == QDialog.Accepted:
+            os.remove(fd.filepath)
+            log.info(f"Removed file: {fd.filepath}")
+            self.mw.update_files_lists()
+            self.open()
+
     def ctx_ILN(self):
         fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
         self.create_from_iln(fd)
@@ -215,7 +238,7 @@ class LoadTab(BaseTab):
                 data = data.iloc[start + cnt : start, :]
         else:
             if start >= 0:
-                len_parent = data.shape[0] - start + cnt
+                len_parent = start + cnt
                 data = data.iloc[start : start + cnt, :]
             else:
                 len_parent = data.shape[0] + start + cnt
@@ -258,7 +281,7 @@ class LoadTab(BaseTab):
 
             self.mw.file_monitor_del_protected_path(fd.filepath)
             os.rename(fd.filepath, new_filepath)
-            db_conn.update_fds()
+            self.mw.update_files_lists()
 
             if fd.kind in db_conn.GRADED:
                 db_conn.rename_signature(fd.signature, new_filename)
@@ -270,7 +293,7 @@ class LoadTab(BaseTab):
                 config["ILN"][new_filepath] = iln
                 del config["ILN"][fd.filepath]
 
-            self.show_files()
+            self.open()
 
             if fd.filepath == config["sfe"]["last_file"]:
                 config["sfe"]["last_file"] = new_filepath
@@ -347,7 +370,5 @@ class LoadTab(BaseTab):
             fcc_queue.put_notification(
                 f"Created new Language file: {filepath}", lvl=LogLvl.important
             )
-
-            self.load_files_data()
-            self.show_files()
-            self.set_load_list_index(0)
+            self.mw.update_files_lists()
+            self.open()

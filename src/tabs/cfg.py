@@ -17,11 +17,11 @@ from widgets import (
     get_scrollbar,
     get_button,
 )
-from utils import fcc_queue, LogLvl
-from cfg import config, validate
+from utils import fcc_queue, LogLvl, is_valid_filename
+from cfg import config
 from DBAC import db_conn
 from tabs.base import BaseTab
-from data_types import translate, sfe_hint_formats
+from data_types import t, sfe_hint_formats
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -99,13 +99,6 @@ class CfgTab(BaseTab):
         self.pace_card_qle = self.cfg_qle(
             config["pace_card_interval"], text="Card pacing"
         )
-        self.sigenpat_qle_group = {
-            lng: self.cfg_qle(
-                config["sigenpat"].get(lng, ""),
-                text=f"Signature gen pattern: {lng}",
-            )
-            for lng in config["languages"]
-        }
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Mistakes")
@@ -132,6 +125,16 @@ class CfgTab(BaseTab):
             config["min_eph_cards"],
             text="Ephemeral min cards",
         )
+
+        self.opts_layout.add_spacer()
+        self.opts_layout.add_label("Filename Generation Patterns")
+        self.sigenpat_qle_group = {
+            fd.filepath: self.cfg_qle(
+                config["sigenpat"].get(fd.filepath, ""),
+                text=fd.signature,
+            )
+            for fd in db_conn.files.values() if fd.kind == db_conn.KINDS.lng
+        }
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Theme")
@@ -412,7 +415,7 @@ class CfgTab(BaseTab):
         self.kbsc_qle_group = {
             k: self.cfg_qle(
                 v,
-                text=translate(group="kbsc", key=k),
+                text=t(group="kbsc", key=k),
             )
             for k, v in config["kbsc"].items()
         }
@@ -468,8 +471,8 @@ class CfgTab(BaseTab):
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.currentDataList()[0]
-        new_cfg["sfe"]["autosave"] = self.sfe_autosave.currentDataList()[0]
-        new_cfg["sfe"]["re"] = self.sfe_re.currentDataList()[0]
+        new_cfg["sfe"]["autosave"] = self.sfe_autosave.currentDataList()[0] == "True"
+        new_cfg["sfe"]["re"] = self.sfe_re.currentDataList()[0] == "True"
         new_cfg["sfe"]["sep"] = self.sfe_sep.text()
         new_cfg["sfe"]["hint_autoadd"] = (
             self.sfe_hint_autoadd.currentDataList()[0] == "True"
@@ -518,7 +521,8 @@ class CfgTab(BaseTab):
         )
         new_cfg["popups"]["allowed"] = self.popup_allowed_cbx.currentDataDict()
         for k, v in self.sigenpat_qle_group.items():
-            new_cfg["sigenpat"][k] = v.text()
+            if pat := v.text().strip():
+                new_cfg["sigenpat"][k] = pat
         new_cfg["cache_history_size"] = int(self.cache_hist_size_qle.text())
         new_cfg["min_eph_cards"] = int(self.min_eph_cards_qle.text())
         new_cfg["theme"]["font"] = self.font_qle.text()
@@ -568,13 +572,13 @@ class CfgTab(BaseTab):
 
         if new_cfg["sfe"]["hint"] != config["sfe"]["hint"]:
             new_cfg["sfe"]["lookup_re"] = sfe_hint_formats[new_cfg["sfe"]["hint"]]
-
+        
         return new_cfg
 
     def commit_config_update(self):
         try:
             modified_config = self.collect_settings()
-            is_valid, errs = validate(modified_config)
+            is_valid, errs = self.validate(modified_config)
         except Exception as e:
             log.error(e, exc_info=True)
             is_valid, errs = False, {f"{type(e).__name__}: {e}"}
@@ -661,7 +665,7 @@ class CfgTab(BaseTab):
                 self.mw.sod.console.setFont(config.qfont_console)
         elif not (key or subdict):
             self.mw.efc._efc_last_calc_time = 0
-            db_conn.update_fds()
+            self.mw.update_files_lists()
             self.mw.update_default_side()
             self.mw.revtimer_hide_timer = config["opt"]["hide_timer"]
             self.mw.revtimer_show_cpm_timer = config["opt"]["show_cpm_timer"]
@@ -669,3 +673,96 @@ class CfgTab(BaseTab):
             self.mw.initiate_pace_timer()
             self.mw.tips_hide_re = re.compile(config["hide_tips"]["pattern"])
             self.mw.set_should_hide_tips()
+
+    def __validate(self, cfg: dict) -> tuple[bool, set]:
+        errs = set()
+        int_gt_0 = {
+            "interval_days": cfg["mst"]["interval_days"],
+            "part_size": cfg["mst"]["part_size"],
+            "part_cnt": cfg["mst"]["part_cnt"],
+            "efc.threshold": cfg["efc"]["threshold"],
+            "efc.cache_expiry_hours": cfg["efc"]["cache_expiry_hours"],
+            "cache_history_size": cfg["cache_history_size"],
+            "timeout_ms": cfg["popups"]["timeout_ms"],
+            "font_textbox_size": cfg["theme"]["font_textbox_size"],
+            "font_textbox_min_size": cfg["theme"]["font_textbox_min_size"],
+            "console_font_size": cfg["theme"]["console_font_size"],
+            "font_button_size": cfg["theme"]["font_button_size"],
+            "prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],
+        }
+        numeric_gt_0 = {}
+        int_gte_0 = {
+            "init_revs_cnt": cfg["init_revs_cnt"],
+            "min_eph_cards": cfg["min_eph_cards"],
+            "spacing": cfg["theme"]["spacing"],
+            "show_animation_ms": cfg["popups"]["show_animation_ms"],
+            "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
+        }
+        numeric_gte_0 = {
+            "init_revs_inth": cfg["init_revs_inth"],
+        }
+        numeric_any = {
+            "days_to_new_rev": cfg["days_to_new_rev"],
+            "pace_card_interval": cfg["pace_card_interval"],
+        }
+        numeric_gt0_lte_1 = {
+            "unreviewed_mistakes_percent": cfg["popups"]["triggers"][
+                "unreviewed_mistakes_percent"
+            ],
+        }
+
+        for k, v in int_gt_0.items():
+            try:
+                if v < 1:
+                    errs.add(f"'{k}' must be greater than 0 but got {v}")
+                elif not isinstance(v, int):
+                    raise TypeError
+            except TypeError:
+                errs.add(f"'{k}' must be an integer but got '{type(v)}'")
+        for k, v in numeric_gt_0.items():
+            try:
+                if v <= 0:
+                    errs.add(f"'{k}' must be greater than 0 but got {v}")
+            except TypeError:
+                errs.add(f"'{k}' must be a numeric but got '{type(v)}'")
+        for k, v in int_gte_0.items():
+            try:
+                if v < 0:
+                    errs.add(f"'{k}' must be >= 0 but got {v}")
+                elif not isinstance(v, int):
+                    raise TypeError
+            except TypeError:
+                errs.add(f"'{k}' must be an integer but got '{type(v)}'")
+        for k, v in numeric_any.items():
+            if not isinstance(v, (int, float, complex)):
+                errs.add(f"'{k}' must be a numeric but got '{type(v)}'")
+        for k, v in numeric_gte_0.items():
+            try:
+                if v < 0:
+                    errs.add(f"'{k}' must be >= 0 but got {v}")
+                elif not isinstance(v, (int, float, complex)):
+                    raise TypeError
+            except TypeError:
+                errs.add(f"'{k}' must be an integer but got '{type(v)}'")
+        for k, v in numeric_gt0_lte_1.items():
+            try:
+                if not 0 < v <= 1:
+                    errs.add(f"'{k}' must be int (0,1> but got {v}")
+                elif not isinstance(v, (int, float, complex)):
+                    raise TypeError
+            except TypeError:
+                errs.add(f"'{k}' must be an integer but got '{type(v)}'")
+        for k, v in cfg["sigenpat"].items():
+            if not is_valid_filename(v):
+                errs.add(f"Invalid filename pattern: {v}")
+        if errs:
+            return False, errs
+        else:
+            return True, set()
+
+
+    def validate(self, cfg: dict) -> tuple[bool, set]:
+        try:
+            return self.__validate(cfg)
+        except Exception as e:
+            return False, {f"{type(e).__name__}: {e}"}

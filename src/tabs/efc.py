@@ -226,7 +226,7 @@ class EFCTab(BaseTab):
             self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"]
             >= time()
         )
-        db_current = self._db_load_time_efc == db_conn.last_load
+        db_current = self._db_load_time_efc == db_conn.last_update
         return db_is_upd and db_current
 
     def get_recommendations(self) -> list[dict]:
@@ -280,7 +280,7 @@ class EFCTab(BaseTab):
                     }
                 )
         self._efc_last_calc_time = time()
-        self._db_load_time_efc = db_conn.last_load
+        self._db_load_time_efc = db_conn.last_update
         db_conn.refresh()
         self._recoms.sort(
             key=lambda x: (

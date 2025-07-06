@@ -1,10 +1,33 @@
-from PyQt5.QtCore import Qt, QAbstractTableModel, QVariant, QModelIndex
-from PyQt5.QtGui import QColor
+from PyQt5.QtCore import Qt, QAbstractTableModel, QVariant, QModelIndex, QEvent
+from PyQt5.QtWidgets import QStyledItemDelegate, QLineEdit
+from PyQt5.QtGui import QCursor
 import logging
 from sfe.fh import get_filehandler
-from cfg import config
 
 log = logging.getLogger("SFE")
+
+
+class DelegatedLineEdit(QLineEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.installEventFilter(self)
+
+    def focusInEvent(self, event):
+        QLineEdit.focusInEvent(self, event)
+        self.deselect()
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Show:
+            global_pos = QCursor.pos()
+            local_pos = self.mapFromGlobal(global_pos)
+            index = self.cursorPositionAt(local_pos)
+            self.setCursorPosition(index)
+        return super().eventFilter(obj, event)
+
+
+class QTableItemDelegate(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        return DelegatedLineEdit(parent)
 
 
 class DataTableModel(QAbstractTableModel):
@@ -73,10 +96,11 @@ class DataTableModel(QAbstractTableModel):
 
     @with_reset_model
     def filter(self, query: str):
-        if query:
-            self.fh.filter(query)
-        else:
-            self.fh.remove_filter()
+        self.fh.filter(query)
+
+    @with_reset_model
+    def remove_filter(self):
+        self.fh.remove_filter()    
 
     @with_reset_model
     def load(self, filepath: str):

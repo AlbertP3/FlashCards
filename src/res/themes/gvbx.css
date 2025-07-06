@@ -59,7 +59,7 @@ QLabel#notification {
     background-color: #3c3836;
     color: #ebdbb2;
     padding: 7px;
-    border: none;
+    border: 1px solid #D79921;   
     border-radius: 2px;
     width: max-content;
     min-width: 450px;

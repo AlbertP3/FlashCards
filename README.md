@@ -1,8 +1,8 @@
-# FlashCards 1.6.2
+# FlashCards 1.6.3
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.2](#flashcards-162)
+- [FlashCards 1.6.3](#flashcards-163)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -211,7 +211,6 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | pcd       | Print Current Dataset - pretty prints all cards in the current dataset                                                                    |
 | cac       | Clear Application Cache - *key^help - runs cache_clear on an optional key                                                                 |
 | ssf       | Show Scanned Files - presents a list of all relevant files                                                                                |
-| clt       | Create Language Tree - creates a directory tree for a new language and an example file                                                    |
 | eph       | Create Ephemeral Mistakes - shows current mistakes as flashcards of type *Ephemeral*                                                      |
 | cre       | Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, stat |
 | cfg       | Config - manage the config file. Arguments: save, load, restart                                                                           |

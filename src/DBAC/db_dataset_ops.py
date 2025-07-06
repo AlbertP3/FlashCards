@@ -32,7 +32,7 @@ class FileDescriptor:
 
 class DbDatasetOps:
     def __init__(self):
-        self.empty_df = pd.DataFrame(data=[["-", "-"]])
+        self.empty_df = pd.DataFrame()
         self.__AF = FileDescriptor(tmp=True, data=self.empty_df)
         self.__nsre = re.compile(r"(\d+)")
 
@@ -44,9 +44,7 @@ class DbDatasetOps:
     def active_file(self, fd: FileDescriptor):
         self.validate_dataset(fd)
         if not fd.valid:
-            fd.data = self.empty_df
-            fd.tmp = True
-            fd.kind = self.KINDS.unk
+            fd.data = pd.DataFrame(data=[["-", "-"]])
         if self.__AF != fd:
             # Clear stored data for previous active file
             self.__AF.data = None
@@ -65,13 +63,45 @@ class DbDatasetOps:
         ):
             log.warning(f"There are {len(d)} FileDescriptors with data: {d}")
 
+    def afops(self, fd: FileDescriptor, shuffle: bool = False, seed: int = None):
+        fd.data = self.get_data(fd)
+        self.active_file = fd
+        if fd.valid and (shuffle or seed):
+            self.shuffle_dataset(fd, seed)
+
+    def validate_dataset(self, fd: FileDescriptor) -> None:
+        if not isinstance(fd.data, pd.DataFrame):
+            fd.valid = False
+            fcc_queue.put_notification(
+                f"Invalid data: expected DataFrame, got {type(fd.data).__name__}",
+                lvl=LogLvl.err,
+            )
+        elif fd.data.empty:
+            fd.valid = False
+            fcc_queue.put_notification(
+                f"Invalid data - dataset is empty", lvl=LogLvl.err
+            )
+        elif fd.data.shape[1] != 2:
+            fd.valid = False
+            fcc_queue.put_notification(
+                f"Invalid data - expected 2 columns but got {fd.data.shape[1]}",
+                lvl=LogLvl.err,
+            )
+        else:
+            fd.valid = True
+
     def make_filepath(self, lng: str, kind: str, filename: str = "") -> str:
         """Template for creating Paths"""
         return os.path.join(self.DATA_PATH, lng, kind, filename)
 
-    def gen_signature(self, language) -> str:
+    def gen_signature(self, fd: FileDescriptor) -> str:
         """Create a globally unique identifier. Uses a custom pattern if available."""
-        if base := config["sigenpat"].get(language):
+        if isinstance(fd.parent, dict):
+            filepath = fd.parent["filepath"]
+        else:
+            filepath = fd.filepath
+
+        if base := config["sigenpat"].get(filepath):
             all_filenames = self.get_all_files(use_basenames=True, excl_ext=True)
             for i in range(1, 1001):
                 tmp = f"{base}{i}"
@@ -82,8 +112,9 @@ class DbDatasetOps:
                     "Failed to generate a signature using the custom pattern",
                     lvl=LogLvl.warn,
                 )
+
         saving_date = datetime.now().strftime("%d%m%Y%H%M%S")
-        signature = f"REV_{language}{saving_date}"
+        signature = f"REV_{fd.lng}{saving_date}"
         return signature
 
     def create_revision_file(self, dataset: pd.DataFrame) -> str:
@@ -97,7 +128,6 @@ class DbDatasetOps:
                 f"Created {self.active_file.signature}", lvl=LogLvl.important
             )
             log.info(f"Created a new file: {fp}")
-            self.update_fds()
             return fp
         except Exception as e:
             fcc_queue.put_notification(
@@ -127,7 +157,6 @@ class DbDatasetOps:
                 data=mistakes_list, columns=self.active_file.data.columns
             )
         self.partition_mistakes_data(buffer)
-        self.update_fds()
         m_cnt = len(mistakes_list)
         config["mst"]["unreviewed"] += m_cnt
         msg = f'{m_cnt} card{"s" if m_cnt>1 else ""} saved to Mistakes'
@@ -201,38 +230,6 @@ class DbDatasetOps:
             "signature": self.active_file.signature,
         }
         log.debug(f"Created a temporary backup file at {self.TMP_BACKUP_PATH}")
-
-    def validate_dataset(self, fd: FileDescriptor) -> bool:
-        if not isinstance(fd.data, pd.DataFrame):
-            fd.valid = False
-            fcc_queue.put_notification(
-                f"Invalid data: expected DataFrame, got {type(fd.data).__name__}",
-                lvl=LogLvl.err,
-            )
-        else:
-            if fd.data.shape[1] == 2:
-                fd.valid = True
-            else:
-                fd.valid = False
-                fcc_queue.put_notification(
-                    f"Invalid data: expected 2 columns, got {fd.data.shape[1]}",
-                    lvl=LogLvl.err,
-                )
-        return fd.valid
-
-    def afops(
-        self,
-        fd: FileDescriptor,
-        shuffle: bool = False,
-        seed: int = None,
-    ):
-        fd.data = self.get_data(fd)
-
-        if fd != self.active_file:
-            self.active_file = fd
-
-        if shuffle or seed:
-            self.shuffle_dataset(fd, seed)
 
     def get_data(self, fd: FileDescriptor) -> pd.DataFrame:
         err_msg = ""

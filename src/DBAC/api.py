@@ -27,7 +27,7 @@ class DbOperator(DBQueries, DbEFCQueries, DbDatasetOps):
         self.__validate_env()
         DbDatasetOps.__init__(self)
         DBQueries.__init__(self)
-        self.refresh()
+        self.load()
         self.update_fds()
 
     def __configure(self):

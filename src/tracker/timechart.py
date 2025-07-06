@@ -26,7 +26,6 @@ class TimeChartCanvas:
             self._generate()
             self.upd = dal.upd
             self.upd_date = date.today()
-            log.debug("Refreshed TimeChart Tab")
 
     def _calculate(self):
         data = dal.get_data()
@@ -36,6 +35,8 @@ class TimeChartCanvas:
         self.timespent_hours = [f"{round(r.total_hours):.0f}" for r in data.values()]
 
     def _generate(self):
+        self.figure.clear()
+
         ax = self.figure.add_subplot()
         ax.bar(
             self.formatted_dates,

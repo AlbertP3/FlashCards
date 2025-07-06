@@ -27,7 +27,6 @@ class ProgressChartCanvas:
             self._generate()
             self.upd = dal.upd
             self.upd_date = date.today()
-            log.debug("Refreshed Progress Tab")
 
     def _calculate(self):
         db_conn.refresh()

@@ -16,13 +16,9 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QToolTip,
 )
-from PyQt5.QtCore import (
-    Qt,
-    QPropertyAnimation,
-    QTimer,
-    QEvent,
-)
+from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer, QEvent, QPoint
 from PyQt5.QtGui import (
     QPalette,
     QFontMetrics,
@@ -34,17 +30,34 @@ from collections import OrderedDict
 from typing import Callable, Optional
 from utils import fcc_queue, LogLvl, is_valid_filename
 from data_types import CreateFileDialogData
-from DBAC import db_conn
+from DBAC import db_conn, FileDescriptor
 from cfg import config
 
 
-def get_button(parent=None, text="", function=None, tooltip: str = "") -> QPushButton:
+def get_button(
+    parent=None,
+    text="",
+    function=None,
+    tooltip: str = "",
+    dtip: Callable = None,
+) -> QPushButton:
     button = QPushButton(parent)
     button.setFont(config.qfont_button)
     button.setText(text)
     button.setFocusPolicy(Qt.NoFocus)
-    button.setToolTip(tooltip)
-    if function is not None:
+    if tooltip:
+        button.setToolTip(tooltip)
+    if dtip:
+
+        def show_dynamic_tooltip(event):
+            QToolTip.showText(
+                button.mapToGlobal(QPoint(0, button.height())),
+                dtip(),
+                button,
+            )
+
+        button.enterEvent = show_dynamic_tooltip
+    if function:
         button.clicked.connect(function)
         button.setCursor(Qt.PointingHandCursor)
     return button
@@ -629,7 +642,7 @@ class AddCardDialog(QDialog):
         return card
 
 
-class ConfirmDeleteDialog(QDialog):
+class ConfirmDeleteCardDialog(QDialog):
     def __init__(self, data: list[dict], headers: list, parent: QWidget = None):
         super().__init__(parent)
         self.setWindowTitle("Confirm Card Deletion")
@@ -651,6 +664,39 @@ class ConfirmDeleteDialog(QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.update_pos()
+
+    def update_pos(self):
+        if self.parent():
+            pargeo = self.parent().geometry()
+            x = int(pargeo.x() + 0.5 * self.parent().width() - 0.5 * self.width())
+            self.move(x, self.geometry().y())
+
+    def accept(self):
+        super().accept()
+
+
+class ConfirmDeleteFileDialog(QDialog):
+    def __init__(self, fd: FileDescriptor, parent: QWidget = None):
+        super().__init__(parent)
+        self.setWindowTitle("Confirm File Deletion")
+        self.setFont(config.qfont_button)
+        self.setMinimumWidth(int(0.5 * parent.width()))
+        label = QLabel()
+        label.setFont(config.qfont_button)
+        label.setAlignment(Qt.AlignCenter)
+        label.setText(fd.filepath)
+        layout = QFormLayout(self)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, Qt.Horizontal, self
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(label)
         layout.addRow(buttons)
 
     def showEvent(self, event):

@@ -44,7 +44,6 @@ class FCC:
             "pcd": "Print Current Dataset - pretty prints all cards in the current dataset",
             "cac": "Clear Application Cache - *key^help - runs cache_clear on an optional key",
             "ssf": "Show Scanned Files - presents a list of all relevant files",
-            "clt": "Create Language Tree - creates a directory tree for a new language and an example file",
             "eph": "Create Ephemeral Mistakes - shows current mistakes as flashcards",
             "cre": "Comprehensive Review - creates a queue from all revisions that can be traversed via consecutive command calls. Optional args: flush, reversed|autosave|autonext <true,false>, stat",
             "cfg": "Config - manage the config file. Arguments: save, load, restart",
@@ -376,7 +375,7 @@ class FCC:
         run_all = len(parsed_cmd) == 1
         key = parsed_cmd[1] if len(parsed_cmd) == 2 else None
         if run_all or key == "files":
-            db_conn.update_fds()
+            self.mw.update_files_lists()
             db_conn.refresh()
         if run_all or key == "fonts":
             self.mw.fcc.caliper.pixlen.cache_clear()
@@ -397,32 +396,6 @@ class FCC:
                 )
             )
         self.post_fcc("\n" + f"Files total: {len(db_conn.files)}")
-
-    def clt(self, parsed_cmd: list):
-        """Create Language Tree"""
-        if len(parsed_cmd) < 3:
-            self.post_fcc("Missing Arguments - new language id | native language id")
-            return
-        elif parsed_cmd[1] in config["languages"]:
-            self.post_fcc(f"Language {parsed_cmd[1]} already exists")
-            return
-        db_conn.create_language_dir_tree(parsed_cmd[1])
-        config["languages"].append(parsed_cmd[1])
-        pd.DataFrame(
-            columns=[parsed_cmd[1].lower(), parsed_cmd[2].lower()], data=[["-", "-"]]
-        ).to_csv(
-            db_conn.make_filepath(
-                parsed_cmd[1], db_conn.LNG_DIR, f"{parsed_cmd[1]}.csv"
-            ),
-            index=False,
-            encoding="utf-8",
-            header=True,
-            mode="w",
-        )
-        for msg in fcc_queue.dump_logs():
-            self.post_fcc(f"[{msg.timestamp.strftime('%H:%M:%S')}] {msg.message}")
-        self.post_fcc(f"Created new Language file: {parsed_cmd[1]}.csv")
-        db_conn.update_fds()
 
     def eph(self, parsed_cmd: list):
         """Create Ephemeral Mistakes"""
@@ -460,7 +433,7 @@ class FCC:
                         config["CRE"]["prev"]["time_spent"],
                         "hour",
                         sep=":",
-                        int_name="hour",
+                        interval_name="hour",
                     )
                     rc = config["CRE"]["prev"]["count"]
                     try:

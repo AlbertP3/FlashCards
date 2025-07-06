@@ -18,34 +18,30 @@ class DBQueries:
             EFC_MODEL=False,
             PROGRESS=False,
         )
-        self.last_update: float = 0
-        self.last_load: float = -1
+        self.last_update = -1.0
         self.DEFAULT_DATE = datetime(1900, 1, 1)
 
+    def load(self):
+        t0 = perf_counter()
+        self.__db = pd.read_csv(
+            self.DB_PATH,
+            encoding="utf-8",
+            sep=";",
+            parse_dates=["TIMESTAMP"],
+            date_format=self.TSFORMAT,
+            dtype={
+                "TOTAL": "Int64",
+                "POSITIVES": "Int64",
+                "SEC_SPENT": "Int64",
+                "IS_FIRST": "Int64",
+            },
+        )
+        self.db = self.__db.copy(deep=True)
+        self.last_update = time()
+        log.debug(f"Loaded database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3)
+
     def refresh(self) -> bool:
-        if self.last_load < self.last_update:
-            t0 = perf_counter()
-            self.db = pd.read_csv(
-                self.DB_PATH,
-                encoding="utf-8",
-                sep=";",
-                parse_dates=["TIMESTAMP"],
-                date_format=self.TSFORMAT,
-                dtype={
-                    "TOTAL": "Int64",
-                    "POSITIVES": "Int64",
-                    "SEC_SPENT": "Int64",
-                    "IS_FIRST": "Int64",
-                },
-            )
-            self.__db = self.db.copy(deep=True)
-            self.last_load = time()
-            self.__reset_filters_flags()
-            log.debug(
-                f"Reloaded database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3
-            )
-            return True
-        elif any(self.filters.values()):
+        if any(self.filters.values()):
             t0 = perf_counter()
             self.__reset_filters_flags()
             self.db = self.__db.copy(deep=True)
@@ -59,28 +55,11 @@ class DBQueries:
         for key in self.filters.keys():
             self.filters[key] = False
 
-    def require_refresh(func):
-        def inner(self, *args, **kwargs):
-            self.refresh()
-            res = func(self, *args, **kwargs)
-            return res
-
-        return inner
-
-    def write_op(func):
-        def inner(self, *args, **kwargs):
-            res = func(self, *args, **kwargs)
-            self.last_update = time()
-            self.refresh()
-            return res
-
-        return inner
-
-    @write_op
     def create_record(self, words_total, positives, seconds_spent, is_first):
         """Appends a new record to the db for the active file"""
+        ts = datetime.now()
         record = {
-            "TIMESTAMP": datetime.now().strftime(self.TSFORMAT),
+            "TIMESTAMP": ts.strftime(self.TSFORMAT),
             "SIGNATURE": self.active_file.signature,
             "LNG": self.active_file.lng,
             "TOTAL": words_total,
@@ -92,22 +71,25 @@ class DBQueries:
         with open(self.DB_PATH, "a") as fd:
             dw = DictWriter(fd, fieldnames=self.DB_COLS, delimiter=";")
             dw.writerow(record)
+        self.__db.loc[len(self.__db)] = {**record, "TIMESTAMP": ts}
+        self.db = self.__db.copy(deep=True)
+        self.last_update = time()
         fcc_queue.put_notification(
             f"Recorded {self.active_file.signature}", lvl=LogLvl.important
         )
         log.info(f"Created Record: {record}")
 
-    @write_op
-    def rename_signature(self, old, new):
-        self.refresh()
-        self.db["SIGNATURE"] = self.db["SIGNATURE"].replace(old, new, regex=False)
-        self.db.to_csv(
+    def rename_signature(self, old: str, new: str):
+        self.__db["SIGNATURE"] = self.__db["SIGNATURE"].replace(old, new, regex=False)
+        self.__db.to_csv(
             self.DB_PATH,
             encoding="utf-8",
             sep=";",
             index=False,
             date_format=self.TSFORMAT,
         )
+        self.db = self.__db.copy(deep=True)
+        self.last_update = time()
         log.info(f"Renamed signature '{old}' to '{new}'")
 
     def get_unique_signatures(self):

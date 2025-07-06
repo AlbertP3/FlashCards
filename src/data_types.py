@@ -47,6 +47,7 @@ class CreateFileDialogData:
     tgt_lng_id: str
     src_lng_id: str
 
+
 sfe_hint_formats = {
     " ()": r"(?<=\\()[^),]+(?=[),])",
     " <>": r"(?<=\\<)[^),]+(?=[>,])",
@@ -81,11 +82,11 @@ _T = {
         "sfe_search": "Source File Editor: search",
         "sfe_add": "Source File Editor: add card",
         "sfe_save": "Source File Editor: save",
-    },
+    }
 }
 
 
-def translate(group: str, key: str) -> str:
+def t(group: str, key: str) -> str:
     try:
         return _T[group][key]
     except KeyError:

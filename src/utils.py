@@ -85,6 +85,7 @@ class QueueRecord:
 
 class FccQueue(QObject):
     """Collects messages to be displayed in the console"""
+
     msg_signal = pyqtSignal()
 
     def __init__(self):
@@ -156,7 +157,7 @@ def get_sign(num, plus_sign="+", neg_sign="-"):
 
 def find_case_insensitive(text: str, collection: list[str]) -> str:
     """
-    Returns a matching string from a collection. Ignores case. 
+    Returns a matching string from a collection. Ignores case.
     Raises KeyError if not found
     """
     t = text.lower()
@@ -199,7 +200,7 @@ def format_seconds_to(
     total_seconds: int,
     interval: str,
     rem: int = 2,
-    int_name: Optional[str] = None,
+    interval_name: Optional[str] = None,
     null_format: Optional[str] = None,
     pref_len=0,
     sep=".",
@@ -210,14 +211,17 @@ def format_seconds_to(
 
     if null_format is not None and tot_int + rem_int == 0:
         res = null_format
+        pfi = 0
     elif rem:
         res = f"{tot_int:.0f}{sep}{rem_int:0{rem}d}"
+        pfi = tot_int
     else:
-        res = f"{total_seconds/_int:.0f}"
+        res = f"{total_seconds / _int:.0f}"
+        pfi = int(total_seconds / _int + 0.49)
 
-    if int_name:
-        postfix = ("", "s")[tot_int >= 2]
-        res = f"{res} {int_name}{postfix}"
+    if interval_name:
+        postfix = ("s", "")[pfi == 1]
+        res = f"{res} {interval_name}{postfix}"
 
     if pref_len != 0:
         res = res[:pref_len].rjust(pref_len, " ")

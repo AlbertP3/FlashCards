@@ -31,7 +31,7 @@ class StatsTab(BaseTab):
     @property
     def cache_valid(self):
         return (
-            self.upd >= db_conn.last_load and self.sig == self.mw.active_file.signature
+            self.upd >= db_conn.last_update and self.sig == self.mw.active_file.signature
         )
 
     def open(self):
@@ -39,7 +39,7 @@ class StatsTab(BaseTab):
             self.mw.switch_tab(self.id)
             if not self.cache_valid:
                 self.show()
-                self.upd = db_conn.last_load
+                self.upd = db_conn.last_update
                 self.sig = self.mw.active_file.signature
         else:
             fcc_queue.put_notification(
@@ -173,7 +173,7 @@ class StatsTab(BaseTab):
             self.missing_records_adj = format_seconds_to(
                 self.total_seconds_spent,
                 interval,
-                int_name=interval.capitalize(),
+                interval_name=interval.capitalize(),
                 rem=rem,
                 sep=":",
             )
@@ -192,7 +192,7 @@ class StatsTab(BaseTab):
             fmt_time = format_seconds_to(
                 self.total_seconds_spent + adjustment,
                 interval,
-                int_name=interval.capitalize(),
+                interval_name=interval.capitalize(),
                 rem=rem,
                 sep=":",
             )
@@ -202,7 +202,7 @@ class StatsTab(BaseTab):
             fmt_time = format_seconds_to(
                 self.sum_repeated * (60 * self.total_cards / 12),
                 interval,
-                int_name=interval.capitalize(),
+                interval_name=interval.capitalize(),
                 rem=rem,
                 sep=":",
             )

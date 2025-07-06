@@ -29,7 +29,6 @@ class StopwatchTab(QWidget):
         if self.upd < dal.upd:
             self.cat_map = dal.get_imm_category_mapping()
             self.upd = dal.upd
-            log.debug("Refreshed StopWatch Tab")
 
     def get(self) -> QVBoxLayout:
         return self.layout

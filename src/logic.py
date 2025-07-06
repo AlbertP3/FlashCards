@@ -95,7 +95,7 @@ class MainWindowLogic:
                 self._cre_finalize()
 
     def skip_efc_reload_regular(self):
-        self.efc._db_load_time_efc = db_conn.last_load
+        self.efc._db_load_time_efc = db_conn.last_update
         for i, v in enumerate(self.efc._recoms):
             if v["fp"] == self.active_file.filepath:
                 del self.efc._recoms[i]
@@ -164,6 +164,7 @@ class MainWindowLogic:
     def should_create_db_record(self):
         return (
             not self.is_recorded
+            and self.active_file.valid
             and self.total_words - self.current_index - 1 == 0
             and self.active_file.kind in db_conn.GRADED
         )
@@ -174,11 +175,12 @@ class MainWindowLogic:
                 self.active_file.parent["len_"]
             )
             self.sfe.check_update_iln()
-        self.active_file.signature = db_conn.gen_signature(self.active_file.lng)
+        self.active_file.signature = db_conn.gen_signature(self.active_file)
         self.active_file.kind = db_conn.KINDS.rev
         newfp = db_conn.create_revision_file(
             self.active_file.data.iloc[: self.cards_seen + 1, :]
         )
+        self.update_files_lists()
         db_conn.create_record(
             self.cards_seen + 1, self.positives, seconds_spent, is_first=1
         )
@@ -188,7 +190,7 @@ class MainWindowLogic:
         self.skip_efc_reload_initial()
 
     def skip_efc_reload_initial(self):
-        self.efc._db_load_time_efc = db_conn.last_load
+        self.efc._db_load_time_efc = db_conn.last_update
         self.efc._recoms.append(
             {
                 "fp": self.active_file.filepath,
@@ -267,6 +269,7 @@ class MainWindowLogic:
 
     def save_current_mistakes(self):
         db_conn.create_mistakes_file(mistakes_list=self.mistakes_list)
+        self.update_files_lists()
         self.mistakes_saved = True
         self.notify_on_mistakes()
 
@@ -376,6 +379,12 @@ class MainWindowLogic:
                 if config["mst"]["opt"]["allow_save_mst_from_eph"]:
                     res = True
         return res
+
+    def update_files_lists(self, with_fds=True):
+        if with_fds:
+            db_conn.update_fds()
+        self.ldt.is_view_outdated = True
+        self.efc.is_view_outdated = True
 
     def create_session_snapshot(self):
         _fcc_log = self.fcc.console_log

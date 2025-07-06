@@ -359,8 +359,6 @@ class LogsTab(BaseTab):
                                     "MST_BASENAME",
                                     "DB_COLS",
                                     "filters",
-                                    "last_update",
-                                    "last_load",
                                 ),
                             ),
                             "files": {

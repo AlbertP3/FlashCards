@@ -12,8 +12,13 @@ from PyQt5.QtCore import QTimer, Qt
 import logging
 from tabs.base import BaseTab
 from DBAC import db_conn, FileDescriptor
-from sfe.datatable import DataTableModel
-from widgets import AddCardDialog, get_button, CheckableComboBox, ConfirmDeleteDialog
+from sfe.datatable import DataTableModel, QTableItemDelegate
+from widgets import (
+    AddCardDialog,
+    get_button,
+    CheckableComboBox,
+    ConfirmDeleteCardDialog,
+)
 from cfg import config
 from utils import fcc_queue, LogLvl
 from typing import TYPE_CHECKING
@@ -30,6 +35,7 @@ class SfeTab(BaseTab):
         self.id = "sfe"
         self.mw = mw
         self.__last_auto_pasted = ""
+        self.sel_idx = 0
         self.build()
         self.mw.add_tab(self.tab, self.id, "Source File Editor")
 
@@ -87,6 +93,14 @@ class SfeTab(BaseTab):
             ),
         )
         self.set_iln_button()
+        self.duo_btn = get_button(
+            self.tab,
+            text="Duo+",
+            function=self._on_duo_add,
+            dtip=self.mw.trk.trk.duo_layout.get_tooltip,
+        )
+        if not config["tracker"]["duo"]["active"]:
+            self.duo_btn.setVisible(False)
         self.src_cbx = CheckableComboBox(
             self,
             allow_multichoice=False,
@@ -119,9 +133,11 @@ class SfeTab(BaseTab):
         self.search_layout.addWidget(self.save_btn, 10)
         self.search_layout.addWidget(self.reload_btn, 5)
         self.search_layout.addWidget(self.iln_btn, 10)
+        self.search_layout.addWidget(self.duo_btn, 10)
 
     def _create_table_view(self):
         self.view = QTableView(self)
+        self.view.setItemDelegate(QTableItemDelegate())
         self.view.setFont(config.qfont_console)
         self.view.setModel(self.model)
         self.view.setSortingEnabled(False)
@@ -153,7 +169,15 @@ class SfeTab(BaseTab):
                 pass
 
     def on_search(self, query: str):
-        self.model.filter(query=query)
+        if query:
+            try:
+                self.sel_idx = self.view.selectedIndexes()[0].row()
+            except IndexError:
+                pass
+            self.model.filter(query=query)
+        else:
+            self.model.remove_filter()
+            self.scroll(self.sel_idx)
 
     def on_delete(self):
         idxs = [
@@ -161,7 +185,7 @@ class SfeTab(BaseTab):
             for idx in self.view.selectionModel().selectedRows()
         ]
         if idxs:
-            dlg = ConfirmDeleteDialog(
+            dlg = ConfirmDeleteCardDialog(
                 data=[self.model.fh.src_data.iloc[i].to_dict() for i in idxs],
                 headers=self.model.fh.headers,
                 parent=self.mw,
@@ -241,3 +265,10 @@ class SfeTab(BaseTab):
         ):
             self.on_add()
             self.__last_auto_pasted = pasted
+
+    def _on_duo_add(self):
+        self.mw.trk.trk.duo_layout.on_submit()
+        lesson_cnt = self.mw.trk.trk.duo_layout.lessons_today
+        fcc_queue.put_notification(
+            f"Added Duo preliminary record #{lesson_cnt}", lvl=LogLvl.important
+        )

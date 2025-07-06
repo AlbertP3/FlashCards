@@ -563,7 +563,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def __lookup_open(self, query: str):
         self.switch_tab(self.sfe.id)
-        self.sfe.search_qle.setText(query) # triggers on_search
+        self.sfe.search_qle.setText(query)  # triggers on_search
 
     def create_label(self, text) -> QLabel:
         label = QLabel(self)
@@ -578,7 +578,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.display_text(self.get_current_card().iloc[self.side])
 
     def click_save_button(self):
-        if self.active_file.kind == db_conn.KINDS.rev:
+        if not self.active_file.valid:
+            return
+
+        elif self.active_file.kind == db_conn.KINDS.rev:
 
             if not self.is_recorded:
                 fcc_queue.put_notification(
@@ -745,7 +748,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 self.stop_pace_timer()
 
     def handle_final_actions(self):
-        if self.active_file.kind == db_conn.KINDS.rev:
+        if not self.active_file.valid:
+            return
+        elif self.active_file.kind == db_conn.KINDS.rev:
             self._handle_final_actions_rev()
         elif self.active_file.kind == db_conn.KINDS.mst:
             self._handle_final_actions_mst()
@@ -1089,11 +1094,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             if not self.popup.is_visible:
                 record = fcc_queue.pull_notification()
                 fcc_queue.unacked_notifications -= 1
-                self.popup.show_notification(
-                    message=record.message, func=record.func
-                )
+                self.popup.show_notification(message=record.message, func=record.func)
         except Exception as e:
             log.error(e, exc_info=True)
+
     # endregion
 
     def eventFilter(self, source, event):
