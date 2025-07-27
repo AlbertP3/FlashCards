@@ -2,16 +2,16 @@ import re
 from abc import abstractmethod
 import pandas as pd
 import logging
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import QObject
 from DBAC import db_conn, FileDescriptor
 from cfg import config
-from utils import fcc_queue, LogLvl
+from utils import fcc_queue, LogLvl, sbus
+from data_types import SfeMods
 
 log = logging.getLogger("SFE")
 
 
 class FileHandler(QObject):
-    mod_signal = pyqtSignal(bool)
 
     def __init__(self, fd: FileDescriptor):
         super().__init__()
@@ -19,23 +19,18 @@ class FileHandler(QObject):
         self.headers: list = ["", ""]
         self.src_data: pd.DataFrame = pd.DataFrame()
         self.data_view: pd.DataFrame = pd.DataFrame()
-        self.filepath: str = fd.filepath
-        self.__is_saved = True
+        self.fd = fd
+        self.is_saved = True
         self.query: str = ""
-        self.is_iln = bool(config["ILN"].get(self.filepath, False))
+        self.is_iln = bool(config["ILN"].get(self.fd.filepath, False))
 
     def audit_log(self, op, data, row, col):
         status = "SAVED" if config["sfe"]["autosave"] else "STAGED"
-        log.info(f"{op} {data} {status} TO {self.filepath} AT [{row},{col}]")
+        log.info(f"{op} {data} {status} TO {self.fd.filepath} AT [{row},{col}]")
 
     @property
-    def is_saved(self) -> bool:
-        return self.__is_saved
-
-    @is_saved.setter
-    def is_saved(self, x: bool):
-        self.__is_saved = x
-        self.mod_signal.emit(x)
+    def filepath(self) -> str:
+        return self.fd.filepath
 
     @property
     def total_visible_rows(self) -> int:
@@ -48,7 +43,7 @@ class FileHandler(QObject):
     @property
     def iln(self) -> int:
         if self.is_iln:
-            return self.total_src_rows - config["ILN"][self.filepath]
+            return self.total_src_rows - config["ILN"][self.fd.filepath]
         else:
             return 0
 
@@ -64,35 +59,41 @@ class FileHandler(QObject):
     def save(self) -> None:
         raise NotImplementedError
 
-    def mod_tracker(fn):
-        def function(self, *args, **kwargs):
-            fn(self, *args, **kwargs)
-            self.is_saved = False
-            if config["sfe"]["autosave"]:
-                self.save()
+    def mod_tracker(mod: int):
+        def decorator(fn):
+            def wrapper(self, *args, **kwargs):
+                fn(self, *args, **kwargs)
+                if config["sfe"]["autosave"]:
+                    self.save()
+                else:
+                    self.is_saved = False
+                sbus.sfe_mod.emit(mod)
 
-        return function
+            return wrapper
 
-    @mod_tracker
+        return decorator
+
+    @mod_tracker(mod=SfeMods.UPDATE)
     def update_cell(self, row: int, col: int, value: str) -> None:
         self.src_data.iat[row, col] = value
         self.audit_log("UPDATE", [value], row, col)
 
-    @mod_tracker
+    @mod_tracker(mod=SfeMods.CREATE)
     def create_row(self, value: list[str]) -> None:
         self.src_data.loc[len(self.src_data)] = value
         self.audit_log("ADD", value, len(self.src_data) - 1, ":")
 
-    @mod_tracker
+    @mod_tracker(mod=SfeMods.DELETE)
     def delete_rows(self, rows: list[int]) -> None:
         sel_rows = self.src_data.loc[rows]
         self.src_data.drop(rows, inplace=True)
         self.src_data.reset_index(drop=True, inplace=True)
+        self.data_view.drop(rows, inplace=True)
         try:
-            iln = config["ILN"][self.filepath]
+            iln = config["ILN"][self.fd.filepath]
             for i in rows:
                 if i < iln:
-                    config["ILN"][self.filepath] -= 1
+                    config["ILN"][self.fd.filepath] -= 1
         except KeyError:
             pass
         for idx, row in sel_rows.iterrows():
@@ -126,7 +127,7 @@ class FileHandler(QObject):
         else:
             use_re = False
 
-        if len(query) > len(self.query):
+        if query.startswith(self.query):
             src = self.data_view
         else:
             src = self.src_data
@@ -155,7 +156,7 @@ class CSVFileHandler(FileHandler):
     def load_data(self):
         try:
             self.src_data = pd.read_csv(
-                self.filepath,
+                self.fd.filepath,
                 encoding="utf-8",
                 dtype=str,
                 index_col=False,
@@ -163,17 +164,35 @@ class CSVFileHandler(FileHandler):
             self.headers = list(self.src_data.columns)
             self.data_view = self.src_data
             self.is_saved = True
-            log.info(f"Loaded {type(self).__name__} for: {self.filepath}")
+            log.info(f"Loaded {type(self).__name__} for: {self.fd.filepath}")
         except Exception as e:
             log.error(e, stack_info=True)
 
     def save(self) -> None:
         self.src_data.to_csv(
-            self.filepath,
+            self.fd.filepath,
             columns=self.headers,
             encoding="utf-8",
             index=False,
         )
+        self.is_saved = True
+
+
+class TmpFileHandler(FileHandler):
+    def __init__(self, fd: FileDescriptor):
+        super().__init__(fd)
+
+    def load_data(self) -> None:
+        try:
+            self.headers = list(self.fd.headers)
+            self.src_data = self.fd.data[self.headers]
+            self.data_view = self.src_data
+            self.is_saved = True
+            log.info(f"Loaded {type(self).__name__} for: {self.fd.signature}")
+        except Exception as e:
+            log.error(e, stack_info=True)
+
+    def save(self) -> None:
         self.is_saved = True
 
 
@@ -188,16 +207,17 @@ class VoidFileHandler(FileHandler):
         return
 
 
-def get_filehandler(filepath: str) -> FileHandler:
+def get_filehandler(fd: FileDescriptor) -> FileHandler:
     try:
-        fd = db_conn.files[filepath]
         if fd.ext == ".csv":
             fh = CSVFileHandler(fd)
             config["sfe"]["last_file"] = fd.filepath
+        elif fd.tmp == True:
+            fh = TmpFileHandler(fd)
         else:
             raise AttributeError(f"Unsupported file extension: {fd.ext}")
     except Exception as e:
-        fh = VoidFileHandler(FileDescriptor(filepath=filepath, ext=".void"))
+        fh = VoidFileHandler(FileDescriptor(filepath="void", ext=".void"))
         log.warning(e, stack_info=True)
         fcc_queue.put_notification(
             f"{type(e).__name__} occurred while loading SFE", lvl=LogLvl.err

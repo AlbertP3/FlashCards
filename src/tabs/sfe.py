@@ -20,7 +20,8 @@ from widgets import (
     ConfirmDeleteCardDialog,
 )
 from cfg import config
-from utils import fcc_queue, LogLvl
+from utils import fcc_queue, LogLvl, sbus
+from data_types import SfeMods
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -57,8 +58,8 @@ class SfeTab(BaseTab):
     def build(self):
         self.tab.set_exit(self.exit)
         self.tab.set_focus_in(self.on_focus_in)
-        self.model = DataTableModel(config["sfe"]["last_file"])
-        self.model.fh.mod_signal.connect(lambda x: self.save_btn.setDisabled(x))
+        self.model = DataTableModel(db_conn.files.get(config["sfe"]["last_file"]))
+        sbus.sfe_mod.connect(self.on_model_edit)
         self.sfe_layout = QVBoxLayout(self)
         self.sfe_layout.setContentsMargins(1, 1, 1, 1)
         self.sfe_layout.setSpacing(1)
@@ -96,7 +97,7 @@ class SfeTab(BaseTab):
         self.duo_btn = get_button(
             self.tab,
             text="Duo+",
-            function=self._on_duo_add,
+            function=self.mw.trk.trk.duo_layout.on_submit,
             dtip=self.mw.trk.trk.duo_layout.get_tooltip,
         )
         if not config["tracker"]["duo"]["active"]:
@@ -153,20 +154,26 @@ class SfeTab(BaseTab):
         for fd in db_conn.files.values():
             if fd.kind == db_conn.KINDS.lng:
                 self.src_cbx.addItem(
-                    fd.signature,
-                    data=fd.filepath,
+                    text=fd.signature,
+                    data=fd,
                     is_checked=fd.filepath == self.model.fh.filepath,
                 )
-        if self.model.fh.filepath not in self.src_cbx.getData():
+        if self.model.fh not in self.src_cbx.getData():
             try:
                 fd = db_conn.files[self.model.fh.filepath]
                 self.src_cbx.addItem(
-                    fd.signature,
-                    data=fd.filepath,
+                    text=fd.signature,
+                    data=fd,
                     is_checked=True,
                 )
             except KeyError:
                 pass
+        if self.mw.active_file not in self.src_cbx.getData():
+            self.src_cbx.addItem(
+                text=self.mw.active_file.signature,
+                data=self.mw.active_file,
+                is_checked=self.mw.active_file.filepath == self.model.fh.filepath,
+            )
 
     def on_search(self, query: str):
         if query:
@@ -194,6 +201,8 @@ class SfeTab(BaseTab):
                 self.model.del_rows(idxs)
                 self.scroll(min(idxs) - 1)
                 self.update_iln_button()
+                if self.model.fh.fd.active:
+                    self.mw.sfe_apply_delete(oids=idxs)
 
     def on_add(self):
         dlg = AddCardDialog(fh=self.model.fh, parent=self.mw)
@@ -201,11 +210,27 @@ class SfeTab(BaseTab):
             self.model.add_row(dlg.values)
             self.scroll(self.model.fh.total_visible_rows - 1)
             self.update_iln_button()
+            if self.model.fh.fd.active:
+                self.mw.sfe_apply_add(row=dlg.values)
 
     def edit_row(self):
         index = self.view.selectionModel().currentIndex()
         if index.isValid():
             self.view.edit(index)
+
+    def on_model_edit(self, mod: int):
+        self.save_btn.setDisabled(self.model.fh.is_saved)
+        if self.model.fh.fd.active and mod == SfeMods.UPDATE:
+
+            def update_active_file():
+                index = self.view.selectionModel().currentIndex()
+                if index.isValid():
+                    idx = self.model.fh.data_view.index[index.row()]
+                    self.mw.sfe_apply_edit(
+                        oid=idx, val=self.model.fh.data_view.iloc[index.row()].to_list()
+                    )
+
+            QTimer.singleShot(1, update_active_file)
 
     def on_save(self):
         if self.model.fh.is_saved:
@@ -216,9 +241,10 @@ class SfeTab(BaseTab):
 
     def on_src_change(self):
         new_src = self.src_cbx.currentDataList()[0]
-        if new_src == self.model.fh.filepath:
+        if new_src.filepath == self.model.fh.filepath:
             return
         self.model.load(new_src)
+        self._refresh_search_qle()
         self.set_iln_button()
 
     def set_iln_button(self):
@@ -266,9 +292,7 @@ class SfeTab(BaseTab):
             self.on_add()
             self.__last_auto_pasted = pasted
 
-    def _on_duo_add(self):
-        self.mw.trk.trk.duo_layout.on_submit()
-        lesson_cnt = self.mw.trk.trk.duo_layout.lessons_today
-        fcc_queue.put_notification(
-            f"Added Duo preliminary record #{lesson_cnt}", lvl=LogLvl.important
-        )
+    def _refresh_search_qle(self):
+        self.search_qle.blockSignals(True)
+        self.search_qle.setText(self.model.fh.query)
+        self.search_qle.blockSignals(False)

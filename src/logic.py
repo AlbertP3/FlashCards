@@ -2,6 +2,7 @@ import re
 import logging
 from datetime import datetime
 from random import randint
+from typing import Optional
 import pandas as pd
 from DBAC import db_conn, FileDescriptor
 from utils import fcc_queue, LogLvl, format_seconds_to
@@ -155,9 +156,9 @@ class MainWindowLogic:
         self.total_words = self.active_file.data.shape[0]
         self.side = self.get_default_side()
 
-    def load_flashcards(self, fd: FileDescriptor, seed=None):
+    def load_flashcards(self, fd: FileDescriptor, seed: Optional[int] = None):
         try:
-            db_conn.afops(fd, seed=seed)
+            db_conn.afops(fd, shuffle=True, seed=seed)
         except FileNotFoundError:
             fcc_queue.put_notification(f"File not found: {fd.filepath}", lvl=LogLvl.exc)
 
@@ -314,7 +315,7 @@ class MainWindowLogic:
     def init_eph_from_mistakes(self):
         mistakes_df = pd.DataFrame(
             data=self.mistakes_list,
-            columns=self.active_file.data.columns,
+            columns=self.active_file.headers,
         )
         if not self.active_file.tmp:
             self.file_monitor_del_path(self.active_file.filepath)
@@ -386,6 +387,53 @@ class MainWindowLogic:
         self.ldt.is_view_outdated = True
         self.efc.is_view_outdated = True
 
+    def sfe_apply_add(self, row: list[str]):
+        new_idx = len(self.active_file.data)
+        self.active_file.data.loc[new_idx] = [*row, new_idx]
+        self.total_words += 1
+        self.update_words_button()
+        self.display_text(self.get_current_card().iloc[self.side])
+        log.info(f"Active File - added index {new_idx}")
+
+    def sfe_apply_edit(self, oid: int, val: list[str]):
+        idx = db_conn.get_index_by_oid(oid)
+        if idx <= self.current_index:
+            try:
+                mst_idx = self.find_in_mistakes_list(
+                    *self.active_file.data.iloc[idx, :2]
+                )
+                self.mistakes_list[mst_idx] = val
+            except IndexError:
+                pass
+        self.active_file.data.iloc[idx] = [*val, oid]
+        self.display_text(self.get_current_card().iloc[self.side])
+        log.info(f"Active File - edited index: {idx}")
+
+    def sfe_apply_delete(self, oids: list[int]):
+        for oid in oids:
+            idx = db_conn.get_index_by_oid(oid)
+            if 0 < idx <= self.current_index:
+                self.current_index -= 1
+                try:
+                    mst_idx = self.find_in_mistakes_list(
+                        *self.active_file.data.iloc[idx, :2]
+                    )
+                    self.mistakes_list.pop(mst_idx)
+                except IndexError:
+                    pass
+            db_conn.delete_card(idx)
+            self.total_words -= 1
+            log.info(f"Active File - deleted index: {idx}")
+        self.update_words_button()
+        self.display_text(self.get_current_card().iloc[self.side])
+
+    def find_in_mistakes_list(self, c0: str, c1: str) -> int:
+        for i, v in enumerate(self.mistakes_list):
+            if v[0] == c0 and v[1] == c1:
+                return i
+        else:
+            raise IndexError
+
     def create_session_snapshot(self):
         _fcc_log = self.fcc.console_log
         if len(_fcc_log) > 0 and _fcc_log[-1] == self.fcc.console_prompt:
@@ -401,7 +449,6 @@ class MainWindowLogic:
             "words_back": self.words_back,
             "positives": self.positives,
             "negatives": self.negatives,
-            "total_words": self.total_words,
             "mistakes_list": self.mistakes_list,
             "mistakes_saved": self.mistakes_saved,
             "cards_seen_sides": self.cards_seen_sides,
@@ -434,7 +481,6 @@ class MainWindowLogic:
         self.words_back = metadata["words_back"]
         self.positives = metadata["positives"]
         self.negatives = metadata["negatives"]
-        self.total_words = metadata["total_words"]
         self.is_initial_rev = metadata["is_initial_rev"]
         self.is_blurred = metadata["is_blurred"]
         self.mistakes_list = metadata["mistakes_list"]
@@ -446,6 +492,7 @@ class MainWindowLogic:
             -config["cache_history_size"] :
         ]
         self.fcc.cmds_cursor = metadata["fcc_cmd_cursor"]
+        self.total_words = self.active_file.data.shape[0]
         self.set_should_hide_tips()
 
     def modify_card_result(self):

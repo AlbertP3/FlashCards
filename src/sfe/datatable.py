@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QStyledItemDelegate, QLineEdit
 from PyQt5.QtGui import QCursor
 import logging
 from sfe.fh import get_filehandler
+from DBAC import FileDescriptor
 
 log = logging.getLogger("SFE")
 
@@ -31,9 +32,9 @@ class QTableItemDelegate(QStyledItemDelegate):
 
 
 class DataTableModel(QAbstractTableModel):
-    def __init__(self, filepath: str):
+    def __init__(self, fd: FileDescriptor):
         super().__init__()
-        self.load(filepath)
+        self.load(fd)
 
     def with_reset_model(fn):
         def func(self, *args, **kwargs):
@@ -91,8 +92,6 @@ class DataTableModel(QAbstractTableModel):
     @with_reset_model
     def del_rows(self, rows: list[int]):
         self.fh.delete_rows(rows)
-        if self.fh.query:
-            self.fh.filter(self.fh.query)
 
     @with_reset_model
     def filter(self, query: str):
@@ -103,8 +102,8 @@ class DataTableModel(QAbstractTableModel):
         self.fh.remove_filter()    
 
     @with_reset_model
-    def load(self, filepath: str):
-        self.fh = get_filehandler(filepath)
+    def load(self, fd: FileDescriptor):
+        self.fh = get_filehandler(fd)
         self.fh.load_data()
 
     @with_reset_model

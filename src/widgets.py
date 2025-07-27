@@ -28,7 +28,7 @@ from PyQt5.QtGui import (
 )
 from collections import OrderedDict
 from typing import Callable, Optional
-from utils import fcc_queue, LogLvl, is_valid_filename
+from utils import fcc_queue, LogLvl, is_valid_filename, sbus
 from data_types import CreateFileDialogData
 from DBAC import db_conn, FileDescriptor
 from cfg import config
@@ -347,7 +347,7 @@ class NotificationPopup(QWidget):
         self.timer.stop()
         self.is_visible = False
         if fcc_queue.unacked_notifications:
-            fcc_queue.msg_signal.emit()
+            sbus.fcc_queue_msg.emit()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -375,9 +375,11 @@ class CFIDialog(QDialog):
         self.layout.setSpacing(config["theme"]["spacing"])
         self.form_layout = QFormLayout()
         self.start_qle = self.create_qle(str(start))
+        self.start_qle.textChanged.connect(self.validate)
         self.cnt_qle = self.create_qle()
         self.cnt_qle.setText(f"{cnt}")
         self.cnt_qle.setPlaceholderText("<END>")
+        self.cnt_qle.textChanged.connect(self.validate)
         self.total_qle = self.create_qle(f"{start+cnt}")
         self.total_qle.setFocusPolicy(Qt.NoFocus)
         self.total_qle.setReadOnly(True)
@@ -388,6 +390,30 @@ class CFIDialog(QDialog):
         self.submit_btn = get_button(self, "Create", self.accept)
         self.layout.addWidget(self.submit_btn)
         self.setLayout(self.layout)
+        self.validate()
+    
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.type() == QEvent.KeyPress:
+            if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+                if self.submit_btn.isEnabled():
+                    return self.accept()
+        return super().keyPressEvent(event)
+
+    def validate(self):
+        try:
+            start = int(self.start_qle.text())
+            total = int(self.total_qle.text())
+            if start < total:
+                msg = "Create"
+                res = True
+            else:
+                msg = "Not enough cards"
+                res = False
+        except ValueError:
+            msg = "Invalid Data"
+            res = False
+        self.submit_btn.setText(msg)
+        self.submit_btn.setEnabled(res)
 
     def get_values(self) -> tuple[int, int]:
         """Returns start index and count"""

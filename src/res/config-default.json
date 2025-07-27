@@ -1,5 +1,5 @@
 {
-    "version": "1.6.3",
+    "version": "1.6.4",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -11,7 +11,7 @@
         "show_cpm_stats": true,
         "show_efc_line": true,
         "show_percent_stats": true,
-        "dynamic_summary": true,
+        "auto_next": true,
         "hide_timer": false,
         "show_cpm_timer": false
     },
@@ -134,6 +134,7 @@
     },
     "kbsc": {
         "mod": "Alt",
+        "pause": "Space",
         "next": "Right",
         "prev": "Left",
         "negative": "Down",

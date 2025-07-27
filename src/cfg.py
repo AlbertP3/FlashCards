@@ -1,10 +1,21 @@
 import json
+import numpy as np
 from collections import UserDict
 import logging
 from time import perf_counter
 from PyQt5.QtGui import QFont
 
 log = logging.getLogger("CFG")
+
+
+class JsonEncoder(json.JSONEncoder):
+    def default(self, o: object) -> object:
+        if isinstance(o, np.int_):
+            return int(o)
+        elif isinstance(o, np.float_):
+            return float(o)
+        else:
+            return json.JSONEncoder.default(self, o)
 
 
 class Config(UserDict):
@@ -30,8 +41,20 @@ class Config(UserDict):
         self.data.update(json.load(open(self.CFG_PATH, "r")))
 
     def save(self):
-        json.dump(self.cache, open(self.CACHE_PATH, "w"), indent=4, ensure_ascii=False)
-        json.dump(self.data, open(self.CFG_PATH, "w"), indent=4, ensure_ascii=False)
+        json.dump(
+            self.cache,
+            open(self.CACHE_PATH, "w"),
+            indent=4,
+            ensure_ascii=False,
+            cls=JsonEncoder,
+        )
+        json.dump(
+            self.data,
+            open(self.CFG_PATH, "w"),
+            indent=4,
+            ensure_ascii=False,
+            cls=JsonEncoder,
+        )
         log.debug("Saved Config and Cache")
 
     def load_data(self):
@@ -46,11 +69,17 @@ class Config(UserDict):
             self.cache: dict = json.load(open(self.CACHE_PATH, "r"))
         except FileNotFoundError:
             log.warning("Cache not found. Creating new...")
-            self.cache = {
-                "snapshot": {"file": None, "session": None},
-                "notes": "",
-                "load_est": dict(),
-            }
+            self.__set_default_cache()
+        except Exception as e:
+            log.error("Failed to load cache", exc_info=True)
+            self.__set_default_cache()
+
+    def __set_default_cache(self):
+        self.cache = {
+            "snapshot": {"file": None, "session": None},
+            "notes": "",
+            "load_est": dict(),
+        }
 
     def load_theme(self):
         try:

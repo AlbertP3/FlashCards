@@ -11,12 +11,12 @@ def merge_records_by_date(content: OrderedDict, dfmt: str) -> StrRecordOrderedDi
     return merged_records
 
 
-def to_time(time_in_hours: float, default: str = " ", incl_minutes: bool = True) -> str:
+def strftime(time_in_hours: float, default: str = " ", incl_minutes: bool = True) -> str:
     if time_in_hours == 0:
         return default
     elif incl_minutes:
         hours = int(time_in_hours)
-        minutes = int(round((time_in_hours - hours) * 60 + 0.5, 2))
+        minutes = int(round((time_in_hours - hours) * 60, 2))
         return f"{hours}:{minutes:02d}"
     else:
         hours = int(round(time_in_hours))

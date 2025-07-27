@@ -3,7 +3,7 @@ import subprocess
 import traceback
 import sys
 import logging
-from typing import Callable
+from typing import Callable, Optional
 from time import monotonic, perf_counter
 from contextlib import contextmanager
 from PyQt5.QtWidgets import (
@@ -40,7 +40,7 @@ from PyQt5.QtCore import (
 )
 from logic import MainWindowLogic
 import tabs
-from utils import fcc_queue, format_seconds_to, Caliper, LogLvl, TaskRunner
+from utils import fcc_queue, format_seconds_to, Caliper, LogLvl, TaskRunner, sbus
 from DBAC import FileDescriptor, db_conn
 from widgets import NotificationPopup, get_button
 from cfg import config
@@ -161,7 +161,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             except Exception as e:
                 log.error(e, exc_info=True)
         # if cached snapshot session fails to load or n/a
-        self.initiate_flashcards(fd)
+        self.initiate_flashcards(fd, seed=config["pd_random_seed"])
         log.debug("Started a new session")
 
     def apply_session_snapshot(self):
@@ -173,8 +173,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if self.is_synopsis:
             self.display_text(self.synopsis or config["synopsis"])
         else:
-            if self.is_blurred:
-                self.apply_blur()
+            self.apply_blur()
             self.display_text(self.get_current_card().iloc[self.side])
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
@@ -242,7 +241,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tabs.setCurrentIndex(self.tab_map[id]["index"])
         self.active_tab_id = id
 
-        if id == self.id:
+        if id == self.id and not self.is_blurred:
             self.resume_timer()
             self.resume_pace_timer()
         elif self.TIMER_RUNNING_FLAG:
@@ -487,6 +486,20 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.textbox.setGraphicsEffect(None)
         self.is_blurred = False
 
+    def toggle_pause(self):
+        if self.is_blurred:
+            self.remove_blur()
+            if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
+                self.start_timer()
+                self.start_pace_timer()
+            else:
+                self.resume_timer()
+                self.resume_pace_timer()
+        elif not self.is_synopsis:
+            self.stop_timer()
+            self.stop_pace_timer()
+            self.apply_blur()
+
     def create_textbox(self):
         self.textbox = QLabel(self)
         self.textbox.setFont(config.qfont_textbox)
@@ -660,11 +673,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.update_backend_parameters()
         self.update_interface_parameters()
 
-    def initiate_flashcards(self, fd):
+    def initiate_flashcards(self, fd: FileDescriptor, seed: Optional[int] = None):
         """Manage the whole process of loading a flashcards file"""
         if not self.active_file.tmp:
             self.file_monitor_del_path(self.active_file.filepath)
-        self.load_flashcards(fd)
+        self.load_flashcards(fd, seed=seed)
         self.update_backend_parameters()
         self.update_interface_parameters()
         self.switch_tab(self.id)
@@ -805,24 +818,44 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def handle_graded_complete(self):
         self.update_score_button()
-        if self.active_file.kind == db_conn.KINDS.rev:
-            self.synopsis = self.get_rating_message()
-        else:
-            self.synopsis = config["synopsis"]
-        self.is_synopsis = True
-        self.display_text(self.synopsis)
+
+        if not config["opt"]["auto_next"]:
+            if self.active_file.kind == db_conn.KINDS.rev:
+                self.synopsis = self.get_rating_message()
+            else:
+                self.synopsis = config["synopsis"]
+            self.is_synopsis = True
+            self.display_text(self.synopsis)
+
         self.record_revision_to_db(seconds_spent=self.seconds_spent)
+
         if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
             self.save_current_mistakes()
         self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
         self.stop_timer()
         self.stop_pace_timer()
+
         if self.negatives != 0 and config["mst"]["opt"]["show_mistakes_after_revision"]:
             self.mst.open()
+        elif config["opt"]["auto_next"]:
+            active_signature = self.active_file.signature
+            self.efc.load_next_efc()
+            if self.active_file.signature == active_signature:
+                # There are no more revisions
+                self.synopsis = config["synopsis"]
+                self.is_synopsis = True
+                self.display_text(self.synopsis)
+            else:
+                if self.is_blurred:
+                    self.click_next_button()
+                else:
+                    self.start_timer()
+                    self.start_pace_timer()
 
     def init_cross_shortcuts(self):
         self.add_ks(Qt.Key_Escape, lambda: self.switch_tab(self.id), self)
+        self.add_ks(config["kbsc"]["pause"], self.toggle_pause, self.main_tab)
         self.add_ks(config["kbsc"]["next"], self.ks_nav_next, self.main_tab)
         self.add_ks(config["kbsc"]["negative"], self.ks_nav_negative, self.main_tab)
         self.add_ks(config["kbsc"]["prev"], self.click_prev_button, self.main_tab)
@@ -1082,10 +1115,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     # region Notifications
     def init_notifications(self):
         if config["popups"]["enabled"]:
-            fcc_queue.msg_signal.connect(self.show_notification)
+            sbus.fcc_queue_msg.connect(self.show_notification)
         else:
             try:
-                fcc_queue.msg_signal.disconnect(self.show_notification)
+                sbus.fcc_queue_msg.disconnect(self.show_notification)
             except TypeError:
                 pass
 

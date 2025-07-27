@@ -34,7 +34,7 @@ class MistakesTab(BaseTab):
 
     def show_mistakes(self):
         self.mst_table.setRowCount(len(self.mw.mistakes_list))
-        self.mst_table.setHorizontalHeaderLabels(self.mw.active_file.data.columns)
+        self.mst_table.setHorizontalHeaderLabels(self.mw.active_file.headers)
         for i, row in enumerate(self.mw.mistakes_list):
             for c, v in enumerate(row):
                 self.mst_table.setItem(i, c, QTableWidgetItem(str(v)))

@@ -254,6 +254,7 @@ class LoadTab(BaseTab):
 
         db_conn.load_tempfile(
             basename=f"{fd.lng}{len_child}",
+            signature=f"{fd.lng}{len_child}",
             data=data,
             lng=fd.lng,
             kind=db_conn.KINDS.lng,

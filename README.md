@@ -259,6 +259,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | prev         | Left  | go to previous card                                            |
 | negative     | Down  | mark current card as negative                                  |
 | reverse      | Up    | reverse side of the current card                               |
+| pause        | Space | pause/resume the timer                                         |
 | del_cur_card | d     | remove current card from the set (does not affect source file) |
 | load_again   | r     | load again the current set                                     |
 | timespent    | t     | open TimeSpent tab                                             |

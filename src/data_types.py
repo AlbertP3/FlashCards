@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from typing import NamedTuple
 
 
 @dataclass
@@ -47,6 +48,11 @@ class CreateFileDialogData:
     tgt_lng_id: str
     src_lng_id: str
 
+
+class SfeMods(NamedTuple):
+    CREATE = 0
+    UPDATE = 1
+    DELETE = 2
 
 sfe_hint_formats = {
     " ()": r"(?<=\\()[^),]+(?=[),])",

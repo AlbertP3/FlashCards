@@ -1,13 +1,14 @@
 import re
 import random
 import logging
+from typing import Optional
 import pandas as pd
 import openpyxl
 from datetime import datetime
 from dataclasses import dataclass
 import os
 import csv
-from utils import fcc_queue, LogLvl, translate
+from utils import fcc_queue, LogLvl, translate, nat_sort_key, perftm
 from cfg import config
 
 log = logging.getLogger("DBA")
@@ -26,6 +27,10 @@ class FileDescriptor:
     tmp: bool = False
     parent: dict = None  # {filepath: str, len_: int}
 
+    def __post_init__(self):
+        self.active: bool = False
+        self.headers: Optional[tuple] = None
+
     def __eq__(self, __value: object) -> bool:
         return self.filepath == __value.filepath
 
@@ -34,7 +39,6 @@ class DbDatasetOps:
     def __init__(self):
         self.empty_df = pd.DataFrame()
         self.__AF = FileDescriptor(tmp=True, data=self.empty_df)
-        self.__nsre = re.compile(r"(\d+)")
 
     @property
     def active_file(self):
@@ -48,7 +52,10 @@ class DbDatasetOps:
         if self.__AF != fd:
             # Clear stored data for previous active file
             self.__AF.data = None
+            self.__AF.active = False
         self.__AF = fd
+        self.__AF.active = True
+        self.__AF.headers = tuple(self.__AF.data.columns)
         log.debug(
             (
                 f"Activated {'Valid' if self.__AF.valid else 'Invalid'} "
@@ -66,6 +73,7 @@ class DbDatasetOps:
     def afops(self, fd: FileDescriptor, shuffle: bool = False, seed: int = None):
         fd.data = self.get_data(fd)
         self.active_file = fd
+        self.active_file.data["__oid"] = self.active_file.data.index
         if fd.valid and (shuffle or seed):
             self.shuffle_dataset(fd, seed)
 
@@ -123,7 +131,13 @@ class DbDatasetOps:
             fp = self.make_filepath(
                 self.active_file.lng, self.REV_DIR, f"{self.active_file.signature}.csv"
             )
-            dataset.to_csv(fp, index=False, encoding="utf-8")
+            dataset.to_csv(
+                fp,
+                index=False,
+                encoding="utf-8",
+                columns=self.active_file.headers,
+                header=True,
+            )
             fcc_queue.put_notification(
                 f"Created {self.active_file.signature}", lvl=LogLvl.important
             )
@@ -153,9 +167,7 @@ class DbDatasetOps:
             mst_new = pd.DataFrame(data=mistakes_list, columns=mst_1.columns)
             buffer = pd.concat([mst_1, mst_new], ignore_index=True)
         else:  # create a new mistakes file
-            buffer = pd.DataFrame(
-                data=mistakes_list, columns=self.active_file.data.columns
-            )
+            buffer = pd.DataFrame(data=mistakes_list, columns=self.active_file.headers)
         self.partition_mistakes_data(buffer)
         m_cnt = len(mistakes_list)
         config["mst"]["unreviewed"] += m_cnt
@@ -174,7 +186,7 @@ class DbDatasetOps:
             buffer.iloc[i : i + part_size] for i in range(0, len(buffer), part_size)
         ]
         for i, part in enumerate(parts):
-            part.to_csv(mst_1, index=False, mode="w", header=True)
+            part.to_csv(mst_1, index=False, mode="w", header=True, encoding="utf-8")
             if i + 1 < len(parts):
                 self.rotate_mistakes_files()
 
@@ -219,7 +231,12 @@ class DbDatasetOps:
 
     def create_tmp_file_backup(self):
         self.active_file.data.to_csv(
-            self.TMP_BACKUP_PATH, index=False, mode="w", header=True
+            self.TMP_BACKUP_PATH,
+            index=False,
+            mode="w",
+            header=True,
+            encoding="utf-8",
+            columns=self.active_file.headers,
         )
         config.cache["snapshot"]["file"] = {
             "filepath": self.TMP_BACKUP_PATH,
@@ -297,13 +314,14 @@ class DbDatasetOps:
         )
         log.debug(f"Mocked a temporary file: {fd.basename}")
         self.active_file = fd
+        self.active_file.data["__oid"] = list(range(len(self.active_file.data)))
 
     def shuffle_dataset(self, fd: FileDescriptor, seed=None):
         if seed:
             pd_random_seed = config["pd_random_seed"]
         else:
             pd_random_seed = random.randrange(10000)
-        config.update({"pd_random_seed": pd_random_seed})
+        config["pd_random_seed"] = pd_random_seed
         fd.data = fd.data.sample(frac=1, random_state=pd_random_seed).reset_index(
             drop=True
         )
@@ -389,36 +407,36 @@ class DbDatasetOps:
         )
         log.info(f"Created a directory tree for {lng}")
 
-    def nat_sort(self, s: str):
-        return [
-            (int(text) if text.isdigit() else text.lower())
-            for text in self.__nsre.split(s)
-        ]
-
     def get_sorted_revisions(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.files.items() if v.kind == self.KINDS.rev],
-            key=lambda fd: self.nat_sort(fd.basename),
+            key=lambda fd: nat_sort_key(fd.basename),
             reverse=False,
         )
 
     def get_sorted_languages(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.files.items() if v.kind == self.KINDS.lng],
-            key=lambda fd: self.nat_sort(fd.basename),
+            key=lambda fd: nat_sort_key(fd.basename),
             reverse=False,
         )
 
     def get_sorted_mistakes(self) -> list[FileDescriptor]:
         return sorted(
             [v for _, v in self.files.items() if v.kind == self.KINDS.mst],
-            key=lambda fd: self.nat_sort(fd.basename),
+            key=lambda fd: nat_sort_key(fd.basename),
             reverse=False,
         )
 
-    def delete_card(self, i):
-        self.active_file.data.drop([i], inplace=True, axis=0)
+    def delete_card(self, i: int):
+        oid = self.active_file.data.at[i, "__oid"]
+        self.active_file.data.drop(i, inplace=True, axis=0)
         self.active_file.data.reset_index(inplace=True, drop=True)
+        self.active_file.data.loc[self.active_file.data["__oid"] >= oid, "__oid"] -= 1
+
+    @perftm()
+    def get_index_by_oid(self, org_idx: int) -> int:
+        return self.active_file.data[self.active_file.data["__oid"] == org_idx].index[0]
 
     def match_from_all_languages(
         self, repat: re.Pattern, exclude_dirs: re.Pattern = re.compile(r".^")

@@ -63,14 +63,10 @@ class SummaryGenerator:
         return progress
 
     def __setup_parameters(self):
-        if config["opt"]["dynamic_summary"]:
-            db_conn.filter_where_lng([db_conn.active_file.lng])
-            db_conn.filter_where_not_first()
-            avg_cpm = db_conn.get_avg_cpm()
-            avg_score = db_conn.get_avg_score()
-        else:
-            avg_cpm = 15
-            avg_score = 0.6
+        db_conn.filter_where_lng([db_conn.active_file.lng])
+        db_conn.filter_where_not_first()
+        avg_cpm = db_conn.get_avg_cpm()
+        avg_score = db_conn.get_avg_score()
 
         self.PERCENTAGE_IMPRESSIVE = avg_score * config["summary"]["astounding"]
         self.PERCENTAGE_MEDIOCRE = avg_score * config["summary"]["mediocre"]

@@ -13,6 +13,7 @@ from DBAC import db_conn
 from cfg import config
 from tracker.structs import IMM_CATS
 from tracker.dal import dal
+from utils import fcc_queue, LogLvl
 
 log = logging.getLogger("TRK")
 
@@ -113,6 +114,8 @@ class StopwatchTab(QWidget):
         title = self.title_qle.text()
         ts = self.get_seconds_elapsed()
         dal.add_imm_record(lng=lng, total_seconds=ts, title=title, category=cat)
+        fcc_queue.put_notification(f"Added Immersion record", lvl=LogLvl.important)
+        self.title_qle.clear()
         self.reset_timer()
 
     def get_seconds_elapsed(self) -> int:

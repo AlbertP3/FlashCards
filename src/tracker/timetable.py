@@ -7,7 +7,7 @@ from collections import OrderedDict
 from cfg import config
 from utils import Caliper
 from tracker.dal import dal
-from tracker.helpers import merge_records_by_date, to_time, safe_div
+from tracker.helpers import merge_records_by_date, strftime, safe_div
 from tracker.structs import StrRecordOrderedDict
 from widgets import get_scrollbar
 
@@ -98,21 +98,21 @@ class TimeTablePrintout:
         for v in list(data.items())[-self.lines_lim + 4 :]:
             r = f"{v[0]:>{self.len_datefmt}} "
             if config["tracker"]["stat_cols"]["fcs"]["active"]:
-                r += f"│ {to_time(v[1].fcs.hours):>{self.cols_lens['fcs']}} "
+                r += f"│ {strftime(v[1].fcs.hours):>{self.cols_lens['fcs']}} "
             if config["tracker"]["stat_cols"]["duo"]["active"]:
-                r += f"│ {to_time(v[1].duo.hours):>{self.cols_lens['duo']}} "
+                r += f"│ {strftime(v[1].duo.hours):>{self.cols_lens['duo']}} "
             if config["tracker"]["stat_cols"]["wrt"]["active"]:
-                r += f"│ {to_time(v[1].wrt.hours):>{self.cols_lens['wrt']}} "
+                r += f"│ {strftime(v[1].wrt.hours):>{self.cols_lens['wrt']}} "
             if config["tracker"]["stat_cols"]["rdg"]["active"]:
-                r += f"│ {to_time(v[1].rdg.hours):>{self.cols_lens['rdg']}} "
+                r += f"│ {strftime(v[1].rdg.hours):>{self.cols_lens['rdg']}} "
             if config["tracker"]["stat_cols"]["lst"]["active"]:
-                r += f"│ {to_time(v[1].lst.hours):>{self.cols_lens['lst']}} "
+                r += f"│ {strftime(v[1].lst.hours):>{self.cols_lens['lst']}} "
             if config["tracker"]["stat_cols"]["spk"]["active"]:
-                r += f"│ {to_time(v[1].spk.hours):>{self.cols_lens['spk']}} "
+                r += f"│ {strftime(v[1].spk.hours):>{self.cols_lens['spk']}} "
             if config["tracker"]["stat_cols"]["ent"]["active"]:
-                r += f"│ {to_time(v[1].ent.hours):>{self.cols_lens['ent']}} "
+                r += f"│ {strftime(v[1].ent.hours):>{self.cols_lens['ent']}} "
             if self.multiple_cols:
-                r += f"│ {to_time(v[1].total_hours):>5} "
+                r += f"│ {strftime(v[1].total_hours):>5} "
             if config["tracker"]["incl_col_new"]:
                 r += f"│ {safe_div(v[1].total_hours_new, v[1].total_hours):>4.0%}"
             out.append(r)

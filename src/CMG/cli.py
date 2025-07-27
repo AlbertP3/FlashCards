@@ -46,14 +46,18 @@ class CLI:
             if any(path.endswith(ext) for ext in {".xlsx", ".xlsm", ".xltx", ".xltm"}):
                 s_name = parsed_cmd[1] if len(parsed_cmd) >= 2 else None
                 fh = FileHandler(path=path, sheet_name=s_name)
-                s, m = fh.reverse_card(
-                    i, self.mw.active_file.data.iloc[ci, side], side
-                )
+                s, m = fh.reverse_card(i, self.mw.active_file.data.iloc[ci, side], side)
                 msg += f" and updated the source file [{i+2}]" if s else "\n" + m
             elif path.endswith(".csv"):
                 FileHandler.unshuffle_dataframe(
                     self.mw.active_file.data, seed=config["pd_random_seed"]
-                ).to_csv(path, index=False)
+                ).to_csv(
+                    path,
+                    index=False,
+                    header=True,
+                    columns=self.mw.active_file.headers,
+                    encoding="utf-8",
+                )
                 msg += f" and updated the source file [{i+3}]"
             else:
                 msg = "Aborted - invalid filetype"
@@ -92,13 +96,11 @@ class CLI:
 
     def mcc_apply_changes(self, parsed_cmd: list) -> str:
         ci = self.mw.current_index
-        old_card = self.mw.active_file.data.iloc[ci, :].values.tolist()
+        old_card = self.mw.active_file.data.iloc[ci, :2].values.tolist()
         if old_card == self.mod_card:
             return "Aborted - no changes to commit"
-        self.mw.active_file.data.iloc[ci, :] = self.mod_card
-        self.mw.display_text(
-            self.mw.active_file.data.iloc[ci, self.mw.side]
-        )
+        self.mw.active_file.data.iloc[ci, :2] = self.mod_card
+        self.mw.display_text(self.mw.active_file.data.iloc[ci, self.mw.side])
         path = self.mw.active_file.filepath
         msg = "Modified current card"
         if not self.mw.active_file.tmp:
@@ -115,7 +117,13 @@ class CLI:
                 FileHandler.unshuffle_dataframe(
                     self.mw.active_file.data,
                     seed=config["pd_random_seed"],
-                ).to_csv(path, index=False)
+                ).to_csv(
+                    path,
+                    index=False,
+                    columns=self.mw.active_file.headers,
+                    header=True,
+                    encoding="utf-8",
+                )
                 msg += f" and updated the source file [{i+1}]"
             else:
                 msg = "Aborted - invalid filetype"
@@ -148,16 +156,8 @@ class CLI:
             return "Aborted"
         if config["card_default_side"] == 1:
             self.new_card.reverse()
-        self.mw.active_file.data = pd.concat(
-            [
-                self.mw.active_file.data,
-                pd.DataFrame(
-                    [self.new_card], columns=self.mw.active_file.data.columns
-                ),
-            ],
-            ignore_index=True,
-            sort=False,
-        )
+        new_idx = len(self.mw.active_file.data)
+        self.mw.active_file.data.loc[new_idx] = [*self.new_card, new_idx]
         self.mw.total_words = self.mw.active_file.data.shape[0]
         self.mw.update_words_button()
         return "Added a new card"

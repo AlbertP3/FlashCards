@@ -200,13 +200,17 @@ class EFCTab(BaseTab):
                 fd = _fd
                 break
 
-        if fd:
-            self.mw.switch_tab("main")
-            self.mw.initiate_flashcards(fd)
-        else:
-            fcc_queue.put_notification(
-                "There are no EFC recommendations", lvl=LogLvl.warn
-            )
+        if not fd:
+            # No more recommendations. Pick a random file
+            _fds = [fd for fd in db_conn.files.values() if fd.kind != db_conn.KINDS.lng]
+            shuffle(_fds)
+            try:
+                fd = _fds[0]
+            except IndexError:
+                return
+
+        self.mw.switch_tab("main")
+        self.mw.initiate_flashcards(fd)
 
     def load_pickled_model(self):
         try:

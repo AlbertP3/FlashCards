@@ -17,33 +17,6 @@ from cfg import config
 log = logging.getLogger("UTL")
 
 
-def perftm(buffer_size: int = 1):
-    buffer = deque()
-    cnt = 0
-
-    def decorator(func):
-        def timed(*args, **kwargs):
-            nonlocal cnt
-            t1 = perf_counter()
-            result = func(*args, **kwargs)
-            t2 = perf_counter()
-            buffer.append(t2 - t1)
-            cnt += 1
-            if cnt >= buffer_size:
-                exe_time = sum(buffer) / cnt
-                log.debug(
-                    f"{func.__name__} took avg {(exe_time)*1000:0.3f}ms over {cnt} calls",
-                    stacklevel=2,
-                )
-                cnt = 0
-                buffer.clear()
-            return result
-
-        return timed
-
-    return decorator
-
-
 def singleton(cls):
     instances = {}
 
@@ -53,6 +26,24 @@ def singleton(cls):
         return instances[cls]
 
     return get_instance
+
+
+@singleton
+class SignalBus(QObject):
+    sfe_mod = pyqtSignal(int)
+    fcc_queue_msg = pyqtSignal()
+    task_started = pyqtSignal()
+    task_finished = pyqtSignal()
+
+    def disconnect_tasks(self):
+        for ps in {self.task_started, self.task_finished}:
+            try:
+                ps.disconnect()
+            except TypeError:
+                pass
+
+
+sbus = SignalBus()
 
 
 @dataclass
@@ -86,8 +77,6 @@ class QueueRecord:
 class FccQueue(QObject):
     """Collects messages to be displayed in the console"""
 
-    msg_signal = pyqtSignal()
-
     def __init__(self):
         super().__init__()
         self.__fcc_queue: deque[QueueRecord] = deque()
@@ -119,7 +108,7 @@ class FccQueue(QObject):
             )
             self.__notification_queue.append(record)
             self.unacked_notifications += 1
-            self.msg_signal.emit()
+            sbus.fcc_queue_msg.emit()
 
     def pull_log(self) -> QueueRecord:
         return self.__fcc_queue.popleft()
@@ -137,6 +126,14 @@ class FccQueue(QObject):
 
 
 fcc_queue = FccQueue()
+
+
+NSRE = re.compile(r"(\d+)")
+
+
+def nat_sort_key(s: str) -> list:
+    """Generate a key for natural sorting of strings"""
+    return [(int(text) if text.isdigit() else text.lower()) for text in NSRE.split(s)]
 
 
 def get_filename_from_path(path, include_extension=False):
@@ -403,11 +400,6 @@ def translate(text: str, on_empty: bool = False) -> bool:
         return text.lower() in {"true", "on", "1", "yes", "y"}
 
 
-class WorkerSignals(QObject):
-    started = pyqtSignal()
-    finished = pyqtSignal()
-
-
 class TaskRunner(QRunnable):
 
     def __init__(
@@ -419,12 +411,12 @@ class TaskRunner(QRunnable):
     ):
         super().__init__()
         self.op_id = op_id
-        self.signals = WorkerSignals()
+        sbus.disconnect_tasks()
 
         self.fn = lambda: [f() for f in functions]
 
         if started:
-            self.signals.started.connect(
+            sbus.task_started.connect(
                 lambda: started(config.cache["load_est"].get(self.op_id, 2500)),
                 Qt.QueuedConnection,
             )
@@ -433,9 +425,7 @@ class TaskRunner(QRunnable):
             finished.append(self.__record_time)
         else:
             finished = [self.__record_time]
-        self.signals.finished.connect(
-            lambda: [f() for f in finished], Qt.QueuedConnection
-        )
+        sbus.task_finished.connect(lambda: [f() for f in finished], Qt.QueuedConnection)
 
     def __record_time(self):
         config.cache["load_est"][self.op_id] = int(1000 * (perf_counter() - self.t0))
@@ -443,6 +433,33 @@ class TaskRunner(QRunnable):
     @pyqtSlot()
     def run(self):
         self.t0 = perf_counter()
-        self.signals.started.emit()
+        sbus.task_started.emit()
         self.fn()
-        self.signals.finished.emit()
+        sbus.task_finished.emit()
+
+
+def perftm(buffer_size: int = 1):
+    buffer = deque()
+    cnt = 0
+
+    def decorator(func):
+        def timed(*args, **kwargs):
+            nonlocal cnt
+            t1 = perf_counter()
+            result = func(*args, **kwargs)
+            t2 = perf_counter()
+            buffer.append(t2 - t1)
+            cnt += 1
+            if cnt >= buffer_size:
+                exe_time = sum(buffer) / cnt
+                log.debug(
+                    f"{func.__name__} took avg {(exe_time)*1000:0.3f}ms over {cnt} calls",
+                    stacklevel=2,
+                )
+                cnt = 0
+                buffer.clear()
+            return result
+
+        return timed
+
+    return decorator

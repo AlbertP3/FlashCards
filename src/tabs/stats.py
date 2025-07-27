@@ -173,7 +173,7 @@ class StatsTab(BaseTab):
             self.missing_records_adj = format_seconds_to(
                 self.total_seconds_spent,
                 interval,
-                interval_name=interval.capitalize(),
+                interval_name=interval,
                 rem=rem,
                 sep=":",
             )
@@ -192,7 +192,7 @@ class StatsTab(BaseTab):
             fmt_time = format_seconds_to(
                 self.total_seconds_spent + adjustment,
                 interval,
-                interval_name=interval.capitalize(),
+                interval_name=interval,
                 rem=rem,
                 sep=":",
             )
@@ -202,7 +202,7 @@ class StatsTab(BaseTab):
             fmt_time = format_seconds_to(
                 self.sum_repeated * (60 * self.total_cards / 12),
                 interval,
-                interval_name=interval.capitalize(),
+                interval_name=interval,
                 rem=rem,
                 sep=":",
             )
