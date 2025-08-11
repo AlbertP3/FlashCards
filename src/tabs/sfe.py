@@ -7,8 +7,10 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QAbstractItemView,
     QApplication,
+    QMenu,
 )
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, QModelIndex
+from PyQt5.QtGui import QCursor
 import logging
 from tabs.base import BaseTab
 from DBAC import db_conn, FileDescriptor
@@ -20,7 +22,7 @@ from widgets import (
     ConfirmDeleteCardDialog,
 )
 from cfg import config
-from utils import fcc_queue, LogLvl, sbus
+from utils import fcc_queue, LogLvl, sbus, singular
 from data_types import SfeMods
 from typing import TYPE_CHECKING
 
@@ -37,6 +39,7 @@ class SfeTab(BaseTab):
         self.mw = mw
         self.__last_auto_pasted = ""
         self.sel_idx = 0
+        self._unack_move: tuple = None  # ref, offset
         self.build()
         self.mw.add_tab(self.tab, self.id, "Source File Editor")
 
@@ -49,17 +52,21 @@ class SfeTab(BaseTab):
         self.mw.add_ks("End", lambda: self.scroll(self.model.rowCount() - 1), self.tab)
         self.mw.add_ks("Delete", self.on_delete, self.tab)
         self.mw.add_ks("F2", self.edit_row, self.tab)
+        self.mw.add_ks("Ctrl+Down", lambda: self.move_row(1), self.tab)
+        self.mw.add_ks("Ctrl+Up", lambda: self.move_row(-1), self.tab)
 
     def open(self):
         self.mw.switch_tab(self.id)
         self.view.setFocus()
         self.tab.focus_in()
+        if self.model.fh.fd.active and not self.model.fh.query:
+            self.scroll(db_conn.get_oid_by_index(self.mw.current_index))
 
     def build(self):
         self.tab.set_exit(self.exit)
         self.tab.set_focus_in(self.on_focus_in)
         self.model = DataTableModel(db_conn.files.get(config["sfe"]["last_file"]))
-        sbus.sfe_mod.connect(self.on_model_edit)
+        sbus.sfe_mod.connect(self.on_model_modified)
         self.sfe_layout = QVBoxLayout(self)
         self.sfe_layout.setContentsMargins(1, 1, 1, 1)
         self.sfe_layout.setSpacing(1)
@@ -69,6 +76,7 @@ class SfeTab(BaseTab):
         self.sfe_layout.addWidget(self.view)
         self.tab.setLayout(self.sfe_layout)
         self.scroll(self.model.rowCount() - 1)
+        self.update_search_placeholder()
 
     def exit(self) -> bool:
         if self.search_qle.hasFocus():
@@ -147,7 +155,21 @@ class SfeTab(BaseTab):
         self.view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.view.setWordWrap(False)
-        self.view.setColumnHidden(-1, True)  # Hide index
+        self.view.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.view.customContextMenuRequested.connect(self.open_ctx)
+        self.q_ctx = QMenu(self.view)
+        self.q_ctx.setFont(config.qfont_button)
+
+    def open_ctx(self, pos: QModelIndex):
+        idx = self.view.indexAt(pos)
+        if not idx.isValid():
+            return
+        self.q_ctx.clear()
+        act_id = self.q_ctx.addAction(f"ID: {self.model.fh.data_view.index[idx.row()]}")
+        act_id.setDisabled(True)
+        act_reverse = self.q_ctx.addAction(f"Reverse")
+        act_reverse.triggered.connect(self.reverse_row)
+        self.q_ctx.exec_(QCursor.pos())
 
     def _update_sources(self):
         self.src_cbx.clear()
@@ -201,9 +223,23 @@ class SfeTab(BaseTab):
                 self.model.del_rows(idxs)
                 self.scroll(min(idxs) - 1)
                 self.update_iln_button()
-                if self.model.fh.fd.active:
-                    self.mw.sfe_apply_delete(oids=idxs)
+                self.__on_delete_if_active_file(idxs)
 
+    def __on_delete_if_active_file(self, idxs: list[int]):
+        if self.model.fh.fd.active:
+            self.mw.sfe_apply_delete(oids=idxs)
+        elif self.mw.active_file.tmp:
+            # Changes to the child won't be reflected on the parent
+            try:
+                if self.mw.active_file.parent["filepath"] == self.model.fh.fd.filepath:
+                    self.mw.active_file.parent["len_"] -= sum(
+                        1 for i in idxs if i <= self.mw.active_file.parent["len_"]
+                    )
+            except Exception as e:
+                log.error(e, stack_info=True)
+                pass
+
+    @singular
     def on_add(self):
         dlg = AddCardDialog(fh=self.model.fh, parent=self.mw)
         if dlg.exec_() == QDialog.Accepted:
@@ -218,19 +254,53 @@ class SfeTab(BaseTab):
         if index.isValid():
             self.view.edit(index)
 
-    def on_model_edit(self, mod: int):
+    def reverse_row(self):
+        idx = self.view.selectionModel().currentIndex()
+        if idx.isValid():
+            self.model.reverse_row(idx.row())
+            self.view.setCurrentIndex(idx)
+
+    def move_row(self, by: int):
+        idx = self.view.selectionModel().currentIndex()
+        if not idx.isValid():
+            return
+        elif not (0 <= idx.row() + by < len(self.model.fh.data_view)):
+            return
+        idx = idx.row()
+        self.model.move_row(ref=idx, offset=by)
+        self.view.selectRow(idx + by)
+        self._unack_move = (idx, by)
+
+    def on_model_modified(self, mod: int):
         self.save_btn.setDisabled(self.model.fh.is_saved)
-        if self.model.fh.fd.active and mod == SfeMods.UPDATE:
+        self.update_search_placeholder()
+        if self.model.fh.fd.active:
+            if mod == SfeMods.UPDATE:
 
-            def update_active_file():
-                index = self.view.selectionModel().currentIndex()
-                if index.isValid():
-                    idx = self.model.fh.data_view.index[index.row()]
-                    self.mw.sfe_apply_edit(
-                        oid=idx, val=self.model.fh.data_view.iloc[index.row()].to_list()
-                    )
+                def update_active_file():
+                    index = self.view.selectionModel().currentIndex()
+                    if index.isValid():
+                        idx = self.model.fh.data_view.index[index.row()]
+                        self.mw.sfe_apply_edit(
+                            oid=idx,
+                            val=self.model.fh.data_view.iloc[index.row()].to_list(),
+                        )
 
-            QTimer.singleShot(1, update_active_file)
+                QTimer.singleShot(1, update_active_file)
+
+            elif mod == SfeMods.MOVE:
+
+                def sync_active_file():
+                    ref, by = self._unack_move
+                    for idx in (ref, ref + by):
+                        idx = self.model.fh.data_view.index[idx]
+                        self.mw.sfe_apply_edit(
+                            oid=idx,
+                            val=self.model.fh.data_view.iloc[idx].to_list(),
+                        )
+                    self._unack_move = None
+
+                QTimer.singleShot(1, sync_active_file)
 
     def on_save(self):
         if self.model.fh.is_saved:
@@ -241,11 +311,17 @@ class SfeTab(BaseTab):
 
     def on_src_change(self):
         new_src = self.src_cbx.currentDataList()[0]
-        if new_src.filepath == self.model.fh.filepath:
+        if new_src == self.model.fh:
             return
         self.model.load(new_src)
         self._refresh_search_qle()
+        self.update_search_placeholder()
         self.set_iln_button()
+        if self.model.fh.fd.active:
+            self.scroll(db_conn.get_oid_by_index(self.mw.current_index))
+        else:
+            self.view.selectRow(0)
+            self.view.setFocus()
 
     def set_iln_button(self):
         self.iln_btn.setEnabled(self.model.fh.is_iln)
@@ -296,3 +372,11 @@ class SfeTab(BaseTab):
         self.search_qle.blockSignals(True)
         self.search_qle.setText(self.model.fh.query)
         self.search_qle.blockSignals(False)
+
+    def update_search_placeholder(self):
+        try:
+            num_cards = len(self.model.fh.src_data)
+        except Exception as e:
+            log.error(e, stack_info=True)
+            num_cards = 0
+        self.search_qle.setPlaceholderText(f"Search {num_cards:,} cards...")

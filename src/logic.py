@@ -6,6 +6,7 @@ from typing import Optional
 import pandas as pd
 from DBAC import db_conn, FileDescriptor
 from utils import fcc_queue, LogLvl, format_seconds_to
+from logtools import audit_log
 from cfg import config
 from data_types import HIDE_TIPS_POLICIES
 from rev_summary import SummaryGenerator
@@ -152,9 +153,19 @@ class MainWindowLogic:
         self.side = 1 - self.side
 
     def _delete_current_card(self):
+        oid = db_conn.get_oid_by_index(self.current_index)
         db_conn.delete_card(self.current_index)
         self.total_words = self.active_file.data.shape[0]
+        if self.current_index > 0:
+            self.current_index -= 1
         self.side = self.get_default_side()
+        # If applicable, sync SFE with active tmp file
+        if (
+            self.active_file.tmp
+            and self.sfe.model.fh.fd.tmp
+            and self.active_file.signature == self.sfe.model.fh.fd.signature
+        ):
+            self.sfe.model.del_rows([oid])
 
     def load_flashcards(self, fd: FileDescriptor, seed: Optional[int] = None):
         try:
@@ -269,7 +280,7 @@ class MainWindowLogic:
                 self.should_hide_tips = lambda: False
 
     def save_current_mistakes(self):
-        db_conn.create_mistakes_file(mistakes_list=self.mistakes_list)
+        db_conn.create_mistakes_file(mistakes_list=[i[:2] for i in self.mistakes_list])
         self.update_files_lists()
         self.mistakes_saved = True
         self.notify_on_mistakes()
@@ -314,12 +325,12 @@ class MainWindowLogic:
 
     def init_eph_from_mistakes(self):
         mistakes_df = pd.DataFrame(
-            data=self.mistakes_list,
+            data=[i[:2] for i in self.mistakes_list],
             columns=self.active_file.headers,
         )
         if not self.active_file.tmp:
             self.file_monitor_del_path(self.active_file.filepath)
-        db_conn.load_tempfile(
+        db_conn.activate_tmp_file(
             data=mistakes_df,
             kind=db_conn.KINDS.eph,
             basename=f"{self.active_file.lng} Ephemeral",
@@ -349,7 +360,7 @@ class MainWindowLogic:
     def get_default_side(self) -> int:
         return self.cards_seen_sides[self.current_index]
 
-    def get_current_card(self):
+    def get_current_card(self) -> pd.Series:
         return self.active_file.data.iloc[self.current_index, :]
 
     def notify_on_error(self, traceback, exc_value=None):
@@ -381,9 +392,8 @@ class MainWindowLogic:
                     res = True
         return res
 
-    def update_files_lists(self, with_fds=True):
-        if with_fds:
-            db_conn.update_fds()
+    def update_files_lists(self):
+        db_conn.update_fds()
         self.ldt.is_view_outdated = True
         self.efc.is_view_outdated = True
 
@@ -393,21 +403,33 @@ class MainWindowLogic:
         self.total_words += 1
         self.update_words_button()
         self.display_text(self.get_current_card().iloc[self.side])
-        log.info(f"Active File - added index {new_idx}")
+        audit_log(
+            op="ADD",
+            data=row,
+            filepath=self.active_file.filepath,
+            author="FCS",
+            row=new_idx,
+            status="ACTIVE_ONLY",
+        )
 
     def sfe_apply_edit(self, oid: int, val: list[str]):
         idx = db_conn.get_index_by_oid(oid)
         if idx <= self.current_index:
             try:
-                mst_idx = self.find_in_mistakes_list(
-                    *self.active_file.data.iloc[idx, :2]
-                )
-                self.mistakes_list[mst_idx] = val
+                mst_idx = self.find_in_mistakes_list(oid)
+                self.mistakes_list[mst_idx] = [*val, oid]
             except IndexError:
                 pass
         self.active_file.data.iloc[idx] = [*val, oid]
         self.display_text(self.get_current_card().iloc[self.side])
-        log.info(f"Active File - edited index: {idx}")
+        audit_log(
+            op="UPDATE",
+            data=val,
+            filepath=self.active_file.filepath,
+            author="FCS",
+            row=idx,
+            status="ACTIVE_ONLY",
+        )
 
     def sfe_apply_delete(self, oids: list[int]):
         for oid in oids:
@@ -415,21 +437,18 @@ class MainWindowLogic:
             if 0 < idx <= self.current_index:
                 self.current_index -= 1
                 try:
-                    mst_idx = self.find_in_mistakes_list(
-                        *self.active_file.data.iloc[idx, :2]
-                    )
+                    mst_idx = self.find_in_mistakes_list(oid)
                     self.mistakes_list.pop(mst_idx)
                 except IndexError:
                     pass
             db_conn.delete_card(idx)
             self.total_words -= 1
-            log.info(f"Active File - deleted index: {idx}")
         self.update_words_button()
         self.display_text(self.get_current_card().iloc[self.side])
 
-    def find_in_mistakes_list(self, c0: str, c1: str) -> int:
+    def find_in_mistakes_list(self, idx: int) -> int:
         for i, v in enumerate(self.mistakes_list):
-            if v[0] == c0 and v[1] == c1:
+            if v[2] == idx:
                 return i
         else:
             raise IndexError
@@ -499,19 +518,17 @@ class MainWindowLogic:
         if self.words_back == 0:
             fcc_queue.put_notification("Card not yet checked", lvl=LogLvl.important)
         else:
-            mistakes_one_side = [x[self.side] for x in self.mistakes_list]
-            is_mistake = self.get_current_card().iloc[self.side] in mistakes_one_side
-            if is_mistake:
-                mistake_index = mistakes_one_side.index(
-                    self.get_current_card().iloc[self.side]
+            try:
+                mst_idx = self.find_in_mistakes_list(
+                    db_conn.get_oid_by_index(self.current_index)
                 )
-                del self.mistakes_list[mistake_index]
+                self.mistakes_list.pop(mst_idx)
                 self.negatives -= 1
                 self.positives += 1
                 fcc_queue.put_notification(
                     "Score modified to positive", lvl=LogLvl.important
                 )
-            else:
+            except IndexError:
                 self.append_current_card_to_mistakes_list()
                 self.positives -= 1
                 self.negatives += 1

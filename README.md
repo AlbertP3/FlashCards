@@ -1,8 +1,8 @@
-# FlashCards 1.6.3
+# FlashCards 1.6.5
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.3](#flashcards-163)
+- [FlashCards 1.6.5](#flashcards-165)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -217,6 +217,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | dbg       | Debug - display debug info                                                                                                                |
 | dmp       | Dump Session Data - save config, update cache and create a tmpfcs file                                                                    |
 | rmw       | Refresh Main Window GUI - adjust to system scaling                                                                                        |
+| pal       | Prune Audit Logs - remove redundant records                                                                                               |
     
 
 ## Optional Features
@@ -250,6 +251,7 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | next_efc                      | on shortcut *next_efc* will load a recommended file by following the policy                                                 |
 | sigenpat                      | defines pattern used for naming new *Revision* files. It is appended with NUM on creation                                   |
 | min_eph_cards                 | minimum number of mistakes that triggers creation of an *Ephemeral*                                                         |
+| auto_next                     | automatically executes final actions after the last card                                                                    |
 
 
 ## Keyboard Shortcuts

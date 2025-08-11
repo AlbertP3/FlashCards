@@ -215,12 +215,12 @@ class CfgTab(BaseTab):
 
         self.opts_layout.add_spacer()
         self.opts_layout.add_label("Source File Editor")
-        self.sfe_autosave = self.cfg_cbx(
-            config["sfe"]["autosave"],
-            content=["True", "False"],
-            text="Auto save",
-            multi_choice=False,
-        )
+        # self.sfe_autosave = self.cfg_cbx(
+        #     config["sfe"]["autosave"],
+        #     content=["True", "False"],
+        #     text="Auto save",
+        #     multi_choice=False,
+        # )
         self.sfe_re = self.cfg_cbx(
             config["sfe"]["re"],
             content=["True", "False"],
@@ -471,7 +471,7 @@ class CfgTab(BaseTab):
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
         new_cfg["pace_card_interval"] = int(self.pace_card_qle.text())
         new_cfg["csv_sniffer"] = self.csv_sniffer_qle.currentDataList()[0]
-        new_cfg["sfe"]["autosave"] = self.sfe_autosave.currentDataList()[0] == "True"
+        # new_cfg["sfe"]["autosave"] = self.sfe_autosave.currentDataList()[0] == "True"
         new_cfg["sfe"]["re"] = self.sfe_re.currentDataList()[0] == "True"
         new_cfg["sfe"]["sep"] = self.sfe_sep.text()
         new_cfg["sfe"]["hint_autoadd"] = (

@@ -3,9 +3,10 @@ from abc import abstractmethod
 import pandas as pd
 import logging
 from PyQt5.QtCore import QObject
-from DBAC import db_conn, FileDescriptor
+from DBAC import FileDescriptor
 from cfg import config
 from utils import fcc_queue, LogLvl, sbus
+from logtools import audit_log
 from data_types import SfeMods
 
 log = logging.getLogger("SFE")
@@ -26,7 +27,16 @@ class FileHandler(QObject):
 
     def audit_log(self, op, data, row, col):
         status = "SAVED" if config["sfe"]["autosave"] else "STAGED"
-        log.info(f"{op} {data} {status} TO {self.fd.filepath} AT [{row},{col}]")
+        audit_log(
+            op=op,
+            data=data,
+            row=row,
+            col=col,
+            filepath=self.fd.filepath,
+            author="SFE",
+            status=status,
+            stacklevel=3,
+        )
 
     @property
     def filepath(self) -> str:
@@ -78,17 +88,35 @@ class FileHandler(QObject):
         self.src_data.iat[row, col] = value
         self.audit_log("UPDATE", [value], row, col)
 
+    @mod_tracker(mod=SfeMods.UPDATE)
+    def reverse_row(self, idx: int):
+        self.src_data.iloc[idx] = self.src_data.iloc[idx][::-1].values
+        self.audit_log("REVERSE", self.src_data.iloc[idx].to_list(), idx, ":")
+
+    @mod_tracker(mod=SfeMods.MOVE)
+    def move_row(self, idx: int, offset: int):
+        r0 = self.src_data.iloc[idx].copy()
+        r1 = self.src_data.iloc[idx + offset].copy()
+        self.src_data.iloc[idx] = r1
+        self.src_data.iloc[idx + offset] = r0
+        self.audit_log("MOVE", self.src_data.iloc[idx].to_list(), idx, col=":")
+        self.audit_log(
+            "MOVE", self.src_data.iloc[idx + offset].to_list(), idx + offset, col=":"
+        )
+
     @mod_tracker(mod=SfeMods.CREATE)
     def create_row(self, value: list[str]) -> None:
-        self.src_data.loc[len(self.src_data)] = value
-        self.audit_log("ADD", value, len(self.src_data) - 1, ":")
+        idx = len(self.src_data)
+        self.src_data.loc[idx] = value
+        self.refresh_view()
+        self.audit_log("ADD", value, idx, ":")
 
     @mod_tracker(mod=SfeMods.DELETE)
     def delete_rows(self, rows: list[int]) -> None:
         sel_rows = self.src_data.loc[rows]
         self.src_data.drop(rows, inplace=True)
         self.src_data.reset_index(drop=True, inplace=True)
-        self.data_view.drop(rows, inplace=True)
+        self.refresh_view()
         try:
             iln = config["ILN"][self.fd.filepath]
             for i in rows:
@@ -99,8 +127,17 @@ class FileHandler(QObject):
         for idx, row in sel_rows.iterrows():
             self.audit_log("DELETE", row.to_list(), idx, ":")
 
-    def is_duplicate(self, card: dict) -> bool:
+    def is_duplicate_precheck(self, card: dict) -> bool:
         return (self.src_data[list(card)] == pd.Series(card)).all(1).any()
+
+    def is_duplicate_fullcheck(self, card: dict) -> bool:
+        """Check if a card already exists in the src data. Ignores hints."""
+        cleaned_src = self.src_data[list[card]].apply(
+            lambda col: col.str.replace(config["sfe"]["lookup_re"], "", regex=True)
+            .str.removesuffix(config["sfe"]["hint"])
+            .str.strip()
+        )
+        return (cleaned_src == pd.Series(card)).all(1).any()
 
     def lookup(self, query: str, col: int) -> str:
         mask1 = self.src_data[self.headers[col]].str.contains(
@@ -113,8 +150,6 @@ class FileHandler(QObject):
         if df.empty:
             return ""
         phrase = ", ".join(self.lookup_re.findall(df.iat[0, col]))
-        # if len(df) > 1:
-        #     phrase += " (?)"
         return phrase
 
     def filter(self, query: str = "") -> None:
@@ -146,6 +181,12 @@ class FileHandler(QObject):
     def remove_filter(self):
         self.query = ""
         self.data_view = self.src_data
+
+    def refresh_view(self):
+        q = self.query
+        self.remove_filter()
+        if q:
+            self.filter(q)
 
 
 class CSVFileHandler(FileHandler):
@@ -185,7 +226,11 @@ class TmpFileHandler(FileHandler):
     def load_data(self) -> None:
         try:
             self.headers = list(self.fd.headers)
-            self.src_data = self.fd.data[self.headers]
+            self.src_data = (
+                self.fd.data.copy(deep=True)
+                .sort_values(by="__oid", inplace=False)
+                .reset_index(drop=True, inplace=False)[self.headers]
+            )
             self.data_view = self.src_data
             self.is_saved = True
             log.info(f"Loaded {type(self).__name__} for: {self.fd.signature}")

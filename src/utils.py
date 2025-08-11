@@ -1,7 +1,7 @@
 from PyQt5.QtGui import QFont, QFontMetricsF
 from PyQt5.QtCore import QRunnable, pyqtSlot, pyqtSignal, QObject, Qt
 from collections import deque
-from functools import cache
+from functools import cache, wraps
 from datetime import timedelta, datetime
 import os
 import platform
@@ -26,6 +26,28 @@ def singleton(cls):
         return instances[cls]
 
     return get_instance
+
+
+def singular(fn: Callable):
+    fns = dict()
+
+    @wraps(fn)
+    def decorator(*args, **kwargs):
+        nonlocal fns
+        if not fns.get(fn.__qualname__):
+            # If PyQt passed an unexpected boolean as last positional arg, drop it
+            if (
+                args
+                and isinstance(args[-1], bool)
+                and fn.__code__.co_argcount < len(args)
+            ):
+                args = args[:-1]
+            fns[fn.__qualname__] = True
+            result = fn(*args, **kwargs)
+            fns.pop(fn.__qualname__)
+            return result
+
+    return decorator
 
 
 @singleton

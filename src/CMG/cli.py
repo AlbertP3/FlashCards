@@ -2,11 +2,15 @@ import pandas as pd
 from utils import *
 from cfg import config
 from CMG.file_handler import FileHandler
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 
 class CLI:
 
-    def __init__(self, mw):
+    def __init__(self, mw: "MainWindowGUI"):
         self.mw = mw
         self.state = None
 
@@ -24,6 +28,10 @@ class CLI:
     def get_card_prompt(self, side: int):
         prefix = "Original: " if side == 0 else "Translation: "
         return prefix
+
+    def reload_sfe(self):
+        if self.mw.active_file.signature == self.mw.sfe.model.fh.fd.signature:
+            self.mw.sfe.on_reload()
 
     def reverse_current_card(self, parsed_cmd: list):
         side = self.mw.side
@@ -61,6 +69,7 @@ class CLI:
                 msg += f" and updated the source file [{i+3}]"
             else:
                 msg = "Aborted - invalid filetype"
+        self.reload_sfe()
         self.send_output(msg)
 
     def modify_card(self, parsed_cmd: list):
@@ -127,6 +136,7 @@ class CLI:
                 msg += f" and updated the source file [{i+1}]"
             else:
                 msg = "Aborted - invalid filetype"
+        self.reload_sfe()
         return msg
 
     def add_card(self, parsed_cmd: list):
@@ -160,4 +170,5 @@ class CLI:
         self.mw.active_file.data.loc[new_idx] = [*self.new_card, new_idx]
         self.mw.total_words = self.mw.active_file.data.shape[0]
         self.mw.update_words_button()
+        self.reload_sfe()
         return "Added a new card"

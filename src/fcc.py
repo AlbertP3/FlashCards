@@ -1,4 +1,3 @@
-import os
 import re
 import logging
 from operator import methodcaller
@@ -11,6 +10,7 @@ from DBAC import db_conn
 from CMG.init import CMGSpawn
 from cfg import config
 from typing import TYPE_CHECKING
+from logtools import audit_log_prune
 
 if TYPE_CHECKING:
     from gui import MainWindowGUI
@@ -50,6 +50,7 @@ class FCC:
             "dbg": "Debug - display debug info",
             "dmp": "Dump Session Data - save config, update cache and create a tmpfcs file",
             "rmw": "Refresh Main Window GUI - adjust to system scaling",
+            "pal": "Prune Audit Logs - remove redundant records",
         }
 
     def execute_command(self, parsed_input: list, followup_prompt: bool = True):
@@ -507,3 +508,8 @@ class FCC:
         """Refresh Main Window"""
         self.mw.on_ldpi_change(96)
         self.post_fcc("GUI adjusted to system scaling")
+
+    def pal(self, parsed_cmd: list):
+        """Prune Audit Logs"""
+        prev_len, cur_len = audit_log_prune()
+        self.post_fcc(f"{prev_len-cur_len}/{prev_len} records removed")

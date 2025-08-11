@@ -24,6 +24,7 @@ from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
 from typing import TYPE_CHECKING
+from logtools import audit_log_rename
 
 if TYPE_CHECKING:
     from gui import MainWindowGUI
@@ -252,7 +253,7 @@ class LoadTab(BaseTab):
         if not self.mw.active_file.tmp:
             self.mw.file_monitor_del_path(self.mw.active_file.filepath)
 
-        db_conn.load_tempfile(
+        db_conn.activate_tmp_file(
             basename=f"{fd.lng}{len_child}",
             signature=f"{fd.lng}{len_child}",
             data=data,
@@ -274,14 +275,15 @@ class LoadTab(BaseTab):
         fd = db_conn.files[self.load_map[self.files_qlist.currentRow()]]
         dialog = RenameDialog(self.files_qlist, fd.basename)
         if dialog.exec_():
+            old_signature = fd.signature
+            old_filepath = fd.filepath
             new_filename = dialog.get_filename()
             new_filepath = os.path.join(
-                os.path.dirname(fd.filepath), f"{new_filename}{fd.ext}"
+                os.path.dirname(old_filepath), f"{new_filename}{fd.ext}"
             )
-            is_active = fd.signature == self.mw.active_file.signature
 
-            self.mw.file_monitor_del_protected_path(fd.filepath)
-            os.rename(fd.filepath, new_filepath)
+            self.mw.file_monitor_del_protected_path(old_filepath)
+            os.rename(old_filepath, new_filepath)
             self.mw.update_files_lists()
 
             if fd.kind in db_conn.GRADED:
@@ -290,26 +292,32 @@ class LoadTab(BaseTab):
             else:
                 msgp1 = " "
 
-            if iln := config["ILN"].get(fd.filepath):
+            if iln := config["ILN"].get(old_filepath):
                 config["ILN"][new_filepath] = iln
-                del config["ILN"][fd.filepath]
+                del config["ILN"][old_filepath]
 
             self.open()
 
-            if fd.filepath == config["sfe"]["last_file"]:
+            if old_filepath == config["sfe"]["last_file"]:
                 config["sfe"]["last_file"] = new_filepath
                 self.mw.sfe.model.fh.filepath = new_filepath
                 self.mw.sfe._update_sources()
 
-            if is_active:
-                db_conn.active_file.filepath = new_filepath
-                db_conn.active_file.signature = new_filename
-                db_conn.active_file.basename = new_filename
+            if fd.active:
+                fd.filepath = new_filepath
+                fd.signature = new_filename
+                fd.basename = new_filename
                 self.mw.file_monitor_add_path(new_filepath)
                 self.mw.get_title()
                 config["onload_filepath"] = new_filepath
 
-            log.info(f"Renamed '{fd.filepath}' to '{new_filepath}'")
+            if self.mw.sfe.model.fh.fd == fd:
+                config["sfe"]["last_file"] = fd.filepath
+                self.mw.sfe.on_reload()
+
+            audit_log_rename(old_filepath, new_filepath, old_signature, new_filename)
+
+            log.info(f"Renamed '{old_filepath}' to '{new_filepath}'")
             fcc_queue.put_notification(
                 f"Filename{msgp1}changed successfully", lvl=LogLvl.important
             )

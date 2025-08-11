@@ -125,7 +125,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def __onload_initiate_flashcards(self):
         if metadata := config.cache["snapshot"]["file"]:
             try:
-                db_conn.load_tempfile(
+                db_conn.activate_tmp_file(
                     data=db_conn.read_csv(metadata["filepath"]),
                     kind=metadata["kind"],
                     basename=metadata["basename"],
@@ -749,6 +749,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.reset_pace_timer()
         elif self.should_create_db_record():
             self.handle_graded_complete()
+            if config["opt"]["auto_next"] and self.active_tab_id == self.id:
+                self.handle_final_actions()
+                if self.is_blurred:
+                    self.click_next_button()
         else:
             if self.is_blurred:
                 self.remove_blur()
@@ -831,6 +835,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
         if config["final_actions"]["save_mistakes"] and self.should_save_mistakes():
             self.save_current_mistakes()
+
         self.change_revmode(False)
         self.reset_timer(clear_indicator=False)
         self.stop_timer()
@@ -838,20 +843,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
         if self.negatives != 0 and config["mst"]["opt"]["show_mistakes_after_revision"]:
             self.mst.open()
-        elif config["opt"]["auto_next"]:
-            active_signature = self.active_file.signature
-            self.efc.load_next_efc()
-            if self.active_file.signature == active_signature:
-                # There are no more revisions
-                self.synopsis = config["synopsis"]
-                self.is_synopsis = True
-                self.display_text(self.synopsis)
-            else:
-                if self.is_blurred:
-                    self.click_next_button()
-                else:
-                    self.start_timer()
-                    self.start_pace_timer()
 
     def init_cross_shortcuts(self):
         self.add_ks(Qt.Key_Escape, lambda: self.switch_tab(self.id), self)

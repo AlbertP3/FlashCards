@@ -9,6 +9,7 @@ from PyQt5.QtCore import QTime
 from cfg import config
 from utils import fcc_queue, LogLvl
 from tracker.structs import RecordOrderedDict, Record, SubRecord, IMM_CATS
+from logtools import audit_log
 
 log = logging.getLogger("DAL")
 
@@ -48,6 +49,7 @@ class DataAccessLayer:
         self.stopwatch_running = False
         self.stopwatch_timer = None
         self.last_tab = config["tracker"]["initial_tab"]
+        self.__imm_rows: int = 0
 
     def validate_setup(self):
         if not os.path.exists(self.spc.duo_path):
@@ -134,7 +136,13 @@ class DataAccessLayer:
         if pred_lessons != lessons and pred_lessons > 0:
             log.debug(f"Predicted {pred_lessons} lessons but got {lessons}")
         fcc_queue.put_notification("Added Duo final record", LogLvl.important)
-        log.info(f"{'Updated' if found else 'Added'} Duo Final: {record}")
+        audit_log(
+            op="MERGE" if found else "ADD",
+            data=record,
+            filepath=self.spc.duo_path,
+            author="TRK",
+            row=len(rows)-1,
+        )
         self.upd = time()
 
     def add_duo_record_preliminary(
@@ -180,7 +188,13 @@ class DataAccessLayer:
             f"Added Duo preliminary record #{rows[-1]['lessons']}",
             LogLvl.important,
         )
-        log.info(f"{'Updated' if found else 'Added'} Duo Preliminary: {rows[-1]}")
+        audit_log(
+            op="UPDATE" if found else "ADD",
+            data=rows[-1],
+            filepath=self.spc.duo_path,
+            author="TRK",
+            row=len(rows)-1,
+        )
         self.upd = time()
 
     def add_imm_record(self, lng: str, total_seconds: int, title: str, category: str):
@@ -193,8 +207,16 @@ class DataAccessLayer:
         }
         with open(self.spc.imm_path, "a") as f:
             DictWriter(f, self.spc.imm_cols, delimiter=self.spc.sep).writerow(record)
-        # fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
+        self.__imm_rows += 1
+        fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
         log.info(f"Added Immersion: {record}")
+        audit_log(
+            op="ADD",
+            data=record,
+            filepath=self.spc.imm_path,
+            author="TRK",
+            row=self.__imm_rows,
+        )
         self.upd = time()
 
     def get_data(self) -> RecordOrderedDict:
@@ -308,10 +330,12 @@ class DataAccessLayer:
         """Updates inplace <content> with data from imm file"""
         seen_titles = set()
         act_imm_cats = self.get_active_imm_categories()
+        self.__imm_rows = 0
         with open(self.spc.imm_path, "r") as f:
             next(f)  # skip header
             reader = DictReader(f, fieldnames=self.spc.imm_cols, delimiter=self.spc.sep)
             for row in reader:
+                self.__imm_rows += 1
                 if row["category"] not in act_imm_cats:
                     continue
                 elif row["title"] in seen_titles:

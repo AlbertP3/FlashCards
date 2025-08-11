@@ -1,5 +1,5 @@
 {
-    "version": "1.6.4",
+    "version": "1.6.5",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -130,7 +130,8 @@
         "sep": " | ",
         "hint": " ()",
         "hint_autoadd": true,
-        "lookup_re": "(?<=\\()[^),]+(?=[),])"
+        "lookup_re": "(?<=\\()[^),]+(?=[),])",
+        "validation_interval_ms": 300
     },
     "kbsc": {
         "mod": "Alt",
@@ -293,7 +294,8 @@
                 "name": "Ent",
                 "active": false
             }
-        }
+        },
+        "notes": ""
     },
     "sigenpat": {}
 }

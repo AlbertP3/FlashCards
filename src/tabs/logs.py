@@ -17,7 +17,7 @@ from PyQt5.QtWidgets import QWidget, QGridLayout, QTextEdit, QLineEdit
 from PyQt5.QtCore import Qt, QTime, QTimer
 from widgets import CheckableComboBox, get_scrollbar
 from utils import fcc_queue
-from cfg import config
+from cfg import config, JsonEncoder
 from tracker.dal import dal as tracker_dal
 from tabs.base import BaseTab
 from DBAC import db_conn
@@ -190,7 +190,10 @@ class LogsTab(BaseTab):
                 self.sources[self.cur_src]["fn"](),
                 indent=2,
                 ensure_ascii=False,
+                cls=JsonEncoder
             )
+        elif self.sources[self.cur_src]["type"] == "text":
+            self._content = self.sources[self.cur_src]["fn"]()
 
         if self.sources[self.cur_src]["line_numbers"]:
             content = []
@@ -261,10 +264,10 @@ class LogsTab(BaseTab):
                 "type": "file",
                 "re": re.compile(r"(?=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3})"),
             },
-            "rev": {
-                "fn": lambda: "src/res/db.csv",
-                "line_numbers": True,
-                "type": "file",
+            "database": {
+                "fn": lambda: db_conn.db.to_string(),
+                "line_numbers": False,
+                "type": "text",
                 "re": re.compile("\n"),
             },
             "duo": {
@@ -292,7 +295,13 @@ class LogsTab(BaseTab):
                 "re": re.compile("\n"),
             },
             "file": {
-                "fn": lambda: self.mw.active_file.filepath,
+                "fn": lambda: self.mw.active_file.data.to_dict(orient="index"),
+                "line_numbers": False,
+                "type": "json",
+                "re": re.compile("\n"),
+            },
+            "audit": {
+                "fn": lambda: "audit.jsonl",
                 "line_numbers": True,
                 "type": "file",
                 "re": re.compile("\n"),

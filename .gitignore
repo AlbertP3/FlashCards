@@ -5,6 +5,7 @@ desktop.ini
 config.json
 cache.json
 fcs.log*
+audit.jsonl
 test.log
 tests
 pytest.ini

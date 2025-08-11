@@ -59,10 +59,14 @@ class DataTableModel(QAbstractTableModel):
         except IndexError:
             return None
 
-    def headerData(self, col: int, orientation, role=Qt.DisplayRole):
+    def headerData(self, section: int, orientation, role=Qt.DisplayRole):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self.fh.headers[col]
-        return QVariant()
+            try:
+                return self.fh.headers[section]
+            except Exception:
+                return "N/A"
+        else:
+            return QVariant()
 
     def flags(self, index):
         return (
@@ -99,7 +103,7 @@ class DataTableModel(QAbstractTableModel):
 
     @with_reset_model
     def remove_filter(self):
-        self.fh.remove_filter()    
+        self.fh.remove_filter()
 
     @with_reset_model
     def load(self, fd: FileDescriptor):
@@ -111,3 +115,11 @@ class DataTableModel(QAbstractTableModel):
         self.fh.load_data()
         if self.fh.query:
             self.fh.filter(self.fh.query)
+
+    @with_reset_model
+    def reverse_row(self, idx: int):
+        self.fh.reverse_row(idx)
+
+    @with_reset_model
+    def move_row(self, ref: int, offset: int):
+        self.fh.move_row(ref, offset)

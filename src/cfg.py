@@ -1,21 +1,11 @@
 import json
-import numpy as np
 from collections import UserDict
 import logging
 from time import perf_counter
 from PyQt5.QtGui import QFont
+from logtools import JsonEncoder
 
 log = logging.getLogger("CFG")
-
-
-class JsonEncoder(json.JSONEncoder):
-    def default(self, o: object) -> object:
-        if isinstance(o, np.int_):
-            return int(o)
-        elif isinstance(o, np.float_):
-            return float(o)
-        else:
-            return json.JSONEncoder.default(self, o)
 
 
 class Config(UserDict):
@@ -77,7 +67,6 @@ class Config(UserDict):
     def __set_default_cache(self):
         self.cache = {
             "snapshot": {"file": None, "session": None},
-            "notes": "",
             "load_est": dict(),
         }
 

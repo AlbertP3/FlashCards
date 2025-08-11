@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from time import time, perf_counter
 from csv import DictWriter
 from utils import fcc_queue, LogLvl
+from logtools import audit_log
 
 log = logging.getLogger("DBA")
 
@@ -77,7 +78,13 @@ class DBQueries:
         fcc_queue.put_notification(
             f"Recorded {self.active_file.signature}", lvl=LogLvl.important
         )
-        log.info(f"Created Record: {record}")
+        audit_log(
+            op="ADD",
+            data=record,
+            filepath=self.DB_PATH,
+            author="DBQ",
+            row=len(self.__db) - 1,
+        )
 
     def rename_signature(self, old: str, new: str):
         self.__db["SIGNATURE"] = self.__db["SIGNATURE"].replace(old, new, regex=False)
@@ -90,7 +97,13 @@ class DBQueries:
         )
         self.db = self.__db.copy(deep=True)
         self.last_update = time()
-        log.info(f"Renamed signature '{old}' to '{new}'")
+        audit_log(
+            op="RENAME",
+            data=[old, new],
+            filepath=self.DB_PATH,
+            author="DBQ",
+            row=":",
+        )
 
     def get_unique_signatures(self):
         return self.db["SIGNATURE"].drop_duplicates(inplace=False)

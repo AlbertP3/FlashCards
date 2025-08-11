@@ -8,7 +8,9 @@ from datetime import datetime
 from dataclasses import dataclass
 import os
 import csv
-from utils import fcc_queue, LogLvl, translate, nat_sort_key, perftm
+from uuid import uuid4
+from utils import fcc_queue, LogLvl, translate, nat_sort_key
+from logtools import audit_log
 from cfg import config
 
 log = logging.getLogger("DBA")
@@ -16,16 +18,16 @@ log = logging.getLogger("DBA")
 
 @dataclass
 class FileDescriptor:
-    basename: str = None
-    filepath: str = None
-    lng: str = None
+    basename: Optional[str] = None
+    filepath: Optional[str] = None
+    lng: Optional[str] = None
     kind: str = "U"
-    ext: str = None  # [.csv, .xlsx, ...]
+    ext: Optional[str] = None  # [.csv, .xlsx, ...]
     valid: bool = None
-    data: pd.DataFrame = None
-    signature: str = None
+    data: Optional[pd.DataFrame] = None
+    signature: Optional[str] = None
     tmp: bool = False
-    parent: dict = None  # {filepath: str, len_: int}
+    parent: Optional[dict] = None  # {filepath: str, len_: int}
 
     def __post_init__(self):
         self.active: bool = False
@@ -291,7 +293,7 @@ class DbDatasetOps:
             raise FileExistsError(f"Unsupported file format: {fd.ext}")
         return cnt
 
-    def load_tempfile(
+    def activate_tmp_file(
         self,
         data: pd.DataFrame,
         kind: str,
@@ -300,6 +302,9 @@ class DbDatasetOps:
         parent: dict,
         signature=None,
     ):
+        # ensure signature is unique
+        while signature in {fd.signature for fd in self.files.values()}:
+            signature = f"{signature}_{uuid4().hex[:6]}"
         fd = FileDescriptor(
             basename=basename,
             filepath=None,
@@ -430,13 +435,24 @@ class DbDatasetOps:
 
     def delete_card(self, i: int):
         oid = self.active_file.data.at[i, "__oid"]
+        _val = self.active_file.data.iloc[i].to_list()[:len(self.active_file.headers)]
         self.active_file.data.drop(i, inplace=True, axis=0)
         self.active_file.data.reset_index(inplace=True, drop=True)
         self.active_file.data.loc[self.active_file.data["__oid"] >= oid, "__oid"] -= 1
+        audit_log(
+            op="DELETE",
+            data=_val,
+            filepath=self.active_file.filepath,
+            author="FCS",
+            row=i,
+            status="ACTIVE_ONLY",
+        )
 
-    @perftm()
-    def get_index_by_oid(self, org_idx: int) -> int:
-        return self.active_file.data[self.active_file.data["__oid"] == org_idx].index[0]
+    def get_index_by_oid(self, oid: int) -> int:
+        return self.active_file.data[self.active_file.data["__oid"] == oid].index[0]
+
+    def get_oid_by_index(self, idx: int) -> int:
+        return self.active_file.data.loc[idx, "__oid"]
 
     def match_from_all_languages(
         self, repat: re.Pattern, exclude_dirs: re.Pattern = re.compile(r".^")
@@ -471,7 +487,7 @@ class DbDatasetOps:
         return files_list
 
     def get_all_files(
-        self, dirs: set = None, use_basenames=False, excl_ext=False
+        self, dirs: set = None, use_basenames=False, excl_ext=False, incl_tmp=False
     ) -> set[str]:
         """Returns files for all languages"""
         out = set()
@@ -489,6 +505,8 @@ class DbDatasetOps:
             out = {os.path.basename(f) for f in out}
         if excl_ext:
             out = {os.path.splitext(f)[0] for f in out}
+        if incl_tmp:
+            out.add(self.active_file.signature)
         return out
 
     def get_available_languages(self, ignore: set = {"arch"}) -> set[str]:

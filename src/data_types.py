@@ -53,6 +53,7 @@ class SfeMods(NamedTuple):
     CREATE = 0
     UPDATE = 1
     DELETE = 2
+    MOVE = 3
 
 sfe_hint_formats = {
     " ()": r"(?<=\\()[^),]+(?=[),])",

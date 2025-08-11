@@ -1,3 +1,4 @@
+import re
 from PyQt5.QtWidgets import (
     QComboBox,
     QStyledItemDelegate,
@@ -18,7 +19,7 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QToolTip,
 )
-from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer, QEvent, QPoint
+from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer, QEvent, QPoint, QObject
 from PyQt5.QtGui import (
     QPalette,
     QFontMetrics,
@@ -27,11 +28,14 @@ from PyQt5.QtGui import (
     QKeySequence,
 )
 from collections import OrderedDict
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 from utils import fcc_queue, LogLvl, is_valid_filename, sbus
 from data_types import CreateFileDialogData
 from DBAC import db_conn, FileDescriptor
 from cfg import config
+
+if TYPE_CHECKING:
+    from sfe.fh import FileHandler
 
 
 def get_button(
@@ -391,7 +395,7 @@ class CFIDialog(QDialog):
         self.layout.addWidget(self.submit_btn)
         self.setLayout(self.layout)
         self.validate()
-    
+
     def keyPressEvent(self, event: QKeyEvent):
         if event.type() == QEvent.KeyPress:
             if event.key() in (Qt.Key_Return, Qt.Key_Enter):
@@ -459,7 +463,9 @@ class RenameDialog(QDialog):
         new_filename = self.filename_qle.text()
         if not is_valid_filename(new_filename):
             fcc_queue.put_notification("Invalid filename provided", lvl=LogLvl.err)
-        elif new_filename in db_conn.get_all_files(use_basenames=True, excl_ext=True):
+        elif new_filename in db_conn.get_all_files(
+            use_basenames=True, excl_ext=True, incl_tmp=True
+        ):
             fcc_queue.put_notification(
                 "Provided filename already exists", lvl=LogLvl.err
             )
@@ -573,11 +579,13 @@ class FieldQLE(QLineEdit):
 
 
 class AddCardDialog(QDialog):
-    def __init__(self, fh, parent: Optional[QWidget] = None):
+    def __init__(self, fh: "FileHandler", parent: Optional[QWidget] = None):
         super().__init__(parent)
+        self.installEventFilter(self)
         self.fh = fh
         self.fli = 0
         self.flc = self.fh.headers[self.fli]
+        self._lookup_re = re.compile(config["sfe"]["lookup_re"])
         self.setWindowTitle("New Card")
         self.setFont(config.qfont_button)
         self.setMinimumWidth(int(0.95 * parent.width()))
@@ -585,6 +593,15 @@ class AddCardDialog(QDialog):
         self.form = QFormLayout(self)
         self.form.setContentsMargins(1, 1, 1, 1)
         self.form.setSpacing(2)
+
+        self.validation_timer = QTimer(self)
+        self.validation_timer.setSingleShot(True)
+        self.validation_timer.timeout.connect(self.validate)
+        self._default_validation_timer_interval = config["sfe"][
+            "validation_interval_ms"
+        ]
+        self._validation_timer_interval = self._default_validation_timer_interval
+        self._last_checked_card: dict[str, str] = {}
 
         self.fields: OrderedDict[str, QLineEdit] = OrderedDict()
         for h in self.fh.headers:
@@ -607,7 +624,7 @@ class AddCardDialog(QDialog):
 
     def create_field(self, header: str):
         field = FieldQLE(self)
-        field.textChanged.connect(self.validate)
+        field.textChanged.connect(self.__on_field_text_changed)
         field.setFont(config.qfont_console)
         field.installEventFilter(self)
         label = QLabel(self)
@@ -617,55 +634,78 @@ class AddCardDialog(QDialog):
         self.form.addRow(label, field)
         self.fields[header] = field
 
+    def __on_field_text_changed(self):
+        if self.get_card_content() != self._last_checked_card:
+            self.submit_btn.setDisabled(True)
+            self.submit_btn.setText("Checking...")
+            self.validation_timer.start(self._validation_timer_interval)
+            self._validation_timer_interval = self._default_validation_timer_interval
+
     def accept(self):
-        self.values = list(self.get_card(remove_suffix=True).values())
+        self.values = list(self.get_card().values())
         super().accept()
 
     def validate(self):
         invalid = True
-        card = self.get_card(remove_suffix=True)
+        card = self.get_card_content()
         if any(len(t) == 0 for t in card.values()):
             msg = "Empty"
-        elif self.fh.is_duplicate(card):
+        elif self.fh.is_duplicate_fullcheck(card):
             msg = "Duplicate"
         else:
             invalid = False
             msg = "Create"
         self.submit_btn.setDisabled(invalid)
         self.submit_btn.setText(msg)
+        self._last_checked_card = card
 
-    def keyPressEvent(self, event: QKeyEvent):
+    def eventFilter(self, obj: QObject, event: QKeyEvent) -> bool:
         if event.type() == QEvent.KeyPress:
             if event.matches(QKeySequence.Paste):
                 return self.on_paste()
             elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
                 if self.submit_btn.isEnabled():
-                    return self.accept()
-        return super().keyPressEvent(event)
+                    self.accept()
+                    return True
+        return super().eventFilter(obj, event)
 
     def on_paste(self) -> bool:
-        texts = self.get_card(remove_suffix=False)
+        cur_card = self.get_card()
         pasted = QApplication.clipboard().text().split(config["sfe"]["sep"])
-        if not all(len(t) for t in texts.values()) and len(pasted) == len(self.fields):
+        if not any(cur_card.values()) and len(pasted) == len(self.fields):
+            self._validation_timer_interval = 0
             for i, v in enumerate(self.fields.values()):
-                v.setText(pasted[i])
+                v.setText(pasted[i].strip())
             if config["sfe"]["hint_autoadd"]:
 
                 def auto_hint():
+                    self._validation_timer_interval = 0
                     field = self.fields[self.flc]
-                    if not field.text().endswith(config["sfe"]["hint"]):
-                        field.setText(f"{field.text()}{config['sfe']['hint']}")
-                    field.cursorBackward(False, int(len(config["sfe"]["hint"]) / 2))
+                    field_text = field.text()
+                    if not field_text.endswith(
+                        config["sfe"]["hint"]
+                    ) and not self._lookup_re.search(field_text):
+                        field.setText(f"{field_text}{config['sfe']['hint']}")
+                        field.cursorBackward(False, int(len(config["sfe"]["hint"]) / 2))
 
-                QTimer.singleShot(1, auto_hint)
+                QTimer.singleShot(10, auto_hint)
             return True
         return False
 
-    def get_card(self, remove_suffix=False) -> dict[str]:
-        card = {k: v.text().strip() for k, v in self.fields.items()}
-        if remove_suffix:
-            card[self.flc] = card[self.flc].removesuffix(config["sfe"]["hint"])
-        return card
+    def get_card(self) -> dict[str]:
+        return {
+            k: v.text().strip().removesuffix(config["sfe"]["hint"]).strip()
+            for k, v in self.fields.items()
+        }
+
+    def get_card_content(self) -> dict[str]:
+        return {
+            k: self._lookup_re.sub("", v.text())
+            .strip()
+            .removesuffix(config["sfe"]["hint"])
+            .strip()
+            for k, v in self.fields.items()
+        }
 
 
 class ConfirmDeleteCardDialog(QDialog):

@@ -25,7 +25,7 @@ class NotesLayout:
         self.qTextEdit.setFont(config.qfont_textbox)
         self.qTextEdit.setAcceptRichText(False)
         self.qTextEdit.setVerticalScrollBar(get_scrollbar())
-        self.qTextEdit.setText(config.cache.get("notes", ""))
+        self.qTextEdit.setText(config["tracker"]["notes"])
         self.qTextEdit.keyPressEvent = self.qte_ks
 
     def qte_ks(self, event: QKeyEvent):
@@ -36,7 +36,7 @@ class NotesLayout:
             self.trk.switch_tab(-1)
         else:
             QTextEdit.keyPressEvent(self.qTextEdit, event)
-            config.cache["notes"] = self.qTextEdit.toPlainText()
+            config["tracker"]["notes"] = self.qTextEdit.toPlainText()
 
     def get(self) -> QTextEdit:
         return self.qTextEdit
