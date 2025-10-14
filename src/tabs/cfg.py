@@ -21,7 +21,7 @@ from utils import fcc_queue, LogLvl, is_valid_filename
 from cfg import config
 from DBAC import db_conn
 from tabs.base import BaseTab
-from data_types import t, sfe_hint_formats
+from data_types import t, sfe_hint_formats, EfcRecom
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
@@ -193,13 +193,13 @@ class CfgTab(BaseTab):
         )
         self.efc_primary_sort_cbx = self.cfg_cbx(
             config["efc"]["sort"]["key_1"],
-            content=["fp", "disp", "score", "is_init"],
+            content=EfcRecom._fields,
             text="Primary sort key",
             multi_choice=False,
         )
         self.efc_secondary_sort_cbx = self.cfg_cbx(
             config["efc"]["sort"]["key_2"],
-            content=["fp", "disp", "score", "is_init"],
+            content=EfcRecom._fields,
             text="Secondary sort key",
             multi_choice=False,
         )
@@ -388,18 +388,6 @@ class CfgTab(BaseTab):
             multi_choice=False,
             text="Include %New column",
         )
-        self.tracker_default_category = self.cfg_cbx(
-            config["tracker"]["default_category"],
-            content=("wrt", "rdg", "lst", "spk", "ent"),
-            multi_choice=False,
-            text="Default category",
-        )
-        self.tracker_init_tab = self.cfg_cbx(
-            config["tracker"]["initial_tab"],
-            content=["TimeTable", "TimeChart", "Progress", "Duo", "StopWatch", "Notes"],
-            multi_choice=False,
-            text="Initial tab",
-        )
         self.tracker_duo_active = self.cfg_cbx(
             config["tracker"]["duo"]["active"],
             content=["True", "False"],
@@ -542,10 +530,6 @@ class CfgTab(BaseTab):
         new_cfg["tracker"]["incl_col_new"] = (
             self.tracker_incl_col_new.currentDataList()[0] == "True"
         )
-        new_cfg["tracker"][
-            "default_category"
-        ] = self.tracker_default_category.currentDataList()[0]
-        new_cfg["tracker"]["initial_tab"] = self.tracker_init_tab.currentDataList()[0]
         new_cfg["tracker"]["duo"]["active"] = (
             self.tracker_duo_active.currentDataList()[0] == "True"
         )
@@ -673,6 +657,7 @@ class CfgTab(BaseTab):
             self.mw.initiate_pace_timer()
             self.mw.tips_hide_re = re.compile(config["hide_tips"]["pattern"])
             self.mw.set_should_hide_tips()
+            self.mw.trk.trk.invalidate_tabs()
 
     def __validate(self, cfg: dict) -> tuple[bool, set]:
         errs = set()

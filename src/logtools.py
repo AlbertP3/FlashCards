@@ -67,20 +67,23 @@ def audit_log_rename(
     old_filepath: str, new_filepath: str, old_signature: str, new_signature: str
 ):
     records = []
-    with open("audit.jsonl", "r") as f:
+    with open("audit.jsonl", "r", encoding="utf-8") as f:
         for r in f:
             r = json.loads(r)
             try:
                 if r["path"] == old_filepath:
                     r["path"] = new_filepath
-                    if r["data"].get("SIGNATURE") == old_signature:
-                        r["data"]["SIGNATURE"] = new_signature
+                    try:
+                        if r["data"]["SIGNATURE"] == old_signature:
+                            r["data"]["SIGNATURE"] = new_signature
+                    except (KeyError, AttributeError, TypeError):
+                        pass
             except KeyError:
                 pass
-            records.append(json.dupms(r))
+            records.append(json.dumps(r, ensure_ascii=False))
 
-    with open("audit.jsonl", "w") as f:
-        f.writelines(records)
+    with open("audit.jsonl", "w", encoding="utf-8") as f:
+        f.write("\n".join(records) + "\n")
 
 
 def audit_log_prune():

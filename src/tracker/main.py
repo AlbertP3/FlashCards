@@ -1,4 +1,5 @@
 import logging
+from typing import Callable, TYPE_CHECKING
 from PyQt5.QtWidgets import (
     QTabWidget,
     QGridLayout,
@@ -14,6 +15,9 @@ from tracker.stopwatch import StopwatchTab
 from tracker.notes import NotesLayout
 from tracker.dal import dal
 
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
+
 log = logging.getLogger("TRK")
 
 
@@ -28,8 +32,9 @@ class TAB(Enum):
 
 class Tracker(QGridLayout):
 
-    def __init__(self):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
+        self.mw = mw
         self.trk_tab_map = {}
         self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(1)
@@ -42,20 +47,40 @@ class Tracker(QGridLayout):
         self.trk_tabs.setFont(config.qfont_button)
         self.trk_tabs.setContentsMargins(1, 1, 1, 1)
 
-        self.add_tab(self.get_timetable_tab(), TAB.TimeTable.value)
-        self.add_tab(self.get_timechart_tab(), TAB.TimeChart.value)
-        self.add_tab(self.get_progress_tab(), TAB.Progress.value)
+        self.add_tab(
+            self.get_timetable_tab(), TAB.TimeTable.value, self.tt_printout.refresh
+        )
+        self.add_tab(
+            self.get_timechart_tab(), TAB.TimeChart.value, self.ts_canvas.refresh
+        )
+        self.add_tab(
+            self.get_progress_tab(), TAB.Progress.value, self.prog_canvas.refresh
+        )
         if config["tracker"]["duo"]["active"]:
-            self.add_tab(self.get_duo_tab(), TAB.Duo.value)
-        self.add_tab(self.get_stopwatch_tab(), TAB.StopWatch.value)
-        self.add_tab(self.get_notes_tab(), TAB.Notes.value)
+            self.add_tab(self.get_duo_tab(), TAB.Duo.value, self.duo_layout.refresh)
+        self.add_tab(
+            self.get_stopwatch_tab(), TAB.StopWatch.value, self.stopwatch_layout.refresh
+        )
+        self.add_tab(
+            self.get_notes_tab(), TAB.Notes.value, self.notes_layout.qTextEdit.setFocus
+        )
 
         self.trk_tabs.currentChanged.connect(self.on_tab_changed)
-        self.trk_tabs.setCurrentIndex(self.trk_tab_map.get(dal.last_tab, 0))
+        self.trk_tabs.setCurrentIndex(
+            self.trk_tab_map.get(config["tracker"]["initial_tab"], 0)["idx"]
+        )
 
-    def add_tab(self, widget, text):
+    def add_tab(self, widget, text, on_refresh: Callable):
         self.trk_tabs.addTab(widget, text)
-        self.trk_tab_map[text] = len(self.trk_tab_map)
+        self.trk_tab_map[text] = {"idx": len(self.trk_tab_map), "fn": on_refresh}
+
+    def invalidate_tabs(self):
+        self.prog_canvas.upd = -1
+        self.ts_canvas.upd = -1
+        self.tt_printout.upd = -1
+        self.duo_layout.upd = -1
+        self.stopwatch_layout.upd = -1
+        self.notes_layout.upd = -1
 
     def refresh_current_tab(self):
         ci = self.trk_tabs.currentIndex()
@@ -72,19 +97,8 @@ class Tracker(QGridLayout):
 
     def on_tab_changed(self, index: int):
         tid = self.trk_tabs.tabText(index)
-        if tid == TAB.TimeChart.value:
-            self.ts_canvas.refresh()
-        elif tid == TAB.Progress.value:
-            self.prog_canvas.refresh()
-        elif tid == TAB.TimeTable.value:
-            self.tt_printout.refresh()
-        elif tid == TAB.Duo.value:
-            self.duo_layout.refresh()
-        elif tid == TAB.StopWatch.value:
-            self.stopwatch_layout.refresh()
-        elif tid == TAB.Notes.value:
-            self.notes_layout.qTextEdit.setFocus()
-        dal.last_tab = tid
+        self.trk_tab_map[tid]["fn"]()
+        config["tracker"]["initial_tab"] = tid
 
     def get_progress_tab(self) -> QWidget:
         tab = QWidget()
@@ -118,7 +132,7 @@ class Tracker(QGridLayout):
 
     def get_stopwatch_tab(self) -> QWidget:
         tab = QWidget()
-        self.stopwatch_layout = StopwatchTab()
+        self.stopwatch_layout = StopwatchTab(mw=self.mw)
         tab.setLayout(self.stopwatch_layout.get())
         return tab
 

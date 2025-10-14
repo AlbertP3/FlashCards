@@ -48,7 +48,6 @@ class DataAccessLayer:
         self.stopwatch_elapsed = QTime(0, 0, 0)
         self.stopwatch_running = False
         self.stopwatch_timer = None
-        self.last_tab = config["tracker"]["initial_tab"]
         self.__imm_rows: int = 0
 
     def validate_setup(self):
@@ -101,7 +100,7 @@ class DataAccessLayer:
             "minutes": timespent,
             "lng": lng,
         }
-        rows = []
+        rows: list[dict] = []
         with open(self.spc.duo_path, "r") as f:
             next(f)  # skip header
             reader = DictReader(f, fieldnames=self.spc.duo_cols, delimiter=self.spc.sep)
@@ -138,10 +137,10 @@ class DataAccessLayer:
         fcc_queue.put_notification("Added Duo final record", LogLvl.important)
         audit_log(
             op="MERGE" if found else "ADD",
-            data=record,
+            data=record | {"final": True},
             filepath=self.spc.duo_path,
             author="TRK",
-            row=len(rows)-1,
+            row=len(rows) - 1,
         )
         self.upd = time()
 
@@ -154,7 +153,7 @@ class DataAccessLayer:
         If timespent is missing then it will be estimated based on an average.
         """
         tgt_dstr = (date.today() - timedelta(days=offset)).strftime(r"%Y-%m-%d")
-        rows = []
+        rows: list[dict] = []
         found = False
         with open(self.spc.duo_path, "r") as f:
             next(f)  # skip header
@@ -190,10 +189,10 @@ class DataAccessLayer:
         )
         audit_log(
             op="UPDATE" if found else "ADD",
-            data=rows[-1],
+            data=rows[-1] | {"final": False},
             filepath=self.spc.duo_path,
             author="TRK",
-            row=len(rows)-1,
+            row=len(rows) - 1,
         )
         self.upd = time()
 
@@ -209,7 +208,6 @@ class DataAccessLayer:
             DictWriter(f, self.spc.imm_cols, delimiter=self.spc.sep).writerow(record)
         self.__imm_rows += 1
         fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
-        log.info(f"Added Immersion: {record}")
         audit_log(
             op="ADD",
             data=record,

@@ -106,7 +106,7 @@ class LoadTab(BaseTab):
         self._files["lngs"] = db_conn.get_sorted_languages()
         self._files["msts"] = db_conn.get_sorted_mistakes()
         self._files["new_revs"] = {
-            r["fp"] for r in self.mw.efc.get_recommendations() if r["is_init"]
+            r.filepath for r in self.mw.efc.get_recommendations() if r.is_initial
         }
         self._files["revs"] = db_conn.get_sorted_revisions()
 
@@ -267,6 +267,8 @@ class LoadTab(BaseTab):
         db_conn.shuffle_dataset(self.mw.active_file)
         self.mw.switch_tab("main")
         self.mw.update_backend_parameters()
+        if config["opt"]["graded_cfi"]:
+            self.mw.is_graded = True
         self.mw.update_interface_parameters()
         self.mw.reset_timer()
 
@@ -298,11 +300,6 @@ class LoadTab(BaseTab):
 
             self.open()
 
-            if old_filepath == config["sfe"]["last_file"]:
-                config["sfe"]["last_file"] = new_filepath
-                self.mw.sfe.model.fh.filepath = new_filepath
-                self.mw.sfe._update_sources()
-
             if fd.active:
                 fd.filepath = new_filepath
                 fd.signature = new_filename
@@ -311,9 +308,16 @@ class LoadTab(BaseTab):
                 self.mw.get_title()
                 config["onload_filepath"] = new_filepath
 
-            if self.mw.sfe.model.fh.fd == fd:
-                config["sfe"]["last_file"] = fd.filepath
+            if old_filepath == config["sfe"]["last_file"]:
+                config["sfe"]["last_file"] = new_filepath
+                self.mw.sfe.model.fh.fd.filepath = new_filepath
+                self.mw.sfe.src_cbx.showPopup()
+                self.mw.sfe.src_cbx.hidePopup()
                 self.mw.sfe.on_reload()
+
+            if old_filepath in config["sigenpat"].keys():
+                config["sigenpat"][new_filepath] = config["sigenpat"][old_filepath]
+                config["sigenpat"].pop(old_filepath)
 
             audit_log_rename(old_filepath, new_filepath, old_signature, new_filename)
 

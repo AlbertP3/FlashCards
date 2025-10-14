@@ -1,5 +1,5 @@
 {
-    "version": "1.6.5",
+    "version": "1.6.6",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -13,7 +13,8 @@
         "show_percent_stats": true,
         "auto_next": true,
         "hide_timer": false,
-        "show_cpm_timer": false
+        "show_cpm_timer": false,
+        "graded_cfi": false
     },
     "days_to_new_rev": 0,
     "pd_random_seed": 9022,
@@ -93,11 +94,12 @@
             "skip_mistakes": false,
             "new_first": true,
             "require_recorded": true,
-            "save_mistakes": true
+            "save_mistakes": true,
+            "fallback": true
         },
         "sort": {
-            "key_1": "score",
-            "key_2": "fp"
+            "key_1": "pred_score",
+            "key_2": "filepath"
         }
     },
     "SOD": {
@@ -152,7 +154,7 @@
         "mistakes": "m",
         "stats": "s",
         "save": "",
-        "sod": "2",
+        "sod": "",
         "hint": "h",
         "last_seen": "g",
         "logs": "1",
@@ -180,7 +182,8 @@
     ],
     "icons": {
         "next": "Next",
-        "prev": "Prev",
+        "new": "New",
+        "prev": "Previous",
         "reverse": "Reverse",
         "positive": "✔️",
         "negative": "❌",

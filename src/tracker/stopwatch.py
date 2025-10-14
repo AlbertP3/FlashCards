@@ -6,24 +6,30 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QCompleter,
+    QDialog,
 )
 from PyQt5.QtCore import Qt, QTime, QTimer, QStringListModel
-from widgets import CheckableComboBox, get_button
+from widgets import CheckableComboBox, get_button, StopWatchSetter
 from DBAC import db_conn
+from typing import TYPE_CHECKING
 from cfg import config
 from tracker.structs import IMM_CATS
 from tracker.dal import dal
-from utils import fcc_queue, LogLvl
+
+if TYPE_CHECKING:
+    from gui import MainWindowGUI
 
 log = logging.getLogger("TRK")
 
 
 class StopwatchTab(QWidget):
-    def __init__(self):
+    def __init__(self, mw: "MainWindowGUI"):
         super().__init__()
+        self.mw = mw
         self.upd = -1
         self.cat_map = dal.get_imm_category_mapping()
         self.__res = 1
+        self.__cur_category = config["tracker"]["default_category"]
         self.init_ui()
 
     def refresh(self):
@@ -36,6 +42,8 @@ class StopwatchTab(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(1, 1, 1, 1)
+        self.layout.setSpacing(1)
         self.timer_label = QLabel(dal.stopwatch_elapsed.toString("hh:mm:ss"))
         self.timer_label.setAlignment(Qt.AlignCenter)
         self.timer_label.setFont(config.qfont_stopwatch)
@@ -43,10 +51,17 @@ class StopwatchTab(QWidget):
         self.layout.addWidget(self.timer_label)
 
         controls_layout = QHBoxLayout()
+
+        self.timeset_btn = get_button(self, "Set", self.show_timeset)
+        min_height = self.timeset_btn.height()
+
         self.category_cbx = self.get_cbx(
             config["tracker"]["default_category"], IMM_CATS, multi_choice=False
         )
-        self.category_cbx.currentIndexChanged.connect(self.on_category_change)
+        self.category_cbx.setMinimumHeight(min_height)
+        self.category_cbx.model().dataChanged.connect(
+            lambda: QTimer.singleShot(1, self.on_category_change)
+        )
         controls_layout.addWidget(self.category_cbx)
 
         self.lng_cbx = self.get_cbx(
@@ -54,12 +69,16 @@ class StopwatchTab(QWidget):
             db_conn.get_available_languages(),
             multi_choice=False,
         )
+        self.lng_cbx.setMinimumHeight(min_height)
         controls_layout.addWidget(self.lng_cbx)
 
+        controls_layout.addWidget(self.timeset_btn)
+
         self.title_qle = self.get_qle(placeholder="Title")
+        self.title_qle.setMinimumHeight(min_height)
         self.title_completer = self.get_completer([])
         self.title_qle.setCompleter(self.title_completer)
-        self.on_category_change()
+        self.update_completer(self.__cur_category)
         controls_layout.addWidget(self.title_qle)
 
         self.pause_btn = get_button(self, "Start", self.toggle_timer)
@@ -82,11 +101,19 @@ class StopwatchTab(QWidget):
             dal.stopwatch_timer = QTimer(self)
             dal.stopwatch_timer.timeout.connect(self.update_timer)
 
-    def get_current_titles(self) -> list:
-        return [v for v in self.cat_map.get(self.category_cbx.currentDataList()[0], [])]
+    def get_current_titles(self, category: str) -> list:
+        return [v for v in self.cat_map.get(category, [])]
 
     def on_category_change(self):
-        self.title_completer.setModel(QStringListModel(self.get_current_titles()))
+        new_category = self.category_cbx.currentDataList()[0]
+        if self.__cur_category != new_category:
+            self.update_completer(new_category)
+    
+    def update_completer(self, category: str):
+        self.title_completer.setModel(QStringListModel(self.get_current_titles(category)))
+        config["tracker"]["default_category"] = category
+        self.__cur_category = category
+
 
     def toggle_timer(self):
         if dal.stopwatch_running:
@@ -141,7 +168,7 @@ class StopwatchTab(QWidget):
         return cb
 
     def get_qle(self, text: str = "", placeholder: str = "") -> QLineEdit:
-        qle = QLineEdit()
+        qle = QLineEdit(self)
         qle.setFont(config.qfont_button)
         qle.setMaximumWidth(250)
         qle.setAlignment(Qt.AlignCenter)
@@ -155,3 +182,12 @@ class StopwatchTab(QWidget):
         completer.setFilterMode(Qt.MatchContains)
         completer.setCompletionMode(QCompleter.InlineCompletion)
         return completer
+
+    def show_timeset(self):
+        dlg = StopWatchSetter(parent=self.mw)
+        if dlg.exec_() == QDialog.Accepted:
+            seconds = dlg.get_seconds()
+            dal.stopwatch_elapsed = dal.stopwatch_elapsed.fromMSecsSinceStartOfDay(
+                1000 * seconds
+            )
+            self.timer_label.setText(dal.stopwatch_elapsed.toString("hh:mm:ss"))

@@ -433,7 +433,6 @@ class LogsTab(BaseTab):
                             tracker_dal,
                             (
                                 "upd",
-                                "last_tab",
                                 "stopwatch_running",
                                 "stopwatch_elapsed",
                             ),

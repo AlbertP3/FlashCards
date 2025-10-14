@@ -15,6 +15,7 @@ from widgets import get_scrollbar, get_button
 from tabs.base import BaseTab
 from DBAC import db_conn
 from typing import TYPE_CHECKING, Optional
+from data_types import EfcRecord, EfcRecom
 
 if TYPE_CHECKING:
     from gui import MainWindowGUI
@@ -66,7 +67,7 @@ class EFCTab(BaseTab):
         self._efc_last_calc_time = 0
         self._db_load_time_efc = 0
         self.files_count = 0
-        self._recoms: list[dict] = list()  # {fp, disp, score, is_init}
+        self._recoms: list[EfcRecom] = list()
         self.cur_efc_index = 0
         self.build()
         self.mw.add_tab(self.tab, self.id, "EFC")
@@ -103,7 +104,7 @@ class EFCTab(BaseTab):
     def show_recommendations(self):
         self.recoms_qlist.clear()
         for r in self._recoms:
-            self.recoms_qlist.addItem(r["disp"])
+            self.recoms_qlist.addItem(r.display_name)
         self.files_count = self.recoms_qlist.count()
         if self.files_count:
             self.cur_efc_index = min(self.files_count - 1, self.cur_efc_index)
@@ -176,24 +177,36 @@ class EFCTab(BaseTab):
         recs = [
             rec
             for rec in self.get_recommendations()
-            if rec["fp"] != self.mw.active_file.filepath
+            if rec.filepath != self.mw.active_file.filepath
         ]
 
         if not recs:
-            fcc_queue.put_notification(
-                "There are no EFC recommendations", lvl=LogLvl.warn
-            )
-            return
+            if config["efc"]["opt"]["fallback"]:
+                recs = [
+                    EfcRecom(
+                        filepath=fd.filepath,
+                        display_name=fd.signature,
+                        pred_score=0,
+                        is_initial=False,
+                    )
+                    for fd in db_conn.files.values()
+                    if fd.kind in {db_conn.KINDS.rev, db_conn.KINDS.mst}
+                ]
+            else:
+                fcc_queue.put_notification(
+                    "There are no EFC recommendations", lvl=LogLvl.warn
+                )
+                return
 
         if config["efc"]["opt"]["random"]:
             shuffle(recs)
         if config["efc"]["opt"]["reversed"]:
             recs = list(reversed(recs))
         if config["efc"]["opt"]["new_first"]:
-            recs.sort(key=lambda x: x["is_init"], reverse=True)
+            recs.sort(key=lambda x: x.is_initial, reverse=True)
 
         for rec in recs:
-            _fd = db_conn.files[rec["fp"]]
+            _fd = db_conn.files[rec.filepath]
             if config["efc"]["opt"]["skip_mistakes"] and _fd.kind == db_conn.KINDS.mst:
                 continue
             else:
@@ -233,14 +246,14 @@ class EFCTab(BaseTab):
         db_current = self._db_load_time_efc == db_conn.last_update
         return db_is_upd and db_current
 
-    def get_recommendations(self) -> list[dict]:
+    def get_recommendations(self) -> list[EfcRecom]:
         """Returns EFC recommendations. Utilizes cache"""
         if not self.cache_valid:
             self.calc_recommendations()
         return self._recoms
 
     @pyqtSlot()
-    def calc_recommendations(self):
+    def calc_recommendations(self) -> None:
         """Computes new EFC recommendations"""
         t0 = perf_counter()
         self._recoms = list()
@@ -257,39 +270,39 @@ class EFCTab(BaseTab):
                         lmt = db_conn.get_last_datetime(sig)
                         if (cur - lmt).days >= config["mst"]["interval_days"]:
                             self._recoms.append(
-                                {
-                                    "fp": fp,
-                                    "disp": f"{config['icons']['mistakes']} {sig}",
-                                    "score": 0,
-                                    "is_init": False,
-                                }
+                                EfcRecom(
+                                    filepath=fp,
+                                    display_name=f"{config['icons']['mistakes']} {sig}",
+                                    pred_score=0,
+                                    is_initial=False,
+                                )
                             )
                     except KeyError:
                         log.warning(f"Mistakes file {fp} is missing")
         if config["days_to_new_rev"] > 0:
             self._recoms.extend(self.get_new_recoms())
-        for rev in sorted(self.get_efc_data(), key=lambda x: x[2]):
-            if rev[2] < config["efc"]["threshold"]:
+        for rev in sorted(self.get_efc_data(), key=lambda x: x.pred_score):
+            if rev.pred_score < config["efc"]["threshold"]:
                 prefix = (
                     config["icons"]["initial"]
-                    if rev[5]
+                    if rev.is_initial
                     else config["icons"]["revision"]
                 )
                 self._recoms.append(
-                    {
-                        "fp": rev[4],
-                        "disp": f"{prefix} {rev[0]}",
-                        "score": rev[2],
-                        "is_init": rev[5],
-                    }
+                    EfcRecom(
+                        filepath=rev.filepath,
+                        display_name=f"{prefix} {rev.signature}",
+                        pred_score=rev.pred_score,
+                        is_initial=rev.is_initial,
+                    )
                 )
         self._efc_last_calc_time = time()
         self._db_load_time_efc = db_conn.last_update
         db_conn.refresh()
         self._recoms.sort(
-            key=lambda x: (
-                x[config["efc"]["sort"]["key_1"]],
-                x[config["efc"]["sort"]["key_2"]],
+            key=lambda r: (
+                getattr(r, config["efc"]["sort"]["key_1"]),
+                getattr(r, config["efc"]["sort"]["key_2"]),
             )
         )
         log.debug(
@@ -299,10 +312,9 @@ class EFCTab(BaseTab):
 
     def get_efc_data(
         self, preds: bool = False, signatures: Optional[set] = None
-    ) -> list:
+    ) -> list[EfcRecord]:
         """
         Calculates EFC scores for Revisions.
-        Returns: list[signature, days_since_last_rev, efc_score, pred_due_hours, filepath, is_initial].
         Optionally: predicts hours to EFC score falling below the threshold.
         """
         rev_table_data = list()
@@ -373,16 +385,23 @@ class EFCTab(BaseTab):
                         )
                     else:
                         pred = 0
-                s_efc = [
-                    fd.signature,
-                    since_last_rev / 24,
-                    efc[0][0],
-                    pred,
-                    fd.filepath,
-                    is_initial,
-                ]
+                s_efc = EfcRecord(
+                    signature=fd.signature,
+                    days_since_last_rev=since_last_rev / 24,
+                    pred_score=efc[0][0],
+                    pred_due_hours=pred,
+                    filepath=fd.filepath,
+                    is_initial=is_initial,
+                )
             else:
-                s_efc = [fd.signature, "inf", 0, 0, fd.filepath, True]
+                s_efc = EfcRecord(
+                    signature=fd.signature,
+                    days_since_last_rev="inf",
+                    pred_score=0,
+                    pred_due_hours=0,
+                    filepath=fd.filepath,
+                    is_initial=True,
+                )
             rev_table_data.append(s_efc)
 
         return rev_table_data
@@ -419,29 +438,37 @@ class EFCTab(BaseTab):
             cycles += 1
         return record[3] - init
 
-    def get_efc_table(self, efc_table_data) -> list[list[str]]:
+    def get_efc_table(self, efc_table_data: list[EfcRecord]) -> list[list[str]]:
         # sort revs by number of days ago since last revision
-        efc_table_data.sort(key=lambda x: x[3])
+        efc_table_data.sort(key=lambda x: x.pred_due_hours)
         efc_stats_list = [["REV NAME", "AGO", "EFC", "DUE"]]
         for rev in efc_table_data:
-            if abs(rev[3]) < 48:
-                pred = format_seconds_to(rev[3] * 3600, "hour", rem=2, sep=":")
-            elif abs(rev[3]) < 10000:
-                pred = format_seconds_to(rev[3] * 3600, "day", rem=0)
+            if abs(rev.pred_due_hours) < 48:
+                pred = format_seconds_to(
+                    rev.pred_due_hours * 3600, "hour", rem=2, sep=":"
+                )
+            elif abs(rev.pred_due_hours) < 10000:
+                pred = format_seconds_to(rev.pred_due_hours * 3600, "day", rem=0)
             else:
                 pred = "Too Long"
-            diff_days = "{:.1f}".format(rev[1]) if isinstance(rev[1], float) else rev[1]
-            efc_stats_list.append([rev[0], diff_days, "{:.2f}".format(rev[2]), pred])
+            diff_days = (
+                "{:.1f}".format(rev.days_since_last_rev)
+                if isinstance(rev.days_since_last_rev, float)
+                else rev.days_since_last_rev
+            )
+            efc_stats_list.append(
+                [rev.signature, diff_days, "{:.2f}".format(rev.pred_score), pred]
+            )
         return efc_stats_list
 
     def get_fd_from_selected_file(self):
         try:
-            fd = db_conn.files[self._recoms[self.recoms_qlist.currentRow()]["fp"]]
+            fd = db_conn.files[self._recoms[self.recoms_qlist.currentRow()].filepath]
         except AttributeError:  # if no item is selected
             fd = None
         return fd
 
-    def get_new_recoms(self) -> list[dict]:
+    def get_new_recoms(self) -> list[EfcRecom]:
         """Periodically recommend to create new revision for every lng"""
         recoms = list()
         for lng in config["languages"]:
@@ -451,8 +478,8 @@ class EFCTab(BaseTab):
                     if time_delta.days >= config["days_to_new_rev"]:
                         recom_text = config["recoms"].get(lng, f"It's time for {lng}")
                         recoms.append(
-                            {
-                                "fp": choice(
+                            EfcRecom(
+                                filepath=choice(
                                     [
                                         fd.filepath
                                         for fd in db_conn.files.values()
@@ -460,10 +487,10 @@ class EFCTab(BaseTab):
                                         and fd.kind == db_conn.KINDS.lng
                                     ]
                                 ),
-                                "disp": recom_text,
-                                "score": 0,
-                                "is_init": False,
-                            }
+                                display_name=recom_text,
+                                pred_score=0,
+                                is_initial=False,
+                            )
                         )
                     break
         return recoms

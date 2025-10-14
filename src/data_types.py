@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import NamedTuple, Union
 
 
 @dataclass
@@ -49,11 +49,28 @@ class CreateFileDialogData:
     src_lng_id: str
 
 
+class EfcRecord(NamedTuple):
+    signature: str
+    days_since_last_rev: Union[float, str]
+    pred_score: float
+    pred_due_hours: float
+    filepath: str
+    is_initial: bool
+
+
+class EfcRecom(NamedTuple):
+    filepath: str
+    display_name: str
+    pred_score: float
+    is_initial: bool
+
+
 class SfeMods(NamedTuple):
     CREATE = 0
     UPDATE = 1
     DELETE = 2
     MOVE = 3
+
 
 sfe_hint_formats = {
     " ()": r"(?<=\\()[^),]+(?=[),])",
@@ -66,7 +83,7 @@ _T = {
     "kbsc": {
         "mod": "Mod Key",
         "next": "Next",
-        "prev": "Prev",
+        "prev": "Previous",
         "negative": "Negative",
         "reverse": "Reverse",
         "del_cur_card": "Delete card",

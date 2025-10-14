@@ -12,10 +12,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from cfg import config
 from widgets import CheckableComboBox, get_button
-from utils import format_seconds_to, Caliper
+from typing import Optional
+from utils import format_seconds_to, Caliper, parse_to_seconds
 from DBAC import db_conn
 from tracker.dal import dal
-from tracker.helpers import parse_to_seconds, safe_div, merge_records_by_date, get_chart
+from tracker.helpers import safe_div, merge_records_by_date, get_chart
 from tracker.structs import RecordOrderedDict, Column
 
 log = logging.getLogger("TRK")
@@ -151,22 +152,22 @@ class DuoLayout(QWidget):
                 cb.addItem(i, is_checked=i == str(value))
         return cb
 
-    def on_submit(self):
+    def on_submit(self, lng: Optional[str] = None):
         if self.final_cbx.currentDataList()[0] == "True":
-            self.__submit_final()
+            self.__submit_final(lng)
         else:
-            self.__submit_preliminary()
+            self.__submit_preliminary(lng)
         self.__submit_after()
 
-    def __submit_final(self):
-        lng = self.lng_cbx.currentDataList()[0]
+    def __submit_final(self, lng: Optional[str] = None):
+        lng = lng or self.lng_cbx.currentDataList()[0]
         les = int(self.lessons_qle.text())
         ts = int(parse_to_seconds(self.time_spent_qle.text()) / 60)
         dal.add_duo_record_final(lng=lng, lessons=les, timespent=ts)
         self.final_cbx.setChecked(index=0)
 
-    def __submit_preliminary(self):
-        lng = self.lng_cbx.currentDataList()[0]
+    def __submit_preliminary(self, lng: Optional[str] = None):
+        lng = lng or self.lng_cbx.currentDataList()[0]
         les = int(self.lessons_qle.text() or self.lessons_qle.placeholderText())
         if raw_ts := self.time_spent_qle.text():
             ts = round(parse_to_seconds(raw_ts) / 60, 2)

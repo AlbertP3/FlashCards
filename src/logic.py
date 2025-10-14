@@ -8,7 +8,7 @@ from DBAC import db_conn, FileDescriptor
 from utils import fcc_queue, LogLvl, format_seconds_to
 from logtools import audit_log
 from cfg import config
-from data_types import HIDE_TIPS_POLICIES
+from data_types import HIDE_TIPS_POLICIES, EfcRecom
 from rev_summary import SummaryGenerator
 
 log = logging.getLogger("BKD")
@@ -36,6 +36,8 @@ class MainWindowLogic:
         self.allow_hide_tips = True
         self.mistakes_saved = False
         self.is_blurred = False
+        self.is_graded = False
+        self.is_back_mode = False
 
     @property
     def is_revision(self):
@@ -99,7 +101,7 @@ class MainWindowLogic:
     def skip_efc_reload_regular(self):
         self.efc._db_load_time_efc = db_conn.last_update
         for i, v in enumerate(self.efc._recoms):
-            if v["fp"] == self.active_file.filepath:
+            if v.filepath == self.active_file.filepath:
                 del self.efc._recoms[i]
                 self.efc.recoms_qlist.takeItem(i)
                 self.efc.files_count -= 1
@@ -178,7 +180,7 @@ class MainWindowLogic:
             not self.is_recorded
             and self.active_file.valid
             and self.total_words - self.current_index - 1 == 0
-            and self.active_file.kind in db_conn.GRADED
+            and self.is_graded
         )
 
     def handle_creating_revision(self, seconds_spent=0):
@@ -204,17 +206,17 @@ class MainWindowLogic:
     def skip_efc_reload_initial(self):
         self.efc._db_load_time_efc = db_conn.last_update
         self.efc._recoms.append(
-            {
-                "fp": self.active_file.filepath,
-                "disp": f"{config['icons']['initial']} {self.active_file.signature}",
-                "score": 0,
-                "is_init": True,
-            }
+            EfcRecom(
+                filepath=self.active_file.filepath,
+                display_name=f"{config['icons']['initial']} {self.active_file.signature}",
+                pred_score=0,
+                is_initial=True,
+            )
         )
         self.efc._recoms.sort(
             key=lambda x: (
-                x[config["efc"]["sort"]["key_1"]],
-                x[config["efc"]["sort"]["key_2"]],
+                getattr(x, config["efc"]["sort"]["key_1"]),
+                getattr(x, config["efc"]["sort"]["key_2"]),
             )
         )
         self.efc.is_view_outdated = True
@@ -236,6 +238,8 @@ class MainWindowLogic:
         self.cards_seen_sides = list()
         self.add_default_side()
         self.side = self.get_default_side()
+        self.is_graded = self.active_file.kind in db_conn.GRADED
+        self.is_back_mode = False
         self.allow_hide_tips = True
         self.set_should_hide_tips()
 
@@ -314,7 +318,7 @@ class MainWindowLogic:
         if config["popups"]["allowed"]["initial_revs"]:
             outstanding_cnt = 0
             for rec in self.efc._recoms:
-                if rec["is_init"]:
+                if rec.is_initial:
                     outstanding_cnt += 1
             if outstanding_cnt > 0:
                 fcc_queue.put_notification(
@@ -350,7 +354,7 @@ class MainWindowLogic:
 
     def _update_default_side(self):
         """substitute add_default_side() via a first-class function"""
-        default_side = config["card_default_side"]
+        default_side: str = config["card_default_side"]
         if default_side.isnumeric():
             default_side = int(default_side)
             self.add_default_side = lambda: self.cards_seen_sides.append(default_side)
@@ -482,6 +486,8 @@ class MainWindowLogic:
             "fcc_cmd_log": self.fcc.cmd_log,
             "is_initial_rev": self.is_initial_rev,
             "is_blurred": self.is_blurred,
+            "is_graded": self.is_graded,
+            "is_back_mode": self.is_back_mode,
         }
         config.cache["snapshot"]["session"] = snapshot
         log.debug(f"Created a session snapshot")
@@ -502,6 +508,8 @@ class MainWindowLogic:
         self.negatives = metadata["negatives"]
         self.is_initial_rev = metadata["is_initial_rev"]
         self.is_blurred = metadata["is_blurred"]
+        self.is_graded = metadata["is_graded"]
+        self.is_back_mode = metadata["is_back_mode"]
         self.mistakes_list = metadata["mistakes_list"]
         self.mistakes_saved = metadata["mistakes_saved"]
         self.cards_seen_sides = metadata["cards_seen_sides"]

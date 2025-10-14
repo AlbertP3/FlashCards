@@ -18,7 +18,7 @@ class MistakesTab(BaseTab):
         self.mw.add_tab(self.tab, self.id, "Mistakes")
 
     def open(self):
-        if self.mw.active_file.kind in db_conn.GRADED:
+        if self.mw.is_graded:
             self.mw.switch_tab(self.id)
             self.show_mistakes()
         else:

@@ -33,22 +33,25 @@ class ProgressChartCanvas:
         db_conn.filter_for_progress(config["languages"])
         df = db_conn.db
 
-        df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"]).dt.strftime("%b\n%y")
-        counted = df["TIMESTAMP"].value_counts(sort=False)
+        df["TIMESTAMP"] = pd.to_datetime(df["TIMESTAMP"])
+        mths = pd.date_range(
+            pd.Timestamp(df["TIMESTAMP"].min()).normalize().replace(day=1),
+            pd.Timestamp(date.today()).normalize().replace(day=1),
+            freq="MS",
+        ).strftime("%b\n%y")
+        df["TIMESTAMP"] = df["TIMESTAMP"].dt.strftime("%b\n%y")
+
+        counted = df["TIMESTAMP"].value_counts(sort=False).reindex(mths, fill_value=0)
         self.revision_count = counted.values
-        self.formatted_dates = counted.index
 
         df.drop_duplicates(["SIGNATURE", "TIMESTAMP"], inplace=True, keep="last")
         df.drop_duplicates("SIGNATURE", inplace=True, keep="first")
         grouped = df.groupby("TIMESTAMP", sort=False)
-        self.chart_values = grouped["POSITIVES"].sum()
-        self.second_chart_values = grouped["TOTAL"].sum()
 
-        if len(self.formatted_dates) > len(self.chart_values):
-            # No new revisions for the current month
-            self.chart_values.loc[len(self.chart_values)] = 0
-            self.second_chart_values.loc[len(self.second_chart_values)] = 0
- 
+        self.formatted_dates = mths
+        self.chart_values = grouped["POSITIVES"].sum().reindex(mths, fill_value=0)
+        self.second_chart_values = grouped["TOTAL"].sum().reindex(mths, fill_value=0)
+
     def _generate(self):
         self.figure.clear()
 
@@ -142,9 +145,7 @@ class ProgressChartCanvas:
         revision_count_plot.get_yaxis().set_visible(False)
         positives_plot.get_xaxis().set_visible(False)
         title = " & ".join(config["languages"])
-        self.figure.suptitle(
-            title, fontsize=18, y=0.92, color=config.mpl["font_color"]
-        )
+        self.figure.suptitle(title, fontsize=18, y=0.92, color=config.mpl["font_color"])
         self.figure.subplots_adjust(left=0, bottom=0.1, right=1, top=1)
 
         # synchronize axes

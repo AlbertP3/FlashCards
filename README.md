@@ -1,14 +1,15 @@
-# FlashCards 1.6.5
+# FlashCards 1.6.6
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.5](#flashcards-165)
+- [FlashCards 1.6.6](#flashcards-166)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
   - [Tracker Window](#tracker-window)
   - [Statistics](#statistics)
-  - [Dictionary](#dictionary)
+  - [Source File Editor](#source-file-editor)
+  - [CLI Dictionary (Legacy)](#cli-dictionary-legacy)
   - [EFC Model Optimizer](#efc-model-optimizer)
   - [Monitoring](#monitoring)
   - [Settings](#settings)
@@ -88,6 +89,21 @@ Provide a powerful tool to make learning languages effective, automated and smoo
 
 Statistics shows scores for each time the currently loaded *Revision* was reviewed. Optionally, Cards Per Minute indicator can be shown instead of time-spent. 80% line reflects EFC threshold specified in the config and can be toggled via 'show_efc_line'
 
+## Source File Editor
+
+![SFE Window](src/res/imgs/ss_sfe.png)
+
+The Source File Editor is here for managing the FlashCard's source files, whether you’re editing existing cards or adding new ones.
+- Load Your Cards Instantly – Open any supported source file and see your flashcards laid out, ready to edit
+- Cards can be edited by either double-clicking or pressing F2
+- Cards can be moved by holding Ctrl nad pressing arrow Up or Down
+- Auto fill new cards - on focus-in, SFE will read the Clipboard's content and if it matches a pattern then it will be auto-pasted to the 'Add New Card' prompt - in this case, an empty hint will be appended (controlled by 'hint_autoadd' parameter), and auto-removed on commit if left empty. This prompt also checks validity and uniquness of the card
+- Search – quickly find cards by keywords or by using regex
+- Selecting text on an active card will trigger lookup and display a hint for the first card in which this keyword occurred. This is most useful in case of including pronunciation, reading of kanji, etc.
+- Sync - if current active file is also loaded in SFE, then the changes will be reflected bidirectionaly
+- Clicking on "+N" button will initiate a flashcards set from the last N cards. This is calculated based on ILN but can also be modified in a follow-up prompt
+- Audit - all modifications are also recorded in audit.jsonl in case something went wrong 
+
 ## CLI Dictionary (Legacy)
 
 ![SOD Window](src/res/imgs/ss_sod.png)
@@ -119,14 +135,17 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
     - CST - custom model adjusted to fit the original EFC
     - XGB - gradient boosting algorithm that builds an ensemble of decision trees
 4. Custom models are not shipped with the source code and unless created locally, a Standard CST Model will be used
+5. There is a couple of parameters in the "opt" section of the Settings which are worth explaining:
+   - require_recorded - if the current set is already started (cards seen > 1), this will disable jumping to the next one by an accident
+   - fallback - in case there are no more recommendations, determines whenever the mechanism should load another *Revision* or *Mistakes* regardless of its predicted score. If False, then displays a notification.
 
 
 ## Monitoring
-1. FileMonitor is used to watch loaded files for changes
-2. Watched files: current flashcards file, SOD source file
-3. Turn off this setting by changing *allow_file_monitor* to false
-4. If current file is only temporary, it will be saved as a tmpfcs.csv and loaded on next startup. This file is then removed
-5. On application shutdown, a session snapshot is created and saved to cache.json; This is an equivalent of an auto-save
+1. ~~FileMonitor is used to watch loaded files for changes~~ - this is deprecated and SFE should be used instead.
+2. Turn off this mechanism by changing *allow_file_monitor* to false (default)
+3. If current file is only temporary, it will be saved as a tmpfcs.csv and loaded on next startup. This file is then removed
+4. On application shutdown, a session snapshot is created and saved to cache.json
+5. Logs are saved to fcs.log, and in addition to that - logs regarding changes to the files are stored in audit.jsonl
 
 
 ## Settings
@@ -156,7 +175,8 @@ Dictionary facilitates managing cards in the datasets via a command line interfa
 ## Final Actions and Next EFC
 - FlashCards strives to provide a seamless transition between datasets thus there are two types of actions that facilitate this process
 - Final Actions are executed after pressing 'next' on the synopsis, after the revision is completed. Behaviour is controlled via "final_actions" parameter in config. This action can for example automatically create a *Revision* file from a *Language* or save mistakes from *Revision* and initiate an *Ephemeral* or suggest a next set
-- Next EFC can be invoked at any moment to open a recommended set, unless 'require_saved' is set to True. Order and filters are controlled by the efc opt parameter.
+- Next EFC can be invoked at any moment to open a recommended set, unless 'require_saved' is set to True. Order and filters are controlled by the efc opt parameter
+- Turning on 'auto_next' optional feature will skip the synopsis and immediately execute final actions
 
 
 ## Mistakes
@@ -274,9 +294,12 @@ All the commands are run via in-build console opened by pressing the 'c' key by 
 | stats        | s     | open Statistics tab                                            |
 | next_efc     | n     | load next recommendation                                       |
 | save         | w     | save current file or create a revision                         |
-| sod          | f     | open SFE tab                                                   |
+| sfe          | f     | open SFE tab                                                   |
 | hint         | h     | show a hint for current card                                   |
 | last_seen    | g     | go to the last seen card                                       |
+| sfe_search   | /     | focus search bar                                               |
+| sfe_add      | v     | open 'Add New Card' prompt                                     |
+| logs         | 1     | open Logs Tab                                                  |
 
 
 ## ToDo

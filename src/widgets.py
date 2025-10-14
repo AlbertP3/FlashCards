@@ -29,7 +29,7 @@ from PyQt5.QtGui import (
 )
 from collections import OrderedDict
 from typing import Callable, Optional, TYPE_CHECKING
-from utils import fcc_queue, LogLvl, is_valid_filename, sbus
+from utils import fcc_queue, LogLvl, is_valid_filename, sbus, parse_to_seconds
 from data_types import CreateFileDialogData
 from DBAC import db_conn, FileDescriptor
 from cfg import config
@@ -614,7 +614,10 @@ class AddCardDialog(QDialog):
     def showEvent(self, event):
         super().showEvent(event)
         self.update_pos()
-        self.on_paste()
+        autopasted = self.on_paste()
+        if not autopasted and config["sfe"]["hint_autoadd"]:
+            self.fields[self.flc].setText(config["sfe"]["hint"])
+            self.fields[self.flc].cursorBackward(False, len(config["sfe"]["hint"]))
 
     def update_pos(self):
         if self.parent():
@@ -777,3 +780,74 @@ class ConfirmDeleteFileDialog(QDialog):
 
     def accept(self):
         super().accept()
+
+
+class StopWatchSetter(QDialog):
+    def __init__(self, parent: QWidget = None):
+        super().__init__(parent)
+        self.setWindowTitle("Confirm File Deletion")
+        self.setFont(config.qfont_button)
+        self.setMinimumWidth(int(0.4 * parent.width()))
+
+        self.validation_timer = QTimer(self)
+        self.validation_timer.setSingleShot(True)
+        self.validation_timer.timeout.connect(self.validate)
+        self._default_validation_timer_interval = 150
+        self._validation_timer_interval = self._default_validation_timer_interval
+
+        self.form = QFormLayout(self)
+        self.form.setContentsMargins(1, 1, 1, 1)
+        self.form.setSpacing(2)
+
+        self.field = self.create_field("")
+        self.field.setPlaceholderText("HH:MM:SS")
+
+        self.submit_btn = get_button(self, "Set Time", self.accept)
+        self.submit_btn.setDisabled(True)
+        self.submit_btn.setDefault(True)
+        self.form.addWidget(self.submit_btn)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.update_pos()
+
+    def update_pos(self):
+        if self.parent():
+            pargeo = self.parent().geometry()
+            x = int(pargeo.x() + 0.5 * self.parent().width() - 0.5 * self.width())
+            self.move(x, self.geometry().y())
+
+    def accept(self):
+        if self.submit_btn.isEnabled():
+            super().accept()
+
+    def get_seconds(self) -> int:
+        return parse_to_seconds(self.field.text())
+
+    def __on_field_text_changed(self):
+        self.submit_btn.setDisabled(True)
+        self.validation_timer.start(self._validation_timer_interval)
+        self._validation_timer_interval = self._default_validation_timer_interval
+
+    def validate(self) -> bool:
+        try:
+            if self.get_seconds() > 0:
+                self.submit_btn.setEnabled(True)
+                self.submit_btn.setText("Set Time")
+            else:
+                raise ValueError
+        except ValueError:
+            self.submit_btn.setDisabled(True)
+            self.submit_btn.setText("Invalid Format")
+
+    def create_field(self, header: str) -> FieldQLE:
+        field = FieldQLE(self)
+        field.textChanged.connect(self.__on_field_text_changed)
+        field.setFont(config.qfont_console)
+        field.installEventFilter(self)
+        label = QLabel(self)
+        label.setFont(config.qfont_console)
+        label.setText(header)
+        label.setContentsMargins(5, 0, 5, 0)
+        self.form.addRow(label, field)
+        return field

@@ -170,6 +170,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.change_revmode(self.revmode)
         self.update_words_button()
         self.update_score_button()
+        self.next_button.setText(config["icons"]["next" if self.is_back_mode else "new"])
         if self.is_synopsis:
             self.display_text(self.synopsis or config["synopsis"])
         else:
@@ -637,7 +638,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             )
 
     def delete_current_card(self):
-        if self.active_file.kind not in db_conn.GRADED:
+        if not self.is_graded:
             if not self.is_synopsis:
                 self._delete_current_card()
                 self.update_words_button()
@@ -692,7 +693,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def update_interface_parameters(self):
         self.setWindowTitle(self.get_title())
-        self.change_revmode(self.active_file.kind in db_conn.GRADED)
+        self.change_revmode(self.is_graded)
+        self.next_button.setText(config["icons"]["new"])
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
         self.update_score_button()
@@ -710,8 +712,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 self.remove_blur()
             else:
                 self.goto_prev_card()
-            if self.revmode and self.words_back == 1:
-                self.change_revmode(False)
+            if not self.is_back_mode:
+                self.next_button.setText(config["icons"]["next"])
+                if self.revmode:
+                    self.change_revmode(False)
+                self.is_back_mode = True
             self.allow_hide_tips = True
             self.display_text(self.get_current_card().iloc[self.side])
             self.update_words_button()
@@ -733,36 +738,62 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def click_next_button(self):
         if self.total_words - self.current_index - 1 > 0:
-            if self.is_blurred:
-                self.remove_blur()
-            else:
-                self.goto_next_card()
-            if not self.revmode and self.words_back == 0 and not self.is_recorded:
-                self.change_revmode(True)
-            self.allow_hide_tips = True
-            self.display_text(self.get_current_card().iloc[self.side])
-            if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
-                self.start_timer()
-                self.start_pace_timer()
-            self.update_words_button()
-            self.update_score_button()
-            self.reset_pace_timer()
+            self.__next_ctl_blur()
+            self.__next_ctl_backmode()
+            self.__next_display()
+            self.__next_ctl_timers()
         elif self.should_create_db_record():
-            self.handle_graded_complete()
-            if config["opt"]["auto_next"] and self.active_tab_id == self.id:
-                self.handle_final_actions()
-                if self.is_blurred:
-                    self.click_next_button()
+            self.__next_create_record()
         else:
-            if self.is_blurred:
-                self.remove_blur()
-            if self.is_synopsis:
-                self.handle_final_actions()
+            self.__next_final_actions()
+
+    def __next_ctl_blur(self):
+        if self.is_blurred:
+            self.remove_blur()
+        else:
+            self.goto_next_card()
+
+    def __next_display(self):
+        self.allow_hide_tips = True
+        self.display_text(self.get_current_card().iloc[self.side])
+
+    def __next_ctl_timers(self):
+        if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
+            self.start_timer()
+            self.start_pace_timer()
+        self.update_words_button()
+        self.update_score_button()
+        self.reset_pace_timer()
+
+    def __next_ctl_backmode(self):
+        if (
+            self.is_back_mode
+            and self.current_index == self.cards_seen
+            and not self.is_recorded
+        ):
+            if self.is_graded and not self.revmode:
+                self.change_revmode(True)
             else:
-                self.is_synopsis = True
-                self.display_text(self.synopsis or config["synopsis"])
-                self.stop_timer()
-                self.stop_pace_timer()
+                self.next_button.setText(config["icons"]["new"])
+            self.is_back_mode = False
+
+    def __next_create_record(self):
+        self.handle_graded_complete()
+        if config["opt"]["auto_next"] and self.active_tab_id == self.id:
+            self.handle_final_actions()
+            if self.is_blurred:
+                self.click_next_button()
+
+    def __next_final_actions(self):
+        if self.is_blurred:
+            self.remove_blur()
+        if self.is_synopsis:
+            self.handle_final_actions()
+        else:
+            self.is_synopsis = True
+            self.display_text(self.synopsis or config["synopsis"])
+            self.stop_timer()
+            self.stop_pace_timer()
 
     def handle_final_actions(self):
         if not self.active_file.valid:
@@ -887,7 +918,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.move(frame_geo.topLeft())
 
     def change_revmode(self, new_mode: bool):
-        self.revmode = new_mode if self.active_file.kind in db_conn.GRADED else False
+        self.revmode = new_mode * self.is_graded
         if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
         else:

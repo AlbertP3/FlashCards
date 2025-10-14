@@ -105,7 +105,9 @@ class SfeTab(BaseTab):
         self.duo_btn = get_button(
             self.tab,
             text="Duo+",
-            function=self.mw.trk.trk.duo_layout.on_submit,
+            function=lambda: self.mw.trk.trk.duo_layout.on_submit(
+                lng=self.model.fh.fd.lng
+            ),
             dtip=self.mw.trk.trk.duo_layout.get_tooltip,
         )
         if not config["tracker"]["duo"]["active"]:
@@ -351,8 +353,8 @@ class SfeTab(BaseTab):
         return phrase
 
     def open_extra_file(self, fd: FileDescriptor):
-        self.src_cbx.addItem(fd.signature, data=fd.filepath)
-        i = self.src_cbx.getData().index(fd.filepath)
+        self.src_cbx.addItem(fd.signature, data=fd)
+        i = self.src_cbx.getData().index(fd)
         self.src_cbx.setChecked(i)
         self.on_src_change()
 

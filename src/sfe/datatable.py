@@ -4,6 +4,7 @@ from PyQt5.QtGui import QCursor
 import logging
 from sfe.fh import get_filehandler
 from DBAC import FileDescriptor
+from cfg import config
 
 log = logging.getLogger("SFE")
 
@@ -52,11 +53,14 @@ class DataTableModel(QAbstractTableModel):
         return self.fh.total_columns
 
     def data(self, index: QModelIndex, role=Qt.DisplayRole):
-        if role == Qt.CheckStateRole:
-            return None
-        try:
-            return str(self.fh.data_view.iat[index.row(), index.column()])
-        except IndexError:
+        if role == Qt.DisplayRole:
+            try:
+                return str(self.fh.data_view.iat[index.row(), index.column()])
+            except IndexError:
+                return None
+        elif role == Qt.FontRole:
+            return config.qfont_button
+        else:
             return None
 
     def headerData(self, section: int, orientation, role=Qt.DisplayRole):

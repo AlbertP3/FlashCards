@@ -485,3 +485,22 @@ def perftm(buffer_size: int = 1):
         return timed
 
     return decorator
+
+
+hms_pattern = re.compile(r"^(?:(\d+):)(?:(\d+):)(\d+)$")
+ms_pattern = re.compile(r"^(?:(\d+):)(\d+)$")
+m_pattern = re.compile(r"^(\d+)$")
+
+
+def parse_to_seconds(text: str) -> int:
+    if ms_pattern.match(text):
+        minutes, seconds = text.split(":")
+        total_seconds = int(minutes) * 60 + int(seconds)
+    elif hms_pattern.match(text):
+        hours, minutes, seconds = text.split(":")
+        total_seconds = int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+    elif m_pattern.match(text):
+        total_seconds = int(text) * 60
+    else:
+        raise ValueError("Invalid time format. Please use HH:MM:SS, MM:SS, or MM")
+    return total_seconds
