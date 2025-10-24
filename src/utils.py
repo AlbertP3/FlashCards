@@ -2,7 +2,7 @@ from PyQt5.QtGui import QFont, QFontMetricsF
 from PyQt5.QtCore import QRunnable, pyqtSlot, pyqtSignal, QObject, Qt
 from collections import deque
 from functools import cache, wraps
-from datetime import timedelta, datetime
+from datetime import timedelta
 import os
 import platform
 import re
@@ -10,7 +10,6 @@ import inspect
 from time import perf_counter
 import logging
 from typing import Union, Callable, Optional
-from dataclasses import dataclass, fields
 from cfg import config
 
 
@@ -48,106 +47,6 @@ def singular(fn: Callable):
             return result
 
     return decorator
-
-
-@singleton
-class SignalBus(QObject):
-    sfe_mod = pyqtSignal(int)
-    fcc_queue_msg = pyqtSignal()
-    task_started = pyqtSignal()
-    task_finished = pyqtSignal()
-
-    def disconnect_tasks(self):
-        for ps in {self.task_started, self.task_finished}:
-            try:
-                ps.disconnect()
-            except TypeError:
-                pass
-
-
-sbus = SignalBus()
-
-
-@dataclass
-class LogLvl:
-    debug: int = 0
-    info: int = 1
-    important: int = 2
-    warn: int = 3
-    err: int = 4
-    exc: int = 5
-
-    @staticmethod
-    def get_fields() -> list[str]:
-        return [field.name for field in fields(LogLvl)]
-
-    @staticmethod
-    def get_field_name_by_value(value: int) -> Optional[str]:
-        for field in fields(LogLvl):
-            if getattr(LogLvl, field.name) == value:
-                return field.name
-
-
-@dataclass
-class QueueRecord:
-    message: str
-    timestamp: datetime
-    lvl: int = LogLvl.debug
-    func: Optional[Callable] = None
-
-
-class FccQueue(QObject):
-    """Collects messages to be displayed in the console"""
-
-    def __init__(self):
-        super().__init__()
-        self.__fcc_queue: deque[QueueRecord] = deque()
-        self.__notification_queue: deque[QueueRecord] = deque()
-        self.unacked_notifications = 0
-
-    def put_log(self, msg: str, log_func: Optional[Callable] = None):
-        if msg:
-            record = QueueRecord(
-                message=msg,
-                timestamp=datetime.now(),
-            )
-            self.__fcc_queue.append(record)
-            if log_func:
-                log_func(msg, stacklevel=2)
-
-    def put_notification(
-        self,
-        msg: str,
-        lvl: int = LogLvl.debug,
-        func: Optional[Callable] = None,
-    ):
-        if msg and lvl >= config["popups"]["lvl"]:
-            record = QueueRecord(
-                message=msg,
-                timestamp=datetime.now(),
-                lvl=lvl,
-                func=func,
-            )
-            self.__notification_queue.append(record)
-            self.unacked_notifications += 1
-            sbus.fcc_queue_msg.emit()
-
-    def pull_log(self) -> QueueRecord:
-        return self.__fcc_queue.popleft()
-
-    def dump_logs(self) -> list[QueueRecord]:
-        res = list(self.__fcc_queue)
-        self.__fcc_queue.clear()
-        return res
-
-    def get_logs(self) -> list[QueueRecord]:
-        return list(self.__fcc_queue)
-
-    def pull_notification(self) -> QueueRecord:
-        return self.__notification_queue.popleft()
-
-
-fcc_queue = FccQueue()
 
 
 NSRE = re.compile(r"(\d+)")
@@ -216,7 +115,7 @@ SECONDS_CONVERTERS = {
 
 
 def format_seconds_to(
-    total_seconds: int,
+    total_seconds: Union[int, float],
     interval: str,
     rem: int = 2,
     interval_name: Optional[str] = None,
@@ -248,10 +147,6 @@ def format_seconds_to(
             res = res[:-1] + " "
 
     return res
-
-
-class Placeholder:
-    pass
 
 
 def flatten_dict(d: dict, root: str = "BASE", lim_chars: Optional[int] = None) -> list:
@@ -422,44 +317,6 @@ def translate(text: str, on_empty: bool = False) -> bool:
         return text.lower() in {"true", "on", "1", "yes", "y"}
 
 
-class TaskRunner(QRunnable):
-
-    def __init__(
-        self,
-        functions: list[Callable],
-        op_id: str,
-        started: Optional[Callable] = None,
-        finished: Optional[list[Callable]] = None,
-    ):
-        super().__init__()
-        self.op_id = op_id
-        sbus.disconnect_tasks()
-
-        self.fn = lambda: [f() for f in functions]
-
-        if started:
-            sbus.task_started.connect(
-                lambda: started(config.cache["load_est"].get(self.op_id, 2500)),
-                Qt.QueuedConnection,
-            )
-
-        if finished:
-            finished.append(self.__record_time)
-        else:
-            finished = [self.__record_time]
-        sbus.task_finished.connect(lambda: [f() for f in finished], Qt.QueuedConnection)
-
-    def __record_time(self):
-        config.cache["load_est"][self.op_id] = int(1000 * (perf_counter() - self.t0))
-
-    @pyqtSlot()
-    def run(self):
-        self.t0 = perf_counter()
-        sbus.task_started.emit()
-        self.fn()
-        sbus.task_finished.emit()
-
-
 def perftm(buffer_size: int = 1):
     buffer = deque()
     cnt = 0
@@ -504,3 +361,15 @@ def parse_to_seconds(text: str) -> int:
     else:
         raise ValueError("Invalid time format. Please use HH:MM:SS, MM:SS, or MM")
     return total_seconds
+
+
+def clear_layout(layout):
+    for i in reversed(range(layout.count())):
+        item = layout.itemAt(i)
+        if item.widget() is not None:
+            widget_to_del = item.widget()
+            widget_to_del.setParent(None)
+            layout.removeWidget(widget_to_del)
+        else:
+            layout_to_del = layout.itemAt(i)
+            clear_layout(layout_to_del)

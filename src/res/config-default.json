@@ -1,8 +1,9 @@
 {
-    "version": "1.6.6",
+    "version": "1.6.7",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
+    "prev_filepath": null,
     "native": "en",
     "languages": [
         "EN"
@@ -27,6 +28,7 @@
     "csv_sniffer": "off",
     "synopsis": "You have reached the world's edge, none but devils play past here",
     "open_containing_dir_cmd": "",
+    "scheduler_interval_m": 5,
     "ILN": {},
     "CRE": {
         "count": 0,
@@ -95,7 +97,8 @@
             "new_first": true,
             "require_recorded": true,
             "save_mistakes": true,
-            "fallback": true
+            "fallback": true,
+            "allow_background_calc": true
         },
         "sort": {
             "key_1": "pred_score",

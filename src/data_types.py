@@ -1,6 +1,8 @@
 import re
+import pandas as pd
+import datetime as dt
 from dataclasses import dataclass
-from typing import NamedTuple, Union
+from typing import NamedTuple, Union, Optional as Opt
 
 
 @dataclass
@@ -72,6 +74,38 @@ class SfeMods(NamedTuple):
     MOVE = 3
 
 
+@dataclass
+class StatChartDataRaw:
+    positives: list[int]
+    total_cards: int
+    dates: list[pd.Timestamp]
+    time_spent_seconds: list[int]
+    sum_repeated: int
+    creation_date: dt.datetime
+    last_rev_date: dt.datetime
+    sec_spent: list[int]
+    sum_seconds_spent: int
+    missing_records_cnt: int
+
+
+@dataclass
+class StatChartData(StatChartDataRaw):
+    time_spent_minutes_fmtd: list[str]
+    dates_fmtd: list[str]
+    dynamic_chain_index: Opt[list[str]] = None
+
+
+class C(NamedTuple):
+    timestamp = "TIMESTAMP"
+    signature = "SIGNATURE"
+    lng = "LNG"
+    total = "TOTAL"
+    positives = "POSITIVES"
+    sec_spent = "SEC_SPENT"
+    kind = "KIND"
+    is_first = "IS_FIRST"
+
+
 sfe_hint_formats = {
     " ()": r"(?<=\\()[^),]+(?=[),])",
     " <>": r"(?<=\\<)[^),]+(?=[>,])",
@@ -87,7 +121,7 @@ _T = {
         "negative": "Negative",
         "reverse": "Reverse",
         "del_cur_card": "Delete card",
-        "load_again": "Load Again",
+        "load_again": "Load again",
         "tracker": "Tracker",
         "mcr": "Modify card result",
         "config": "Settings",

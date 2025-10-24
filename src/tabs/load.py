@@ -11,7 +11,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtGui import QCursor
-from utils import fcc_queue, LogLvl, find_case_insensitive
+from utils import find_case_insensitive
+from int import fcc_queue, LogLvl
 from widgets import (
     CFIDialog,
     RenameDialog,
@@ -210,6 +211,8 @@ class LoadTab(BaseTab):
             os.remove(fd.filepath)
             log.info(f"Removed file: {fd.filepath}")
             self.mw.update_files_lists()
+            if self.mw.active_file.filepath == fd.filepath:
+                self.mw.efc._load_next_efc()
             self.open()
 
     def ctx_ILN(self):
@@ -266,9 +269,7 @@ class LoadTab(BaseTab):
         )
         db_conn.shuffle_dataset(self.mw.active_file)
         self.mw.switch_tab("main")
-        self.mw.update_backend_parameters()
-        if config["opt"]["graded_cfi"]:
-            self.mw.is_graded = True
+        self.mw.update_backend_parameters(is_score_allowed=config["opt"]["graded_cfi"])
         self.mw.update_interface_parameters()
         self.mw.reset_timer()
 

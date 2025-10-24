@@ -5,15 +5,14 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QWidget,
 )
-from enum import Enum
+from typing import NamedTuple
 from cfg import config
 from tracker.prog import ProgressChartCanvas
 from tracker.timechart import TimeChartCanvas
 from tracker.timetable import TimeTablePrintout
-from tracker.duo import DuoLayout
+from tracker.daily import DailyLayout
 from tracker.stopwatch import StopwatchTab
 from tracker.notes import NotesLayout
-from tracker.dal import dal
 
 if TYPE_CHECKING:
     from gui import MainWindowGUI
@@ -21,11 +20,11 @@ if TYPE_CHECKING:
 log = logging.getLogger("TRK")
 
 
-class TAB(Enum):
+class TAB(NamedTuple):
     TimeTable = "TimeTable"
     TimeChart = "TimeChart"
     Progress = "Progress"
-    Duo = "Duo"
+    Daily = "Daily"
     StopWatch = "StopWatch"
     Notes = "Notes"
 
@@ -48,21 +47,20 @@ class Tracker(QGridLayout):
         self.trk_tabs.setContentsMargins(1, 1, 1, 1)
 
         self.add_tab(
-            self.get_timetable_tab(), TAB.TimeTable.value, self.tt_printout.refresh
+            self.get_timetable_tab(), TAB.TimeTable, self.tt_printout.refresh
         )
         self.add_tab(
-            self.get_timechart_tab(), TAB.TimeChart.value, self.ts_canvas.refresh
+            self.get_timechart_tab(), TAB.TimeChart, self.ts_canvas.refresh
         )
         self.add_tab(
-            self.get_progress_tab(), TAB.Progress.value, self.prog_canvas.refresh
+            self.get_progress_tab(), TAB.Progress, self.prog_canvas.refresh
         )
-        if config["tracker"]["duo"]["active"]:
-            self.add_tab(self.get_duo_tab(), TAB.Duo.value, self.duo_layout.refresh)
+        self.add_tab(self.get_daily_tab(), TAB.Daily, self.daily_layout.refresh)
         self.add_tab(
-            self.get_stopwatch_tab(), TAB.StopWatch.value, self.stopwatch_layout.refresh
+            self.get_stopwatch_tab(), TAB.StopWatch, self.stopwatch_layout.refresh
         )
         self.add_tab(
-            self.get_notes_tab(), TAB.Notes.value, self.notes_layout.qTextEdit.setFocus
+            self.get_notes_tab(), TAB.Notes, self.notes_layout.qTextEdit.setFocus
         )
 
         self.trk_tabs.currentChanged.connect(self.on_tab_changed)
@@ -78,7 +76,7 @@ class Tracker(QGridLayout):
         self.prog_canvas.upd = -1
         self.ts_canvas.upd = -1
         self.tt_printout.upd = -1
-        self.duo_layout.upd = -1
+        self.daily_layout.upd = -1
         self.stopwatch_layout.upd = -1
         self.notes_layout.upd = -1
 
@@ -124,10 +122,10 @@ class Tracker(QGridLayout):
         tab.setLayout(layout)
         return tab
 
-    def get_duo_tab(self) -> QWidget:
+    def get_daily_tab(self) -> QWidget:
         tab = QWidget()
-        self.duo_layout = DuoLayout()
-        tab.setLayout(self.duo_layout.get())
+        self.daily_layout = DailyLayout()
+        tab.setLayout(self.daily_layout.get())
         return tab
 
     def get_stopwatch_tab(self) -> QWidget:

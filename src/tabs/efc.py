@@ -4,12 +4,13 @@ from time import time, perf_counter
 from random import choice, shuffle
 from datetime import datetime
 import logging
-from PyQt5.QtWidgets import QGridLayout, QListWidget, QWidget
-from PyQt5.QtCore import Qt, pyqtSlot
+from PyQt5.QtWidgets import QGridLayout, QListWidget
+from PyQt5.QtCore import Qt, pyqtSlot, QTimer
 import statistics
 import numpy as np
 from math import exp
-from utils import fcc_queue, LogLvl, format_seconds_to
+from utils import format_seconds_to
+from int import fcc_queue, LogLvl, sched, Task
 from cfg import config
 from widgets import get_scrollbar, get_button
 from tabs.base import BaseTab
@@ -69,8 +70,46 @@ class EFCTab(BaseTab):
         self.files_count = 0
         self._recoms: list[EfcRecom] = list()
         self.cur_efc_index = 0
+        self._calc_in_progress = False
+        self.calc_job_id = "efc_calc"
         self.build()
         self.mw.add_tab(self.tab, self.id, "EFC")
+
+    @property
+    def cache_valid(self):
+        return self.cache_ttl > time()
+
+    @property
+    def cache_ttl(self) -> float:
+        return int(self._db_load_time_efc == db_conn.last_update) * (
+            self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"]
+        )
+
+    def init_job_calc(self) -> None:
+        task = Task(
+            functions=[self.calc_recommendations],
+            op_id=self.calc_job_id,
+            started=lambda _: self.disable_view(),
+            finished=[
+                lambda: QTimer.singleShot(5, self.show_recommendations),
+                lambda: self.recoms_qlist.setEnabled(True),
+            ],
+            auto_delete=False,
+        )
+
+        def trigger():
+            adj = (
+                config.cache["load_est"].get(self.calc_job_id, 1000) / 1000
+                + 60 * config["scheduler_interval_m"]
+            )
+            return self.cache_ttl + adj <= time()
+
+        sched.add_job(self.calc_job_id, task, trigger)
+        if not (
+            config["efc"]["opt"]["allow_background_calc"]
+            and config["efc"]["cache_expiry_hours"] > 0
+        ):
+            sched.disable_job(self.calc_job_id)
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
@@ -100,6 +139,12 @@ class EFCTab(BaseTab):
         if self.is_view_outdated:
             self.show_recommendations()
         self.recoms_qlist.setFocus()
+
+    def disable_view(self):
+        self.recoms_qlist.setDisabled(True)
+        self.recoms_qlist.clear()
+        self.recoms_qlist.addItem("Thinking...")
+        self.is_view_outdated = False
 
     def show_recommendations(self):
         self.recoms_qlist.clear()
@@ -170,9 +215,9 @@ class EFCTab(BaseTab):
         if config["CRE"]["items"]:
             self.mw.fcc.fcc.execute_command(["cre"])
         else:
-            self.__load_next_efc()
+            self._load_next_efc()
 
-    def __load_next_efc(self):
+    def _load_next_efc(self):
         fd = None
         recs = [
             rec
@@ -237,15 +282,6 @@ class EFCTab(BaseTab):
             self.efc_model = StandardModel()
             log.warning("Custom EFC model not found. Recoursing to the Standard Model")
 
-    @property
-    def cache_valid(self):
-        db_is_upd = (
-            self._efc_last_calc_time + 3600 * config["efc"]["cache_expiry_hours"]
-            >= time()
-        )
-        db_current = self._db_load_time_efc == db_conn.last_update
-        return db_is_upd and db_current
-
     def get_recommendations(self) -> list[EfcRecom]:
         """Returns EFC recommendations. Utilizes cache"""
         if not self.cache_valid:
@@ -256,7 +292,8 @@ class EFCTab(BaseTab):
     def calc_recommendations(self) -> None:
         """Computes new EFC recommendations"""
         t0 = perf_counter()
-        self._recoms = list()
+        self._calc_in_progress = True
+        recoms = list()
         db_conn.refresh()
         if config["mst"]["interval_days"] > 0:
             cur = datetime.now()
@@ -269,7 +306,7 @@ class EFCTab(BaseTab):
                         db_conn.files[fp]
                         lmt = db_conn.get_last_datetime(sig)
                         if (cur - lmt).days >= config["mst"]["interval_days"]:
-                            self._recoms.append(
+                            recoms.append(
                                 EfcRecom(
                                     filepath=fp,
                                     display_name=f"{config['icons']['mistakes']} {sig}",
@@ -280,7 +317,7 @@ class EFCTab(BaseTab):
                     except KeyError:
                         log.warning(f"Mistakes file {fp} is missing")
         if config["days_to_new_rev"] > 0:
-            self._recoms.extend(self.get_new_recoms())
+            recoms.extend(self.get_new_recoms())
         for rev in sorted(self.get_efc_data(), key=lambda x: x.pred_score):
             if rev.pred_score < config["efc"]["threshold"]:
                 prefix = (
@@ -288,7 +325,7 @@ class EFCTab(BaseTab):
                     if rev.is_initial
                     else config["icons"]["revision"]
                 )
-                self._recoms.append(
+                recoms.append(
                     EfcRecom(
                         filepath=rev.filepath,
                         display_name=f"{prefix} {rev.signature}",
@@ -296,10 +333,8 @@ class EFCTab(BaseTab):
                         is_initial=rev.is_initial,
                     )
                 )
-        self._efc_last_calc_time = time()
-        self._db_load_time_efc = db_conn.last_update
         db_conn.refresh()
-        self._recoms.sort(
+        recoms.sort(
             key=lambda r: (
                 getattr(r, config["efc"]["sort"]["key_1"]),
                 getattr(r, config["efc"]["sort"]["key_2"]),
@@ -308,7 +343,11 @@ class EFCTab(BaseTab):
         log.debug(
             f"Calculated new EFC [{self.efc_model.name}] in {1000*(perf_counter()-t0):.0f}ms"
         )
+        self._recoms = recoms
         self.is_view_outdated = True
+        self._db_load_time_efc = db_conn.last_update
+        self._efc_last_calc_time = time()
+        self._calc_in_progress = False
 
     def get_efc_data(
         self, preds: bool = False, signatures: Optional[set] = None

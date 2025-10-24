@@ -13,7 +13,7 @@ from PyQt5.QtCore import Qt
 from cfg import config
 from widgets import CheckableComboBox, get_button
 from typing import Optional
-from utils import format_seconds_to, Caliper, parse_to_seconds
+from utils import format_seconds_to, Caliper, parse_to_seconds, clear_layout
 from DBAC import db_conn
 from tracker.dal import dal
 from tracker.helpers import safe_div, merge_records_by_date, get_chart
@@ -22,7 +22,7 @@ from tracker.structs import RecordOrderedDict, Column
 log = logging.getLogger("TRK")
 
 
-class DuoLayout(QWidget):
+class DailyLayout(QWidget):
     def __init__(self):
         super().__init__()
         self.upd = -1
@@ -30,10 +30,11 @@ class DuoLayout(QWidget):
         self.caliper = Caliper(config.qfont_chart)
         self.setFont(config.qfont_button)
         self.layout = QGridLayout()
-        self.create_form()
         self.create_charts()
-        self.layout.setColumnStretch(0, 1)
-        self.layout.setColumnStretch(1, 2)
+        if config["tracker"]["duo"]["active"]:
+            self.create_duo_form()
+            self.layout.setColumnStretch(0, 1)
+            self.layout.setColumnStretch(1, 2)
 
     @property
     def lines_lim(self) -> int:
@@ -49,47 +50,50 @@ class DuoLayout(QWidget):
     def refresh(self):
         if self.upd < dal.upd or self.upd_date < date.today():
             data = dal.get_data()
-
-            try:
-                lrd = dal.get_duo_last_report_date()
-                t, l = 0, 0
-                for r in [v for k, v in data.items() if k <= lrd and v.duo.lessons > 0][
-                    -config["tracker"]["duo"]["prelim_avg"] :
-                ]:
-                    t += r.duo.hours * 60
-                    l += r.duo.lessons
-                self.prelim_avg = safe_div(t, l)
-            except Exception as e:
-                self.prelim_avg = 0
-                log.error(e, exc_info=True)
-            self.time_spent_qle.setPlaceholderText(
-                format_seconds_to(self.prelim_avg * 60, "minute", sep=":")
-            )
-
-            try:
-                self.lessons_today = data[date.today()].duo.lessons
-            except KeyError:
-                self.lessons_today = 0
-
-            self.cells = [
-                [
-                    Column(
-                        [
-                            self.get_chart_weekly_activity(
-                                data, self.lines_lim // 2 - 1
-                            ),
-                            [" "],
-                            [" "],
-                            self.get_chart_last_7_days(data, self.lines_lim // 2 - 1),
-                        ]
-                    )
-                ]
-            ]
-            self.fill_charts()
+            if config["tracker"]["duo"]["active"]:
+                self.__refresh_duo_form(data)
+            self.__refresh_daily_charts(data)
             self.upd = dal.upd
             self.upd_date = date.today()
 
-    def create_form(self):
+    def __refresh_duo_form(self, data: RecordOrderedDict):
+        try:
+            lrd = dal.get_duo_last_report_date()
+            t, l = 0, 0
+            for r in [v for k, v in data.items() if k <= lrd and v.duo.lessons > 0][
+                -config["tracker"]["duo"]["prelim_avg"] :
+            ]:
+                t += r.duo.hours * 60
+                l += r.duo.lessons
+            self.prelim_avg = safe_div(t, l)
+        except Exception as e:
+            self.prelim_avg = 0
+            log.error(e, exc_info=True)
+        self.time_spent_qle.setPlaceholderText(
+            format_seconds_to(self.prelim_avg * 60, "minute", sep=":")
+        )
+
+        try:
+            self.lessons_today = data[date.today()].duo.lessons
+        except KeyError:
+            self.lessons_today = 0
+
+    def __refresh_daily_charts(self, data: RecordOrderedDict):
+        self.cells = [
+            [
+                Column(
+                    [
+                        self.get_chart_weekly_activity(data, self.lines_lim // 2 - 1),
+                        [" "],
+                        [" "],
+                        self.get_chart_last_7_days(data, self.lines_lim // 2 - 1),
+                    ]
+                )
+            ]
+        ]
+        self.fill_charts()
+
+    def create_duo_form(self):
         self.form_layout = QFormLayout()
         self.form_layout.setVerticalSpacing(10)
         self.form_layout.setLabelAlignment(Qt.AlignLeft)
@@ -214,7 +218,10 @@ class DuoLayout(QWidget):
 
     def fill_charts(self):
         printout = str()
-        pad = int((self.pix_lim / self.caliper.scw - 43) / 2 + 0.5)
+        if config["tracker"]["duo"]["active"]:
+            pad = int((self.pix_lim / self.caliper.scw - 43) / 2 + 0.5)
+        else:
+            pad = int((self.pix_lim / self.caliper.scw - 37) + 0.5)
         for row in self.cells:
             for col in range(max(len(c) for c in row)):
                 printout += " " * pad + " ".join(c[col] for c in row) + "\n"

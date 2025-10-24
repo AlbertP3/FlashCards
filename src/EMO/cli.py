@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import logging
-from utils import fcc_queue, translate
+from int import fcc_queue
+from utils import translate
 from cfg import config
 from DBAC import db_conn
 from EMO.models import Models, EMOApproaches

@@ -5,7 +5,8 @@ from datetime import datetime
 from random import shuffle
 import pandas as pd
 from PyQt5.QtWidgets import QTextEdit
-from utils import flatten_dict, is_valid_filename, format_seconds_to, fcc_queue, LogLvl
+from utils import flatten_dict,  format_seconds_to
+from int import fcc_queue, LogLvl
 from DBAC import db_conn
 from CMG.init import CMGSpawn
 from cfg import config

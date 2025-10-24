@@ -5,7 +5,8 @@ from random import randint
 from typing import Optional
 import pandas as pd
 from DBAC import db_conn, FileDescriptor
-from utils import fcc_queue, LogLvl, format_seconds_to
+from utils import format_seconds_to
+from int import fcc_queue, LogLvl
 from logtools import audit_log
 from cfg import config
 from data_types import HIDE_TIPS_POLICIES, EfcRecom
@@ -37,6 +38,7 @@ class MainWindowLogic:
         self.mistakes_saved = False
         self.is_blurred = False
         self.is_graded = False
+        self.is_score_allowed = False
         self.is_back_mode = False
 
     @property
@@ -155,18 +157,18 @@ class MainWindowLogic:
         self.side = 1 - self.side
 
     def _delete_current_card(self):
-        oid = db_conn.get_oid_by_index(self.current_index)
-        db_conn.delete_card(self.current_index)
-        self.total_words = self.active_file.data.shape[0]
-        if self.current_index > 0:
-            self.current_index -= 1
-        self.side = self.get_default_side()
-        # If applicable, sync SFE with active tmp file
-        if (
+        sfe_syncable = (
             self.active_file.tmp
             and self.sfe.model.fh.fd.tmp
             and self.active_file.signature == self.sfe.model.fh.fd.signature
-        ):
+        )
+        oid = db_conn.get_oid_by_index(self.current_index)
+        db_conn.delete_card(self.current_index, sync_oid=sfe_syncable)
+        self.total_words = self.active_file.data.shape[0]
+        # if self.current_index > 0:
+            # self.current_index -= 1
+        self.side = self.get_default_side()
+        if sfe_syncable:
             self.sfe.model.del_rows([oid])
 
     def load_flashcards(self, fd: FileDescriptor, seed: Optional[int] = None):
@@ -221,7 +223,8 @@ class MainWindowLogic:
         )
         self.efc.is_view_outdated = True
 
-    def update_backend_parameters(self):
+    def update_backend_parameters(self, is_score_allowed: Optional[bool] = None):
+        config["prev_filepath"] = config["onload_filepath"]
         config["onload_filepath"] = self.active_file.filepath
         self.is_initial_rev = self.check_is_initial_rev()
         self.is_recorded = False
@@ -239,6 +242,7 @@ class MainWindowLogic:
         self.add_default_side()
         self.side = self.get_default_side()
         self.is_graded = self.active_file.kind in db_conn.GRADED
+        self.is_score_allowed = self.is_graded if is_score_allowed is None else is_score_allowed
         self.is_back_mode = False
         self.allow_hide_tips = True
         self.set_should_hide_tips()
@@ -488,6 +492,7 @@ class MainWindowLogic:
             "is_blurred": self.is_blurred,
             "is_graded": self.is_graded,
             "is_back_mode": self.is_back_mode,
+            "is_score_allowed": self.is_score_allowed,
         }
         config.cache["snapshot"]["session"] = snapshot
         log.debug(f"Created a session snapshot")
@@ -510,6 +515,7 @@ class MainWindowLogic:
         self.is_blurred = metadata["is_blurred"]
         self.is_graded = metadata["is_graded"]
         self.is_back_mode = metadata["is_back_mode"]
+        self.is_score_allowed = metadata["is_score_allowed"]
         self.mistakes_list = metadata["mistakes_list"]
         self.mistakes_saved = metadata["mistakes_saved"]
         self.cards_seen_sides = metadata["cards_seen_sides"]

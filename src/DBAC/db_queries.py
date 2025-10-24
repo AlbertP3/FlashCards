@@ -3,8 +3,9 @@ import logging
 from datetime import datetime, timedelta
 from time import time, perf_counter
 from csv import DictWriter
-from utils import fcc_queue, LogLvl
+from int import fcc_queue, LogLvl
 from logtools import audit_log
+from data_types import StatChartDataRaw, C
 
 log = logging.getLogger("DBA")
 
@@ -19,8 +20,16 @@ class DBQueries:
             EFC_MODEL=False,
             PROGRESS=False,
         )
-        self.last_update = -1.0
+        self.__last_update = -1.0
         self.DEFAULT_DATE = datetime(1900, 1, 1)
+
+    def __set_last_update(self):
+        self.__last_update = time()
+        # sbus.efc_calc_job.emit()
+
+    @property
+    def last_update(self) -> float:
+        return self.__last_update
 
     def load(self):
         t0 = perf_counter()
@@ -38,7 +47,7 @@ class DBQueries:
             },
         )
         self.db = self.__db.copy(deep=True)
-        self.last_update = time()
+        self.__set_last_update()
         log.debug(f"Loaded database in {1000*(perf_counter()-t0):.3f}ms", stacklevel=3)
 
     def refresh(self) -> bool:
@@ -74,7 +83,7 @@ class DBQueries:
             dw.writerow(record)
         self.__db.loc[len(self.__db)] = {**record, "TIMESTAMP": ts}
         self.db = self.__db.copy(deep=True)
-        self.last_update = time()
+        self.__set_last_update()
         fcc_queue.put_notification(
             f"Recorded {self.active_file.signature}", lvl=LogLvl.important
         )
@@ -96,7 +105,7 @@ class DBQueries:
             date_format=self.TSFORMAT,
         )
         self.db = self.__db.copy(deep=True)
-        self.last_update = time()
+        self.__set_last_update()
         audit_log(
             op="RENAME",
             data=[old, new],
@@ -207,35 +216,42 @@ class DBQueries:
             last_date = self.get_last_datetime(signature)
             return datetime.now() - last_date
         except:
-            return 0
+            return timedelta(0)
 
     def get_count_of_records_missing_time(self, signature=None) -> int:
         res = self.get_filtered_db_if("SIGNATURE", signature)
         return res[self.db["SEC_SPENT"] == 0].shape[0]
 
-    def get_chart_positives(self, signature=None) -> list[int]:
-        return self.__get_chart_data_deduplicated(
-            "POSITIVES", signature
-        ).values.tolist()
+    def get_stat_chart_data(self, signature: str) -> StatChartDataRaw:
+        db = self.db.loc[self.db["SIGNATURE"] == signature].copy(deep=True)
+        sum_repeated = int(db.shape[0])
+        sum_sec_spent = db[C.sec_spent].sum()
+        missing_records_cnt = db[db[C.sec_spent] == 0].shape[0]
+        total_cards = db.iloc[-1][C.total]
+        creation_date = db.iloc[0][C.timestamp]
+        last_rev_date = db.iloc[-1][C.timestamp]
 
-    def get_chart_dates(self, signature=None) -> list[pd.Timestamp]:
-        return self.__get_chart_data_deduplicated("TIMESTAMP", signature)
+        if db.iloc[0][C.positives] == 0:
+            # Remove first Revision if ungraded
+            db.drop(db.index[0], inplace=True)
 
-    def get_chart_time_spent(self, signature=None) -> list[int]:
-        return self.__get_chart_data_deduplicated(
-            "SEC_SPENT", signature
-        ).values.tolist()
+        sec_spent = db[C.sec_spent].values.tolist()
+        positives = db[C.positives].values.tolist()
+        dates = db[C.timestamp].dt.date.values.tolist()
+        time_spent = db[C.sec_spent].values.tolist()
 
-    def __get_chart_data_deduplicated(
-        self, return_col_name, signature=None
-    ) -> pd.DataFrame:
-        # get data for each repetition - if more than 1 repetition
-        # occured on one day - retrieve result for the last one.
-        res = self.get_filtered_db_if("SIGNATURE", signature)
-        res = res[self.db["IS_FIRST"] == 0]
-        res["TIME"] = res["TIMESTAMP"].dt.date
-        res = res.drop_duplicates(subset=["TIME"], keep="last")
-        return res[return_col_name]
+        return StatChartDataRaw(
+            positives=positives,
+            dates=dates,
+            total_cards=total_cards,
+            time_spent_seconds=time_spent,
+            sum_repeated=sum_repeated,
+            creation_date=creation_date,
+            last_rev_date=last_rev_date,
+            sec_spent=sec_spent,
+            sum_seconds_spent=sum_sec_spent,
+            missing_records_cnt=missing_records_cnt,
+        )
 
     def get_filtered_by_lng(self, lngs: list):
         return self.__get_filtered_by_lng(lngs)
@@ -254,7 +270,7 @@ class DBQueries:
         self.db = self.db.loc[self.db["IS_FIRST"] == 0]
         self.filters["NOT_FIRST"] = True
 
-    def filter_where_signature_is_equal_to(self, signature):
+    def filter_where_signature(self, signature: str):
         self.db = self.db.loc[self.db["SIGNATURE"] == signature]
         self.filters["BY_SIGNATURE"] = signature
 

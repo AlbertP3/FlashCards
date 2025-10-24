@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import QFormLayout, QTableWidget, QHeaderView, QTableWidgetItem
-from utils import fcc_queue, LogLvl
+from int import fcc_queue, LogLvl
 from tabs.base import BaseTab
-from DBAC import db_conn
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

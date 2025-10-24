@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from csv import DictReader, DictWriter
 from PyQt5.QtCore import QTime
 from cfg import config
-from utils import fcc_queue, LogLvl
+from int import fcc_queue, LogLvl
 from tracker.structs import RecordOrderedDict, Record, SubRecord, IMM_CATS
 from logtools import audit_log
 

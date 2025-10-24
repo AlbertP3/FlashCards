@@ -9,7 +9,8 @@ from dataclasses import dataclass
 import os
 import csv
 from uuid import uuid4
-from utils import fcc_queue, LogLvl, translate, nat_sort_key
+from utils import translate, nat_sort_key
+from int import fcc_queue, LogLvl
 from logtools import audit_log
 from cfg import config
 
@@ -23,7 +24,7 @@ class FileDescriptor:
     lng: Optional[str] = None
     kind: str = "U"
     ext: Optional[str] = None  # [.csv, .xlsx, ...]
-    valid: bool = None
+    valid: Optional[bool] = None
     data: Optional[pd.DataFrame] = None
     signature: Optional[str] = None
     tmp: bool = False
@@ -66,11 +67,6 @@ class DbDatasetOps:
             ),
             stacklevel=3,
         )
-        if (
-            len(d := {f.basename for f in self.files.values() if f.data is not None})
-            > 1
-        ):
-            log.warning(f"There are {len(d)} FileDescriptors with data: {d}")
 
     def afops(self, fd: FileDescriptor, shuffle: bool = False, seed: int = None):
         fd.data = self.get_data(fd)
@@ -269,7 +265,8 @@ class DbDatasetOps:
             err_msg = f"Exception occurred: {e}"
             log.error(e, exc_info=True)
 
-        fcc_queue.put_notification(err_msg, lvl=LogLvl.err)
+        if err_msg:
+            fcc_queue.put_notification(err_msg, lvl=LogLvl.err)
         return _data
 
     def get_lines_count(self, fd: FileDescriptor) -> int:
@@ -433,12 +430,13 @@ class DbDatasetOps:
             reverse=False,
         )
 
-    def delete_card(self, i: int):
-        oid = self.active_file.data.at[i, "__oid"]
+    def delete_card(self, i: int, sync_oid: bool = True):
         _val = self.active_file.data.iloc[i].to_list()[:len(self.active_file.headers)]
         self.active_file.data.drop(i, inplace=True, axis=0)
         self.active_file.data.reset_index(inplace=True, drop=True)
-        self.active_file.data.loc[self.active_file.data["__oid"] >= oid, "__oid"] -= 1
+        if sync_oid:
+            oid = self.active_file.data.at[i, "__oid"]
+            self.active_file.data.loc[self.active_file.data["__oid"] >= oid, "__oid"] -= 1
         audit_log(
             op="DELETE",
             data=_val,

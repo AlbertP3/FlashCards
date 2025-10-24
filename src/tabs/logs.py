@@ -13,10 +13,10 @@ from PyQt5.QtGui import (
     QFont,
     QTextCursor,
 )
-from PyQt5.QtWidgets import QWidget, QGridLayout, QTextEdit, QLineEdit
+from PyQt5.QtWidgets import QGridLayout, QTextEdit, QLineEdit
 from PyQt5.QtCore import Qt, QTime, QTimer
 from widgets import CheckableComboBox, get_scrollbar
-from utils import fcc_queue
+from int import fcc_queue
 from cfg import config, JsonEncoder
 from tracker.dal import dal as tracker_dal
 from tabs.base import BaseTab

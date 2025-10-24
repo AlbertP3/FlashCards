@@ -93,7 +93,10 @@ def audit_log_prune():
         for r in f:
             rcnt += 1
             try:
-                if json.loads(r).get("path"):
+                _r: dict = json.loads(r)
+                if _r["status"] == "ACTIVE_ONLY":
+                    continue
+                elif _r.get("path"):
                     records.append(r)
             except Exception:
                 pass

@@ -53,7 +53,7 @@ class DataTableModel(QAbstractTableModel):
         return self.fh.total_columns
 
     def data(self, index: QModelIndex, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole:
+        if role == Qt.DisplayRole or role == Qt.EditRole:
             try:
                 return str(self.fh.data_view.iat[index.row(), index.column()])
             except IndexError:

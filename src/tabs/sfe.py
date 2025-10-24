@@ -22,7 +22,8 @@ from widgets import (
     ConfirmDeleteCardDialog,
 )
 from cfg import config
-from utils import fcc_queue, LogLvl, sbus, singular
+from utils import singular
+from int import fcc_queue, LogLvl, sbus
 from data_types import SfeMods
 from typing import TYPE_CHECKING
 
@@ -40,8 +41,12 @@ class SfeTab(BaseTab):
         self.__last_auto_pasted = ""
         self.sel_idx = 0
         self._unack_move: tuple = None  # ref, offset
+        self._disable_src_chg = False
         self.build()
         self.mw.add_tab(self.tab, self.id, "Source File Editor")
+
+    def _set_disable_src_chg(self, b: bool):
+        self._disable_src_chg = b
 
     def init_cross_shortcuts(self):
         super().init_cross_shortcuts()
@@ -105,10 +110,10 @@ class SfeTab(BaseTab):
         self.duo_btn = get_button(
             self.tab,
             text="Duo+",
-            function=lambda: self.mw.trk.trk.duo_layout.on_submit(
+            function=lambda: self.mw.trk.trk.daily_layout.on_submit(
                 lng=self.model.fh.fd.lng
             ),
-            dtip=self.mw.trk.trk.duo_layout.get_tooltip,
+            dtip=self.mw.trk.trk.daily_layout.get_tooltip,
         )
         if not config["tracker"]["duo"]["active"]:
             self.duo_btn.setVisible(False)
@@ -312,10 +317,11 @@ class SfeTab(BaseTab):
             log.info(f"Saved {self.model.fh.filepath}")
 
     def on_src_change(self):
-        new_src = self.src_cbx.currentDataList()[0]
-        if new_src == self.model.fh:
+        fd: FileDescriptor = self.src_cbx.currentDataList()[0]
+        if self._disable_src_chg or fd == self.model.fh.fd:
             return
-        self.model.load(new_src)
+        self._set_disable_src_chg(True)
+        self.model.load(fd)
         self._refresh_search_qle()
         self.update_search_placeholder()
         self.set_iln_button()
@@ -324,6 +330,7 @@ class SfeTab(BaseTab):
         else:
             self.view.selectRow(0)
             self.view.setFocus()
+        QTimer.singleShot(10, lambda: self._set_disable_src_chg(False))
 
     def set_iln_button(self):
         self.iln_btn.setEnabled(self.model.fh.is_iln)

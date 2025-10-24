@@ -5,7 +5,7 @@ import logging
 from PyQt5.QtCore import QObject
 from DBAC import FileDescriptor
 from cfg import config
-from utils import fcc_queue, LogLvl, sbus
+from int import fcc_queue, LogLvl, sbus
 from logtools import audit_log
 from data_types import SfeMods
 

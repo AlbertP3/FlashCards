@@ -1,5 +1,5 @@
 from fcc import FCC
-from utils import fcc_queue
+from int import fcc_queue
 from tabs.base import BaseConsole
 
 

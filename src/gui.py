@@ -36,11 +36,11 @@ from PyQt5.QtCore import (
     QFileSystemWatcher,
     QEvent,
     pyqtSlot,
-    QThreadPool,
 )
 from logic import MainWindowLogic
 import tabs
-from utils import fcc_queue, format_seconds_to, Caliper, LogLvl, TaskRunner, sbus
+from utils import format_seconds_to, Caliper
+from int import fcc_queue, LogLvl, sbus, sched, Task
 from DBAC import FileDescriptor, db_conn
 from widgets import NotificationPopup, get_button
 from cfg import config
@@ -59,7 +59,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tab_map = {}
         self.q_app = QApplication(["FlashCards"])
         QWidget.__init__(self)
-        self.threadpool = QThreadPool()
         sys.excepthook = self.excepthook
 
     def configure_scaling(self):
@@ -80,8 +79,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         started: Callable = None,
         finished: list[Callable] = None,
     ):
-        self.threadpool.start(
-            TaskRunner(functions=fns, started=started, finished=finished, op_id=op_id)
+        sched.run_task(
+            Task(functions=fns, started=started, finished=finished, op_id=op_id)
         )
 
     def launch_app(self):
@@ -104,6 +103,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             finished=[
                 self.hide_loading,
                 self.__onload_notifications,
+                self.efc.init_job_calc,
             ],
             op_id="post_init",
         )
@@ -170,7 +170,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.change_revmode(self.revmode)
         self.update_words_button()
         self.update_score_button()
-        self.next_button.setText(config["icons"]["next" if self.is_back_mode else "new"])
+        self.next_button.setText(
+            config["icons"]["next" if self.is_back_mode else "new"]
+        )
         if self.is_synopsis:
             self.display_text(self.synopsis or config["synopsis"])
         else:
@@ -693,7 +695,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def update_interface_parameters(self):
         self.setWindowTitle(self.get_title())
-        self.change_revmode(self.is_graded)
+        self.change_revmode(self.is_score_allowed)
         self.next_button.setText(config["icons"]["new"])
         self.display_text(self.get_current_card().iloc[self.side])
         self.update_words_button()
@@ -720,9 +722,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.allow_hide_tips = True
             self.display_text(self.get_current_card().iloc[self.side])
             self.update_words_button()
-        if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
-            self.start_timer()
-            self.start_pace_timer()
+            if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
+                self.start_timer()
+                self.start_pace_timer()
+        elif config["prev_filepath"]:
+            self.initiate_flashcards(db_conn.files[config["prev_filepath"]])
 
     def goto_last_seen_card(self):
         if self.words_back > 0:
@@ -737,8 +741,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.update_score_button()
 
     def click_next_button(self):
-        if self.total_words - self.current_index - 1 > 0:
-            self.__next_ctl_blur()
+        if self.is_blurred:
+            self.remove_blur()
+            self.__next_ctl_timers()
+        elif self.total_words - self.current_index - 1 > 0:
+            self.goto_next_card()
             self.__next_ctl_backmode()
             self.__next_display()
             self.__next_ctl_timers()
@@ -746,12 +753,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.__next_create_record()
         else:
             self.__next_final_actions()
-
-    def __next_ctl_blur(self):
-        if self.is_blurred:
-            self.remove_blur()
-        else:
-            self.goto_next_card()
 
     def __next_display(self):
         self.allow_hide_tips = True
@@ -771,7 +772,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             and self.current_index == self.cards_seen
             and not self.is_recorded
         ):
-            if self.is_graded and not self.revmode:
+            if self.is_score_allowed and not self.revmode:
                 self.change_revmode(True)
             else:
                 self.next_button.setText(config["icons"]["new"])
@@ -918,7 +919,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.move(frame_geo.topLeft())
 
     def change_revmode(self, new_mode: bool):
-        self.revmode = new_mode * self.is_graded
+        self.revmode = new_mode * self.is_score_allowed
         if self.revmode:
             self.nav_buttons_visibility_control(True, True, False)
         else:
@@ -1025,6 +1026,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.set_append_seconds_spent_function()
 
     def start_timer(self):
+        self.append_seconds_spent(0)
         self.timer.start(1000)
         self.TIMER_RUNNING_FLAG = True
 
@@ -1071,17 +1073,17 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.append_seconds_spent = self._revtimer_func_time
         self.timer.timeout.connect(self.append_seconds_spent)
 
-    def _revtimer_func_hidden(self):
-        self.seconds_spent += 1
+    def _revtimer_func_hidden(self, d: int = 1):
+        self.seconds_spent += d
         self.timer_button.setText(config["icons"]["timer_run"])
 
-    def _revtimer_func_cpm(self):
-        self.seconds_spent += 1
+    def _revtimer_func_cpm(self, d: int = 1):
+        self.seconds_spent += d
         cpm = self.cards_seen / (self.seconds_spent / 60)
         self.timer_button.setText(f"{cpm:.0f}")
 
-    def _revtimer_func_time(self):
-        self.seconds_spent += 1
+    def _revtimer_func_time(self, d: int = 1):
+        self.seconds_spent += d
         self.timer_button.setText(
             format_seconds_to(self.seconds_spent, "minute", rem=2, sep=":")
         )
@@ -1183,7 +1185,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         config["geo"] = self.geometry().getRect()[2:]
         try:
             self._set_textbox_chr_space()
-            self.trk.trk.duo_layout.upd = -1
+            self.trk.trk.daily_layout.upd = -1
             self.trk.trk.tt_printout.upd = -1
         except AttributeError as e:
             log.error(

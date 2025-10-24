@@ -29,7 +29,8 @@ from PyQt5.QtGui import (
 )
 from collections import OrderedDict
 from typing import Callable, Optional, TYPE_CHECKING
-from utils import fcc_queue, LogLvl, is_valid_filename, sbus, parse_to_seconds
+from utils import is_valid_filename, parse_to_seconds
+from int import fcc_queue, LogLvl, sbus
 from data_types import CreateFileDialogData
 from DBAC import db_conn, FileDescriptor
 from cfg import config

@@ -1,5 +1,6 @@
 import logging
-from utils import fcc_queue, translate
+from int import fcc_queue
+from utils import translate
 from cfg import config
 from EMO.cli import CLI, Steps
 from DBAC import db_conn

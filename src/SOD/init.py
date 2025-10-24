@@ -1,6 +1,6 @@
 import os
 import logging
-from utils import fcc_queue, LogLvl
+from int import fcc_queue, LogLvl
 from cfg import config
 from SOD.cli import CLI
 from typing import TYPE_CHECKING

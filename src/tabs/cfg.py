@@ -17,7 +17,8 @@ from widgets import (
     get_scrollbar,
     get_button,
 )
-from utils import fcc_queue, LogLvl, is_valid_filename
+from int import fcc_queue, LogLvl
+from utils import is_valid_filename
 from cfg import config
 from DBAC import db_conn
 from tabs.base import BaseTab
@@ -37,6 +38,7 @@ class CfgTab(BaseTab):
         self.id = "config"
         self.mw = mw
         self.funcs_to_restart = list()
+        self.funcs_deferred = list()
         self.build()
         self.mw.add_tab(self.tab, self.id, "Settings")
 
@@ -133,7 +135,8 @@ class CfgTab(BaseTab):
                 config["sigenpat"].get(fd.filepath, ""),
                 text=fd.signature,
             )
-            for fd in db_conn.files.values() if fd.kind == db_conn.KINDS.lng
+            for fd in db_conn.files.values()
+            if fd.kind == db_conn.KINDS.lng
         }
 
         self.opts_layout.add_spacer()
@@ -556,7 +559,15 @@ class CfgTab(BaseTab):
 
         if new_cfg["sfe"]["hint"] != config["sfe"]["hint"]:
             new_cfg["sfe"]["lookup_re"] = sfe_hint_formats[new_cfg["sfe"]["hint"]]
-        
+
+        if new_cfg["tracker"]["duo"]["active"] != config["tracker"]["duo"]["active"]:
+            self.funcs_to_restart.append(self.mw.restart_app)
+
+        if (
+            new_cfg["efc"]["opt"]["allow_background_calc"]
+            != config["efc"]["opt"]["allow_background_calc"]
+        ):
+            self.funcs_to_restart.append(self.mw.restart_app)
         return new_cfg
 
     def commit_config_update(self):
@@ -570,6 +581,7 @@ class CfgTab(BaseTab):
         if is_valid:
             config.update(modified_config)
             self.config_manual_update()
+            self.apply_deferred_fns()
             self.mw.display_text(self.mw.get_current_card().iloc[self.mw.side])
         else:
             fcc_queue.put_notification(
@@ -579,12 +591,18 @@ class CfgTab(BaseTab):
             )
             log.warning("\n".join(errs))
             self.funcs_to_restart.clear()
+            self.funcs_deferred.clear()
             return
 
         if not self.funcs_to_restart:
             fcc_queue.put_notification("Config saved", lvl=LogLvl.important)
         else:
             self.update_submit_btn()
+
+    def apply_deferred_fns(self):
+        for fn in self.funcs_deferred:
+            fn()
+        self.funcs_deferred.clear()
 
     def on_config_commit_restart(self, funcs: list[Callable]):
         for f in funcs:
@@ -744,7 +762,6 @@ class CfgTab(BaseTab):
             return False, errs
         else:
             return True, set()
-
 
     def validate(self, cfg: dict) -> tuple[bool, set]:
         try:
