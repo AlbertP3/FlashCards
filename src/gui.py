@@ -29,6 +29,7 @@ from PyQt5.QtGui import (
     QResizeEvent,
     QMoveEvent,
     QCursor,
+    QMouseEvent,
 )
 from PyQt5.QtCore import (
     Qt,
@@ -42,7 +43,7 @@ import tabs
 from utils import format_seconds_to, Caliper
 from int import fcc_queue, LogLvl, sbus, sched, Task
 from DBAC import FileDescriptor, db_conn
-from widgets import NotificationPopup, get_button
+from widgets import NotificationPopup, get_button, FocusableLabel
 from cfg import config
 
 log = logging.getLogger("GUI")
@@ -56,6 +57,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.__allow_resize = False
         self.__last_ldpi_change = 0
         self.__last_focus_out_timer_state = False
+        self.__kbsc: set[QShortcut] = set()
         self.tab_map = {}
         self.q_app = QApplication(["FlashCards"])
         QWidget.__init__(self)
@@ -484,10 +486,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         blur.setBlurRadius(35)
         self.textbox.setGraphicsEffect(blur)
         self.is_blurred = True
+        self.textbox.setDisabled(True)
 
     def remove_blur(self):
         self.textbox.setGraphicsEffect(None)
         self.is_blurred = False
+        self.textbox.setEnabled(True)
 
     def toggle_pause(self):
         if self.is_blurred:
@@ -504,11 +508,18 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.apply_blur()
 
     def create_textbox(self):
-        self.textbox = QLabel(self)
+        if config["experimental"].get("focusable_qlabel"):
+            self.textbox = FocusableLabel(
+                parent=self,
+                global_kbsc_toggle=self.set_kbsc_enabled,
+            )
+            self.textbox.selectionChanged.connect(self.__lookup)
+        else:
+            self.textbox = QLabel(self)
+            self.textbox.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.textbox.setFont(config.qfont_textbox)
         self.textbox.setWordWrap(True)
         self.textbox.setAlignment(Qt.AlignCenter)
-        self.textbox.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.textbox.setCursor(Qt.IBeamCursor)
         self.__attach_textbox_ctx()
         self.tb_cal = Caliper(config.qfont_textbox)
@@ -569,7 +580,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.textbox_ctx.exec_(QCursor.pos())
 
     def __lookup(self, event):
-        QLabel.mouseReleaseEvent(self.textbox, event)
+        if isinstance(event, QMouseEvent):
+            QLabel.mouseReleaseEvent(self.textbox, event)
         sel = self.textbox.selectedText()
         if sel:
             msg = self.sfe.lookup(query=sel, col=self.side)
@@ -641,12 +653,18 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def delete_current_card(self):
         if not self.is_graded:
-            if not self.is_synopsis:
+            if not self.is_synopsis and self.total_words > 0:
                 self._delete_current_card()
                 self.update_words_button()
                 fcc_queue.put_notification("Card removed", lvl=LogLvl.important)
                 self.allow_hide_tips = True
-                self.display_text(self.get_current_card().iloc[self.side])
+                if self.total_words == 0:
+                    self.cancel_fcs()
+                    fcc_queue.put_notification("Canceled")
+                    self.display_text("-")
+                    return
+                else:
+                    self.display_text(self.get_current_card().iloc[self.side])
         else:
             fcc_queue.put_notification(
                 f"Cannot remove cards from a {db_conn.KFN[self.active_file.kind]}",
@@ -667,6 +685,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def load_again_click(self):
         if not self.active_file.valid:
             fcc_queue.put_notification("Cannot reload an empty file", lvl=LogLvl.warn)
+            return
+        elif self.active_file.parent:
+            fcc_queue.put_notification("Cannot reload an ILN file", lvl=LogLvl.warn)
             return
         elif self.active_file.tmp:
             db_conn.shuffle_dataset(self.active_file)
@@ -725,7 +746,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
                 self.start_pace_timer()
-        elif config["prev_filepath"]:
+        elif config["prev_filepath"] and self.cards_seen <= 1:
             self.initiate_flashcards(db_conn.files[config["prev_filepath"]])
 
     def goto_last_seen_card(self):
@@ -894,11 +915,17 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         )
         self.add_ks(config["kbsc"]["next_efc"], self.efc.load_next_efc, self.main_tab)
         self.add_ks(config["kbsc"]["mcr"], self.modify_card_result, self.main_tab)
+        self.add_ks(config["kbsc"]["sel_txt"], self.textbox.setFocus, self.textbox)
 
     def add_ks(self, key: str, func, tab):
         # TODO warn if attempting to create a duplicate bind
         shortcut = QShortcut(QKeySequence(key), tab)
         shortcut.activated.connect(func)
+        self.__kbsc.add(shortcut)
+
+    def set_kbsc_enabled(self, b: bool):
+        for kbsc in self.__kbsc:
+            kbsc.setEnabled(b)
 
     def ks_nav_next(self):
         if self.revmode:

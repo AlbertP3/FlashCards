@@ -1,8 +1,8 @@
-# FlashCards 1.6.7
+# FlashCards 1.6.8
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.7](#flashcards-167)
+- [FlashCards 1.6.8](#flashcards-168)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)
@@ -103,6 +103,7 @@ The Source File Editor is here for managing the FlashCard's source files, whethe
 - Sync - if current active file is also loaded in SFE, then the changes will be reflected bidirectionaly
 - Clicking on "+N" button will initiate a flashcards set from the last N cards. This is calculated based on ILN but can also be modified in a follow-up prompt
 - Audit - all modifications are also recorded in audit.jsonl in case something went wrong 
+- CFI - Create From Index - loads N cards from the selected file, starting from an Index, which is auto-incremented when this subset is saved. This helps in tracking progress of cards already in *Revision* files
 
 ## CLI Dictionary (Legacy)
 

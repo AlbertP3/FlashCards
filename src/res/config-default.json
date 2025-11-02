@@ -1,5 +1,5 @@
 {
-    "version": "1.6.7",
+    "version": "1.6.8",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -145,6 +145,7 @@
         "prev": "Left",
         "negative": "Down",
         "reverse": "Up",
+        "sel_txt": "z",
         "del_cur_card": "d",
         "load_again": "r",
         "tracker": "t",
@@ -303,5 +304,8 @@
         },
         "notes": ""
     },
-    "sigenpat": {}
+    "sigenpat": {},
+    "experimental": {
+        "focusable_qlabel": false
+    }
 }

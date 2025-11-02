@@ -1,8 +1,9 @@
 import json
 import logging
 import numpy as np
-from typing import Optional, Literal, Any, Union
+from typing import Optional, Any, Union
 from pandas import Timestamp
+from data_types import adlt
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -39,13 +40,13 @@ __audit_log.addHandler(__handler)
 
 
 def audit_log(
-    op: Literal["ADD", "UPDATE", "DELETE", "REVERSE", "MOVE", "RENAME", "MERGE"],
-    data: Any,
+    op: str,
     filepath: str,
-    author: Literal["FCS", "SFE", "DBQ", "TRK"],
+    author: str,
     row: Union[int, str],
     col: str = ":",
-    status: Literal["SAVE", "STAGE", "ACTIVE_ONLY"] = "SAVE",
+    data: Any = {},
+    status: str = adlt.stat.saved,
     stacklevel: Optional[int] = 2,
 ):
     __audit_log.info(
@@ -94,7 +95,7 @@ def audit_log_prune():
             rcnt += 1
             try:
                 _r: dict = json.loads(r)
-                if _r["status"] == "ACTIVE_ONLY":
+                if _r["status"] == adlt.stat.active_only:
                     continue
                 elif _r.get("path"):
                     records.append(r)

@@ -35,6 +35,7 @@ class StopwatchTab(QWidget):
     def refresh(self):
         if self.upd < dal.upd:
             self.cat_map = dal.get_imm_category_mapping()
+            self.update_completer(self.__cur_category)
             self.upd = dal.upd
 
     def get(self) -> QVBoxLayout:
@@ -114,7 +115,6 @@ class StopwatchTab(QWidget):
         config["tracker"]["default_category"] = category
         self.__cur_category = category
 
-
     def toggle_timer(self):
         if dal.stopwatch_running:
             dal.stopwatch_timer.stop()
@@ -143,6 +143,7 @@ class StopwatchTab(QWidget):
         dal.add_imm_record(lng=lng, total_seconds=ts, title=title, category=cat)
         self.title_qle.clear()
         self.reset_timer()
+        self.refresh()
 
     def get_seconds_elapsed(self) -> int:
         return (

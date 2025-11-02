@@ -10,6 +10,7 @@ from cfg import config
 from int import fcc_queue, LogLvl
 from tracker.structs import RecordOrderedDict, Record, SubRecord, IMM_CATS
 from logtools import audit_log
+from data_types import adlt
 
 log = logging.getLogger("DAL")
 
@@ -136,10 +137,10 @@ class DataAccessLayer:
             log.debug(f"Predicted {pred_lessons} lessons but got {lessons}")
         fcc_queue.put_notification("Added Duo final record", LogLvl.important)
         audit_log(
-            op="MERGE" if found else "ADD",
+            op=adlt.op.merge if found else adlt.op.add,
             data=record | {"final": True},
             filepath=self.spc.duo_path,
-            author="TRK",
+            author=adlt.author.trk,
             row=len(rows) - 1,
         )
         self.upd = time()
@@ -188,10 +189,10 @@ class DataAccessLayer:
             LogLvl.important,
         )
         audit_log(
-            op="UPDATE" if found else "ADD",
+            op=adlt.op.upd if found else adlt.op.add,
             data=rows[-1] | {"final": False},
             filepath=self.spc.duo_path,
-            author="TRK",
+            author=adlt.author.trk,
             row=len(rows) - 1,
         )
         self.upd = time()
@@ -209,10 +210,10 @@ class DataAccessLayer:
         self.__imm_rows += 1
         fcc_queue.put_notification(f"Added Immersion record", LogLvl.important)
         audit_log(
-            op="ADD",
+            op=adlt.op.add,
             data=record,
             filepath=self.spc.imm_path,
-            author="TRK",
+            author=adlt.author.trk,
             row=self.__imm_rows,
         )
         self.upd = time()

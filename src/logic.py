@@ -9,7 +9,7 @@ from utils import format_seconds_to
 from int import fcc_queue, LogLvl
 from logtools import audit_log
 from cfg import config
-from data_types import HIDE_TIPS_POLICIES, EfcRecom
+from data_types import HIDE_TIPS_POLICIES, EfcRecom, adlt
 from rev_summary import SummaryGenerator
 
 log = logging.getLogger("BKD")
@@ -157,19 +157,28 @@ class MainWindowLogic:
         self.side = 1 - self.side
 
     def _delete_current_card(self):
-        sfe_syncable = (
-            self.active_file.tmp
-            and self.sfe.model.fh.fd.tmp
-            and self.active_file.signature == self.sfe.model.fh.fd.signature
-        )
-        oid = db_conn.get_oid_by_index(self.current_index)
-        db_conn.delete_card(self.current_index, sync_oid=sfe_syncable)
-        self.total_words = self.active_file.data.shape[0]
-        # if self.current_index > 0:
-            # self.current_index -= 1
-        self.side = self.get_default_side()
-        if sfe_syncable:
+        if self.active_file.should_propagate_to(self.sfe.model.fh.fd):
+            oid = db_conn.get_oid_by_index(self.current_index)
             self.sfe.model.del_rows([oid])
+            db_conn.sync_sfe([oid])
+        db_conn.delete_card(self.current_index)
+        self.total_words = self.active_file.data.shape[0]
+        if self.current_index == self.total_words:
+            self.current_index -= 1
+        self.side = self.get_default_side()
+        if self.active_file.parent:
+            self.active_file.parent["del"] += 1
+
+    def cancel_fcs(self):
+        if self.active_file.parent:
+            self.__update_iln()
+        self.active_file.valid = False
+        self.active_file.kind = db_conn.KINDS.unk
+        self.active_file.data = pd.DataFrame(
+            [["-", "-", "-"]], columns=self.active_file.headers
+        )
+        self.is_recorded = True
+        self.active_file.parent = None
 
     def load_flashcards(self, fd: FileDescriptor, seed: Optional[int] = None):
         try:
@@ -186,15 +195,12 @@ class MainWindowLogic:
         )
 
     def handle_creating_revision(self, seconds_spent=0):
-        if isinstance(self.active_file.parent, dict):
-            config["ILN"][self.active_file.parent["filepath"]] = (
-                self.active_file.parent["len_"]
-            )
-            self.sfe.check_update_iln()
+        if self.active_file.parent:
+            self.__update_iln()
         self.active_file.signature = db_conn.gen_signature(self.active_file)
         self.active_file.kind = db_conn.KINDS.rev
         newfp = db_conn.create_revision_file(
-            self.active_file.data.iloc[: self.cards_seen + 1, :]
+            self.active_file.data.iloc[: self.cards_seen + 1, :2]
         )
         self.update_files_lists()
         db_conn.create_record(
@@ -204,6 +210,17 @@ class MainWindowLogic:
         self.update_backend_parameters()
         self.update_interface_parameters()
         self.skip_efc_reload_initial()
+
+    def __update_iln(self):
+        iln = (
+            self.active_file.parent["from"]
+            + self.cards_seen
+            + self.active_file.parent["del"]
+            + 1
+        )
+        if config["ILN"].get(self.active_file.parent["filepath"], 0) < iln:
+            config["ILN"][self.active_file.parent["filepath"]] = iln
+        self.sfe.check_update_iln()
 
     def skip_efc_reload_initial(self):
         self.efc._db_load_time_efc = db_conn.last_update
@@ -242,7 +259,9 @@ class MainWindowLogic:
         self.add_default_side()
         self.side = self.get_default_side()
         self.is_graded = self.active_file.kind in db_conn.GRADED
-        self.is_score_allowed = self.is_graded if is_score_allowed is None else is_score_allowed
+        self.is_score_allowed = (
+            self.is_graded if is_score_allowed is None else is_score_allowed
+        )
         self.is_back_mode = False
         self.allow_hide_tips = True
         self.set_should_hide_tips()
@@ -333,8 +352,8 @@ class MainWindowLogic:
 
     def init_eph_from_mistakes(self):
         mistakes_df = pd.DataFrame(
-            data=[i[:2] for i in self.mistakes_list],
-            columns=self.active_file.headers,
+            data=self.mistakes_list,
+            columns=self.active_file.data.columns,
         )
         if not self.active_file.tmp:
             self.file_monitor_del_path(self.active_file.filepath)
@@ -344,10 +363,6 @@ class MainWindowLogic:
             basename=f"{self.active_file.lng} Ephemeral",
             lng=self.active_file.lng,
             signature=f"{self.active_file.lng}_ephemeral",
-            parent={
-                "filepath": self.active_file.filepath,
-                "len_": self.active_file.data.shape[0],
-            },
         )
         self.load_again_click()
 
@@ -412,12 +427,12 @@ class MainWindowLogic:
         self.update_words_button()
         self.display_text(self.get_current_card().iloc[self.side])
         audit_log(
-            op="ADD",
+            op=adlt.op.add,
             data=row,
             filepath=self.active_file.filepath,
-            author="FCS",
+            author=adlt.author.fcs,
             row=new_idx,
-            status="ACTIVE_ONLY",
+            status=adlt.stat.active_only,
         )
 
     def sfe_apply_edit(self, oid: int, val: list[str]):
@@ -431,19 +446,24 @@ class MainWindowLogic:
         self.active_file.data.iloc[idx] = [*val, oid]
         self.display_text(self.get_current_card().iloc[self.side])
         audit_log(
-            op="UPDATE",
+            op=adlt.op.upd,
             data=val,
             filepath=self.active_file.filepath,
-            author="FCS",
+            author=adlt.author.fcs,
             row=idx,
-            status="ACTIVE_ONLY",
+            status=adlt.stat.active_only,
         )
 
     def sfe_apply_delete(self, oids: list[int]):
         for oid in oids:
-            idx = db_conn.get_index_by_oid(oid)
-            if 0 < idx <= self.current_index:
-                self.current_index -= 1
+            try:
+                idx = db_conn.get_index_by_oid(oid)
+            except IndexError:
+                # Card had already been removed from the active set
+                continue
+            if 0 <= idx <= self.current_index:
+                if idx > 0:
+                    self.current_index -= 1
                 try:
                     mst_idx = self.find_in_mistakes_list(oid)
                     self.mistakes_list.pop(mst_idx)
@@ -451,6 +471,8 @@ class MainWindowLogic:
                     pass
             db_conn.delete_card(idx)
             self.total_words -= 1
+
+        db_conn.sync_sfe(oids)
         self.update_words_button()
         self.display_text(self.get_current_card().iloc[self.side])
 

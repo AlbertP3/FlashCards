@@ -333,6 +333,7 @@ class LogsTab(BaseTab):
                                     "allow_hide_tips",
                                     "allow_hide_tips",
                                     "mistakes_saved",
+                                    "mistakes_list",
                                     "is_revision",
                                     "pace_spent",
                                     "pace_timer_interval",

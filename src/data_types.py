@@ -113,6 +113,37 @@ sfe_hint_formats = {
     " {}": r"(?<=\\{)[^),]+(?=[},])",
 }
 
+
+class _ADL_O(NamedTuple):
+    add = "ADD"
+    upd = "UPDATE"
+    rem = "DELETE"
+    rev = "REVERSE"
+    mv = "MOVE"
+    rename = "RENAME"
+    merge = "MERGE"
+    rem_f = "DELETE_FILE"
+
+
+class _ADL_S(NamedTuple):
+    active_only = "ACTIVE_ONLY"
+    saved = "SAVED"
+    staged = "STAGED"
+
+
+class _ADL_A(NamedTuple):
+    fcs = "FCS"
+    sfe = "SFE"
+    dbq = "DBQ"
+    trk = "TRK"
+
+
+class adlt(NamedTuple):
+    op = _ADL_O
+    stat = _ADL_S
+    author = _ADL_A
+
+
 _T = {
     "kbsc": {
         "mod": "Mod Key",

@@ -19,7 +19,15 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QToolTip,
 )
-from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer, QEvent, QPoint, QObject
+from PyQt5.QtCore import (
+    Qt,
+    QPropertyAnimation,
+    QTimer,
+    QEvent,
+    QPoint,
+    QObject,
+    pyqtSignal,
+)
 from PyQt5.QtGui import (
     QPalette,
     QFontMetrics,
@@ -388,9 +396,19 @@ class CFIDialog(QDialog):
         self.total_qle = self.create_qle(f"{start+cnt}")
         self.total_qle.setFocusPolicy(Qt.NoFocus)
         self.total_qle.setReadOnly(True)
+        self.allow_score_cbx = CheckableComboBox(
+            parent, allow_multichoice=False, width=250, hide_on_checked=True
+        )
+        self.allow_score_cbx.addItem(
+            "Yes", True, is_checked=config["opt"]["graded_cfi"]
+        )
+        self.allow_score_cbx.addItem(
+            "No", False, is_checked=not config["opt"]["graded_cfi"]
+        )
         self.form_layout.addRow("Total", self.total_qle)
         self.form_layout.addRow("From ", self.start_qle)
         self.form_layout.addRow("Count", self.cnt_qle)
+        self.form_layout.addRow("Graded", self.allow_score_cbx)
         self.layout.addLayout(self.form_layout)
         self.submit_btn = get_button(self, "Create", self.accept)
         self.layout.addWidget(self.submit_btn)
@@ -420,7 +438,7 @@ class CFIDialog(QDialog):
         self.submit_btn.setText(msg)
         self.submit_btn.setEnabled(res)
 
-    def get_values(self) -> tuple[int, int]:
+    def get_values(self) -> tuple[int, int, bool]:
         """Returns start index and count"""
         if start := self.start_qle.text():
             start = int(start)
@@ -432,7 +450,9 @@ class CFIDialog(QDialog):
         else:
             cnt = 0
 
-        return start, cnt
+        is_score_allowed = self.allow_score_cbx.currentDataList()[0]
+
+        return start, cnt, is_score_allowed
 
     def create_qle(self, text: str = "") -> QLineEdit:
         qle = QLineEdit()
@@ -852,3 +872,55 @@ class StopWatchSetter(QDialog):
         label.setContentsMargins(5, 0, 5, 0)
         self.form.addRow(label, field)
         return field
+
+
+class FocusableLabel(QLabel):
+    selectionChanged = pyqtSignal(str)
+
+    def __init__(
+        self,
+        text: Optional[str] = None,
+        parent: QWidget = None,
+        global_kbsc_toggle=lambda: None,
+    ):
+        self._is_editing = False
+        self.global_kbsc_toggle = global_kbsc_toggle
+        self._prev_sel = ""
+        self._sel_timer: Optional[QTimer] = None
+        super().__init__(text, parent)
+        self.setTextInteractionFlags(
+            Qt.TextSelectableByKeyboard | Qt.TextSelectableByMouse
+        )
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if self._is_editing:
+            event.accept()  # suppress global shortcuts
+            if event.key() == Qt.Key_Escape:
+                self.clearFocus()
+                self._is_editing = False
+                return
+        super().keyPressEvent(event)
+
+    def focusInEvent(self, event: QKeyEvent):
+        self.setFocusPolicy(Qt.StrongFocus)
+        self._is_editing = True
+        self.global_kbsc_toggle(False)
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event: QKeyEvent):
+        self.setFocusPolicy(Qt.NoFocus)
+        self._is_editing = False
+        self.global_kbsc_toggle(True)
+        super().focusOutEvent(event)
+
+    def keyReleaseEvent(self, event: QEvent):
+        if self._sel_timer:
+            self._sel_timer.stop()
+        self._sel_timer = QTimer.singleShot(300, self._check_selection)
+        super().keyReleaseEvent(event)
+
+    def _check_selection(self):
+        sel = self.selectedText()
+        if sel != self._prev_sel:
+            self._prev_sel = sel
+            self.selectionChanged.emit(sel)

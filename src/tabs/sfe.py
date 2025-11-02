@@ -64,7 +64,7 @@ class SfeTab(BaseTab):
         self.mw.switch_tab(self.id)
         self.view.setFocus()
         self.tab.focus_in()
-        if self.model.fh.fd.active and not self.model.fh.query:
+        if self.model.fh.fd.is_parent_of(self.mw.active_file) and not self.model.fh.query:
             self.scroll(db_conn.get_oid_by_index(self.mw.current_index))
 
     def build(self):
@@ -106,7 +106,7 @@ class SfeTab(BaseTab):
                 db_conn.files[self.model.fh.filepath]
             ),
         )
-        self.set_iln_button()
+        self.update_iln_button()
         self.duo_btn = get_button(
             self.tab,
             text="Duo+",
@@ -233,18 +233,15 @@ class SfeTab(BaseTab):
                 self.__on_delete_if_active_file(idxs)
 
     def __on_delete_if_active_file(self, idxs: list[int]):
-        if self.model.fh.fd.active:
+        if self.model.fh.fd.should_propagate_to(self.mw.active_file):
             self.mw.sfe_apply_delete(oids=idxs)
-        elif self.mw.active_file.tmp:
-            # Changes to the child won't be reflected on the parent
-            try:
-                if self.mw.active_file.parent["filepath"] == self.model.fh.fd.filepath:
-                    self.mw.active_file.parent["len_"] -= sum(
-                        1 for i in idxs if i <= self.mw.active_file.parent["len_"]
-                    )
-            except Exception as e:
-                log.error(e, stack_info=True)
-                pass
+            if self.model.fh.fd.is_parent_of(self.mw.active_file):
+                self.mw.active_file.parent["del"] += sum(
+                    1 for i in idxs if i >= self.mw.active_file.parent["from"]
+                )
+                self.mw.active_file.parent["from"] -= sum(
+                    1 for i in idxs if i <= self.mw.active_file.parent["from"]
+                )
 
     @singular
     def on_add(self):
@@ -253,7 +250,7 @@ class SfeTab(BaseTab):
             self.model.add_row(dlg.values)
             self.scroll(self.model.fh.total_visible_rows - 1)
             self.update_iln_button()
-            if self.model.fh.fd.active:
+            if self.model.fh.fd.should_propagate_to(self.mw.active_file):
                 self.mw.sfe_apply_add(row=dlg.values)
 
     def edit_row(self):
@@ -281,7 +278,7 @@ class SfeTab(BaseTab):
     def on_model_modified(self, mod: int):
         self.save_btn.setDisabled(self.model.fh.is_saved)
         self.update_search_placeholder()
-        if self.model.fh.fd.active:
+        if self.model.fh.fd.should_propagate_to(self.mw.active_file):
             if mod == SfeMods.UPDATE:
 
                 def update_active_file():
@@ -324,26 +321,20 @@ class SfeTab(BaseTab):
         self.model.load(fd)
         self._refresh_search_qle()
         self.update_search_placeholder()
-        self.set_iln_button()
-        if self.model.fh.fd.active:
+        self.update_iln_button()
+        if fd.active:
             self.scroll(db_conn.get_oid_by_index(self.mw.current_index))
         else:
-            self.view.selectRow(0)
-            self.view.setFocus()
+            self.scroll(len(self.model.fh.src_data)-1)
+        self.view.setFocus()
         QTimer.singleShot(10, lambda: self._set_disable_src_chg(False))
 
-    def set_iln_button(self):
-        self.iln_btn.setEnabled(self.model.fh.is_iln)
-        self.iln_btn.setVisible(self.model.fh.is_iln)
-        self.update_iln_button()
-
     def update_iln_button(self):
-        if self.model.fh.is_iln:
-            self.iln_btn.setText(f"+{self.model.fh.iln}")
+        self.iln_btn.setText(f"+{self.model.fh.iln}")
 
     def check_update_iln(self):
         self.model.fh.is_iln = self.model.fh.filepath in config["ILN"].keys()
-        self.set_iln_button()
+        self.update_iln_button()
 
     def on_reload(self):
         self.model.reload()

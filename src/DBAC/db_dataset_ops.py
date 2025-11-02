@@ -1,6 +1,7 @@
 import re
 import random
 import logging
+from collections import defaultdict
 from typing import Optional
 import pandas as pd
 import openpyxl
@@ -12,6 +13,7 @@ from uuid import uuid4
 from utils import translate, nat_sort_key
 from int import fcc_queue, LogLvl
 from logtools import audit_log
+from data_types import adlt
 from cfg import config
 
 log = logging.getLogger("DBA")
@@ -36,6 +38,15 @@ class FileDescriptor:
 
     def __eq__(self, __value: object) -> bool:
         return self.filepath == __value.filepath
+
+    def is_parent_of(self, fd: "FileDescriptor") -> bool:
+        try:
+            return self.filepath == fd.parent["filepath"]
+        except (AttributeError, TypeError, KeyError):
+            return False
+
+    def should_propagate_to(self, fd: "FileDescriptor") -> bool:
+        return self == fd or self.is_parent_of(fd)
 
 
 class DbDatasetOps:
@@ -87,7 +98,7 @@ class DbDatasetOps:
             fcc_queue.put_notification(
                 f"Invalid data - dataset is empty", lvl=LogLvl.err
             )
-        elif fd.data.shape[1] != 2:
+        elif fd.data.shape[1] - int("__oid" in fd.data.columns) != 2:
             fd.valid = False
             fcc_queue.put_notification(
                 f"Invalid data - expected 2 columns but got {fd.data.shape[1]}",
@@ -102,7 +113,7 @@ class DbDatasetOps:
 
     def gen_signature(self, fd: FileDescriptor) -> str:
         """Create a globally unique identifier. Uses a custom pattern if available."""
-        if isinstance(fd.parent, dict):
+        if fd.parent:
             filepath = fd.parent["filepath"]
         else:
             filepath = fd.filepath
@@ -133,7 +144,7 @@ class DbDatasetOps:
                 fp,
                 index=False,
                 encoding="utf-8",
-                columns=self.active_file.headers,
+                columns=self.active_file.headers[:2],
                 header=True,
             )
             fcc_queue.put_notification(
@@ -296,7 +307,7 @@ class DbDatasetOps:
         kind: str,
         basename: str,
         lng: str,
-        parent: dict,
+        parent: Optional[dict] = None,
         signature=None,
     ):
         # ensure signature is unique
@@ -314,9 +325,11 @@ class DbDatasetOps:
             tmp=True,
             parent=parent,
         )
-        log.debug(f"Mocked a temporary file: {fd.basename}")
+        if "__oid" not in fd.data.columns:
+            fd.data["__oid"] = fd.data.index
+        fd.data.reset_index(drop=True, inplace=True)
         self.active_file = fd
-        self.active_file.data["__oid"] = list(range(len(self.active_file.data)))
+        log.debug(f"Mocked a temporary file: {fd.basename}")
 
     def shuffle_dataset(self, fd: FileDescriptor, seed=None):
         if seed:
@@ -332,7 +345,7 @@ class DbDatasetOps:
         dataset = pd.read_csv(
             file_path,
             encoding="utf-8",
-            dtype=str,
+            dtype=defaultdict(lambda: str, __oid="int"),
             sep=(
                 self.get_dialect(file_path)
                 if translate(str(config["csv_sniffer"]))
@@ -430,27 +443,30 @@ class DbDatasetOps:
             reverse=False,
         )
 
-    def delete_card(self, i: int, sync_oid: bool = True):
-        _val = self.active_file.data.iloc[i].to_list()[:len(self.active_file.headers)]
+    def delete_card(self, i: int):
+        _val = self.active_file.data.iloc[i].to_list()[: len(self.active_file.headers)]
         self.active_file.data.drop(i, inplace=True, axis=0)
         self.active_file.data.reset_index(inplace=True, drop=True)
-        if sync_oid:
-            oid = self.active_file.data.at[i, "__oid"]
-            self.active_file.data.loc[self.active_file.data["__oid"] >= oid, "__oid"] -= 1
         audit_log(
-            op="DELETE",
+            op=adlt.op.rem,
             data=_val,
             filepath=self.active_file.filepath,
-            author="FCS",
+            author=adlt.author.fcs,
             row=i,
-            status="ACTIVE_ONLY",
+            status=adlt.stat.active_only,
         )
+
+    def sync_sfe(self, oids: list[int]) -> None:
+        for oid in sorted(oids, reverse=True):
+            self.active_file.data.loc[
+                self.active_file.data["__oid"] >= oid, "__oid"
+            ] -= 1
 
     def get_index_by_oid(self, oid: int) -> int:
         return self.active_file.data[self.active_file.data["__oid"] == oid].index[0]
 
     def get_oid_by_index(self, idx: int) -> int:
-        return self.active_file.data.loc[idx, "__oid"]
+        return self.active_file.data.at[idx, "__oid"]
 
     def match_from_all_languages(
         self, repat: re.Pattern, exclude_dirs: re.Pattern = re.compile(r".^")

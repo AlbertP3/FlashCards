@@ -5,7 +5,7 @@ from time import time, perf_counter
 from csv import DictWriter
 from int import fcc_queue, LogLvl
 from logtools import audit_log
-from data_types import StatChartDataRaw, C
+from data_types import StatChartDataRaw, C, adlt
 
 log = logging.getLogger("DBA")
 
@@ -88,10 +88,10 @@ class DBQueries:
             f"Recorded {self.active_file.signature}", lvl=LogLvl.important
         )
         audit_log(
-            op="ADD",
+            op=adlt.op.add,
             data=record,
             filepath=self.DB_PATH,
-            author="DBQ",
+            author=adlt.author.dbq,
             row=len(self.__db) - 1,
         )
 
@@ -107,10 +107,10 @@ class DBQueries:
         self.db = self.__db.copy(deep=True)
         self.__set_last_update()
         audit_log(
-            op="RENAME",
+            op=adlt.op.rename,
             data=[old, new],
             filepath=self.DB_PATH,
-            author="DBQ",
+            author=adlt.author.dbq,
             row=":",
         )
 

@@ -7,7 +7,7 @@ from DBAC import FileDescriptor
 from cfg import config
 from int import fcc_queue, LogLvl, sbus
 from logtools import audit_log
-from data_types import SfeMods
+from data_types import SfeMods, adlt
 
 log = logging.getLogger("SFE")
 
@@ -26,14 +26,14 @@ class FileHandler(QObject):
         self.is_iln = bool(config["ILN"].get(self.fd.filepath, False))
 
     def audit_log(self, op, data, row, col):
-        status = "SAVED" if config["sfe"]["autosave"] else "STAGED"
+        status = adlt.stat.saved if config["sfe"]["autosave"] else adlt.stat.staged
         audit_log(
             op=op,
             data=data,
             row=row,
             col=col,
             filepath=self.fd.filepath,
-            author="SFE",
+            author=adlt.author.sfe,
             status=status,
             stacklevel=3,
         )
@@ -55,7 +55,7 @@ class FileHandler(QObject):
         if self.is_iln:
             return self.total_src_rows - config["ILN"][self.fd.filepath]
         else:
-            return 0
+            return self.total_src_rows
 
     @property
     def total_columns(self) -> int:
@@ -86,12 +86,12 @@ class FileHandler(QObject):
     @mod_tracker(mod=SfeMods.UPDATE)
     def update_cell(self, row: int, col: int, value: str) -> None:
         self.src_data.iat[row, col] = value
-        self.audit_log("UPDATE", [value], row, col)
+        self.audit_log(adlt.op.upd, [value], row, col)
 
     @mod_tracker(mod=SfeMods.UPDATE)
     def reverse_row(self, idx: int):
         self.src_data.iloc[idx] = self.src_data.iloc[idx][::-1].values
-        self.audit_log("REVERSE", self.src_data.iloc[idx].to_list(), idx, ":")
+        self.audit_log(adlt.op.rev, self.src_data.iloc[idx].to_list(), idx, ":")
 
     @mod_tracker(mod=SfeMods.MOVE)
     def move_row(self, idx: int, offset: int):
@@ -99,9 +99,9 @@ class FileHandler(QObject):
         r1 = self.src_data.iloc[idx + offset].copy()
         self.src_data.iloc[idx] = r1
         self.src_data.iloc[idx + offset] = r0
-        self.audit_log("MOVE", self.src_data.iloc[idx].to_list(), idx, col=":")
+        self.audit_log(adlt.op.mv, self.src_data.iloc[idx].to_list(), idx, col=":")
         self.audit_log(
-            "MOVE", self.src_data.iloc[idx + offset].to_list(), idx + offset, col=":"
+            adlt.op.mv, self.src_data.iloc[idx + offset].to_list(), idx + offset, col=":"
         )
 
     @mod_tracker(mod=SfeMods.CREATE)
@@ -109,7 +109,7 @@ class FileHandler(QObject):
         idx = len(self.src_data)
         self.src_data.loc[idx] = value
         self.refresh_view()
-        self.audit_log("ADD", value, idx, ":")
+        self.audit_log(adlt.op.add, value, idx, ":")
 
     @mod_tracker(mod=SfeMods.DELETE)
     def delete_rows(self, rows: list[int]) -> None:
@@ -125,7 +125,7 @@ class FileHandler(QObject):
         except KeyError:
             pass
         for idx, row in sel_rows.iterrows():
-            self.audit_log("DELETE", row.to_list(), idx, ":")
+            self.audit_log(adlt.op.rem, row.to_list(), idx, ":")
 
     def is_duplicate_precheck(self, card: dict) -> bool:
         return (self.src_data[list(card)] == pd.Series(card)).all(1).any()
@@ -246,10 +246,15 @@ class VoidFileHandler(FileHandler):
         super().__init__(fd)
 
     def load_data(self) -> None:
-        return
+        self.headers = ["N/A", "N/A"]
+        self.src_data = pd.DataFrame([["", ""]], columns=self.headers)
+        self.data_view = self.src_data
 
     def save(self) -> None:
         return
+
+    def lookup(self, query: str, col: int) -> str:
+        return ""
 
 
 def get_filehandler(fd: FileDescriptor) -> FileHandler:

@@ -25,7 +25,8 @@ from cfg import config
 from DBAC import db_conn, FileDescriptor
 from tabs.base import BaseTab
 from typing import TYPE_CHECKING
-from logtools import audit_log_rename
+from data_types import adlt
+from logtools import audit_log_rename, audit_log
 
 if TYPE_CHECKING:
     from gui import MainWindowGUI
@@ -209,7 +210,14 @@ class LoadTab(BaseTab):
         dialog = ConfirmDeleteFileDialog(fd, self.mw)
         if dialog.exec_() == QDialog.Accepted:
             os.remove(fd.filepath)
-            log.info(f"Removed file: {fd.filepath}")
+            audit_log(
+                op=adlt.op.rem_f,
+                filepath=fd.filepath,
+                author=adlt.author.fcs,
+                row=":",
+                col=":",
+                status=adlt.stat.saved,
+            )
             self.mw.update_files_lists()
             if self.mw.active_file.filepath == fd.filepath:
                 self.mw.efc._load_next_efc()
@@ -224,28 +232,23 @@ class LoadTab(BaseTab):
         cnt = db_conn.get_lines_count(fd) - start
         dialog = CFIDialog(self.files_qlist, start, cnt)
         if dialog.exec_():
-            start, cnt = dialog.get_values()
-            self._cfi(fd, start, cnt)
+            start, cnt,  is_score_allowed= dialog.get_values()
+            self._cfi(fd, start, cnt, is_score_allowed)
 
-    def _cfi(self, fd: FileDescriptor, start: int, cnt: int):
+    def _cfi(self, fd: FileDescriptor, start: int, cnt: int, is_score_allowed: bool):
         """Loads a temporary language set"""
         data = db_conn.get_data(fd)
         if cnt == 0:
-            len_parent = data.shape[0]
             data = data.iloc[start:, :]
         elif cnt < 0:
             if start >= 0:
-                len_parent = start
                 data = data.iloc[start + cnt : start, :]
             else:
-                len_parent = data.shape[0] + start
                 data = data.iloc[start + cnt : start, :]
         else:
             if start >= 0:
-                len_parent = start + cnt
                 data = data.iloc[start : start + cnt, :]
             else:
-                len_parent = data.shape[0] + start + cnt
                 data = data.iloc[start : start + cnt, :]
 
         len_child = data.shape[0]
@@ -264,12 +267,12 @@ class LoadTab(BaseTab):
             kind=db_conn.KINDS.lng,
             parent={
                 "filepath": fd.filepath,
-                "len_": len_parent,
+                "from": data.index[0],
+                "del": 0,
             },
         )
-        db_conn.shuffle_dataset(self.mw.active_file)
         self.mw.switch_tab("main")
-        self.mw.update_backend_parameters(is_score_allowed=config["opt"]["graded_cfi"])
+        self.mw.update_backend_parameters(is_score_allowed=is_score_allowed)
         self.mw.update_interface_parameters()
         self.mw.reset_timer()
 
