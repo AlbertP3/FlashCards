@@ -299,7 +299,7 @@ class FCC:
             self.mw.active_file,
             seed=config["pd_random_seed"],
         )
-        self.mw.display_text(self.mw.get_current_card()[self.mw.side])
+        self.mw.display_card(self.mw.get_current_card())
 
     def emo(self, parsed_cmd: list):
         """EFC Model Optimizer"""
@@ -495,7 +495,7 @@ class FCC:
         """Debug"""
         if len(parsed_cmd) > 1:
             text = " ".join(parsed_cmd[1:])
-            self.mw.display_text(text)
+            self.mw.display_card(pd.Series([text, text]))
 
     def dmp(self, parsed_cmd: list[str]):
         """Dump Session Data"""

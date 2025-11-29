@@ -879,7 +879,6 @@ class FocusableLabel(QLabel):
 
     def __init__(
         self,
-        text: Optional[str] = None,
         parent: QWidget = None,
         global_kbsc_toggle=lambda: None,
     ):
@@ -887,7 +886,7 @@ class FocusableLabel(QLabel):
         self.global_kbsc_toggle = global_kbsc_toggle
         self._prev_sel = ""
         self._sel_timer: Optional[QTimer] = None
-        super().__init__(text, parent)
+        super().__init__(parent)
         self.setTextInteractionFlags(
             Qt.TextSelectableByKeyboard | Qt.TextSelectableByMouse
         )

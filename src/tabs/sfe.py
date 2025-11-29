@@ -332,7 +332,7 @@ class SfeTab(BaseTab):
     def update_iln_button(self):
         self.iln_btn.setText(f"+{self.model.fh.iln}")
 
-    def check_update_iln(self):
+    def update_iln(self):
         self.model.fh.is_iln = self.model.fh.filepath in config["ILN"].keys()
         self.update_iln_button()
 

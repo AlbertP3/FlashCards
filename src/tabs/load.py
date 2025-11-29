@@ -68,7 +68,7 @@ class LoadTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
-        if not self.mw.efc.cache_valid:
+        if not (self.mw.efc.cache_valid or self.mw.efc._calc_in_progress):
             with self.mw.loading_ctx("load.load_files_data_with_efc"):
                 self.mw.efc.calc_recommendations()
                 self.is_view_outdated = True

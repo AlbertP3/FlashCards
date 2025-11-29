@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import subprocess
 import traceback
 import sys
@@ -8,7 +9,6 @@ from time import monotonic, perf_counter
 from contextlib import contextmanager
 from PyQt5.QtWidgets import (
     QApplication,
-    QWidget,
     QLabel,
     QMainWindow,
     QTabWidget,
@@ -19,17 +19,13 @@ from PyQt5.QtWidgets import (
     QDesktopWidget,
     QShortcut,
     QProgressDialog,
-    QGraphicsBlurEffect,
 )
 from PyQt5.QtGui import (
     QWindow,
     QIcon,
     QKeySequence,
-    QFont,
     QResizeEvent,
     QMoveEvent,
-    QCursor,
-    QMouseEvent,
 )
 from PyQt5.QtCore import (
     Qt,
@@ -43,7 +39,9 @@ import tabs
 from utils import format_seconds_to, Caliper
 from int import fcc_queue, LogLvl, sbus, sched, Task
 from DBAC import FileDescriptor, db_conn
-from widgets import NotificationPopup, get_button, FocusableLabel
+from widgets import NotificationPopup, get_button
+import cdisp
+from data_types import CardDisplayTypes
 from cfg import config
 
 log = logging.getLogger("GUI")
@@ -58,9 +56,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.__last_ldpi_change = 0
         self.__last_focus_out_timer_state = False
         self.__kbsc: set[QShortcut] = set()
+        self.tb_vp = (1, 1)
+        self.tb_nl = 0
         self.tab_map = {}
         self.q_app = QApplication(["FlashCards"])
-        QWidget.__init__(self)
+        QMainWindow.__init__(self)
         sys.excepthook = self.excepthook
 
     def configure_scaling(self):
@@ -175,11 +175,14 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.next_button.setText(
             config["icons"]["next" if self.is_back_mode else "new"]
         )
+        if isinstance(self.textbox, cdisp.CardDisplayDual):
+            self.side = self.cards_seen_sides[self.current_index]
         if self.is_synopsis:
-            self.display_text(self.synopsis or config["synopsis"])
+            synopsis = pd.Series([self.synopsis or config["synopsis"], "-"])
+            self.display_card(synopsis)
         else:
-            self.apply_blur()
-            self.display_text(self.get_current_card().iloc[self.side])
+            self.textbox.apply_blur()
+            self.display_card(self.get_current_card())
         if not self.active_file.tmp:
             self.file_monitor_add_path(self.active_file.filepath)
         ts = config.cache["snapshot"]["session"]["timestamp"]
@@ -246,7 +249,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.tabs.setCurrentIndex(self.tab_map[id]["index"])
         self.active_tab_id = id
 
-        if id == self.id and not self.is_blurred:
+        if id == self.id and not self.textbox.is_blurred:
             self.resume_timer()
             self.resume_pace_timer()
         elif self.TIMER_RUNNING_FLAG:
@@ -481,21 +484,9 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def update_default_side(self):
         self._update_default_side()
 
-    def apply_blur(self):
-        blur = QGraphicsBlurEffect()
-        blur.setBlurRadius(35)
-        self.textbox.setGraphicsEffect(blur)
-        self.is_blurred = True
-        self.textbox.setDisabled(True)
-
-    def remove_blur(self):
-        self.textbox.setGraphicsEffect(None)
-        self.is_blurred = False
-        self.textbox.setEnabled(True)
-
     def toggle_pause(self):
-        if self.is_blurred:
-            self.remove_blur()
+        if self.textbox.is_blurred:
+            self.textbox.remove_blur()
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
                 self.start_pace_timer()
@@ -505,35 +496,59 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         elif not self.is_synopsis:
             self.stop_timer()
             self.stop_pace_timer()
-            self.apply_blur()
+            self.textbox.apply_blur()
 
     def create_textbox(self):
-        if config["experimental"].get("focusable_qlabel"):
-            self.textbox = FocusableLabel(
-                parent=self,
-                global_kbsc_toggle=self.set_kbsc_enabled,
+        if config["cdisp"] == CardDisplayTypes.simple:
+            self.textbox = cdisp.CardDisplaySimple(parent=self)
+        elif config["cdisp"] == CardDisplayTypes.key:
+            self.textbox = cdisp.CardDisplayKey(parent=self)
+            self.textbox.set_global_kbsc_toggle(self.set_kbsc_enabled)
+            self.textbox.set_SelectionChanged(self.__lookup)
+            self.add_ks(
+                config["kbsc"]["sel_txt"], self.textbox.set_focus, self.textbox.widget
             )
-            self.textbox.selectionChanged.connect(self.__lookup)
-        else:
-            self.textbox = QLabel(self)
-            self.textbox.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.textbox.setFont(config.qfont_textbox)
-        self.textbox.setWordWrap(True)
-        self.textbox.setAlignment(Qt.AlignCenter)
-        self.textbox.setCursor(Qt.IBeamCursor)
-        self.__attach_textbox_ctx()
+        elif config["cdisp"] == CardDisplayTypes.dual:
+            self.textbox = cdisp.CardDisplayDual(parent=self)
         self.tb_cal = Caliper(config.qfont_textbox)
-        self.textbox.showEvent = self.__textbox_show_event
-        return self.textbox
+        self.__populate_textbox_ctx(self.textbox.attach_ctx())
+        self.textbox.set_MouseReleaseEvent(self.__lookup)
+        self.textbox.set_ShowEvent(self._set_textbox_chr_space)
+        return self.textbox.widget
 
-    def display_text(self, text: str):
+    def _set_textbox_chr_space(self, event=None):
+        # Workaround for a known issue of invalid geo reports
+        # for QLabels with word-wrap and no fixed width
+        w = config["geo"][0] * 0.98
+        h = config["geo"][1] - 3.1 * self.next_button.height()
+        if isinstance(self.textbox, cdisp.CardDisplayDual):
+            h /= 2
+        self.tb_nl = h // self.tb_cal.ls
+        self.tb_vp = (w, h)
+
+    def __populate_textbox_ctx(self, ctx: QMenu) -> None:
+        ctx.setFont(config.qfont_button)
+        copy_action = QAction("Copy", ctx)
+        copy_action.triggered.connect(self.__text_box_copy_to_clipboard)
+        ctx.addAction(copy_action)
+
+    def display_card(self, card: pd.Series):
+        card, chg = self.__display_card_hide_tips(card)
+        font_size = self.__display_card_gen_font_size(card)
+        self.textbox.set_font(config["theme"]["font"], font_size)
+        self.textbox.set_card(card, self.side, new=self.words_back == 0)
+        self.__display_card_ctl_hint_btn(chg)
+
+    def __display_card_hide_tips(self, card: pd.Series) -> tuple[pd.Series, int]:
         if self.allow_hide_tips and self.should_hide_tips():
-            text, chg = self.tips_hide_re.subn("", text)
+            card.iloc[self.side], chg1 = self.tips_hide_re.subn("", card.iloc[self.side])
+            card.iloc[1-self.side], chg2 = self.tips_hide_re.subn("", card.iloc[1-self.side])
         else:
-            chg = 0
+            chg1, chg2 = 0, 0
+        return card, chg1 or chg2
 
-        # Ensure text fits the textbox
-        nl = self.tb_cal.strwidth(text) // self.tb_vp[0] + 1
+    def __display_card_gen_font_size(self, card: pd.Series) -> int:
+        nl = self.tb_cal.strwidth(card.iloc[self.side]) // self.tb_vp[0] + 1
         if nl > self.tb_nl:
             font_size = max(
                 int(config["theme"]["font_textbox_size"] * self.tb_nl / nl),
@@ -541,50 +556,22 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             )
         else:
             font_size = config["theme"]["font_textbox_size"]
+        return font_size
 
-        self.textbox.setFont(QFont(config["theme"]["font"], font_size))
-        self.textbox.setText(text)
-
+    def __display_card_ctl_hint_btn(self, chg: int):
         if chg:
             self.hint_qbutton.show()
         else:
             self.hint_qbutton.hide()
 
-    def __textbox_show_event(self, event):
-        QLabel.showEvent(self.textbox, event)
-        self._set_textbox_chr_space()
-
-    def _set_textbox_chr_space(self, event=None):
-        # Workaround for a known issue of invalid geo reports
-        # for QLabels with word-wrap and no fixed width
-        w = config["geo"][0] * 0.98
-        h = config["geo"][1] - 3.1 * self.next_button.height()
-        self.tb_nl = h // self.tb_cal.ls
-        self.tb_vp = (w, h)
-
-    def __attach_textbox_ctx(self):
-        self.textbox_ctx = QMenu(self.textbox)
-        self.textbox_ctx.setFont(config.qfont_button)
-        self.textbox.setContextMenuPolicy(Qt.CustomContextMenu)
-        copy_action = QAction("Copy", self.textbox)
-        copy_action.triggered.connect(self.__text_box_copy_to_clipboard)
-        self.textbox_ctx.addAction(copy_action)
-        self.textbox.mouseReleaseEvent = self.__lookup
-        self.textbox.customContextMenuRequested.connect(self.textbox_ctx_menu_open)
-
     def __text_box_copy_to_clipboard(self):
-        sel = self.textbox.selectedText()
-        QApplication.clipboard().setText(sel or self.textbox.text())
+        sel = self.textbox.get_selected_text()
+        QApplication.clipboard().setText(sel or self.textbox.get_text())
 
-    def textbox_ctx_menu_open(self, position):
-        self.textbox_ctx.exec_(QCursor.pos())
-
-    def __lookup(self, event):
-        if isinstance(event, QMouseEvent):
-            QLabel.mouseReleaseEvent(self.textbox, event)
-        sel = self.textbox.selectedText()
+    def __lookup(self):
+        sel = self.textbox.get_selected_text()
         if sel:
-            msg = self.sfe.lookup(query=sel, col=self.side)
+            msg = self.sfe.lookup(query=sel, col=self.textbox.get_sel_side())
             fcc_queue.put_notification(
                 msg, lvl=LogLvl.important, func=lambda: self.__lookup_open(sel)
             )
@@ -603,7 +590,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
     def show_hint(self):
         if not self.is_synopsis:
             self.allow_hide_tips = not self.allow_hide_tips
-            self.display_text(self.get_current_card().iloc[self.side])
+            card = self.get_current_card()
+            card, chg = self.__display_card_hide_tips(card)
+            font_size = self.__display_card_gen_font_size(card)
+            self.textbox.set_font(config["theme"]["font"], font_size)
+            self.textbox.upd_card(card, self.side)
+            self.__display_card_ctl_hint_btn(chg)
 
     def click_save_button(self):
         if not self.active_file.valid:
@@ -661,10 +653,10 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                 if self.total_words == 0:
                     self.cancel_fcs()
                     fcc_queue.put_notification("Canceled")
-                    self.display_text("-")
+                    self.display_card(pd.Series(["-", "-"]))
                     return
                 else:
-                    self.display_text(self.get_current_card().iloc[self.side])
+                    self.display_card(self.get_current_card())
         else:
             fcc_queue.put_notification(
                 f"Cannot remove cards from a {db_conn.KFN[self.active_file.kind]}",
@@ -673,11 +665,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def reverse_side(self):
         if not self.is_synopsis:
-            if self.is_blurred:
-                self.remove_blur()
+            if self.textbox.is_blurred:
+                self.textbox.remove_blur()
             else:
                 self._reverse_side()
-                self.display_text(self.get_current_card().iloc[self.side])
+                self.textbox.chg_side(self.side)
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
                 self.start_pace_timer()
@@ -718,11 +710,11 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.setWindowTitle(self.get_title())
         self.change_revmode(self.is_score_allowed)
         self.next_button.setText(config["icons"]["new"])
-        self.display_text(self.get_current_card().iloc[self.side])
+        self.display_card(self.get_current_card())
         self.update_words_button()
         self.update_score_button()
         self.reset_timer(clear_indicator=True)
-        self.apply_blur()
+        self.textbox.apply_blur()
         self.reset_pace_timer()
         self.stop_pace_timer()
 
@@ -731,8 +723,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.current_index += 1
             self.is_synopsis = False
         if self.current_index >= 1:
-            if self.is_blurred:
-                self.remove_blur()
+            if self.textbox.is_blurred:
+                self.textbox.remove_blur()
             else:
                 self.goto_prev_card()
             if not self.is_back_mode:
@@ -741,7 +733,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
                     self.change_revmode(False)
                 self.is_back_mode = True
             self.allow_hide_tips = True
-            self.display_text(self.get_current_card().iloc[self.side])
+            self.display_card(self.get_current_card())
             self.update_words_button()
             if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
                 self.start_timer()
@@ -762,8 +754,8 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.update_score_button()
 
     def click_next_button(self):
-        if self.is_blurred:
-            self.remove_blur()
+        if self.textbox.is_blurred:
+            self.textbox.remove_blur()
             self.__next_ctl_timers()
         elif self.total_words - self.current_index - 1 > 0:
             self.goto_next_card()
@@ -777,7 +769,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def __next_display(self):
         self.allow_hide_tips = True
-        self.display_text(self.get_current_card().iloc[self.side])
+        self.display_card(self.get_current_card())
 
     def __next_ctl_timers(self):
         if not self.TIMER_RUNNING_FLAG and not self.is_recorded:
@@ -803,17 +795,18 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         self.handle_graded_complete()
         if config["opt"]["auto_next"] and self.active_tab_id == self.id:
             self.handle_final_actions()
-            if self.is_blurred:
+            if self.textbox.is_blurred:
                 self.click_next_button()
 
     def __next_final_actions(self):
-        if self.is_blurred:
-            self.remove_blur()
+        if self.textbox.is_blurred:
+            self.textbox.remove_blur()
         if self.is_synopsis:
             self.handle_final_actions()
         else:
             self.is_synopsis = True
-            self.display_text(self.synopsis or config["synopsis"])
+            synopsis = pd.Series([self.synopsis or config["synopsis"], "-"])
+            self.display_card(synopsis)
             self.stop_timer()
             self.stop_pace_timer()
 
@@ -864,12 +857,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             self.handle_creating_revision(seconds_spent=self.seconds_spent)
 
     def click_negative(self):
-        if not self.is_blurred:
+        if not self.textbox.is_blurred:
             self.result_negative()
         self.click_next_button()
 
     def click_positive(self):
-        if not self.is_blurred:
+        if not self.textbox.is_blurred:
             self.result_positive()
         self.click_next_button()
 
@@ -882,7 +875,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             else:
                 self.synopsis = config["synopsis"]
             self.is_synopsis = True
-            self.display_text(self.synopsis)
+            self.display_card(pd.Series([self.synopsis, "-"]))
 
         self.record_revision_to_db(seconds_spent=self.seconds_spent)
 
@@ -915,7 +908,6 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         )
         self.add_ks(config["kbsc"]["next_efc"], self.efc.load_next_efc, self.main_tab)
         self.add_ks(config["kbsc"]["mcr"], self.modify_card_result, self.main_tab)
-        self.add_ks(config["kbsc"]["sel_txt"], self.textbox.setFocus, self.textbox)
 
     def add_ks(self, key: str, func, tab):
         # TODO warn if attempting to create a duplicate bind
@@ -989,7 +981,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         if path == self.active_file.filepath and not self.active_file.tmp:
             db_conn.afops(self.active_file, seed=config["pd_random_seed"])
             if not self.is_synopsis:
-                self.display_text(self.get_current_card().iloc[self.side])
+                self.display_card(self.get_current_card())
             fcc_queue.put_notification("Active dataset refreshed", lvl=LogLvl.info)
         if path == config["sfe"]["last_file"]:
             self.sfe.on_file_monitor_update()
@@ -1184,7 +1176,7 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     # endregion
 
-    def eventFilter(self, source, event):
+    def eventFilter(self, source, event: QEvent):
         if isinstance(source, QWindow):
             if event.type() == QEvent.FocusOut:
                 self.__last_focus_out_timer_state = self.TIMER_RUNNING_FLAG

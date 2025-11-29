@@ -109,7 +109,7 @@ class CLI:
         if old_card == self.mod_card:
             return "Aborted - no changes to commit"
         self.mw.active_file.data.iloc[ci, :2] = self.mod_card
-        self.mw.display_text(self.mw.active_file.data.iloc[ci, self.mw.side])
+        self.mw.display_card(self.mw.active_file.data.iloc[ci])
         path = self.mw.active_file.filepath
         msg = "Modified current card"
         if not self.mw.active_file.tmp:

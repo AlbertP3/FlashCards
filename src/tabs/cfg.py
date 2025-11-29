@@ -115,6 +115,9 @@ class CfgTab(BaseTab):
         self.mistakes_part_cnt_qle = self.cfg_qle(
             config["mst"]["part_cnt"], text="Mistakes parts count"
         )
+        self.mistakes_min_size_qle = self.cfg_qle(
+            config["mst"]["min_size"], text="Mistakes min size (EFC)"
+        )
         self.mst_rev_int_qle = self.cfg_qle(
             config["mst"]["interval_days"],
             text="Days between reviews",
@@ -457,6 +460,7 @@ class CfgTab(BaseTab):
         new_cfg["mst"]["opt"] = self.mst_opts_cbx.currentDataDict()
         new_cfg["mst"]["part_size"] = int(self.mistakes_part_size_qle.text())
         new_cfg["mst"]["part_cnt"] = int(self.mistakes_part_cnt_qle.text())
+        new_cfg["mst"]["min_size"] = int(self.mistakes_min_size_qle.text())
         new_cfg["mst"]["interval_days"] = int(self.mst_rev_int_qle.text())
         new_cfg["theme"]["name"] = self.theme_cbx.currentDataList()[0]
         new_cfg["final_actions"] = self.final_actions_cbx.currentDataDict()
@@ -582,7 +586,7 @@ class CfgTab(BaseTab):
             config.update(modified_config)
             self.config_manual_update()
             self.apply_deferred_fns()
-            self.mw.display_text(self.mw.get_current_card().iloc[self.mw.side])
+            self.mw.display_card(self.mw.get_current_card())
         else:
             fcc_queue.put_notification(
                 f"Invalid configuration provided!",
@@ -680,26 +684,27 @@ class CfgTab(BaseTab):
     def __validate(self, cfg: dict) -> tuple[bool, set]:
         errs = set()
         int_gt_0 = {
-            "interval_days": cfg["mst"]["interval_days"],
-            "part_size": cfg["mst"]["part_size"],
-            "part_cnt": cfg["mst"]["part_cnt"],
+            "mst.interval_days": cfg["mst"]["interval_days"],
+            "mst.part_size": cfg["mst"]["part_size"],
+            "mst.part_cnt": cfg["mst"]["part_cnt"],
             "efc.threshold": cfg["efc"]["threshold"],
             "efc.cache_expiry_hours": cfg["efc"]["cache_expiry_hours"],
             "cache_history_size": cfg["cache_history_size"],
-            "timeout_ms": cfg["popups"]["timeout_ms"],
-            "font_textbox_size": cfg["theme"]["font_textbox_size"],
-            "font_textbox_min_size": cfg["theme"]["font_textbox_min_size"],
-            "console_font_size": cfg["theme"]["console_font_size"],
-            "font_button_size": cfg["theme"]["font_button_size"],
-            "prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],
+            "popups.timeout_ms": cfg["popups"]["timeout_ms"],
+            "theme.font_textbox_size": cfg["theme"]["font_textbox_size"],
+            "theme.font_textbox_min_size": cfg["theme"]["font_textbox_min_size"],
+            "theme.console_font_size": cfg["theme"]["console_font_size"],
+            "theme.font_button_size": cfg["theme"]["font_button_size"],
+            "duo.prelim_avg": cfg["tracker"]["duo"]["prelim_avg"],
         }
         numeric_gt_0 = {}
         int_gte_0 = {
             "init_revs_cnt": cfg["init_revs_cnt"],
             "min_eph_cards": cfg["min_eph_cards"],
-            "spacing": cfg["theme"]["spacing"],
-            "show_animation_ms": cfg["popups"]["show_animation_ms"],
-            "hide_animation_ms": cfg["popups"]["hide_animation_ms"],
+            "theme.spacing": cfg["theme"]["spacing"],
+            "popups.show_animation_ms": cfg["popups"]["show_animation_ms"],
+            "popups.hide_animation_ms": cfg["popups"]["hide_animation_ms"],
+            "mst.min_size": cfg["mst"]["min_size"],
         }
         numeric_gte_0 = {
             "init_revs_inth": cfg["init_revs_inth"],
@@ -709,7 +714,7 @@ class CfgTab(BaseTab):
             "pace_card_interval": cfg["pace_card_interval"],
         }
         numeric_gt0_lte_1 = {
-            "unreviewed_mistakes_percent": cfg["popups"]["triggers"][
+            "popups.triggers.unreviewed_mistakes_percent": cfg["popups"]["triggers"][
                 "unreviewed_mistakes_percent"
             ],
         }

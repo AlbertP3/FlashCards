@@ -5,7 +5,7 @@ import logging
 from enum import Enum
 from collections import namedtuple
 from random import randint
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn import linear_model, svm, ensemble
 import joblib
@@ -221,12 +221,25 @@ class Models:
         x_train_xgb, self.x_test_xgb, y_train_xgb, self.y_test_xgb = train_test_split(
             x.values, y.values, test_size=self.size_test, random_state=self.random_state
         )
-        xgb_model = ensemble.GradientBoostingRegressor(
-            n_estimators=250, learning_rate=0.06, loss="huber"
+        model = ensemble.GradientBoostingRegressor()
+        param_grid = {
+            "n_estimators": [100],
+            "learning_rate": [0.2],
+            "max_depth": [5],
+            "subsample": [1.0],
+            "min_samples_leaf": [3],
+            "loss": ["huber"],
+        }
+        search = GridSearchCV(
+            estimator=model,
+            param_grid=param_grid,
+            scoring="neg_mean_squared_error",
+            cv=5,
+            n_jobs=-1,
         )
-        xgb_model.fit(x_train_xgb, y_train_xgb.ravel())
+        search.fit(x_train_xgb, y_train_xgb.ravel())
         self.y_test_xgb = np.array(self.y_test_xgb).reshape(-1, 1)
-        self.models["XGB"] = xgb_model
+        self.models["XGB"] = search.best_estimator_
 
     def eval_XGB(self):
         predictions = (

@@ -33,10 +33,9 @@ class MainWindowLogic:
         self.summary_gen = SummaryGenerator()
         self.is_synopsis = False
         self.should_hide_tips = lambda: False
-        self.tips_hide_re = re.compile(config["hide_tips"]["pattern"])
+        self.tips_hide_re: re.Pattern = re.compile(config["hide_tips"]["pattern"])
         self.allow_hide_tips = True
         self.mistakes_saved = False
-        self.is_blurred = False
         self.is_graded = False
         self.is_score_allowed = False
         self.is_back_mode = False
@@ -220,7 +219,7 @@ class MainWindowLogic:
         )
         if config["ILN"].get(self.active_file.parent["filepath"], 0) < iln:
             config["ILN"][self.active_file.parent["filepath"]] = iln
-        self.sfe.check_update_iln()
+        self.sfe.update_iln()
 
     def skip_efc_reload_initial(self):
         self.efc._db_load_time_efc = db_conn.last_update
@@ -425,7 +424,7 @@ class MainWindowLogic:
         self.active_file.data.loc[new_idx] = [*row, new_idx]
         self.total_words += 1
         self.update_words_button()
-        self.display_text(self.get_current_card().iloc[self.side])
+        self.display_card(self.get_current_card())
         audit_log(
             op=adlt.op.add,
             data=row,
@@ -436,15 +435,23 @@ class MainWindowLogic:
         )
 
     def sfe_apply_edit(self, oid: int, val: list[str]):
-        idx = db_conn.get_index_by_oid(oid)
+        try:
+            idx = db_conn.get_index_by_oid(oid)
+        except IndexError:
+            # Card not in current set
+            return
+
         if idx <= self.current_index:
             try:
                 mst_idx = self.find_in_mistakes_list(oid)
                 self.mistakes_list[mst_idx] = [*val, oid]
             except IndexError:
                 pass
+
         self.active_file.data.iloc[idx] = [*val, oid]
-        self.display_text(self.get_current_card().iloc[self.side])
+        self.words_back += 1
+        self.display_card(self.get_current_card())
+        self.words_back -= 1
         audit_log(
             op=adlt.op.upd,
             data=val,
@@ -474,7 +481,7 @@ class MainWindowLogic:
 
         db_conn.sync_sfe(oids)
         self.update_words_button()
-        self.display_text(self.get_current_card().iloc[self.side])
+        self.display_card(self.get_current_card())
 
     def find_in_mistakes_list(self, idx: int) -> int:
         for i, v in enumerate(self.mistakes_list):
@@ -511,10 +518,12 @@ class MainWindowLogic:
             "fcc_console_log": _fcc_log,
             "fcc_cmd_log": self.fcc.cmd_log,
             "is_initial_rev": self.is_initial_rev,
-            "is_blurred": self.is_blurred,
+            "is_blurred": self.textbox.is_blurred,
             "is_graded": self.is_graded,
             "is_back_mode": self.is_back_mode,
             "is_score_allowed": self.is_score_allowed,
+            "stopwatch_value": 1000*self.trk.trk.stopwatch_layout.get_seconds_elapsed(),
+            "stopwatch_running": self.trk.trk.stopwatch_layout.is_stopwatch_running()
         }
         config.cache["snapshot"]["session"] = snapshot
         log.debug(f"Created a session snapshot")
@@ -534,7 +543,7 @@ class MainWindowLogic:
         self.positives = metadata["positives"]
         self.negatives = metadata["negatives"]
         self.is_initial_rev = metadata["is_initial_rev"]
-        self.is_blurred = metadata["is_blurred"]
+        self.textbox.is_blurred = metadata["is_blurred"]
         self.is_graded = metadata["is_graded"]
         self.is_back_mode = metadata["is_back_mode"]
         self.is_score_allowed = metadata["is_score_allowed"]
@@ -549,6 +558,9 @@ class MainWindowLogic:
         self.fcc.cmds_cursor = metadata["fcc_cmd_cursor"]
         self.total_words = self.active_file.data.shape[0]
         self.set_should_hide_tips()
+        self.trk.trk.stopwatch_layout.set_timer(metadata["stopwatch_value"])
+        if metadata["stopwatch_running"]:
+            self.trk.trk.stopwatch_layout.toggle_timer()
 
     def modify_card_result(self):
         if self.words_back == 0:

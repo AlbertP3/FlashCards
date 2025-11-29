@@ -1,5 +1,5 @@
 {
-    "version": "1.6.8",
+    "version": "1.6.9",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -17,6 +17,7 @@
         "show_cpm_timer": false,
         "graded_cfi": false
     },
+    "cdisp": "dual",
     "days_to_new_rev": 0,
     "pd_random_seed": 9022,
     "allow_file_monitor": false,
@@ -71,6 +72,7 @@
         "part_size": 25,
         "part_cnt": 4,
         "interval_days": 4,
+        "min_size": 15,
         "unreviewed": 0,
         "opt": {
             "show_mistakes_after_revision": false,
@@ -304,8 +306,5 @@
         },
         "notes": ""
     },
-    "sigenpat": {},
-    "experimental": {
-        "focusable_qlabel": false
-    }
+    "sigenpat": {}
 }

@@ -109,9 +109,11 @@ class StopwatchTab(QWidget):
         new_category = self.category_cbx.currentDataList()[0]
         if self.__cur_category != new_category:
             self.update_completer(new_category)
-    
+
     def update_completer(self, category: str):
-        self.title_completer.setModel(QStringListModel(self.get_current_titles(category)))
+        self.title_completer.setModel(
+            QStringListModel(self.get_current_titles(category))
+        )
         config["tracker"]["default_category"] = category
         self.__cur_category = category
 
@@ -152,6 +154,9 @@ class StopwatchTab(QWidget):
             + dal.stopwatch_elapsed.second()
         )
 
+    def is_stopwatch_running(self) -> bool:
+        return dal.stopwatch_running
+
     def get_cbx(self, value, content: list, multi_choice: bool = True):
         cb = CheckableComboBox(
             self,
@@ -188,7 +193,8 @@ class StopwatchTab(QWidget):
         dlg = StopWatchSetter(parent=self.mw)
         if dlg.exec_() == QDialog.Accepted:
             seconds = dlg.get_seconds()
-            dal.stopwatch_elapsed = dal.stopwatch_elapsed.fromMSecsSinceStartOfDay(
-                1000 * seconds
-            )
-            self.timer_label.setText(dal.stopwatch_elapsed.toString("hh:mm:ss"))
+            self.set_timer(1000*seconds)
+
+    def set_timer(self, ms: int):
+        dal.stopwatch_elapsed = dal.stopwatch_elapsed.fromMSecsSinceStartOfDay(ms)
+        self.timer_label.setText(dal.stopwatch_elapsed.toString("hh:mm:ss"))

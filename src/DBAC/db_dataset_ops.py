@@ -163,18 +163,18 @@ class DbDatasetOps:
         """Dump, partition and rotate dataset to the Mistakes files"""
         name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
         mfd = FileDescriptor(
-            basename=f"{name_fmt}1.csv",
+            basename=f"{name_fmt}0.csv",
             filepath=self.make_filepath(
-                self.active_file.lng, self.MST_DIR, f"{name_fmt}1.csv"
+                self.active_file.lng, self.MST_DIR, f"{name_fmt}0.csv"
             ),
             lng=self.active_file.lng,
             kind=self.KINDS.mst,
             ext=".csv",
         )
         if mfd.filepath in self.files.keys():
-            mst_1 = self.get_data(mfd)
-            mst_new = pd.DataFrame(data=mistakes_list, columns=mst_1.columns)
-            buffer = pd.concat([mst_1, mst_new], ignore_index=True)
+            mst_0 = self.get_data(mfd)
+            mst_new = pd.DataFrame(data=mistakes_list, columns=mst_0.columns)
+            buffer = pd.concat([mst_0, mst_new], ignore_index=True)
         else:  # create a new mistakes file
             buffer = pd.DataFrame(data=mistakes_list, columns=self.active_file.headers)
         self.partition_mistakes_data(buffer)
@@ -187,34 +187,32 @@ class DbDatasetOps:
     def partition_mistakes_data(self, buffer: pd.DataFrame):
         """Partition new mistakes into file(s) with rotation"""
         name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
-        mst_1 = self.make_filepath(
-            self.active_file.lng, self.MST_DIR, f"{name_fmt}1.csv"
+        mst_0_fp = self.make_filepath(
+            self.active_file.lng, self.MST_DIR, f"{name_fmt}0.csv"
         )
         part_size = config["mst"]["part_size"]
         parts = [
             buffer.iloc[i : i + part_size] for i in range(0, len(buffer), part_size)
         ]
         for i, part in enumerate(parts):
-            part.to_csv(mst_1, index=False, mode="w", header=True, encoding="utf-8")
+            part.to_csv(mst_0_fp, index=False, mode="w", header=True, encoding="utf-8")
             if i + 1 < len(parts):
                 self.rotate_mistakes_files()
-
-        log.debug(f"Partitioned Mistakes files for {self.active_file.lng}")
 
     def rotate_mistakes_files(self):
         """Rotates CSV files with a base name and a numbered suffix"""
         name_fmt = self.MST_BASENAME.format(lng=self.active_file.lng)
         max_count = config["mst"]["part_cnt"]
 
-        # Delete the oldest file if it exceeds the max count
+        # Delete the oldest file (max count exceeded)
         oldest_file = self.make_filepath(
-            self.active_file.lng, self.MST_DIR, f"{name_fmt}{max_count}.csv"
+            self.active_file.lng, self.MST_DIR, f"{name_fmt}{max_count-1}.csv"
         )
         if os.path.exists(oldest_file):
             os.remove(oldest_file)
 
         # Shift files
-        for i in range(max_count - 1, 0, -1):
+        for i in range(max_count - 2, -1, -1):
             src = self.make_filepath(
                 self.active_file.lng, self.MST_DIR, f"{name_fmt}{i}.csv"
             )
@@ -225,13 +223,14 @@ class DbDatasetOps:
                 os.rename(src, dest)
 
         # Remove excess files (after config change)
-        i = max_count + 1
+        i = max_count
         while True:
             excess_file = self.make_filepath(
                 self.active_file.lng, self.MST_DIR, f"{name_fmt}{i}.csv"
             )
             if os.path.exists(excess_file):
                 os.remove(excess_file)
+                log.debug(f"Removed an obsolete Mistakes file: {excess_file}")
                 i += 1
             else:
                 break
@@ -298,7 +297,7 @@ class DbDatasetOps:
         elif fd.tmp:
             cnt = fd.data.shape[0]
         else:
-            raise FileExistsError(f"Unsupported file format: {fd.ext}")
+            raise ValueError(f"Unsupported file format: {fd.ext}")
         return cnt
 
     def activate_tmp_file(

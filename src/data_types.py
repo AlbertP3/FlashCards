@@ -114,6 +114,12 @@ sfe_hint_formats = {
 }
 
 
+class CardDisplayTypes(NamedTuple):
+    simple = "simple"
+    key = "key"
+    dual = "dual"
+
+
 class _ADL_O(NamedTuple):
     add = "ADD"
     upd = "UPDATE"

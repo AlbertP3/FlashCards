@@ -93,6 +93,7 @@ class EFCTab(BaseTab):
             finished=[
                 lambda: QTimer.singleShot(5, self.show_recommendations),
                 lambda: self.recoms_qlist.setEnabled(True),
+                lambda: self.mw.get_tab(self.mw.active_tab_id).setFocus(),
             ],
             auto_delete=False,
         )
@@ -133,7 +134,7 @@ class EFCTab(BaseTab):
 
     def open(self):
         self.mw.switch_tab(self.id)
-        if not self.cache_valid:
+        if not (self.cache_valid or self._calc_in_progress):
             with self.mw.loading_ctx("efc.calc_recommendations"):
                 self.calc_recommendations()
         if self.is_view_outdated:
@@ -297,25 +298,20 @@ class EFCTab(BaseTab):
         db_conn.refresh()
         if config["mst"]["interval_days"] > 0:
             cur = datetime.now()
-            for lng in config["languages"]:
-                fmt = db_conn.MST_BASENAME.format(lng=lng)
-                for part in range(1, config["mst"]["part_cnt"] + 1):
-                    try:
-                        sig = f"{fmt}{part}"
-                        fp = db_conn.make_filepath(lng, db_conn.MST_DIR, f"{sig}.csv")
-                        db_conn.files[fp]
-                        lmt = db_conn.get_last_datetime(sig)
-                        if (cur - lmt).days >= config["mst"]["interval_days"]:
-                            recoms.append(
-                                EfcRecom(
-                                    filepath=fp,
-                                    display_name=f"{config['icons']['mistakes']} {sig}",
-                                    pred_score=0,
-                                    is_initial=False,
-                                )
-                            )
-                    except KeyError:
-                        log.warning(f"Mistakes file {fp} is missing")
+            for fd in [
+                fd for fd in db_conn.files.values() if fd.kind == db_conn.KINDS.mst
+            ]:
+                lmt = db_conn.get_last_datetime(fd.signature)
+                odt = (cur - lmt).days >= config["mst"]["interval_days"]
+                if odt and db_conn.get_lines_count(fd) >= config["mst"]["min_size"]:
+                    recoms.append(
+                        EfcRecom(
+                            filepath=fd.filepath,
+                            display_name=f"{config['icons']['mistakes']} {fd.signature}",
+                            pred_score=0,
+                            is_initial=False,
+                        )
+                    )
         if config["days_to_new_rev"] > 0:
             recoms.extend(self.get_new_recoms())
         for rev in sorted(self.get_efc_data(), key=lambda x: x.pred_score):
