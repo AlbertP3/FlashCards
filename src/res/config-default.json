@@ -1,5 +1,5 @@
 {
-    "version": "1.6.9",
+    "version": "1.6.10",
     "log_level": "DEBUG",
     "card_default_side": "0",
     "onload_filepath": null,
@@ -153,7 +153,7 @@
         "tracker": "t",
         "mcr": "p",
         "config": "q",
-        "fcc": "c",
+        "fcc": "1",
         "efc": "e",
         "next_efc": "n",
         "load": "l",
@@ -163,11 +163,13 @@
         "sod": "",
         "hint": "h",
         "last_seen": "g",
-        "logs": "1",
+        "logs": "2",
         "sfe": "f",
         "sfe_search": "/",
         "sfe_add": "v",
-        "sfe_save": "w"
+        "sfe_save": "w",
+        "sfe_lookup": "b",
+        "copy": "c"
     },
     "theme": {
         "name": "gvbx",

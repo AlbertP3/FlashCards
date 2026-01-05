@@ -510,6 +510,16 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
             )
         elif config["cdisp"] == CardDisplayTypes.dual:
             self.textbox = cdisp.CardDisplayDual(parent=self)
+        self.add_ks(
+            config["kbsc"]["copy"],
+            self.__copy_card_to_clipboard,
+            self.main_tab,
+        )
+        self.add_ks(
+            config["kbsc"]["sfe_lookup"],
+            self.__lookup_card,
+            self.main_tab,
+        )
         self.tb_cal = Caliper(config.qfont_textbox)
         self.__populate_textbox_ctx(self.textbox.attach_ctx())
         self.textbox.set_MouseReleaseEvent(self.__lookup)
@@ -541,8 +551,12 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
 
     def __display_card_hide_tips(self, card: pd.Series) -> tuple[pd.Series, int]:
         if self.allow_hide_tips and self.should_hide_tips():
-            card.iloc[self.side], chg1 = self.tips_hide_re.subn("", card.iloc[self.side])
-            card.iloc[1-self.side], chg2 = self.tips_hide_re.subn("", card.iloc[1-self.side])
+            card.iloc[self.side], chg1 = self.tips_hide_re.subn(
+                "", card.iloc[self.side]
+            )
+            card.iloc[1 - self.side], chg2 = self.tips_hide_re.subn(
+                "", card.iloc[1 - self.side]
+            )
         else:
             chg1, chg2 = 0, 0
         return card, chg1 or chg2
@@ -568,8 +582,21 @@ class MainWindowGUI(QMainWindow, MainWindowLogic):
         sel = self.textbox.get_selected_text()
         QApplication.clipboard().setText(sel or self.textbox.get_text())
 
+    def __copy_card_to_clipboard(self):
+        sel = self.textbox.get_text()
+        QApplication.clipboard().setText(sel)
+        fcc_queue.put_notification(f"Copied '{sel}'")
+
     def __lookup(self):
         sel = self.textbox.get_selected_text()
+        if sel:
+            msg = self.sfe.lookup(query=sel, col=self.textbox.get_sel_side())
+            fcc_queue.put_notification(
+                msg, lvl=LogLvl.important, func=lambda: self.__lookup_open(sel)
+            )
+
+    def __lookup_card(self):
+        sel, _ = self.tips_hide_re.subn("", self.textbox.get_text())
         if sel:
             msg = self.sfe.lookup(query=sel, col=self.textbox.get_sel_side())
             fcc_queue.put_notification(

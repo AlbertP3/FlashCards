@@ -1,8 +1,8 @@
-# FlashCards 1.6.9
+# FlashCards 1.6.10
 
 ![Flashcards Main Window](src/res/imgs/ss_main.png)
 
-- [FlashCards 1.6.9](#flashcards-169)
+- [FlashCards 1.6.10](#flashcards-1610)
   - [Main Goal](#main-goal)
   - [About](#about)
   - [Load Window](#load-window)

@@ -258,6 +258,7 @@ class CardDisplayDual(CardDisplayBase):
         self.is_blurred = False
         self._def_side = 0
         self._font_point_size = 0
+        self._focused_i = 0
         self._card = pd.Series(["-", "-"])
         self._widget = QWidget(parent)
         layout = QVBoxLayout(self.widget)
@@ -318,8 +319,10 @@ class CardDisplayDual(CardDisplayBase):
         eff = self.get_blur() if new else None
         if i == 0:
             self._back_label.setGraphicsEffect(eff)
+            self._focused_i = 0
         else:
             self._front_label.setGraphicsEffect(eff)
+            self._focused_i = 1
 
     def upd_card(self, card: pd.Series, i: int) -> None:
         self._card = card
@@ -330,9 +333,11 @@ class CardDisplayDual(CardDisplayBase):
         if i == 0:
             self._front_label.setGraphicsEffect(None)
             self._front_label.setFocus()
+            self._focused_i = 0
         else:
             self._back_label.setGraphicsEffect(None)
             self._back_label.setFocus()
+            self._focused_i = 1
 
     def set_font(self, family: str, point_size: int) -> None:
         if point_size != self._font_point_size:
@@ -346,21 +351,18 @@ class CardDisplayDual(CardDisplayBase):
     def set_enabled(self, b: bool) -> None:
         self._front_label.setEnabled(b)
         self._back_label.setEnabled(b)
-    
+
     def get_sel_side(self) -> int:
-        if self._front_label.hasFocus():
+        if self._focused_i == 0 or self._front_label.hasFocus():
             return 0
         else:
             return 1
 
     def get_selected_text(self) -> str:
-        if self._front_label.hasFocus():
-            return self._front_label.selectedText()
-        else:
-            return self._back_label.selectedText()
+        return self._front_label.selectedText() or self._back_label.selectedText()
 
     def get_text(self) -> str:
-        if self._front_label.hasFocus():
+        if self._focused_i == 0 or self._front_label.hasFocus():
             return self._front_label.text()
         else:
             return self._back_label.text()
